@@ -87,7 +87,7 @@ char playtones_desc[] =
 /*
  * ADD INDICATION command stuff
  */
-static int handle_add_indication(int fd, int argc, char *argv[])
+static int handle_add_indication(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     int created_country = 0;
@@ -126,7 +126,7 @@ static int handle_add_indication(int fd, int argc, char *argv[])
 /*
  * REMOVE INDICATION command stuff
  */
-static int handle_remove_indication(int fd, int argc, char *argv[])
+static int handle_remove_indication(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     
@@ -159,7 +159,7 @@ static int handle_remove_indication(int fd, int argc, char *argv[])
 /*
  * SHOW INDICATIONS command stuff
  */
-static int handle_show_indications(int fd, int argc, char *argv[])
+static int handle_show_indications(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     char buf[256];
@@ -171,10 +171,10 @@ static int handle_show_indications(int fd, int argc, char *argv[])
     }
     if (argc == 2) {
         /* no arguments, show a list of countries */
-        cw_cli(fd,"Country Alias   Description\n"
+        cw_dynstr_printf(ds_p,"Country Alias   Description\n"
                "===========================\n");
         for (tz=tone_zones; tz; tz=tz->next) {
-            cw_cli(fd,"%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
+            cw_dynstr_printf(ds_p,"%-7.7s %-7.7s %s\n", tz->country, tz->alias, tz->description);
         }
         cw_mutex_unlock(&tzlock);
         return 0;
@@ -191,7 +191,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
                 if (!found_country)
                 {
                     found_country = 1;
-                    cw_cli(fd,"Country Indication      PlayList\n"
+                    cw_dynstr_printf(ds_p,"Country Indication      PlayList\n"
                            "=====================================\n");
                 }
                 j = snprintf(buf,sizeof(buf),"%-7.7s %-15.15s ",tz->country,"<ringcadence>");
@@ -202,15 +202,15 @@ static int handle_show_indications(int fd, int argc, char *argv[])
                 if (tz->nrringcadence)
                     j--;
                 cw_copy_string(buf+j,"\n",sizeof(buf)-j);
-                cw_cli(fd,buf);
+                cw_dynstr_printf(ds_p,buf);
                 for (ts = tz->tones;  ts;  ts = ts->next)
-                    cw_cli(fd,"%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
+                    cw_dynstr_printf(ds_p,"%-7.7s %-15.15s %s\n", tz->country, ts->name, ts->data);
                 break;
             }
         }
     }
     if (!found_country)
-        cw_cli(fd,"No countries matched your criteria.\n");
+        cw_dynstr_printf(ds_p,"No countries matched your criteria.\n");
     cw_mutex_unlock(&tzlock);
     return -1;
 }

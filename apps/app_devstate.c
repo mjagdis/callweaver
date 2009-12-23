@@ -41,7 +41,7 @@ static const char devstate_cli_usage[] =
 "Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n";
 
-static int devstate_cli(int fd, int argc, char *argv[]);
+static int devstate_cli(struct cw_dynstr **ds_p, int argc, char *argv[]);
 static struct cw_clicmd  cli_dev_state = {
 	.cmda = { "devstate", NULL },
 	.handler = devstate_cli,
@@ -50,16 +50,15 @@ static struct cw_clicmd  cli_dev_state = {
 };
 
 
-static int devstate_cli(int fd, int argc, char *argv[])
+static int devstate_cli(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if ((argc != 3) && (argc != 4) && (argc != 5))
         return RESULT_SHOWUSAGE;
 
     if (cw_db_put("DEVSTATES", argv[1], argv[2]))
-    {
-        cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
-    }
-	cw_device_state_changed("DS/%s", argv[1]);
+        cw_dynstr_printf(ds_p, "cw_db_put failed\n");
+
+    cw_device_state_changed("DS/%s", argv[1]);
     
     return RESULT_SUCCESS;
 }
@@ -128,32 +127,27 @@ static char mandescr_devstate[] =
 "	Key: ...\n"
 "	Value: ...\n";
 
-static int action_devstate(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_devstate(struct mansession *sess, const struct message *req)
 {
-        char *devstate = astman_get_header(m, "Devstate");
-        char *value = astman_get_header(m, "Value");
-	char *id = astman_get_header(m,"ActionID");
+	struct cw_manager_message *msg;
+        char *devstate = cw_manager_msg_header(req, "Devstate");
+        char *value = cw_manager_msg_header(req, "Value");
 
-	if (!strlen(devstate)) {
-		astman_send_error(s, m, "No Devstate specified");
-		return 0;
-	}
-	if (!strlen(value)) {
-		astman_send_error(s, m, "No Value specified");
-		return 0;
-	}
+	if (!cw_strlen_zero(devstate)) {
+		if (!cw_strlen_zero(value)) {
+			if (!cw_db_put("DEVSTATES", devstate, value)) {
+				cw_device_state_changed("DS/%s", devstate);
+				msg = cw_manager_response("Success", NULL);
+			} else {
+				cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
+				msg = cw_manager_response("Error", "cw_db_put failed");
+			}
+		} else
+			msg = cw_manager_response("Error", "No Value specified");
+	} else
+		msg = cw_manager_response("Error", "No Devstate specified");
 
-        if (!cw_db_put("DEVSTATES", devstate, value)) {
-	    cw_device_state_changed("DS/%s", devstate);
-	    cw_cli(s->fd, "Response: Success\r\n");
-	} else {
-	    cw_log(CW_LOG_DEBUG, "cw_db_put failed\n");
-	    cw_cli(s->fd, "Response: Failed\r\n");
-	}
-	if (id && !cw_strlen_zero(id))
-		cw_cli(s->fd, "ActionID: %s\r\n",id);
-	cw_cli(s->fd, "\r\n");
-	return 0;
+	return msg;
 }
 
 static struct manager_action manager_actions[] = {

@@ -34,16 +34,32 @@ the callweaver-dev mailing list.
 
 Command Syntax
 --------------
-Management communication consists of tags of the form "header: value", 
-terminated with an empty newline (\r\n) in the style of SMTP, HTTP, and
-other headers.
+Management commands consist of a sequence of tags of the form
+"header: value", terminated with an empty newline (\r\n) in the style
+of SMTP, HTTP, and other headers.
 
 
-The first tag MUST be one of the following:
+A command (client to server) MUST include one of the following:
 
-    * Action: An action requested by the CLIENT to the CallWeaver.org SERVER. Only one "Action" may be outstanding at any time.
-    * Response: A response to an action from the CallWeaver.org SERVER to the CLIENT.
-    * Event: An event reported by the CallWeaver.org SERVER to the CLIENT 
+    * Action:   The action requested.
+
+A command (client to server) MAY include one of the following:
+
+    * ActionID: A text string to identify this particular command.
+                It will be included in all the reply messages that are part of
+                the response to this command.
+
+
+A response (server to client) WILL include one of the following:
+
+    * Response: The type of response.
+    * Event:    The type of the event being reported.
+
+A response MAY include one of the following:
+
+    * ActionID: The text string (optionally) provided by the client to identify the
+                particular command that this response or event belongs to.
+
 
 
 Manager commands
@@ -80,7 +96,7 @@ Command: Command
 Parameters: Command
 
 Command: ExtensionState
-Parameters: Exten, Context, ActionID
+Parameters: Exten, Context
 
 Command: Hangup
 Parameters: Channel
@@ -89,10 +105,10 @@ Command: Logoff
 Parameters: None
 
 Command: MailboxCount
-Parameters: Mailbox, ActionID
+Parameters: Mailbox
 
 Command: MailboxStatus
-Parameters: Mailbox, ActionID
+Parameters: Mailbox
 
 Command: Originate
 Parameters: Channel, Exten, Context, Priority, Timeout, 

@@ -611,7 +611,7 @@ struct shutdown_state {
 	int timeout;
 };
 
-static void shutdown_restart(int fd, int doit, int nice, int timeout);
+static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int timeout);
 
 static void *quit_when_idle(void *data)
 {
@@ -659,7 +659,7 @@ static void *quit_when_idle(void *data)
 		cw_log(CW_LOG_NOTICE, "Timeout waiting for idle. Initiating immediate %s\n", (restart ? "restart" : "shutdown"));
 		pthread_detach(pthread_self());
 		state->tid = CW_PTHREADT_NULL;
-		shutdown_restart(-1, 1, 0, -1);
+		shutdown_restart(NULL, 1, 0, -1);
 	} else {
 		cw_log(CW_LOG_NOTICE, "Beginning callweaver %s....\n", restart ? "restart" : "shutdown");
 		quit_handler(NULL);
@@ -669,7 +669,7 @@ static void *quit_when_idle(void *data)
 }
 
 
-static void shutdown_restart(int fd, int doit, int nice, int timeout)
+static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int timeout)
 {
 	static cw_mutex_t lock = CW_MUTEX_INIT_VALUE;
 	static struct shutdown_state state = {
@@ -691,21 +691,21 @@ static void shutdown_restart(int fd, int doit, int nice, int timeout)
 			if (nice < 2) {
 				cw_begin_shutdown((nice ? 0 : 1));
 
-				if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-					cw_cli(fd, "Blocked new calls\n");
+				if (ds_p && !option_console)
+					cw_dynstr_printf(ds_p, "Blocked new calls\n");
 				if (!option_remote)
 					cw_log(CW_LOG_NOTICE, "Blocked new calls\n");
 
 				if (nice < 1) {
-					if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-						cw_cli(fd, "Hanging up active calls\n");
+					if (ds_p && !option_console)
+						cw_dynstr_printf(ds_p, "Hanging up active calls\n");
 					if (!option_remote)
 						cw_log(CW_LOG_NOTICE, "Hanging up active calls\n");
 				}
 			}
 
-			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-				cw_cli(fd, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
+			if (ds_p && !option_console)
+				cw_dynstr_printf(ds_p, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 			if (!option_remote)
 				cw_log(CW_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 
@@ -713,19 +713,19 @@ static void shutdown_restart(int fd, int doit, int nice, int timeout)
 			state.timeout = (nice ? (timeout >= 0 ? timeout : -1 ) : 15);
 			cw_pthread_create(&state.tid, &global_attr_default, quit_when_idle, &state);
 		} else {
-			if (fd >= 0 && !option_console && fd != STDOUT_FILENO)
-				cw_cli(fd, "%s cancelled\n", (restart ? "restart" : "shutdown"));
+			if (ds_p && !option_console)
+				cw_dynstr_printf(ds_p, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 			if (!option_remote)
 				cw_log(CW_LOG_NOTICE, "%s cancelled\n", (restart ? "restart" : "shutdown"));
 		}
 	} else {
 		if (!pthread_equal(state.tid, CW_PTHREADT_NULL)) {
 			if (state.timeout == -1)
-				cw_cli(fd, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_dynstr_printf(ds_p, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
 			else
-				cw_cli(fd, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_dynstr_printf(ds_p, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
 		} else
-			cw_cli(fd, "No shutdown or restart pending\n");
+			cw_dynstr_printf(ds_p, "No shutdown or restart pending\n");
 	}
 
 	cw_mutex_unlock(&lock);
@@ -787,16 +787,16 @@ static const char abort_halt_help[] =
 "       call operations.\n";
 
 
-static int handle_shutdown_now(int fd, int argc, char *argv[])
+static int handle_shutdown_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	restart = 0;
-	shutdown_restart(fd, 1, 0 /* Not nice */, -1);
+	shutdown_restart(ds_p, 1, 0 /* Not nice */, -1);
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
+static int handle_shutdown_gracefully(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -807,11 +807,11 @@ static int handle_shutdown_gracefully(int fd, int argc, char *argv[])
 		timeout = atoi(argv[2]);
 
 	restart = 0;
-	shutdown_restart(fd, 1, 1 /* nicely */, timeout);
+	shutdown_restart(ds_p, 1, 1 /* nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
+static int handle_shutdown_when_convenient(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -822,20 +822,20 @@ static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
 		timeout = atoi(argv[3]);
 
 	restart = 0;
-	shutdown_restart(fd, 1, 2 /* really nicely */, timeout);
+	shutdown_restart(ds_p, 1, 2 /* really nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_now(int fd, int argc, char *argv[])
+static int handle_restart_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	restart = 1;
-	shutdown_restart(fd, 1, 0 /* not nicely */, -1);
+	shutdown_restart(ds_p, 1, 0 /* not nicely */, -1);
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_gracefully(int fd, int argc, char *argv[])
+static int handle_restart_gracefully(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -846,11 +846,11 @@ static int handle_restart_gracefully(int fd, int argc, char *argv[])
 		timeout = atoi(argv[2]);
 
 	restart = 1;
-	shutdown_restart(fd, 1, 1 /* nicely */, timeout);
+	shutdown_restart(ds_p, 1, 1 /* nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_when_convenient(int fd, int argc, char *argv[])
+static int handle_restart_when_convenient(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -861,28 +861,28 @@ static int handle_restart_when_convenient(int fd, int argc, char *argv[])
 		timeout = atoi(argv[3]);
 
 	restart = 1;
-	shutdown_restart(fd, 1, 2 /* really nicely */, timeout);
+	shutdown_restart(ds_p, 1, 2 /* really nicely */, timeout);
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_cancel(int fd, int argc, char *argv[])
+static int handle_shutdown_restart_cancel(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	cw_cancel_shutdown();
-	shutdown_restart(fd, 0, 0, -1);
+	shutdown_restart(ds_p, 0, 0, -1);
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_status(int fd, int argc, char *argv[])
+static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	shutdown_restart(fd, -1, 0, 0);
+	shutdown_restart(ds_p, -1, 0, 0);
 	return RESULT_SUCCESS;
 }
 
-static int handle_bang(int fd, int argc, char *argv[])
+static int handle_bang(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	return RESULT_SUCCESS;
 }
@@ -1618,7 +1618,7 @@ int callweaver_main(int argc, char *argv[])
 				break;
 			case SIGTERM:
 			case SIGINT:
-				shutdown_restart(-1, 1, 0, -1);
+				shutdown_restart(NULL, 1, 0, -1);
 				break;
 		}
 	}

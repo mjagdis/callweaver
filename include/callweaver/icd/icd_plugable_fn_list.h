@@ -40,6 +40,7 @@
 #ifndef ICD_PLUGABLE_FN_LIST_H
 #define ICD_PLUGABLE_FN_LIST_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 #ifdef __cplusplus
@@ -79,7 +80,7 @@ extern "C" {
     icd_status icd_plugable_fn_remove_all_plugable_fns(icd_plugable_fn_list * that);
 
 /* Prints the contents of the metalist to the given file descriptor. */
-    icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, int fd);
+    icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, struct cw_dynstr **ds_p);
 
 /* Getter and Setters */
     int icd_plugable_fn_list_count(icd_plugable_fn_list * that);

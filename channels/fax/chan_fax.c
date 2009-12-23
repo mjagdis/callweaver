@@ -1053,14 +1053,14 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
  */
 
 /*! Show the status of all configured fax modems */
-static int chan_fax_status(int fd, int argc, char *argv[]) 
+static int chan_fax_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int x;
 
 	cw_mutex_lock(&control_lock);
 
 	for (x = 0; x < cfg_modems; x++)
-		cw_cli(fd, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
+		cw_dynstr_printf(ds_p, "SLOT %d %s [%s]\n", x, FAXMODEM_POOL[x].devlink, faxmodem_state[FAXMODEM_POOL[x].state]);
 
 	cw_mutex_unlock(&control_lock);
 
@@ -1069,12 +1069,12 @@ static int chan_fax_status(int fd, int argc, char *argv[])
 
 
 /*! Show or set the verbosity level */
-static int chan_fax_vblevel(int fd, int argc, char *argv[]) 
+static int chan_fax_vblevel(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc > 2)
 		cfg_vblevel = atoi(argv[2]);
 
-	cw_cli(fd, "vblevel = %d\n", cfg_vblevel);
+	cw_dynstr_printf(ds_p, "vblevel = %d\n", cfg_vblevel);
 
 	return 0;
 }

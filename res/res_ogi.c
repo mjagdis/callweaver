@@ -1296,21 +1296,21 @@ static const char no_debug_usage[] =
 "Usage: ogi no debug\n"
 "       Disables dumping of OGI transactions for debugging purposes\n";
 
-static int ogi_do_debug(int fd, int argc, char *argv[])
+static int ogi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	ogidebug = 1;
-	cw_cli(fd, "OGI Debugging Enabled\n");
+	cw_dynstr_printf(ds_p, "OGI Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int ogi_no_debug(int fd, int argc, char *argv[])
+static int ogi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ogidebug = 0;
-	cw_cli(fd, "OGI Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "OGI Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -1652,7 +1652,7 @@ static void join(char *s, size_t len, char *w[])
 	}
 }
 
-static int help_workhorse(int fd, char *match[])
+static int help_workhorse(struct cw_dynstr **ds_p, char *match[])
 {
 	char fullcmd[80];
 	char matchstr[80];
@@ -1673,7 +1673,7 @@ static int help_workhorse(int fd, char *match[])
 				continue;
 			}
 		}
-		cw_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
+		cw_dynstr_printf(ds_p, "%20.20s   %s\n", fullcmd, e->summary);
 	}
 	return 0;
 }
@@ -1920,7 +1920,7 @@ static int run_ogi(struct cw_channel *chan, char *request, OGI *ogi, int pid, in
 	return returnstatus;
 }
 
-static int handle_showogi(int fd, int argc, char *argv[]) {
+static int handle_showogi(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	struct ogi_command *e;
 	char fullcmd[80];
 	if ((argc < 2))
@@ -1928,22 +1928,22 @@ static int handle_showogi(int fd, int argc, char *argv[]) {
 	if (argc > 2) {
 		e = find_command(argv + 2, 1);
 		if (e) 
-			cw_cli(fd, e->usage);
+			cw_dynstr_printf(ds_p, e->usage);
 		else {
 			if (find_command(argv + 2, -1)) {
-				return help_workhorse(fd, argv + 1);
+				return help_workhorse(ds_p, argv + 1);
 			} else {
 				join(fullcmd, sizeof(fullcmd), argv+1);
-				cw_cli(fd, "No such command '%s'.\n", fullcmd);
+				cw_dynstr_printf(ds_p, "No such command '%s'.\n", fullcmd);
 			}
 		}
 	} else {
-		return help_workhorse(fd, NULL);
+		return help_workhorse(ds_p, NULL);
 	}
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpogihtml(int fd, int argc, char *argv[]) {
+static int handle_dumpogihtml(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	struct ogi_command *e;
 	char fullcmd[80];
 	char *tempstr;
@@ -1954,7 +1954,7 @@ static int handle_dumpogihtml(int fd, int argc, char *argv[]) {
 		return RESULT_SHOWUSAGE;
 
 	if (!(htmlfile = fopen(argv[2], "wt"))) {
-		cw_cli(fd, "Could not create file '%s'\n", argv[2]);
+		cw_dynstr_printf(ds_p, "Could not create file '%s'\n", argv[2]);
 		return RESULT_SHOWUSAGE;
 	}
 
@@ -1995,7 +1995,7 @@ static int handle_dumpogihtml(int fd, int argc, char *argv[]) {
 
 	fprintf(htmlfile, "</TABLE>\n</BODY>\n</HTML>\n");
 	fclose(htmlfile);
-	cw_cli(fd, "OGI HTML Commands Dumped to: %s\n", argv[2]);
+	cw_dynstr_printf(ds_p, "OGI HTML Commands Dumped to: %s\n", argv[2]);
 	return RESULT_SUCCESS;
 }
 

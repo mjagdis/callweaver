@@ -3709,7 +3709,7 @@ static void reload_queues(void)
     cw_mutex_unlock(&qlock);
 }
 
-static int __queues_show(int manager, int fd, int argc, char **argv, int queue_show)
+static int __queues_show(int manager, struct cw_dynstr **ds_p, int argc, char **argv, int queue_show)
 {
     struct cw_call_queue *q;
     struct queue_ent *qe;
@@ -3731,9 +3731,9 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
     {   
         cw_mutex_unlock(&qlock);
         if (queue_show)
-            cw_cli(fd, "No such queue: %s.%s",argv[2], term);
+            cw_dynstr_printf(ds_p, "No such queue: %s.%s",argv[2], term);
         else
-            cw_cli(fd, "No queues.%s", term);
+            cw_dynstr_printf(ds_p, "No queues.%s", term);
         return RESULT_SUCCESS;
     }
     while (q)
@@ -3747,7 +3747,7 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
                 q = q->next;
                 if (!q)
                 {
-                    cw_cli(fd, "No such queue: %s.%s",argv[2], term);
+                    cw_dynstr_printf(ds_p, "No such queue: %s.%s",argv[2], term);
                     break;
                 }
                 continue;
@@ -3763,11 +3763,11 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
         sl = 0;
         if(q->callscompleted > 0)
             sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-        cw_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
+        cw_dynstr_printf(ds_p, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
             q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
         if (q->members)
         {
-            cw_cli(fd, "   Members: %s", term);
+            cw_dynstr_printf(ds_p, "   Members: %s", term);
             for (mem = q->members; mem; mem = mem->next)
             {
                 max_buf[0] = '\0';
@@ -3787,22 +3787,22 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
                 }
                 else
                     cw_build_string(&max, &max_left, " has taken no calls yet");
-                cw_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
+                cw_dynstr_printf(ds_p, "      %s%s%s", mem->interface, max_buf, term);
             }
         }
         else
-            cw_cli(fd, "   No Members%s", term);
+            cw_dynstr_printf(ds_p, "   No Members%s", term);
         if (q->head)
         {
             pos = 1;
-            cw_cli(fd, "   Callers: %s", term);
+            cw_dynstr_printf(ds_p, "   Callers: %s", term);
             for (qe = q->head; qe; qe = qe->next) 
-                cw_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
+                cw_dynstr_printf(ds_p, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
                     (long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
         }
         else
-            cw_cli(fd, "   No Callers%s", term);
-        cw_cli(fd, "%s", term);
+            cw_dynstr_printf(ds_p, "   No Callers%s", term);
+        cw_dynstr_printf(ds_p, "%s", term);
         cw_mutex_unlock(&q->lock);
         q = q->next;
         if (queue_show)
@@ -3812,17 +3812,17 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
     return RESULT_SUCCESS;
 }
 
-static int queues_show(int fd, int argc, char **argv)
+static int queues_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    return __queues_show(0, fd, argc, argv, 0);
+    return __queues_show(0, ds_p, argc, argv, 0);
 }
 
-static int queue_show(int fd, int argc, char **argv)
+static int queue_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    return __queues_show(0, fd, argc, argv, 1);
+    return __queues_show(0, ds_p, argc, argv, 1);
 }
 
-static void complete_queue(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_queue(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
 
@@ -3831,7 +3831,7 @@ static void complete_queue(int fd, char *argv[], int lastarg, int lastarg_len)
     for (q = queues; q; q = q->next)
     {
         if (!strncasecmp(argv[lastarg], q->name, lastarg_len))
-            cw_cli(fd, "%s\n", q->name);
+            cw_dynstr_printf(ds_p, "%s\n", q->name);
     }
 
     cw_mutex_unlock(&qlock);
@@ -3840,132 +3840,130 @@ static void complete_queue(int fd, char *argv[], int lastarg, int lastarg_len)
 /*! \brief callback to display queues status in manager
   \addtogroup Group_AMI
 */
-static int manager_queues_show( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_queues_show(struct mansession *sess, const struct message *req)
 {
-    char *a[] = { "show", "queues" };
-    __queues_show(1, s->fd, 2, a, 0);
-    cw_cli(s->fd, "\r\n\r\n");    /* Properly terminate Manager output */
+	static char *a[] = { "show", "queues" };
+	struct cw_manager_message *msg;
 
-    return RESULT_SUCCESS;
+	if ((msg = cw_manager_response("Follows", NULL))) {
+		__queues_show(1, &msg->data, 2, a, 0);
+		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+	}
+
+	return msg;
 } 
 
 /* Dump queue status */
-static int manager_queues_status( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_queues_status(struct mansession *sess, const struct message *req)
 {
     time_t now;
-    int pos;
-    char *id = astman_get_header(m,"ActionID");
-    char *queuefilter = astman_get_header(m,"Queue");
-    char *memberfilter = astman_get_header(m,"Member");
-    char idText[256] = "";
+    struct cw_manager_message *msg;
+    char *queuefilter = cw_manager_msg_header(req," Queue");
+    char *memberfilter = cw_manager_msg_header(req, "Member");
     struct cw_call_queue *q;
     struct queue_ent *qe;
-    float sl = 0;
     struct member *mem;
+    float sl = 0;
+    int pos;
+    int err;
 
-    astman_send_ack(s, m, "Queue status will follow");
-    time(&now);
-    cw_mutex_lock(&qlock);
-    if (!cw_strlen_zero(id))
-    {
-        snprintf(idText,256,"ActionID: %s\r\n",id);
-    }
-    for (q = queues; q; q = q->next)
-    {
-        cw_mutex_lock(&q->lock);
+    if ((msg = cw_manager_response("Success", "Queue status will follow")) && !cw_manager_send(sess, req, &msg)) {
+	err = 0;
 
-        /* List queue properties */
-        if (cw_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter))
+        cw_mutex_lock(&qlock);
+
+        time(&now);
+
+        for (q = queues; !err && q; q = q->next)
         {
-            if(q->callscompleted > 0)
-                sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-            cw_cli(s->fd, "Event: QueueParams\r\n"
-                        "Queue: %s\r\n"
-                        "Max: %d\r\n"
-                        "Calls: %d\r\n"
-                        "Holdtime: %d\r\n"
-                        "Completed: %d\r\n"
-                        "Abandoned: %d\r\n"
-                        "ServiceLevel: %d\r\n"
-                        "ServicelevelPerf: %2.1f\r\n"
-                        "Weight: %d\r\n"
-                        "%s"
-                        "\r\n",
-                            q->name, q->maxlen, q->count, q->holdtime, q->callscompleted,
-                            q->callsabandoned, q->servicelevel, sl, q->weight, idText);
-            /* List Queue Members */
-            for (mem = q->members; mem; mem = mem->next)
+            cw_mutex_lock(&q->lock);
+
+            /* List queue properties */
+            if (cw_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter))
             {
-                if (cw_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter))
+                if(q->callscompleted > 0)
+                    sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
+
+		cw_manager_msg(&msg, 10,
+			cw_msg_tuple("Event",            "%s",    "QueueParams"),
+			cw_msg_tuple("Queue",            "%s",    q->name),
+			cw_msg_tuple("Max",              "%d",    q->maxlen),
+			cw_msg_tuple("Calls",            "%d",    q->count),
+			cw_msg_tuple("Holdtime",         "%d",    q->holdtime),
+			cw_msg_tuple("Completed",        "%d",    q->callscompleted),
+			cw_msg_tuple("Abandoned",        "%d",    q->callsabandoned),
+			cw_msg_tuple("ServiceLevel",     "%d",    q->servicelevel),
+			cw_msg_tuple("ServiceLevelPerf", "%2.1f", sl),
+			cw_msg_tuple("Weight",           "%d",    q->weight)
+		);
+
+		err = cw_manager_send(sess, req, &msg);
+
+                /* List Queue Members */
+                for (mem = q->members; !err && mem; mem = mem->next)
                 {
-                    cw_cli(s->fd, "Event: QueueMember\r\n"
-                        "Queue: %s\r\n"
-                        "Location: %s\r\n"
-                        "Membership: %s\r\n"
-                        "Penalty: %d\r\n"
-                        "CallsTaken: %d\r\n"
-                        "LastCall: %ld\r\n"
-                        "Status: %d\r\n"
-                        "Paused: %d\r\n"
-                        "%s"
-                        "\r\n",
-                            q->name, mem->interface, mem->dynamic ? "dynamic" : "static",
-                            mem->penalty, mem->calls, mem->lastcall, mem->status, mem->paused, idText);
+                    if (cw_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter))
+                    {
+			cw_manager_msg(&msg, 9,
+					cw_msg_tuple("Event",      "%s",  "QueueMember"),
+					cw_msg_tuple("Queue",      "%s",  q->name),
+					cw_msg_tuple("Location",   "%s",  mem->interface),
+					cw_msg_tuple("Membership", "%s",  (mem->dynamic ? "dynamic" : "static")),
+					cw_msg_tuple("Penalty",    "%d",  mem->penalty),
+					cw_msg_tuple("CallsTaken", "%d",  mem->calls),
+					cw_msg_tuple("LastCall",   "%ld", mem->lastcall),
+					cw_msg_tuple("Status",     "%d",  mem->status),
+					cw_msg_tuple("Paused",     "%d",  mem->paused)
+			);
+
+                        err = cw_manager_send(sess, req, &msg);
+                    }
+                }
+
+                /* List Queue Entries */
+                pos = 1;
+                for (qe = q->head; !err && qe; qe = qe->next)
+                {
+		    cw_manager_msg(&msg, 7,
+				    cw_msg_tuple("Event",        "%s",  "QueueEntry"),
+				    cw_msg_tuple("Queue",        "%s",  q->name),
+				    cw_msg_tuple("Position",     "%d",  pos++),
+				    cw_msg_tuple("Channel",      "%s",  qe->chan->name),
+				    cw_msg_tuple("CallerID",     "%s",  (qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown")),
+				    cw_msg_tuple("CallerIDName", "%s",  (qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown")),
+				    cw_msg_tuple("Wait",         "%ld", (long)(now - qe->start))
+		    );
+
+                    err = cw_manager_send(sess, req, &msg);
                 }
             }
-            /* List Queue Entries */
-            pos = 1;
-            for (qe = q->head; qe; qe = qe->next)
-            {
-                cw_cli(s->fd, "Event: QueueEntry\r\n"
-                    "Queue: %s\r\n"
-                    "Position: %d\r\n"
-                    "Channel: %s\r\n"
-                    "CallerID: %s\r\n"
-                    "CallerIDName: %s\r\n"
-                    "Wait: %ld\r\n"
-                    "%s"
-                    "\r\n", 
-                        q->name, pos++, qe->chan->name, 
-                        qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-                        qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-                        (long)(now - qe->start), idText);
-            }
+            cw_mutex_unlock(&q->lock);
         }
-        cw_mutex_unlock(&q->lock);
+        cw_mutex_unlock(&qlock);
+
+	if (!err)
+		cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "QueueStatusComplete"));
     }
-    cw_mutex_unlock(&qlock);
 
-    cw_cli(s->fd,
-        "Event: QueueStatusComplete\r\n"
-        "%s"
-        "\r\n",idText);
-
-
-    return RESULT_SUCCESS;
+    return msg;
 }
 
-static int manager_add_queue_member(struct mansession *s, struct message *m)
+static struct cw_manager_message *manager_add_queue_member(struct mansession *sess, const struct message *req)
 {
+    struct cw_manager_message *msg;
     char *queuename, *interface, *penalty_s, *paused_s;
     int paused, penalty = 0;
 
-    queuename = astman_get_header(m, "Queue");
-    interface = astman_get_header(m, "Interface");
-    penalty_s = astman_get_header(m, "Penalty");
-    paused_s = astman_get_header(m, "Paused");
+    queuename = cw_manager_msg_header(req, "Queue");
+    interface = cw_manager_msg_header(req, "Interface");
+    penalty_s = cw_manager_msg_header(req, "Penalty");
+    paused_s = cw_manager_msg_header(req, "Paused");
 
     if (cw_strlen_zero(queuename))
-    {
-        astman_send_error(s, m, "'Queue' not specified.");
-        return 0;
-    }
+        return cw_manager_response("Error", "'Queue' not specified.");
 
     if (cw_strlen_zero(interface))
-    {
-        astman_send_error(s, m, "'Interface' not specified.");
-        return 0;
-    }
+        return cw_manager_response("Error", "'Interface' not specified.");
 
     if (cw_strlen_zero(penalty_s))
         penalty = 0;
@@ -3979,43 +3977,41 @@ static int manager_add_queue_member(struct mansession *s, struct message *m)
     else
         paused = abs(cw_true(paused_s));
 
+    msg = NULL;
     switch (add_to_queue(queuename, interface, penalty, paused, queue_persistent_members))
     {
     case RES_OKAY:
-        astman_send_ack(s, m, "Added interface to queue");
+        msg = cw_manager_response("Success", "Added interface to queue");
         break;
     case RES_EXISTS:
-        astman_send_error(s, m, "Unable to add interface: Already there");
+        msg = cw_manager_response("Error", "Unable to add interface: Already there");
         break;
     case RES_NOSUCHQUEUE:
-        astman_send_error(s, m, "Unable to add interface to queue: No such queue");
+        msg = cw_manager_response("Error", "Unable to add interface to queue: No such queue");
         break;
     case RES_OUTOFMEMORY:
-        astman_send_error(s, m, "Out of memory");
+        msg = cw_manager_response("Error", "Out of memory");
         break;
     }
-    return 0;
+    return msg;
 }
 
-static int manager_update_queue_member(struct mansession *s, struct message *m)
+static struct cw_manager_message *manager_update_queue_member(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	char *queuename, *interface, *penalty_s, *paused_s;
 	int paused, penalty = 0;
 
-	queuename = astman_get_header(m, "Queue");
-	interface = astman_get_header(m, "Interface");
-	penalty_s = astman_get_header(m, "Penalty");
-	paused_s = astman_get_header(m, "Paused");
+	queuename = cw_manager_msg_header(req, "Queue");
+	interface = cw_manager_msg_header(req, "Interface");
+	penalty_s = cw_manager_msg_header(req, "Penalty");
+	paused_s = cw_manager_msg_header(req, "Paused");
 
-	if (cw_strlen_zero(queuename)) {
-		astman_send_error(s, m, "'Queue' not specified.");
-		return 0;
-	}
+	if (cw_strlen_zero(queuename))
+		return cw_manager_response("Error", "'Queue' not specified.");
 
-	if (cw_strlen_zero(interface)) {
-		astman_send_error(s, m, "'Interface' not specified.");
-		return 0;
-	}
+	if (cw_strlen_zero(interface))
+		return cw_manager_response("Error", "'Interface' not specified.");
 
 	if (cw_strlen_zero(penalty_s))
 		penalty = 0;
@@ -4028,100 +4024,92 @@ static int manager_update_queue_member(struct mansession *s, struct message *m)
 	else
 		paused = abs(cw_true(paused_s));
 
+	msg = NULL;
 	switch (update_queue_member(queuename, interface, penalty, paused, queue_persistent_members)) {
 	case RES_OKAY:
-		astman_send_ack(s, m, "Updated member to queue");
+		msg = cw_manager_response("Success", "Updated member to queue");
 		break;
 	case RES_EXISTS:
-		astman_send_error(s, m, "Unable to update member: Not there");
+		msg = cw_manager_response("Error", "Unable to update member: Not there");
 		break;
 	case RES_NOSUCHQUEUE:
-		astman_send_error(s, m, "Unable to update member on queue: No such queue");
+		msg = cw_manager_response("Error", "Unable to update member on queue: No such queue");
 		break;
 	case RES_OUTOFMEMORY:
-		astman_send_error(s, m, "Out of memory");
+		msg = cw_manager_response("Error", "Out of memory");
 		break;
 	}
-	return 0;
+	return msg;
 }
 
 
-static int manager_remove_queue_member(struct mansession *s, struct message *m)
+static struct cw_manager_message *manager_remove_queue_member(struct mansession *sess, const struct message *req)
 {
     char *queuename, *interface;
+    struct cw_manager_message *msg;
 
-    queuename = astman_get_header(m, "Queue");
-    interface = astman_get_header(m, "Interface");
+    queuename = cw_manager_msg_header(req, "Queue");
+    interface = cw_manager_msg_header(req, "Interface");
 
     if (cw_strlen_zero(queuename) || cw_strlen_zero(interface))
-    {
-        astman_send_error(s, m, "Need 'Queue' and 'Interface' parameters.");
-        return 0;
-    }
+        return cw_manager_response("Error", "Need 'Queue' and 'Interface' parameters.");
 
+    msg = NULL;
     switch (remove_from_queue(queuename, interface, NULL))
     {
     case RES_OKAY:
-        astman_send_ack(s, m, "Removed interface from queue");
+        msg = cw_manager_response("Success", "Removed interface from queue");
         break;
     case RES_EXISTS:
-        astman_send_error(s, m, "Unable to remove interface: Not there");
+        msg = cw_manager_response("Error", "Unable to remove interface: Not there");
         break;
     case RES_NOSUCHQUEUE:
-        astman_send_error(s, m, "Unable to remove interface from queue: No such queue");
+        msg = cw_manager_response("Error", "Unable to remove interface from queue: No such queue");
         break;
     case RES_OUTOFMEMORY:
-        astman_send_error(s, m, "Out of memory");
+        msg = cw_manager_response("Error", "Out of memory");
         break;
     }
-    return 0;
+    return msg;
 }
 
-static int manager_pause_queue_member(struct mansession *s, struct message *m)
+static struct cw_manager_message *manager_pause_queue_member(struct mansession *sess, const struct message *req)
 {
+    struct cw_manager_message *msg = NULL;
     char *queuename, *interface, *paused_s;
     int paused;
 
-    interface = astman_get_header(m, "Interface");
-    paused_s = astman_get_header(m, "Paused");
-    queuename = astman_get_header(m, "Queue");  /* Optional - if not supplied, pause the given Interface in all queues */
+    interface = cw_manager_msg_header(req, "Interface");
+    paused_s = cw_manager_msg_header(req, "Paused");
+    queuename = cw_manager_msg_header(req, "Queue");  /* Optional - if not supplied, pause the given Interface in all queues */
 
-    if (cw_strlen_zero(interface) || cw_strlen_zero(paused_s))
-    {
-        astman_send_error(s, m, "Need 'Interface' and 'Paused' parameters.");
-        return 0;
-    }
+    if (!cw_strlen_zero(interface) && !cw_strlen_zero(paused_s)) {
+        paused = abs(cw_true(paused_s));
 
-    paused = abs(cw_true(paused_s));
+        if (set_member_paused(queuename, interface, paused))
+            msg = cw_manager_response("Error", "Interface not found");
+        else {
+            if (paused)
+                msg = cw_manager_response("Success", "Interface paused successfully");
+            else
+                msg = cw_manager_response("Success", "Interface unpaused successfully");
+        }
+    } else
+        msg = cw_manager_response("Error", "Need 'Interface' and 'Paused' parameters.");
 
-    if (set_member_paused(queuename, interface, paused))
-        astman_send_error(s, m, "Interface not found");
-    else
-        if (paused)
-            astman_send_ack(s, m, "Interface paused successfully");
-        else
-            astman_send_ack(s, m, "Interface unpaused successfully");
-
-    return 0;
+    return msg;
 }
 
-static int handle_add_queue_member(int fd, int argc, char *argv[])
+static int handle_add_queue_member(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *queuename, *interface;
     int penalty;
+    int ret;
 
-    if ((argc != 6) && (argc != 8))
-    {
+    if ((argc != 6 && argc != 8) || strcmp(argv[4], "to") || (argc == 8 && strcmp(argv[6], "penalty")))
         return RESULT_SHOWUSAGE;
-    }
-    else if (strcmp(argv[4], "to"))
-    {
-        return RESULT_SHOWUSAGE;
-    }
-    else if ((argc == 8) && strcmp(argv[6], "penalty"))
-    {
-        return RESULT_SHOWUSAGE;
-    }
+
+    ret = 0;
 
     queuename = argv[5];
     interface = argv[3];
@@ -4131,13 +4119,13 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
         {
             if (penalty < 0)
             {
-                cw_cli(fd, "Penalty must be >= 0\n");
+                cw_dynstr_printf(ds_p, "Penalty must be >= 0\n");
                 penalty = 0;
             }
         }
         else
         {
-            cw_cli(fd, "Penalty must be an integer >= 0\n");
+            cw_dynstr_printf(ds_p, "Penalty must be an integer >= 0\n");
             penalty = 0;
         }
     }
@@ -4149,23 +4137,23 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
     switch (add_to_queue(queuename, interface, penalty, 0, queue_persistent_members))
     {
     case RES_OKAY:
-        cw_cli(fd, "Added interface '%s' to queue '%s'\n", interface, queuename);
+        cw_dynstr_printf(ds_p, "Added interface '%s' to queue '%s'\n", interface, queuename);
         return RESULT_SUCCESS;
     case RES_EXISTS:
-        cw_cli(fd, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
+        cw_dynstr_printf(ds_p, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
         return RESULT_FAILURE;
     case RES_NOSUCHQUEUE:
-        cw_cli(fd, "Unable to add interface to queue '%s': No such queue\n", queuename);
+        cw_dynstr_printf(ds_p, "Unable to add interface to queue '%s': No such queue\n", queuename);
         return RESULT_FAILURE;
     case RES_OUTOFMEMORY:
-        cw_cli(fd, "Out of memory\n");
+        cw_dynstr_printf(ds_p, "Out of memory\n");
         return RESULT_FAILURE;
     default:
         return RESULT_FAILURE;
     }
 }
 
-static void complete_add_queue_member(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_add_queue_member(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     int i;
 
@@ -4177,24 +4165,24 @@ static void complete_add_queue_member(int fd, char *argv[], int lastarg, int las
         break;
     case 4:
         if (!strncmp(argv[4], "to", lastarg_len))
-            cw_cli(fd, "to\n");
+            cw_dynstr_printf(ds_p, "to\n");
         break;
     case 5:
         /* No need to duplicate code */
-        complete_queue(fd, argv, lastarg, lastarg_len);
+        complete_queue(ds_p, argv, lastarg, lastarg_len);
         break;
     case 6:
         if (!strncmp(argv[6], "penalty", lastarg_len))
-            cw_cli(fd, "penalty\n");
+            cw_dynstr_printf(ds_p, "penalty\n");
         break;
     case 7:
         for (i = 0; i < 100; i++)
-            cw_cli(fd, "%d\n", i);
+            cw_dynstr_printf(ds_p, "%d\n", i);
         break;
     }
 }
 
-static int handle_remove_queue_member(int fd, int argc, char *argv[])
+static int handle_remove_queue_member(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *queuename, *interface;
 
@@ -4213,23 +4201,23 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
     switch (remove_from_queue(queuename, interface, NULL))
     {
     case RES_OKAY:
-        cw_cli(fd, "Removed interface '%s' from queue '%s'\n", interface, queuename);
+        cw_dynstr_printf(ds_p, "Removed interface '%s' from queue '%s'\n", interface, queuename);
         return RESULT_SUCCESS;
     case RES_EXISTS:
-        cw_cli(fd, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
+        cw_dynstr_printf(ds_p, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
         return RESULT_FAILURE;
     case RES_NOSUCHQUEUE:
-        cw_cli(fd, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+        cw_dynstr_printf(ds_p, "Unable to remove interface from queue '%s': No such queue\n", queuename);
         return RESULT_FAILURE;
     case RES_OUTOFMEMORY:
-        cw_cli(fd, "Out of memory\n");
+        cw_dynstr_printf(ds_p, "Out of memory\n");
         return RESULT_FAILURE;
     default:
         return RESULT_FAILURE;
     }
 }
 
-static void complete_remove_queue_member(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_remove_queue_member(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
     struct member *m;
@@ -4243,14 +4231,14 @@ static void complete_remove_queue_member(int fd, char *argv[], int lastarg, int 
     if (lastarg == 4)
     {
         if (!strncmp(argv[4], "from", lastarg_len))
-            cw_cli(fd, "from\n");
+            cw_dynstr_printf(ds_p, "from\n");
         return;
     }
 
     if (lastarg == 5)
     {
         /* No need to duplicate code */
-        complete_queue(fd, argv, lastarg, lastarg_len);
+        complete_queue(ds_p, argv, lastarg, lastarg_len);
         return;
     }
 
@@ -4259,7 +4247,7 @@ static void complete_remove_queue_member(int fd, char *argv[], int lastarg, int 
         cw_mutex_lock(&q->lock);
         for (m = q->members; m; m = m->next)
             if (!strncmp(argv[lastarg], m->interface, lastarg_len))
-                cw_cli(fd, "%s\n", m->interface);
+                cw_dynstr_printf(ds_p, "%s\n", m->interface);
         cw_mutex_unlock(&q->lock);
     }
 }

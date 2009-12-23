@@ -1885,44 +1885,50 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int handle_showfeatures(int fd, int argc, char *argv[])
+static int handle_showfeatures(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int i;
 	int fcount;
 	struct cw_call_feature *feature;
-	char format[] = "%-25s %-7s %-7s\n";
+#define FORMAT "%-25s %-7s %-7s\n"
 
-	cw_cli(fd, format, "Builtin Feature", "Default", "Current");
-	cw_cli(fd, format, "---------------", "-------", "-------");
-
-	cw_cli(fd, format, "Pickup", "*8", cw_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
+	cw_dynstr_tprintf(ds_p, 3,
+		cw_fmtval(FORMAT, "Builtin Feature", "Default", "Current"),
+		cw_fmtval(FORMAT, "---------------", "-------", "-------"),
+		cw_fmtval(FORMAT, "Pickup", "*8", cw_pickup_ext())		/* default hardcoded above, so we'll hardcode it here */
+	);
 
 	fcount = sizeof(builtin_features) / sizeof(builtin_features[0]);
 
 	for (i = 0; i < fcount; i++)
 		{
-			cw_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
+			cw_dynstr_printf(ds_p, FORMAT, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
 		}
-	cw_cli(fd, "\n");
-	cw_cli(fd, format, "Dynamic Feature", "Default", "Current");
-	cw_cli(fd, format, "---------------", "-------", "-------");
+	cw_dynstr_tprintf(ds_p, 3,
+		cw_fmtval("\n"),
+		cw_fmtval(FORMAT, "Dynamic Feature", "Default", "Current"),
+		cw_fmtval(FORMAT, "---------------", "-------", "-------")
+	);
 	if (CW_LIST_EMPTY(&feature_list)) {
-		cw_cli(fd, "(none)\n");
+		cw_dynstr_printf(ds_p, "(none)\n");
 	}
 	else {
 		CW_LIST_LOCK(&feature_list);
 		CW_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-			cw_cli(fd, format, feature->sname, "no def", feature->exten);	
+			cw_dynstr_printf(ds_p, FORMAT, feature->sname, "no def", feature->exten);
 		}
 		CW_LIST_UNLOCK(&feature_list);
 	}
-	cw_cli(fd, "\nCall parking\n");
-	cw_cli(fd, "------------\n");
-	cw_cli(fd,"%-20s:	%s\n", "Parking extension", parking_ext);
-	cw_cli(fd,"%-20s:	%s\n", "Parking context", parking_con);
-	cw_cli(fd,"%-20s:	%d-%d\n", "Parked call extensions", parking_start, parking_stop);
-	cw_cli(fd,"\n");
-	
+	cw_dynstr_tprintf(ds_p, 6,
+		cw_fmtval("\nCall parking\n"),
+		cw_fmtval("------------\n"),
+		cw_fmtval("%-20s:	%s\n", "Parking extension", parking_ext),
+		cw_fmtval("%-20s:	%s\n", "Parking context", parking_con),
+		cw_fmtval("%-20s:	%d-%d\n", "Parked call extensions", parking_start, parking_stop),
+		cw_fmtval("\n")
+	);
+
+#undef FORMAT
 	return RESULT_SUCCESS;
 }
 
@@ -1937,26 +1943,26 @@ static struct cw_clicmd showfeatures = {
 	.usage = showfeatures_help,
 };
 
-static int handle_parkedcalls(int fd, int argc, char *argv[])
+static int handle_parkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct parkeduser *cur;
 	int numparked = 0;
 
-	cw_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
+	cw_dynstr_printf(ds_p, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");
 
 	cw_mutex_lock(&parking_lock);
 
 	cur = parkinglot;
 	while(cur) {
-		cw_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
+		cw_dynstr_printf(ds_p, "%4d %25s (%-15s %-12s %-4d) %6lds\n"
 			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
 		cur = cur->next;
 		numparked++;
 	}
-	cw_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
+	cw_dynstr_printf(ds_p, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
 
 	cw_mutex_unlock(&parking_lock);
 
@@ -1975,46 +1981,40 @@ static struct cw_clicmd showparked = {
 };
 
 /* Dump lot status */
-static int manager_parking_status( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_parking_status(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct parkeduser *cur;
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
+	time_t now;
+	int err;
 
-	if (id && !cw_strlen_zero(id))
-		snprintf(idText,256,"ActionID: %s\r\n",id);
+	if ((msg = cw_manager_response("Success", "Parked calls will follow")) && !cw_manager_send(sess, req, &msg)) {
+		err = 0;
 
-	astman_send_ack(s, m, "Parked calls will follow");
+        	cw_mutex_lock(&parking_lock);
 
-        cw_mutex_lock(&parking_lock);
+		time(&now);
 
-        cur=parkinglot;
-        while(cur) {
-			cw_cli(s->fd, "Event: ParkedCall\r\n"
-			"Exten: %d\r\n"
-			"Channel: %s\r\n"
-			"Timeout: %ld\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"%s"
-			"\r\n"
-                        ,cur->parkingnum, cur->chan->name
-                        ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
-			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
-			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
-			,idText);
+		for (cur = parkinglot; !err && cur; cur = cur->next) {
+			cw_manager_msg(&msg, 6,
+				cw_msg_tuple("Event",        "%s",  "ParkedCall"),
+				cw_msg_tuple("Exten",        "%d",  cur->parkingnum),
+				cw_msg_tuple("Channel",      "%s",  cur->chan->name),
+				cw_msg_tuple("Timeout",      "%lu", (unsigned long)cur->start.tv_sec + (unsigned long)(cur->parkingtime/1000) - (unsigned long)now),
+				cw_msg_tuple("CallerID",     "%s", (cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")),
+				cw_msg_tuple("CallerIDName", "%s", (cur->chan->cid.cid_name ? cur->chan->cid.cid_name : ""))
+			);
 
-            cur = cur->next;
-        }
+			err = cw_manager_send(sess, req, &msg);
+        	}
 
-	cw_cli(s->fd,
-	"Event: ParkedCallsComplete\r\n"
-	"%s"
-	"\r\n",idText);
+        	cw_mutex_unlock(&parking_lock);
 
-        cw_mutex_unlock(&parking_lock);
+		if (!err)
+			cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "ParkedCallsComplete"));
+	}
 
-        return RESULT_SUCCESS;
+        return msg;
 }
 
 

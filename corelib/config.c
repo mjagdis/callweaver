@@ -972,23 +972,23 @@ int cw_update_realtime(const char *family, const char *keyfield, const char *loo
 static int config_engine_print(struct cw_object *obj, void *data)
 {
 	struct cw_config_engine *eng = container_of(obj, struct cw_config_engine, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 	struct cw_config_map *map;
 
-	cw_cli(*fd, "Config Engine: %s\n", eng->name);
+	cw_dynstr_printf(ds_p, "Config Engine: %s\n", eng->name);
 	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(map->driver, eng->name)) {
-			cw_cli(*fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
+			cw_dynstr_printf(ds_p, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 				map->table ? map->table : map->name);
 		}
 	}
-	cw_cli(*fd, "\n");
+	cw_dynstr_printf(ds_p, "\n");
 	return 0;
 }
 
-static int config_command(int fd, int argc, char **argv) 
+static int config_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-	cw_registry_iterate_ordered(&config_engine_registry, config_engine_print, &fd);
+	cw_registry_iterate_ordered(&config_engine_registry, config_engine_print, ds_p);
 	return 0;
 }
 

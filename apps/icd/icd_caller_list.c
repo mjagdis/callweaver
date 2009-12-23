@@ -254,12 +254,12 @@ int icd_caller_list__caller_position(icd_caller_list * that, icd_caller * target
 }
 
 /* Prints the contents of the caller structures to the given file descriptor. */
-icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, int fd)
+icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, struct cw_dynstr **ds_p)
 {
     assert(that != NULL);
     assert(((icd_list *) that)->dump_fn != NULL);
 
-    return ((icd_list *) that)->dump_fn((icd_list *) that, verbosity, fd, ((icd_list *) that)->dump_fn_extra);
+    return ((icd_list *) that)->dump_fn((icd_list *) that, verbosity, ds_p, ((icd_list *) that)->dump_fn_extra);
     return ICD_SUCCESS;
 }
 
@@ -413,7 +413,7 @@ int icd_caller_list__dummy_notify(icd_event * event, void *extra)
 }
 
 /* Standard caller list dump function */
-icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd, void *extra)
+icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     icd_caller_list *call_list;
     icd_list_iterator *iter;
@@ -424,11 +424,11 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
 
     call_list = (icd_caller_list *) list;
 
-    //cw_cli(fd,"\nDumping icd_caller list {\n");
+    //cw_dynstr_printf(ds_p,"\nDumping icd_caller list {\n");
     //icd_list__standard_dump(list, verbosity, fd, ((void *)&skipconst));
-    //cw_cli(fd,"       moh=%s\n", icd_caller_list__get_moh(call_list));
-    //cw_cli(fd,"   context=%s\n", icd_caller_list__get_context(call_list));
-    //cw_cli(fd,"  announce=%s\n", icd_caller_list__get_announce(call_list));
+    //cw_dynstr_printf(ds_p,"       moh=%s\n", icd_caller_list__get_moh(call_list));
+    //cw_dynstr_printf(ds_p,"   context=%s\n", icd_caller_list__get_context(call_list));
+    //cw_dynstr_printf(ds_p,"  announce=%s\n", icd_caller_list__get_announce(call_list));
 
     /* TBD Print these as well (though don't descend on dist)
        icd_distributor *dist;
@@ -441,17 +441,17 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
      */
 
     if (verbosity > 1) {
-        cw_cli(fd, "    caller {\n");
+        cw_dynstr_printf(ds_p, "    caller {\n");
         iter = icd_list__get_iterator(list);
         if (iter == NULL) {
             return ICD_ERESOURCE;
         }
         while (icd_list_iterator__has_more(iter)) {
             caller = (icd_caller *) icd_list_iterator__next(iter);
-            icd_caller__dump(caller, verbosity - 1, fd);
+            icd_caller__dump(caller, verbosity - 1, ds_p);
         }
         destroy_icd_list_iterator(&iter);
-        cw_cli(fd, "    }\n");
+        cw_dynstr_printf(ds_p, "    }\n");
     } else {
         iter = icd_list__get_iterator(list);
         if (iter == NULL) {
@@ -459,7 +459,7 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, int fd
         }
         while (icd_list_iterator__has_more(iter)) {
             caller = (icd_caller *) icd_list_iterator__next(iter);
-            icd_caller__dump_debug_fd(caller, fd, "      ");
+            icd_caller__dump_debug_fd(caller, ds_p, "      ");
         }
         destroy_icd_list_iterator(&iter);
     }

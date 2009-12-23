@@ -178,19 +178,19 @@ int cw_send_image(struct cw_channel *chan, char *filename)
 static int imager_print(struct cw_object *obj, void *data)
 {
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 
-	cw_cli(*fd, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));
+	cw_dynstr_printf(ds_p, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));
 	return 0;
 }
 
-static int show_image_formats(int fd, int argc, char *argv[])
+static int show_image_formats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	cw_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	cw_registry_iterate_ordered(&imager_registry, imager_print, &fd);
+	cw_dynstr_printf(ds_p, FORMAT, "Name", "Extensions", "Description", "Format");
+	cw_registry_iterate_ordered(&imager_registry, imager_print, ds_p);
 	return RESULT_SUCCESS;
 }
 

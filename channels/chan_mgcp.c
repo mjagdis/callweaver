@@ -485,7 +485,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
                             int result, unsigned int ident, struct mgcp_request *resp);
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
 static int mgcp_do_reload(void);
-static int mgcp_reload(int fd, int argc, char *argv[]);
+static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 static struct cw_channel *mgcp_request(const char *type, int format, void *data, int *cause);
 static int mgcp_call(struct cw_channel *ast, char *dest);
@@ -1086,7 +1086,7 @@ static int mgcp_hangup(struct cw_channel *ast)
 	return 0;
 }
 
-static int mgcp_show_endpoints(int fd, int argc, char *argv[])
+static int mgcp_show_endpoints(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
@@ -1099,16 +1099,16 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	g = gateways;
 	while(g) {
 		e = g->endpoints;
-		cw_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), g->addr.sin_addr) : cw_inet_ntoa(iabuf, sizeof(iabuf), g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
+		cw_dynstr_printf(ds_p, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), g->addr.sin_addr) : cw_inet_ntoa(iabuf, sizeof(iabuf), g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
 		while(e) {
 			/* JS: Don't show wilcard endpoint */
 			if (strcmp(e->name, g->wcardep) !=0)
-				cw_cli(fd, "   -- '%s@%s in '%s' is %s\n", e->name, g->name, e->context, e->sub->owner ? "active" : "idle");
+				cw_dynstr_printf(ds_p, "   -- '%s@%s in '%s' is %s\n", e->name, g->name, e->context, e->sub->owner ? "active" : "idle");
 			hasendpoints = 1;
 			e = e->next;
 		}
 		if (!hasendpoints) {
-			cw_cli(fd, "   << No Endpoints Defined >>     ");
+			cw_dynstr_printf(ds_p, "   << No Endpoints Defined >>     ");
 		}
 		g = g->next;
 	}
@@ -1127,7 +1127,7 @@ static struct cw_clicmd  cli_show_endpoints = {
 	.usage = show_endpoints_usage,
 };
 
-static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
+static int mgcp_audit_endpoint(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
@@ -1174,7 +1174,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 		g = g->next;
 	}
 	if (!found) {
-		cw_cli(fd, "   << Could not find endpoint >>     ");
+		cw_dynstr_printf(ds_p, "   << Could not find endpoint >>     ");
 	}
 	cw_mutex_unlock(&gatelock);
 	return RESULT_SUCCESS;
@@ -3980,21 +3980,21 @@ static struct cw_rtp_protocol mgcp_rtp = {
 	.set_rtp_peer = mgcp_set_rtp_peer,
 };
 
-static int mgcp_do_debug(int fd, int argc, char *argv[])
+static int mgcp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 1;
-	cw_cli(fd, "MGCP Debugging Enabled\n");
+	cw_dynstr_printf(ds_p, "MGCP Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int mgcp_no_debug(int fd, int argc, char *argv[])
+static int mgcp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 0;
-	cw_cli(fd, "MGCP Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "MGCP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -4337,7 +4337,7 @@ static int mgcp_do_reload(void)
 	return 0;
 }
 
-static int mgcp_reload(int fd, int argc, char *argv[])
+static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&mgcp_reload_lock);
 	if (mgcp_reloading) {

@@ -403,21 +403,23 @@ static char start_monitor_action_help[] =
 "                the input and output channels together after the\n"
 "                recording is finished.\n";
 
-static int start_monitor_action(struct mansession *s, struct message *m)
+static struct cw_manager_message *start_monitor_action(struct mansession *sess, const struct message *req)
 {
 	char buf[CW_CHANNEL_NAME];
+	struct cw_manager_message *msg;
 	struct cw_channel *chan;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 	char *fname;
 	char *format;
 	char *mix;
 	char *p;
+	int ret;
 
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
-			fname = astman_get_header(m, "File");
-			format = astman_get_header(m, "Format");
-			mix = astman_get_header(m, "Mix");
+			fname = cw_manager_msg_header(req, "File");
+			format = cw_manager_msg_header(req, "Format");
+			mix = cw_manager_msg_header(req, "Mix");
 
 			if (cw_strlen_zero(fname)) {
 				/* No filename base specified, default to channel name as per CLI */
@@ -427,30 +429,26 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 				fname = buf;
 			}
 
-			if (__cw_monitor_start(chan, format, fname, 1)) {
-				if (__cw_monitor_change_fname(chan, fname, 1)) {
-					cw_channel_unlock(chan);
-					astman_send_error(s, m, "Could not start monitoring channel");
-					cw_object_put(chan);
-					return 0;
-				}
+			ret = -1;
+			if (!__cw_monitor_start(chan, format, fname, 1) && !__cw_monitor_change_fname(chan, fname, 1)) {
+				ret = 0;
+				if (cw_true(mix))
+					__cw_monitor_setjoinfiles(chan, 1);
 			}
 
-			if (cw_true(mix))
-				__cw_monitor_setjoinfiles(chan, 1);
-
 			cw_channel_unlock(chan);
-			astman_send_ack(s, m, "Started monitoring channel");
 			cw_object_put(chan);
-			return 0;
-		}
 
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
+			if (!ret)
+				msg = cw_manager_response("Success", "Started monitoring channel");
+			else
+				msg = cw_manager_response("Error", "Could not start monitoring channel");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
@@ -459,31 +457,29 @@ static char stop_monitor_action_help[] =
 "  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
 "  of the channel monitored.\n";
 
-static int stop_monitor_action(struct mansession *s, struct message *m)
+static struct cw_manager_message *stop_monitor_action(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct cw_channel *chan = NULL;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 	int res;
 
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			res = __cw_monitor_stop(chan, 1);
 			cw_channel_unlock(chan);
+			cw_object_put(chan);
 
 			if (!res)
-				astman_send_ack(s, m, "Stopped monitoring channel");
+				msg = cw_manager_response("Success", "Stopped monitoring channel");
 			else
-				astman_send_error(s, m, "Could not stop monitoring channel");
+				msg = cw_manager_response("Error", "Could not stop monitoring channel");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-			cw_object_put(chan);
-			return 0;
-		}
-
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
@@ -495,39 +491,35 @@ static char change_monitor_action_help[] =
 "  File        - Required.  Is the new name of the file created in the\n"
 "                monitor spool directory.\n";
 
-static int change_monitor_action(struct mansession *s, struct message *m)
+static struct cw_manager_message *change_monitor_action(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct cw_channel *chan;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 	char *fname;
+	int ret;
 
 	if (!cw_strlen_zero(name)) {
-		fname = astman_get_header(m, "File");
+		fname = cw_manager_msg_header(req, "File");
 		if (!cw_strlen_zero(fname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
-				if (__cw_monitor_change_fname(chan, fname, 1)) {
-					cw_channel_unlock(chan);
-					astman_send_error(s, m, "Could not change monitored filename of channel");
-					cw_object_put(chan);
-					return 0;
-				}
+				ret = __cw_monitor_change_fname(chan, fname, 1);
 
 				cw_channel_unlock(chan);
-				astman_send_ack(s, m, "Stopped monitoring channel");
 				cw_object_put(chan);
-				return 0;
-			}
 
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
+				if (!ret)
+					msg = cw_manager_response("Success", "Stopped monitoring channel");
+				else
+					msg = cw_manager_response("Error", "Could not change monitored filename of channel");
+			} else
+				msg = cw_manager_response("Error", "No such channel");
+		} else
+			msg = cw_manager_response("Error", "No filename specified");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-		astman_send_error(s, m, "No filename specified");
-		return 0;
-	}
-
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 

@@ -596,12 +596,12 @@ icd_status icd_list__remove_by_element(icd_list * that, void *payload)
 }
 
 /* Print out a copy of the list */
-icd_status icd_list__dump(icd_list * that, int verbosity, int fd)
+icd_status icd_list__dump(icd_list * that, int verbosity, struct cw_dynstr **ds_p)
 {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
 
-    return that->dump_fn(that, verbosity, fd, that->dump_fn_extra);
+    return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
 }
 
 /***** Node behaviours *****/
@@ -733,7 +733,7 @@ icd_status icd_list__set_destroy_list_notify_func(icd_list * that, int (*dstry_f
     return ICD_SUCCESS;
 }
 
-icd_status icd_list__set_dump_func(icd_list * that, icd_status(*dump_fn) (icd_list *, int verbosity, int fd,
+icd_status icd_list__set_dump_func(icd_list * that, icd_status(*dump_fn) (icd_list *, int verbosity, struct cw_dynstr **ds_p,
         void *extra), void *extra)
 {
     assert(that != NULL);
@@ -993,7 +993,7 @@ icd_list_node *icd_list__insert_ordered(icd_list * that, void *new_elem, void *c
 }
 
 /* Standard function for printing out a copy of the list */
-icd_status icd_list__standard_dump(icd_list * list, int verbosity, int fd, void *extra)
+icd_status icd_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     icd_list_iterator *iter;
     void *element;
@@ -1007,52 +1007,61 @@ icd_status icd_list__standard_dump(icd_list * list, int verbosity, int fd, void 
         skip_opening = *((int *) extra);
     }
     if (skip_opening == 0) {
-        cw_cli(fd, "\nDumping icd_list {\n");
+        cw_dynstr_printf(ds_p, "\nDumping icd_list {\n");
     }
-    cw_cli(fd, "      name=%s\n", icd_list__get_name(list));
-    cw_cli(fd, "     count=%d\n", list->count);
-    cw_cli(fd, "      size=%d\n", list->size);
-    cw_cli(fd, "     state=%d\n", list->state);
-    cw_cli(fd, "  category=%d\n", list->category);
+
+    cw_dynstr_tprintf(ds_p, 5,
+        cw_fmtval("      name=%s\n", icd_list__get_name(list)),
+        cw_fmtval("     count=%d\n", list->count),
+        cw_fmtval("      size=%d\n", list->size),
+        cw_fmtval("     state=%d\n", list->state),
+        cw_fmtval("  category=%d\n", list->category)
+    );
+
     if (verbosity > 2) {
-        cw_cli(fd, "      head=%p\n", list->head);
-        cw_cli(fd, "      tail=%p\n", list->tail);
-        cw_cli(fd, "     cache=%p\n", list->cache);
-        cw_cli(fd, "first_free=%p\n", list->first_free);
-        cw_cli(fd, " listeners=%p\n", list->listeners);
-        cw_cli(fd, "     flags=%u\n", list->flags);
-        cw_cli(fd, "    key_fn=%p\n", list->key_fn);
-        cw_cli(fd, "    ins_fn=%p\n", list->ins_fn);
-        cw_cli(fd, "    add_fn=%p\n", list->add_fn);
-        cw_cli(fd, "    del_fn=%p\n", list->del_fn);
-        cw_cli(fd, "    clr_fn=%p\n", list->clr_fn);
-        cw_cli(fd, "  dstry_fn=%p\n", list->dstry_fn);
-        cw_cli(fd, "   dump_fn=%p\n", list->dump_fn);
+        cw_dynstr_tprintf(ds_p, 13,
+            cw_fmtval("      head=%p\n", list->head),
+            cw_fmtval("      tail=%p\n", list->tail),
+            cw_fmtval("     cache=%p\n", list->cache),
+            cw_fmtval("first_free=%p\n", list->first_free),
+            cw_fmtval(" listeners=%p\n", list->listeners),
+            cw_fmtval("     flags=%u\n", list->flags),
+            cw_fmtval("    key_fn=%p\n", list->key_fn),
+            cw_fmtval("    ins_fn=%p\n", list->ins_fn),
+            cw_fmtval("    add_fn=%p\n", list->add_fn),
+            cw_fmtval("    del_fn=%p\n", list->del_fn),
+            cw_fmtval("    clr_fn=%p\n", list->clr_fn),
+            cw_fmtval("  dstry_fn=%p\n", list->dstry_fn),
+            cw_fmtval("   dump_fn=%p\n", list->dump_fn)
+        );
     }
+
     if (verbosity > 3) {
-        cw_cli(fd, " ins_extra=%p\n", list->ins_fn_extra);
-        cw_cli(fd, " add_extra=%p\n", list->add_fn_extra);
-        cw_cli(fd, " del_extra=%p\n", list->del_fn_extra);
-        cw_cli(fd, " clr_extra=%p\n", list->clr_fn_extra);
-        cw_cli(fd, "dstry_xtra=%p\n", list->dstry_fn_extra);
-        cw_cli(fd, " dump_xtra=%p\n", list->dump_fn_extra);
+        cw_dynstr_tprintf(ds_p, 6,
+            cw_fmtval(" ins_extra=%p\n", list->ins_fn_extra),
+            cw_fmtval(" add_extra=%p\n", list->add_fn_extra),
+            cw_fmtval(" del_extra=%p\n", list->del_fn_extra),
+            cw_fmtval(" clr_extra=%p\n", list->clr_fn_extra),
+            cw_fmtval("dstry_xtra=%p\n", list->dstry_fn_extra),
+            cw_fmtval(" dump_xtra=%p\n", list->dump_fn_extra)
+        );
     }
 
     if (skip_opening == 0 && verbosity > 1) {
-        cw_cli(fd, "    nodes {\n");
+        cw_dynstr_printf(ds_p, "    nodes {\n");
         iter = icd_list__get_iterator(list);
         if (iter == NULL) {
             return ICD_ERESOURCE;
         }
         while (icd_list_iterator__has_more(iter)) {
             element = icd_list_iterator__next(iter);
-            cw_cli(fd, "       payload=%p", element);
+            cw_dynstr_printf(ds_p, "       payload=%p", element);
         }
         destroy_icd_list_iterator(&iter);
-        cw_cli(fd, "    }\n");
+        cw_dynstr_printf(ds_p, "    }\n");
     }
     if (skip_opening == 0) {
-        cw_cli(fd, "}\n");
+        cw_dynstr_printf(ds_p, "}\n");
     }
     return ICD_SUCCESS;
 }

@@ -240,19 +240,21 @@ struct cw_variable *cw_channeltype_list(void)
 #endif
 }
 
-static int show_channeltypes(int fd, int argc, char *argv[])
+static int show_channeltypes(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
-	cw_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
-	cw_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
+	cw_dynstr_tprintf(ds_p, 2,
+		cw_fmtval(FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer"),
+		cw_fmtval(FORMAT, "----------", "-----------", "-----------", "-----------", "--------")
+	);
 	if (cw_mutex_lock(&chlock)) {
 		cw_log(CW_LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
 	cl = backends;
 	while (cl) {
-		cw_cli(fd, FORMAT, cl->tech->type, cl->tech->description, 
+		cw_dynstr_printf(ds_p, FORMAT, cl->tech->type, cl->tech->description,
 			(cl->tech->devicestate) ? "yes" : "no", 
 			(cl->tech->indicate) ? "yes" : "no",
 			(cl->tech->transfer) ? "yes" : "no");
@@ -900,7 +902,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 
 
 struct complete_channel_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	const char *prefix;
 	size_t prefix_len;
 };
@@ -916,16 +918,16 @@ static int complete_channel_one(struct cw_object *obj, void *data)
 	cw_channel_lock(chan);
 
 	if (!strncasecmp(chan->name, args->prefix, args->prefix_len))
-		cw_cli(args->fd, "%s\n", chan->name);
+		cw_dynstr_printf(args->ds_p, "%s\n", chan->name);
 
 	cw_channel_unlock(chan);
 	return 0;
 }
 
-void cw_complete_channel(int fd, const char *prefix, size_t prefix_len)
+void cw_complete_channel(struct cw_dynstr **ds_p, const char *prefix, size_t prefix_len)
 {
 	struct complete_channel_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.prefix = prefix,
 		.prefix_len = prefix_len,
 	};

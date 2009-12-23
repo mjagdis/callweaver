@@ -75,6 +75,25 @@
 #define CW_CPP_INC_28	29
 #define CW_CPP_INC_29	30
 #define CW_CPP_INC_30	31
+#define CW_CPP_INC_31	32
+#define CW_CPP_INC_32	33
+#define CW_CPP_INC_33	34
+#define CW_CPP_INC_34	35
+#define CW_CPP_INC_35	36
+#define CW_CPP_INC_36	37
+#define CW_CPP_INC_37	38
+#define CW_CPP_INC_38	39
+#define CW_CPP_INC_39	40
+#define CW_CPP_INC_40	41
+#define CW_CPP_INC_41	42
+#define CW_CPP_INC_42	43
+#define CW_CPP_INC_43	44
+#define CW_CPP_INC_44	45
+#define CW_CPP_INC_45	46
+#define CW_CPP_INC_46	47
+#define CW_CPP_INC_47	48
+#define CW_CPP_INC_48	49
+#define CW_CPP_INC_49	50
 
 #define CW_CPP_INC(n)	CW_CPP_CAT(CW_CPP_INC_, n)
 
@@ -109,5 +128,25 @@
 #define CW_CPP_ITERATE_28(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 27)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
 #define CW_CPP_ITERATE_29(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 28)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
 #define CW_CPP_ITERATE_30(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 29)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_31(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 30)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_32(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 31)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_33(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 32)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_34(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 33)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_35(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 34)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_36(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 35)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_37(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 36)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_38(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 37)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_39(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 38)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_40(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 39)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_41(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 40)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_42(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 41)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_43(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 42)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_44(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 43)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_45(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 44)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_46(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 45)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_47(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 46)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_48(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 47)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_49(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 48)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
+#define CW_CPP_ITERATE_50(n, op, a, ...)	CW_CPP_CAT(CW_CPP_ITERATE_, 1)(n, op, a) CW_CPP_CAT(CW_CPP_ITERATE_, 49)(CW_CPP_CAT(CW_CPP_INC_, n), op, __VA_ARGS__)
 
 #endif /* _CALLWEAVER_PREPROCESSOR_H */

@@ -71,35 +71,32 @@ static const char appendcdruserfield_descrip[] =
                "       Always returns 0\n";
 		
 
-static int action_setcdruserfield(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_setcdruserfield(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct cw_channel *c = NULL;
-	char *userfield = astman_get_header(m, "UserField");
-	char *channel = astman_get_header(m, "Channel");
-	char *append = astman_get_header(m, "Append");
+	char *userfield = cw_manager_msg_header(req, "UserField");
+	char *channel = cw_manager_msg_header(req, "Channel");
+	char *append = cw_manager_msg_header(req, "Append");
 
-	if (cw_strlen_zero(channel)) {
-		astman_send_error(s, m, "No Channel specified");
-		return 0;
-	}
+	if (!cw_strlen_zero(channel)) {
+		if (!cw_strlen_zero(userfield)) {
+			if ((c = cw_get_channel_by_name_locked(channel))) {
+				if (cw_true(append))
+					cw_cdr_appenduserfield(c, userfield);
+				else
+					cw_cdr_setuserfield(c, userfield);
+				cw_channel_unlock(c);
+				cw_object_put(c);
+				msg = cw_manager_response("Success", "CDR Userfield Set");
+			} else
+				msg = cw_manager_response("Error", "No such channel");
+		} else
+			msg = cw_manager_response("Error", "No UserField specified");
+	} else
+		msg = cw_manager_response("Error", "No Channel specified");
 
-	if (cw_strlen_zero(userfield)) {
-		astman_send_error(s, m, "No UserField specified");
-		return 0;
-	}
-
-	if ((c = cw_get_channel_by_name_locked(channel))) {
-		if (cw_true(append))
-			cw_cdr_appenduserfield(c, userfield);
-		else
-			cw_cdr_setuserfield(c, userfield);
-		cw_channel_unlock(c);
-		astman_send_ack(s, m, "CDR Userfield Set");
-		cw_object_put(c);
-		return 0;
-	}
-	astman_send_error(s, m, "No such channel");
-	return 0;
+	return msg;
 }
 
 

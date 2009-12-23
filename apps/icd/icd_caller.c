@@ -1108,12 +1108,12 @@ int icd_caller__get_member_count(icd_caller * that)
 }
 
 /* Prints the contents of the caller structure to the given file descriptor. */
-icd_status icd_caller__dump(icd_caller * that, int verbosity, int fd)
+icd_status icd_caller__dump(icd_caller * that, int verbosity, struct cw_dynstr **ds_p)
 {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
 
-    return that->dump_fn(that, verbosity, fd, that->dump_fn_extra);
+    return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
 }
 
 /* Start the caller thread. */
@@ -1781,7 +1781,7 @@ icd_listeners *icd_caller__get_listeners(icd_caller * that)
 
 /***** Callback Setters *****/
 /* The dump function is a virtual function. You set the function to execute here. */
-icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller *, int verbosity, int fd,
+icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller *, int verbosity, struct cw_dynstr **ds_p,
         void *extra), void *extra)
 {
     assert(that != NULL);
@@ -2695,7 +2695,7 @@ icd_status icd_caller__standard_launch_caller(icd_caller * that)
 }
 
 /* Standard function for printing out a copy of the caller */
-icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd, void *extra)
+icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     int skip_opening;
 
@@ -2708,13 +2708,13 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd,
     }
     /* should be assume verbosity = -1 means debug ??
        if (skip_opening == 0) {
-       cw_cli(fd,"\nDumping icd_caller {\n");
+       cw_dynstr_printf(ds_p,"\nDumping icd_caller {\n");
        }
      */
-    icd_caller__dump_debug_fd(caller, fd, "      ");
+    icd_caller__dump_debug_fd(caller, ds_p, "      ");
     /*
-       cw_cli(fd,"      name=%s\n", icd_caller__get_name(caller));
-       cw_cli(fd,"    id=%d\n", caller->id);
+       cw_dynstr_printf(ds_p,"      name=%s\n", icd_caller__get_name(caller));
+       cw_dynstr_printf(ds_p,"    id=%d\n", caller->id);
      */
     /* TBD Write some of these out, too
        struct cw_channel *chan;
@@ -2745,13 +2745,13 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, int fd,
        int (*link_fn)(icd_caller *, icd_caller *);
        int (*bridge_fn)(icd_caller *, icd_caller *);
        int (*authn_fn)(icd_caller *, int);
-       icd_status (*dump_fn)(icd_caller *. int verbosity, int fd, void *extra);
+       icd_status (*dump_fn)(icd_caller *. int verbosity, struct cw_dynstr **ds_p, void *extra);
        void *dump_fn_extra;
        icd_thread_state thread_state;
      */
     /*
        if (skip_opening == 0) {
-       cw_cli(fd,"}\n");
+       cw_dynstr_printf(ds_p,"}\n");
        }
      */
     return ICD_SUCCESS;
@@ -2955,10 +2955,13 @@ static icd_status icd_caller__create_thread(icd_caller * that)
 
 void icd_caller__dump_debug(icd_caller * that)
 {
-    icd_caller__dump_debug_fd(that, ICD_STDERR, "  == ");
+    struct cw_dynstr *ds = NULL;
+
+    icd_caller__dump_debug_fd(that, &ds, "  == ");
+    cw_dynstr_free(ds);
 }
 
-void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
+void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, char *indent)
 {
     char *ptr;
     char *action;
@@ -2971,43 +2974,21 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
     icd_queue *queue;
     icd_list_iterator *iter;
 
-    if (indent) {
-        cw_cli(fd, "%s", indent);
-    }
+    if (indent)
+        cw_dynstr_printf(ds_p, "%s", indent);
 
-    if (that->chan != NULL && that->chan->name) {
-        cw_cli(fd, "Chan[%s] ", that->chan->name);
-    }
-    if (that->chan_string) {
-        cw_cli(fd, "ChanStr[%s]", icd_caller__get_channel_string(that));
-    } else {
-        cw_cli(fd, "ChanStr[]");
-    }
+    if (that->chan != NULL && that->chan->name)
+        cw_dynstr_printf(ds_p, "Chan[%s] ", that->chan->name);
 
-    if (icd_caller__get_onhook(that)) {
-        cw_cli(fd, " OnHook[YES]");
-    } else {
-        cw_cli(fd, " OnHook[NO]");
-    }
-
-    if (icd_caller__get_dynamic(that)) {
-        cw_cli(fd, " Dynamic[YES]");
-    } else {
-        cw_cli(fd, " Dynamic[NO]");
-    }
-
-    if (icd_caller__get_pushback(that)) {
-        cw_cli(fd, " PushBack[YES]");
-    } else {
-        cw_cli(fd, " PushBack[NO]");
-    }
+    cw_dynstr_tprintf(ds_p, 4,
+        cw_fmtval("ChanStr[%s]", (that->chan_string ? icd_caller__get_channel_string(that) : "")),
+        cw_fmtval(" OnHook[%s]", (icd_caller__get_onhook(that) ? "YES" : "NO")),
+        cw_fmtval(" Dynamic[%s]", (icd_caller__get_dynamic(that) ? "YES" : "NO")),
+        cw_fmtval(" PushBack[%s]", (icd_caller__get_pushback(that) ? "YES" : "NO"))
+    );
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
         /* Agent specfic attributes */
-        cw_cli(fd, " Timeout[%d]", icd_caller__get_timeout(that));
-        cw_cli(fd, " AckCall[%d]", icd_caller__get_acknowledge_call(that));
-        cw_cli(fd, " Priority[%d]", icd_caller__get_priority(that));
-
         action = vh_read(that->params, "suspend.action");
         entertain = vh_read(that->params, "suspend.entertain");
         wakeup = vh_read(that->params, "suspend.wakeup");
@@ -3016,11 +2997,16 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
         if (wait != NULL) {
             waittime = atoi(wait);
         }
-        cw_cli(fd, " Entertain[%s]", entertain);
-        cw_cli(fd, " WrapUp[%d]", waittime);
+        cw_dynstr_tprintf(ds_p, 5,
+            cw_fmtval(" Timeout[%d]", icd_caller__get_timeout(that)),
+            cw_fmtval(" AckCall[%d]", icd_caller__get_acknowledge_call(that)),
+            cw_fmtval(" Priority[%d]", icd_caller__get_priority(that)),
+            cw_fmtval(" Entertain[%s]", entertain),
+            cw_fmtval(" WrapUp[%d]", waittime)
+        );
     }
     /*%TC remove cw_log in icd_[blah]_get_plugable_fns since that dumps here */
-    cw_cli(fd, "plugable_fns[%s] FnCount[%d]", icd_plugable__get_name(that->get_plugable_fn(that)),
+    cw_dynstr_printf(ds_p, "plugable_fns[%s] FnCount[%d]", icd_plugable__get_name(that->get_plugable_fn(that)),
         icd_plugable_fn_list_count(that->plugable_fns_list));
 
     if (that->memberships != NULL) {
@@ -3029,7 +3015,7 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
         while (icd_list_iterator__has_more(iter)) {
             member = icd_list_iterator__next(iter);
             queue = icd_member__get_queue(member);
-            cw_cli(fd, " Q[%s][%d/%d]", icd_queue__get_name(queue), icd_caller__get_position(that, member),
+            cw_dynstr_printf(ds_p, " Q[%s][%d/%d]", icd_queue__get_name(queue), icd_caller__get_position(that, member),
                 icd_caller__get_pending(that, member)
                 );
         }
@@ -3037,53 +3023,50 @@ void icd_caller__dump_debug_fd(icd_caller * that, int fd, char *indent)
     }
 
     ptr = icd_caller__get_name(that);
-    if (strlen(ptr) > 0) {
-        cw_cli(fd, " [%s]", ptr);
-    } else {
-        cw_cli(fd, " [no-name]");
-    }
-
-    cw_cli(fd, " ID[%d] STATE[%s] ", that->id, icd_caller_state_strings[that->state]);
-    cw_cli(fd, "Role[%d] -> ", that->role);
+    cw_dynstr_tprintf(ds_p, 3,
+        cw_fmtval(" [%s]", (ptr[0] ? ptr : "[no-name]")),
+        cw_fmtval(" ID[%d] STATE[%s]", that->id, icd_caller_state_strings[that->state]),
+        cw_fmtval(" Role[%d] -> ", that->role)
+    );
 
     if (icd_caller__has_role(that, ICD_AGENT_ROLE)) {
-        cw_cli(fd, "[AGENT]");
+        cw_dynstr_printf(ds_p, "[AGENT]");
     }
     if (icd_caller__has_role(that, ICD_CUSTOMER_ROLE)) {
-        cw_cli(fd, "[CUSTOMER]");
+        cw_dynstr_printf(ds_p, "[CUSTOMER]");
     }
     if (icd_caller__has_role(that, ICD_BRIDGER_ROLE)) {
-        cw_cli(fd, "[BRIDGER]");
+        cw_dynstr_printf(ds_p, "[BRIDGER]");
     }
     if (icd_caller__has_role(that, ICD_BRIDGEE_ROLE)) {
-        cw_cli(fd, "[BRIDGEE]");
+        cw_dynstr_printf(ds_p, "[BRIDGEE]");
     }
     if (icd_caller__has_role(that, ICD_LOOPER_ROLE)) {
-        cw_cli(fd, "[LOOPER]");
+        cw_dynstr_printf(ds_p, "[LOOPER]");
     }
     if (icd_caller__has_role(that, ICD_CLONER_ROLE)) {
-        cw_cli(fd, "[CLONER]");
+        cw_dynstr_printf(ds_p, "[CLONER]");
     }
     if (icd_caller__has_role(that, ICD_CLONE_ROLE)) {
-        cw_cli(fd, "[CLONE]");
+        cw_dynstr_printf(ds_p, "[CLONE]");
     }
     if (icd_caller__has_role(that, ICD_INVALID_ROLE)) {
-        cw_cli(fd, "[INVALID]");
+        cw_dynstr_printf(ds_p, "[INVALID]");
     }
 
-    cw_cli(fd, "Flag[%d] -> ", that->flag);
+    cw_dynstr_printf(ds_p, " Flag[%d] -> ", that->flag);
 
     if (icd_caller__has_flag(that, ICD_MONITOR_FLAG)) {
-        cw_cli(fd, "[MONITOR]");
+        cw_dynstr_printf(ds_p, "[MONITOR]");
     }
     if (icd_caller__has_flag(that, ICD_CONF_MEMBER_FLAG)) {
-        cw_cli(fd, "[CONF_MEMBER]");
+        cw_dynstr_printf(ds_p, "[CONF_MEMBER]");
     }
     if (icd_caller__has_flag(that, ICD_NOHANGUP_FLAG)) {
-        cw_cli(fd, "[NOHANGUP]");
+        cw_dynstr_printf(ds_p, "[NOHANGUP]");
     }
 
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
 }
 
 /* Equivalent to cw_request() */

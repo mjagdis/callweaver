@@ -416,11 +416,11 @@ icd_status icd_distributor__remove_customer(icd_distributor *that, icd_customer 
 }
 
 /* Print out a copy of the distributor. */
-icd_status icd_distributor__dump(icd_distributor *that, int verbosity, int fd) {
+icd_status icd_distributor__dump(icd_distributor *that, int verbosity, struct cw_dynstr **ds_p) {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
 
-    return that->dump_fn(that, verbosity, fd, that->dump_fn_extra);
+    return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
     return ICD_SUCCESS;
 }
 
@@ -567,7 +567,7 @@ icd_status icd_distributor__set_link_callers_fn(icd_distributor *that, icd_statu
     return ICD_SUCCESS;
 }
 
-icd_status icd_distributor__set_dump_func(icd_distributor *that, icd_status (*dump_fn)(icd_distributor *, int verbosity, int fd, void *extra), void *extra) {
+icd_status icd_distributor__set_dump_func(icd_distributor *that, icd_status (*dump_fn)(icd_distributor *, int verbosity, struct cw_dynstr **ds_p, void *extra), void *extra) {
     assert(that != NULL);
 
     that->dump_fn = dump_fn;
@@ -896,41 +896,44 @@ icd_status icd_distributor__link_callers_via_ringall(icd_distributor *dist, void
 }
 
 /* Standard dump function for distributor */
-icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, int fd, void *extra) {
+icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, struct cw_dynstr **ds_p, void *extra) {
     static char *indent = "    ";
     vh_keylist *keys;
     assert(dist != NULL);
 
     
-    cw_cli(fd,"\nDumping icd_distributor {\n");
-    cw_cli(fd,"%sname=%s (%s)\n", indent,icd_distributor__get_name(dist), 
-            dist->allocated ? "alloced" : "on heap");
+    cw_dynstr_tprintf(ds_p, 3,
+        cw_fmtval("\nDumping icd_distributor {\n"),
+        cw_fmtval("%sname=%s (%s)\n", indent,icd_distributor__get_name(dist), (dist->allocated ? "alloced" : "on heap")),
+        cw_fmtval("%sparams {\n",indent)
+    );
 
-    cw_cli(fd,"%sparams {\n",indent);
     for(keys = vh_keys(dist->params); keys; keys=keys->next)
-        cw_cli(fd,"%s%s%s=%s\n", indent, indent, keys->name,
+        cw_dynstr_printf(ds_p,"%s%s%s=%s\n", indent, indent, keys->name,
                 (char *)vh_read(dist->params,keys->name));
 
-    cw_cli(fd,"%s}\n\n",indent);
+    cw_dynstr_tprintf(ds_p, 4,
+        cw_fmtval("%s}\n\n", indent),
+        cw_fmtval("%slink_fn=%p\n", indent,dist->link_fn),
+        cw_fmtval("%sdump_fn=%p\n", indent,dist->dump_fn),
+        cw_fmtval("\n%scustomers=%p (%s) {\n", indent,dist->customers,
+            (dist->customer_list_allocated ? "alloced" : "on heap"))
+    );
 
-    cw_cli(fd,"%slink_fn=%p\n", indent,dist->link_fn);
-    cw_cli(fd,"%sdump_fn=%p\n", indent,dist->dump_fn);
-    cw_cli(fd,"\n%scustomers=%p (%s) {\n", indent,dist->customers, 
-            dist->customer_list_allocated ? "alloced" : "on heap");
     if (verbosity > 1) {
-        icd_member_list__dump(dist->customers, verbosity - 1, fd);
+        icd_member_list__dump(dist->customers, verbosity - 1, ds_p);
     }
     else 
-        icd_member_list__dump(dist->customers,0, fd);
+        icd_member_list__dump(dist->customers, 0, ds_p);
 
-    cw_cli(fd,"%s}\n\n%sagents=%p (%s) {\n", indent,indent,dist->agents,
-            dist->agent_list_allocated ? "alloced" : "on heap");
+    cw_dynstr_printf(ds_p,"%s}\n\n%sagents=%p (%s) {\n", indent,indent,dist->agents,
+            (dist->agent_list_allocated ? "alloced" : "on heap"));
     if (verbosity > 1) {
-        icd_member_list__dump(dist->agents, verbosity - 1, fd);
+        icd_member_list__dump(dist->agents, verbosity - 1, ds_p);
     }
     else 
-        icd_member_list__dump(dist->agents,0, fd);
-    cw_cli(fd,"%s}\n",indent);
+        icd_member_list__dump(dist->agents, 0, ds_p);
+    cw_dynstr_printf(ds_p,"%s}\n", indent);
 
     return ICD_SUCCESS;
 }

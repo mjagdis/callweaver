@@ -24,7 +24,7 @@
 
 /* ------------------------------------------------------------ */
 
-static int sccp_reset_restart(int fd, int argc, char * argv[]) {
+static int sccp_reset_restart(struct cw_dynstr **ds_p, int argc, char * argv[]) {
   sccp_moo_t * r;
   sccp_device_t * d;
 
@@ -34,7 +34,7 @@ static int sccp_reset_restart(int fd, int argc, char * argv[]) {
   d = sccp_device_find_byid(argv[2]);
 
   if (!d) {
-	cw_cli(fd, "Can't find device %s\n", argv[2]);
+	cw_dynstr_printf(ds_p, "Can't find device %s\n", argv[2]);
 	return RESULT_SUCCESS;
   }
 
@@ -42,7 +42,7 @@ static int sccp_reset_restart(int fd, int argc, char * argv[]) {
   r->msg.Reset.lel_resetType = htolel((!strcasecmp(argv[1], "reset")) ? SKINNY_DEVICE_RESET : SKINNY_DEVICE_RESTART);
   sccp_dev_send(d, r);
 
-  cw_cli(fd, "%s: Reset request sent to the device\n", argv[2]);
+  cw_dynstr_printf(ds_p, "%s: Reset request sent to the device\n", argv[2]);
   return RESULT_SUCCESS;
 
 }
@@ -74,7 +74,7 @@ static char *sccp_print_group(char *buf, int buflen, cw_group_t group) {
 	return(buf);
 }
 
-static int sccp_show_globals(int fd, int argc, char * argv[]) {
+static int sccp_show_globals(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	char pref_buf[128];
 	char cap_buf[512];
 	char buf[256];
@@ -84,49 +84,53 @@ static int sccp_show_globals(int fd, int argc, char * argv[]) {
 	cw_codec_pref_string(&GLOB(global_codecs), pref_buf, sizeof(pref_buf) - 1);
 	cw_getformatname_multiple(cap_buf, sizeof(cap_buf), GLOB(global_capability)),
 
-	cw_cli(fd, "SCCP channel driver global settings\n");
-	cw_cli(fd, "------------------------------------\n\n");
+	cw_dynstr_tprintf(ds_p, 33,
+		cw_fmtval("SCCP channel driver global settings\n"),
+		cw_fmtval("------------------------------------\n\n"),
 #if SCCP_PLATFORM_BYTE_ORDER == SCCP_LITTLE_ENDIAN
-	cw_cli(fd, "Platform byte order   : LITTLE ENDIAN\n");
+		cw_fmtval("Platform byte order   : LITTLE ENDIAN\n"),
 #else
-	cw_cli(fd, "Platform byte order   : BIG ENDIAN\n");
+		cw_fmtval("Platform byte order   : BIG ENDIAN\n"),
 #endif
-	cw_cli(fd, "Protocol Version      : %d\n", GLOB(protocolversion));
-	cw_cli(fd, "Server Name           : %s\n", GLOB(servername));
-	cw_cli(fd, "Bind Address          : %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port)));
-	cw_cli(fd, "Keepalive             : %d\n", GLOB(keepalive));
-	cw_cli(fd, "Debug level           : %d\n", GLOB(debug));
-	cw_cli(fd, "Date format           : %s\n", GLOB(date_format));
-	cw_cli(fd, "First digit timeout   : %d\n", GLOB(firstdigittimeout));
-	cw_cli(fd, "Digit timeout         : %d\n", GLOB(digittimeout));
-	cw_cli(fd, "RTP tos               : %d\n", GLOB(rtptos));
-	cw_cli(fd, "Context               : %s\n", GLOB(context));
-	cw_cli(fd, "Language              : %s\n", GLOB(language));
-	cw_cli(fd, "Accountcode           : %s\n", GLOB(accountcode));
-	cw_cli(fd, "Musicclass            : %s\n", GLOB(musicclass));
-	cw_cli(fd, "AMA flags             : %d - %s\n", GLOB(amaflags), cw_cdr_flags2str(GLOB(amaflags)));
-	cw_cli(fd, "Callgroup             : %s\n", sccp_print_group(buf, sizeof(buf), GLOB(callgroup)));
+		cw_fmtval("Protocol Version      : %d\n", GLOB(protocolversion)),
+		cw_fmtval("Server Name           : %s\n", GLOB(servername)),
+		cw_fmtval("Bind Address          : %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), GLOB(bindaddr.sin_addr)), ntohs(GLOB(bindaddr.sin_port))),
+		cw_fmtval("Keepalive             : %d\n", GLOB(keepalive)),
+		cw_fmtval("Debug level           : %d\n", GLOB(debug)),
+		cw_fmtval("Date format           : %s\n", GLOB(date_format)),
+		cw_fmtval("First digit timeout   : %d\n", GLOB(firstdigittimeout)),
+		cw_fmtval("Digit timeout         : %d\n", GLOB(digittimeout)),
+		cw_fmtval("RTP tos               : %d\n", GLOB(rtptos)),
+		cw_fmtval("Context               : %s\n", GLOB(context)),
+		cw_fmtval("Language              : %s\n", GLOB(language)),
+		cw_fmtval("Accountcode           : %s\n", GLOB(accountcode)),
+		cw_fmtval("Musicclass            : %s\n", GLOB(musicclass)),
+		cw_fmtval("AMA flags             : %d - %s\n", GLOB(amaflags), cw_cdr_flags2str(GLOB(amaflags))),
+		cw_fmtval("Callgroup             : %s\n", sccp_print_group(buf, sizeof(buf), GLOB(callgroup))),
 #ifdef CS_SCCP_PICKUP
-	cw_cli(fd, "Pickupgroup           : %s\n", sccp_print_group(buf, sizeof(buf), GLOB(pickupgroup)));
-#endif
-	cw_cli(fd, "Capabilities          : %s\n", cap_buf);
-	cw_cli(fd, "Codecs preference     : %s\n", pref_buf);
-	cw_cli(fd, "DND                   : %s\n", GLOB(dndmode) ? sccp_dndmode2str(GLOB(dndmode)) : "Disabled");
-#ifdef CS_SCCP_PARK
-	cw_cli(fd, "Park                  : Enabled\n");
+		cw_fmtval("Pickupgroup           : %s\n", sccp_print_group(buf, sizeof(buf), GLOB(pickupgroup))),
 #else
-	cw_cli(fd, "Park                  : Disabled\n");
+		cw_fmtval(""),
 #endif
-	cw_cli(fd, "Private softkey       : %s\n", GLOB(private) ? "Enabled" : "Disabled");
-	cw_cli(fd, "Echo cancel           : %s\n", GLOB(echocancel) ? "Enabled" : "Disabled");
-	cw_cli(fd, "Silence suppression   : %s\n", GLOB(silencesuppression) ? "Enabled" : "Disabled");
-	cw_cli(fd, "Trust phone ip        : %s\n", GLOB(trustphoneip) ? "Yes" : "No");
-	cw_cli(fd, "Early RTP             : %s\n", GLOB(earlyrtp) ? "Yes" : "No");
-	cw_cli(fd, "AutoAnswer ringtime   : %d\n", GLOB(autoanswer_ring_time));
-	cw_cli(fd, "AutoAnswer tone       : %d\n", GLOB(autoanswer_tone));
-	cw_cli(fd, "RemoteHangup tone     : %d\n", GLOB(remotehangup_tone));
-	cw_cli(fd, "Transfer tone         : %d\n", GLOB(transfer_tone));
-	cw_cli(fd, "CallWaiting tone      : %d\n", GLOB(callwaiting_tone));
+		cw_fmtval("Capabilities          : %s\n", cap_buf),
+		cw_fmtval("Codecs preference     : %s\n", pref_buf),
+		cw_fmtval("DND                   : %s\n", GLOB(dndmode) ? sccp_dndmode2str(GLOB(dndmode)) : "Disabled"),
+#ifdef CS_SCCP_PARK
+		cw_fmtval("Park                  : Enabled\n"),
+#else
+		cw_fmtval("Park                  : Disabled\n"),
+#endif
+		cw_fmtval("Private softkey       : %s\n", GLOB(private) ? "Enabled" : "Disabled"),
+		cw_fmtval("Echo cancel           : %s\n", GLOB(echocancel) ? "Enabled" : "Disabled"),
+		cw_fmtval("Silence suppression   : %s\n", GLOB(silencesuppression) ? "Enabled" : "Disabled"),
+		cw_fmtval("Trust phone ip        : %s\n", GLOB(trustphoneip) ? "Yes" : "No"),
+		cw_fmtval("Early RTP             : %s\n", GLOB(earlyrtp) ? "Yes" : "No"),
+		cw_fmtval("AutoAnswer ringtime   : %d\n", GLOB(autoanswer_ring_time)),
+		cw_fmtval("AutoAnswer tone       : %d\n", GLOB(autoanswer_tone)),
+		cw_fmtval("RemoteHangup tone     : %d\n", GLOB(remotehangup_tone)),
+		cw_fmtval("Transfer tone         : %d\n", GLOB(transfer_tone)),
+		cw_fmtval("CallWaiting tone      : %d\n", GLOB(callwaiting_tone))
+	);
 	cw_mutex_unlock(&GLOB(lock));
 	return RESULT_SUCCESS;
 }
@@ -140,7 +144,7 @@ static struct cw_clicmd cli_show_globals = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_device(int fd, int argc, char * argv[]) {
+static int sccp_show_device(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_device_t * d;
 	sccp_speed_t * k;
 	sccp_line_t * l;
@@ -152,56 +156,62 @@ static int sccp_show_device(int fd, int argc, char * argv[]) {
 
 	d = sccp_device_find_byid(argv[3]);
 	if (!d) {
-		cw_cli(fd, "Can't find settings for device %s\n", argv[3]);
+		cw_dynstr_printf(ds_p, "Can't find settings for device %s\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
 	cw_mutex_lock(&d->lock);
 	cw_codec_pref_string(&d->codecs, pref_buf, sizeof(pref_buf) - 1);
 	cw_getformatname_multiple(cap_buf, sizeof(cap_buf), d->capability),
 
-	cw_cli(fd, "Current settings for selected Device\n");
-	cw_cli(fd, "------------------------------------\n\n");
-	cw_cli(fd, "MAC-Address        : %s\n", d->id);
-	cw_cli(fd, "Protocol Version   : phone=%d, channel=%d\n", d->protocolversion, GLOB(protocolversion));
-	cw_cli(fd, "Registration state : %s(%d)\n", skinny_registrationstate2str(d->registrationState), d->registrationState);
-	cw_cli(fd, "State              : %s(%d)\n", skinny_devicestate2str(d->state), d->state);
-	cw_cli(fd, "MWI handset light  : %s\n", (d->mwilight) ? "ON" : "OFF");
-	cw_cli(fd, "Description        : %s\n", d->description);
-	cw_cli(fd, "Config Phone Type  : %s\n", d->config_type);
-	cw_cli(fd, "Skinny Phone Type  : %s(%d)\n", skinny_devicetype2str(d->skinny_type), d->skinny_type);
-	cw_cli(fd, "Softkey support    : %s\n", (d->softkeysupport) ? "Yes" : "No");
-	cw_cli(fd, "Autologin          : %s\n", d->autologin);
-	cw_cli(fd, "Image Version      : %s\n", d->imageversion);
-	cw_cli(fd, "Timezone Offset    : %d\n", d->tz_offset);
-	cw_cli(fd, "Capabilities       : %s\n", cap_buf);
-	cw_cli(fd, "Codecs preference  : %s\n", pref_buf);
-	cw_cli(fd, "Can DND            : %s\n", (d->dndmode) ? sccp_dndmode2str(d->dndmode) : "Disabled");
-	cw_cli(fd, "Can Transfer       : %s\n", (d->transfer) ? "Yes" : "No");
-	cw_cli(fd, "Can Park           : %s\n", (d->park) ? "Yes" : "No");
-	cw_cli(fd, "Private softkey    : %s\n", d->private ? "Enabled" : "Disabled");
-	cw_cli(fd, "Can CFWDALL        : %s\n", (d->cfwdall) ? "Yes" : "No");
-	cw_cli(fd, "Can CFWBUSY        : %s\n", (d->cfwdbusy) ? "Yes" : "No");
-	cw_cli(fd, "Dtmf mode          : %s\n", (d->dtmfmode) ? "Out-of-Band" : "In-Band");
-	cw_cli(fd, "Trust phone ip     : %s\n", (d->trustphoneip) ? "Yes" : "No");
-	cw_cli(fd, "Early RTP          : %s\n", (d->earlyrtp) ? "Yes" : "No");
+	cw_dynstr_tprintf(ds_p, 25,
+		cw_fmtval("Current settings for selected Device\n"),
+		cw_fmtval("------------------------------------\n\n"),
+		cw_fmtval("MAC-Address        : %s\n", d->id),
+		cw_fmtval("Protocol Version   : phone=%d, channel=%d\n", d->protocolversion, GLOB(protocolversion)),
+		cw_fmtval("Registration state : %s(%d)\n", skinny_registrationstate2str(d->registrationState), d->registrationState),
+		cw_fmtval("State              : %s(%d)\n", skinny_devicestate2str(d->state), d->state),
+		cw_fmtval("MWI handset light  : %s\n", (d->mwilight ? "ON" : "OFF")),
+		cw_fmtval("Description        : %s\n", d->description),
+		cw_fmtval("Config Phone Type  : %s\n", d->config_type),
+		cw_fmtval("Skinny Phone Type  : %s(%d)\n", skinny_devicetype2str(d->skinny_type), d->skinny_type),
+		cw_fmtval("Softkey support    : %s\n", (d->softkeysupport ? "Yes" : "No")),
+		cw_fmtval("Autologin          : %s\n", d->autologin),
+		cw_fmtval("Image Version      : %s\n", d->imageversion),
+		cw_fmtval("Timezone Offset    : %d\n", d->tz_offset),
+		cw_fmtval("Capabilities       : %s\n", cap_buf),
+		cw_fmtval("Codecs preference  : %s\n", pref_buf),
+		cw_fmtval("Can DND            : %s\n", (d->dndmode ? sccp_dndmode2str(d->dndmode) : "Disabled")),
+		cw_fmtval("Can Transfer       : %s\n", (d->transfer ? "Yes" : "No")),
+		cw_fmtval("Can Park           : %s\n", (d->park ? "Yes" : "No")),
+		cw_fmtval("Private softkey    : %s\n", (d->private ? "Enabled" : "Disabled")),
+		cw_fmtval("Can CFWDALL        : %s\n", (d->cfwdall ? "Yes" : "No")),
+		cw_fmtval("Can CFWBUSY        : %s\n", (d->cfwdbusy ? "Yes" : "No")),
+		cw_fmtval("Dtmf mode          : %s\n", (d->dtmfmode ? "Out-of-Band" : "In-Band")),
+		cw_fmtval("Trust phone ip     : %s\n", (d->trustphoneip ? "Yes" : "No")),
+		cw_fmtval("Early RTP          : %s\n", (d->earlyrtp ? "Yes" : "No"))
+	);
 
 	l = d->lines;
 	if (l) {
-		cw_cli(fd, "\nLines\n");
-		cw_cli(fd, "%-4s: %-20s %-20s\n", "id", "name" , "label");
-		cw_cli(fd, "------------------------------------\n");
+		cw_dynstr_printf(ds_p,
+			"\nLines\n"
+			"%-4s: %-20s %-20s\n", "id", "name" , "label"
+			"------------------------------------\n"
+		);
 		while (l) {
-			cw_cli(fd, "%4d: %-20s %-20s\n", l->instance, l->name , l->label);
+			cw_dynstr_printf(ds_p, "%4d: %-20s %-20s\n", l->instance, l->name , l->label);
 			l = l->next_on_device;
 		}
 	}
 	k = d->speed_dials;
 	if (k) {
-		cw_cli(fd, "\nSpeedials\n");
-		cw_cli(fd, "%-4s: %-20s %-20s\n", "id", "name" , "number");
-		cw_cli(fd, "------------------------------------\n");
+		cw_dynstr_printf(ds_p,
+			"\nSpeedials\n"
+			"%-4s: %-20s %-20s\n", "id", "name" , "number"
+			"------------------------------------\n"
+		);
 		while (k) {
-			cw_cli(fd, "%4d: %-20s %-20s\n", k->instance, k->name , k->ext);
+			cw_dynstr_printf(ds_p, "%4d: %-20s %-20s\n", k->instance, k->name , k->ext);
 			k = k->next;
 		}
 	}
@@ -235,16 +245,18 @@ static struct cw_clicmd cli_restart = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_channels(int fd, int argc, char * argv[]) {
+static int sccp_show_channels(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_channel_t * c;
 
-	cw_cli(fd, "\n%-5s %-10s %-16s %-16s %-16s %-10s\n", "ID","LINE","DEVICE","AST STATE","SCCP STATE","CALLED");
-	cw_cli(fd, "===== ========== ================ ================ ================ ========== \n");
+	cw_dynstr_printf(ds_p,
+		"\n%-5s %-10s %-16s %-16s %-16s %-10s\n", "ID","LINE","DEVICE","AST STATE","SCCP STATE","CALLED"
+		"===== ========== ================ ================ ================ ========== \n"
+	);
 
 	cw_mutex_lock(&GLOB(channels_lock));
 	c = GLOB(channels);
 	while(c) {
-		cw_cli(fd, "%.5d %-10s %-16s %-16s %-16s %-10s\n",
+		cw_dynstr_printf(ds_p, "%.5d %-10s %-16s %-16s %-16s %-10s\n",
 			c->callid,
 			c->line->name,
 			c->line->device->description,
@@ -266,17 +278,19 @@ static struct cw_clicmd cli_show_channels = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_devices(int fd, int argc, char * argv[]) {
+static int sccp_show_devices(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_device_t * d;
 	char iabuf[INET_ADDRSTRLEN];
 
-	cw_cli(fd, "\n%-16s %-15s %-16s %-10s\n", "NAME","ADDRESS","MAC","Reg. State");
-	cw_cli(fd, "================ =============== ================ ==========\n");
+	cw_dynstr_printf(ds_p,
+		"\n%-16s %-15s %-16s %-10s\n", "NAME","ADDRESS","MAC","Reg. State"
+		"================ =============== ================ ==========\n"
+	);
 
 	cw_mutex_lock(&GLOB(devices_lock));
 	d = GLOB(devices);
 	while (d) {
-		cw_cli(fd, "%-16s %-15s %-16s %-10s\n",// %-10s %-16s %c%c %-10s\n",
+		cw_dynstr_printf(ds_p, "%-16s %-15s %-16s %-10s\n",// %-10s %-16s %c%c %-10s\n",
 			d->description,
 			(d->session) ? cw_inet_ntoa(iabuf, sizeof(iabuf), d->session->sin.sin_addr) : "--",
 			d->id,
@@ -295,7 +309,7 @@ static struct cw_clicmd cli_show_devices = {
 	.usage = "Usage: sccp show devices\n",
 };
 
-static int sccp_message_devices(int fd, int argc, char * argv[]) {
+static int sccp_message_devices(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_device_t * d;
 	int msgtimeout=10;
 
@@ -330,14 +344,16 @@ static struct cw_clicmd cli_message_devices = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_lines(int fd, int argc, char * argv[]) {
+static int sccp_show_lines(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_line_t * l = NULL;
 	sccp_channel_t * c = NULL;
 	sccp_device_t * d = NULL;
 	char cap_buf[512];
 
-	cw_cli(fd, "\n%-16s %-16s %-4s %-4s %-16s\n", "NAME","DEVICE","MWI","Chs","Active Channel");
-	cw_cli(fd, "================ ================ ==== ==== =================================================\n");
+	cw_dynstr_printf(ds_p,
+		"\n%-16s %-16s %-4s %-4s %-16s\n", "NAME","DEVICE","MWI","Chs","Active Channel"
+		"================ ================ ==== ==== =================================================\n"
+	);
 
 	cw_mutex_lock(&GLOB(lines_lock));
 	l = GLOB(lines);
@@ -358,7 +374,7 @@ static int sccp_show_lines(int fd, int argc, char * argv[]) {
 		if (c && c->owner)
 			cw_getformatname_multiple(cap_buf, sizeof(cap_buf),  c->owner->nativeformats);
 
-		cw_cli(fd, "%-16s %-16s %-4s %-4d %-10s %-10s %-16s %-10s\n",
+		cw_dynstr_printf(ds_p, "%-16s %-16s %-4s %-4d %-10s %-10s %-16s %-10s\n",
 			l->name,
 			(l->device) ? l->device->id : "--",
 			(l->mwilight) ? "ON" : "OFF",
@@ -385,13 +401,15 @@ static struct cw_clicmd cli_show_lines = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_sessions(int fd, int argc, char * argv[]) {
+static int sccp_show_sessions(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	sccp_session_t * s = NULL;
 	sccp_device_t * d = NULL;
 	char iabuf[INET_ADDRSTRLEN];
 
-	cw_cli(fd, "%-10s %-15s %-4s %-15s %-15s %-15s\n", "Socket", "IP", "KA", "DEVICE", "STATE", "TYPE");
-	cw_cli(fd, "========== =============== ==== =============== =============== ===============\n");
+	cw_dynstr_printf(ds_p,
+		"%-10s %-15s %-4s %-15s %-15s %-15s\n", "Socket", "IP", "KA", "DEVICE", "STATE", "TYPE"
+		"========== =============== ==== =============== =============== ===============\n"
+	);
 
 	cw_mutex_lock(&GLOB(sessions_lock));
 	s = GLOB(sessions);
@@ -401,7 +419,7 @@ static int sccp_show_sessions(int fd, int argc, char * argv[]) {
 		d = s->device;
 		if (d)
 			cw_mutex_lock(&d->lock);
-		cw_cli(fd, "%-10d %-15s %-4d %-15s %-15s %-15s\n",
+		cw_dynstr_printf(ds_p, "%-10d %-15s %-4d %-15s %-15s %-15s\n",
 			s->fd,
 			cw_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr),
 			(uint32_t)(time(0) - s->lastKeepAlive),
@@ -425,7 +443,7 @@ static struct cw_clicmd cli_show_sessions = {
 };
 
 /* ------------------------------------------------------------ */
-static int sccp_system_message(int fd, int argc, char * argv[]) {
+static int sccp_system_message(struct cw_dynstr **ds_p, int argc, char * argv[]) {
 	int res;
 	int timeout = 0;
 	if ((argc < 3) || (argc > 5))
@@ -434,10 +452,10 @@ static int sccp_system_message(int fd, int argc, char * argv[]) {
 	if (argc == 3) {
 		res = cw_db_deltree("SCCP", "message");
 		if (res) {
-			cw_cli(fd, "Failed to delete the SCCP system message!\n");
+			cw_dynstr_printf(ds_p, "Failed to delete the SCCP system message!\n");
 			return RESULT_FAILURE;
 		}
-		cw_cli(fd, "SCCP system message deleted!\n");
+		cw_dynstr_printf(ds_p, "SCCP system message deleted!\n");
 		return RESULT_SUCCESS;
 	}
 
@@ -446,18 +464,18 @@ static int sccp_system_message(int fd, int argc, char * argv[]) {
 
 	res = cw_db_put("SCCP/message", "text", argv[3]);
 	if (res) {
-		cw_cli(fd, "Failed to store the SCCP system message text\n");
+		cw_dynstr_printf(ds_p, "Failed to store the SCCP system message text\n");
 	} else {
-		cw_cli(fd, "SCCP system message text stored successfully\n");
+		cw_dynstr_printf(ds_p, "SCCP system message text stored successfully\n");
 	}
 	if (argc == 5) {
 		if (sscanf(argv[4], "%d", &timeout) != 1)
 			return RESULT_SHOWUSAGE;
 		res = cw_db_put("SCCP/message", "timeout", argv[4]);
 		if (res) {
-			cw_cli(fd, "Failed to store the SCCP system message timeout\n");
+			cw_dynstr_printf(ds_p, "Failed to store the SCCP system message timeout\n");
 		} else {
-			cw_cli(fd, "SCCP system message timeout stored successfully\n");
+			cw_dynstr_printf(ds_p, "SCCP system message timeout stored successfully\n");
 		}
 	} else {
 		cw_db_del("SCCP/message", "timeout");
@@ -482,7 +500,7 @@ static const char no_debug_usage[] =
 "Usage: SCCP no debug\n"
 "		Disables dumping of SCCP packets for debugging purposes\n";
 
-static int sccp_do_debug(int fd, int argc, char *argv[]) {
+static int sccp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	int new_debug = 10;
 
 	if ((argc < 2) || (argc > 3))
@@ -495,7 +513,7 @@ static int sccp_do_debug(int fd, int argc, char *argv[]) {
 		new_debug = (new_debug < 0) ? 0 : new_debug;
 	}
 
-	cw_cli(fd, "SCCP debug level was %d now %d\n", GLOB(debug), new_debug);
+	cw_dynstr_printf(ds_p, "SCCP debug level was %d now %d\n", GLOB(debug), new_debug);
 	GLOB(debug) = new_debug;
 	return RESULT_SUCCESS;
 }
@@ -507,12 +525,12 @@ static struct cw_clicmd cli_do_debug = {
   .usage = debug_usage,
 };
 
-static int sccp_no_debug(int fd, int argc, char *argv[]) {
+static int sccp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	GLOB(debug) = 0;
-	cw_cli(fd, "SCCP Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "SCCP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -523,8 +541,8 @@ static struct cw_clicmd cli_no_debug = {
   .usage = no_debug_usage,
 };
 
-static int sccp_do_reload(int fd, int argc, char *argv[]) {
-	cw_cli(fd, "SCCP configuration reload not implemented yet! use unload and load.\n");
+static int sccp_do_reload(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+	cw_dynstr_printf(ds_p, "SCCP configuration reload not implemented yet! use unload and load.\n");
 	return RESULT_SUCCESS;
 }
 
@@ -543,8 +561,8 @@ static const char version_usage[] =
 "Usage: SCCP show version\n"
 "		Show the SCCP channel version\n";
 
-static int sccp_show_version(int fd, int argc, char *argv[]) {
-	cw_cli(fd, "SCCP channel version: %s\n", SCCP_VERSION);
+static int sccp_show_version(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+	cw_dynstr_printf(ds_p, "SCCP channel version: %s\n", SCCP_VERSION);
 	return RESULT_SUCCESS;
 }
 

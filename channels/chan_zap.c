@@ -8984,29 +8984,29 @@ static int start_pri(struct dahdi_pri *pri)
 	return 0;
 }
 
-static void complete_span_helper(int fd, char *argv[], int lastarg, int lastarg_len, int rpos)
+static void complete_span_helper(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len, int rpos)
 {
 	int span = 1;
 
 	if (lastarg == rpos) {
 		for (span = 1; span <= NUM_SPANS; span++) {
 			if (pris[span-1].pri)
-				cw_cli(fd, "%d\n", span);
+				cw_dynstr_printf(ds_p, "%d\n", span);
 		}
 	}
 }
 
-static void complete_span_4(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_span_4(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
-	complete_span_helper(fd, argv, lastarg, lastarg_len, 3);
+	complete_span_helper(ds_p, argv, lastarg, lastarg_len, 3);
 }
 
-static void complete_span_5(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_span_5(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
-	complete_span_helper(fd, argv, lastarg, lastarg_len, 4);
+	complete_span_helper(ds_p, argv, lastarg, lastarg_len, 4);
 }
 
-static int handle_pri_set_debug_file(int fd, int argc, char **argv)
+static int handle_pri_set_debug_file(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	int myfd;
 
@@ -9019,7 +9019,7 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 
 		myfd = open(argv[4], O_CREAT | O_WRONLY, 0660);
 		if (myfd < 0) {
-			cw_cli(fd, "Unable to open '%s' for writing\n", argv[4]);
+			cw_dynstr_printf(ds_p, "Unable to open '%s' for writing\n", argv[4]);
 			return RESULT_SUCCESS;
 		}
 
@@ -9033,20 +9033,20 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 		
 		cw_mutex_unlock(&pridebugfdlock);
 
-		cw_cli(fd, "PRI debug output will be sent to '%s'\n", argv[4]);
+		cw_dynstr_printf(ds_p, "PRI debug output will be sent to '%s'\n", argv[4]);
 	} else {
 		/* Assume it is unset */
 		cw_mutex_lock(&pridebugfdlock);
 		close(pridebugfd);
 		pridebugfd = -1;
-		cw_cli(fd, "PRI debug output to file disabled\n");
+		cw_dynstr_printf(ds_p, "PRI debug output to file disabled\n");
 		cw_mutex_unlock(&pridebugfdlock);
 	}
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_debug(int fd, int argc, char *argv[])
+static int handle_pri_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9055,24 +9055,24 @@ static int handle_pri_debug(int fd, int argc, char *argv[])
 	}
 	span = atoi(argv[3]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
+		cw_dynstr_printf(ds_p, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
 		return RESULT_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		cw_cli(fd, "No PRI running on span %d\n", span);
+		cw_dynstr_printf(ds_p, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
 	for (x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchans[x])
 			pri_set_debug(pris[span-1].dchans[x], PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q931_STATE);
 	}
-	cw_cli(fd, "Enabled debugging on span %d\n", span);
+	cw_dynstr_printf(ds_p, "Enabled debugging on span %d\n", span);
 	return RESULT_SUCCESS;
 }
 
 
 
-static int handle_pri_no_debug(int fd, int argc, char *argv[])
+static int handle_pri_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9080,22 +9080,22 @@ static int handle_pri_no_debug(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[4]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		cw_dynstr_printf(ds_p, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
 		return RESULT_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		cw_cli(fd, "No PRI running on span %d\n", span);
+		cw_dynstr_printf(ds_p, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
 	for (x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchans[x])
 			pri_set_debug(pris[span-1].dchans[x], 0);
 	}
-	cw_cli(fd, "Disabled debugging on span %d\n", span);
+	cw_dynstr_printf(ds_p, "Disabled debugging on span %d\n", span);
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_really_debug(int fd, int argc, char *argv[])
+static int handle_pri_really_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9103,18 +9103,18 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[4]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		cw_dynstr_printf(ds_p, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
 		return RESULT_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		cw_cli(fd, "No PRI running on span %d\n", span);
+		cw_dynstr_printf(ds_p, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
 	for (x=0;x<NUM_DCHANS;x++) {
 		if (pris[span-1].dchans[x])
 			pri_set_debug(pris[span-1].dchans[x], (PRI_DEBUG_Q931_DUMP | PRI_DEBUG_Q921_DUMP | PRI_DEBUG_Q921_RAW | PRI_DEBUG_Q921_STATE));
 	}
-	cw_cli(fd, "Enabled EXTENSIVE debugging on span %d\n", span);
+	cw_dynstr_printf(ds_p, "Enabled EXTENSIVE debugging on span %d\n", span);
 	return RESULT_SUCCESS;
 }
 
@@ -9139,7 +9139,7 @@ static void build_status(char *s, size_t len, int status, int active)
 	s[len - 1] = '\0';
 }
 
-static int handle_pri_show_span(int fd, int argc, char *argv[])
+static int handle_pri_show_span(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9148,11 +9148,11 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	span = atoi(argv[3]);
 	if ((span < 1) || (span > NUM_SPANS)) {
-		cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		cw_dynstr_printf(ds_p, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
 		return RESULT_SUCCESS;
 	}
 	if (!pris[span-1].pri) {
-		cw_cli(fd, "No PRI running on span %d\n", span);
+		cw_dynstr_printf(ds_p, "No PRI running on span %d\n", span);
 		return RESULT_SUCCESS;
 	}
 	for(x=0;x<NUM_DCHANS;x++) {
@@ -9160,25 +9160,25 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 #ifdef PRI_DUMP_INFO_STR
 			char *info_str = NULL;
 #endif
-			cw_cli(fd, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
+			cw_dynstr_printf(ds_p, "%s D-channel: %d\n", pri_order(x), pris[span-1].dchannels[x]);
 			build_status(status, sizeof(status), pris[span-1].dchanavail[x], pris[span-1].dchans[x] == pris[span-1].pri);
-			cw_cli(fd, "Status: %s\n", status);
+			cw_dynstr_printf(ds_p, "Status: %s\n", status);
 #ifdef PRI_DUMP_INFO_STR
 			info_str = pri_dump_info_str(pris[span-1].pri);
 			if (info_str) {
-				cw_cli(fd, "%s", info_str);
+				cw_dynstr_printf(ds_p, "%s", info_str);
 				free(info_str);
 			}
 #else
 			pri_dump_info(pris[span-1].pri);
 #endif
-			cw_cli(fd, "\n");
+			cw_dynstr_printf(ds_p, "\n");
 		}
 	}
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_show_debug(int fd, int argc, char *argv[])
+static int handle_pri_show_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int x;
 	int span;
@@ -9191,7 +9191,7 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 				debug=0;
 	        		if (pris[span].dchans[x]) {
 	        			debug = pri_get_debug(pris[span].dchans[x]);
-					cw_cli(fd, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
+					cw_dynstr_printf(ds_p, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
 					count++;
 				}
 			}
@@ -9200,11 +9200,11 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	}
 	cw_mutex_lock(&pridebugfdlock);
 	if (pridebugfd >= 0) 
-		cw_cli(fd, "Logging PRI debug to file %s\n", pridebugfilename);
+		cw_dynstr_printf(ds_p, "Logging PRI debug to file %s\n", pridebugfilename);
 	cw_mutex_unlock(&pridebugfdlock);
 	    
 	if (!count) 
-		cw_cli(fd, "No debug set or no PRI running\n");
+		cw_dynstr_printf(ds_p, "No debug set or no PRI running\n");
 	return RESULT_SUCCESS;
 }
 
@@ -9271,7 +9271,7 @@ static struct cw_clicmd dahdi_pri_cli[] = {
 
 #endif /* ZAPATA_PRI */
 
-static int dahdi_destroy_channel(int fd, int argc, char **argv)
+static int dahdi_destroy_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	int channel = 0;
 	struct dahdi_pvt *tmp = NULL;
@@ -9294,7 +9294,7 @@ static int dahdi_destroy_channel(int fd, int argc, char **argv)
 	return RESULT_FAILURE;
 }
 
-static int dahdi_show_channels(int fd, int argc, char **argv)
+static int dahdi_show_channels(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 #define FORMAT "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
@@ -9325,7 +9325,7 @@ static int dahdi_show_channels(int fd, int argc, char **argv)
 			start = pri->crvs;
 			lock = &pri->lock;
 		} else {
-			cw_cli(fd, "No such trunk group %d\n", trunkgroup);
+			cw_dynstr_printf(ds_p, "No such trunk group %d\n", trunkgroup);
 			return RESULT_FAILURE;
 		}
 	} else
@@ -9335,9 +9335,9 @@ static int dahdi_show_channels(int fd, int argc, char **argv)
 
 	cw_mutex_lock(lock);
 #ifdef ZAPATA_PRI
-	cw_cli(fd, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MusicOnHold");
+	cw_dynstr_printf(ds_p, FORMAT2, pri ? "CRV" : "Chan", "Extension", "Context", "Language", "MusicOnHold");
 #else
-	cw_cli(fd, FORMAT2, "Chan", "Extension", "Context", "Language", "MusicOnHold");
+	cw_dynstr_printf(ds_p, FORMAT2, "Chan", "Extension", "Context", "Language", "MusicOnHold");
 #endif	
 	
 	tmp = start;
@@ -9346,7 +9346,7 @@ static int dahdi_show_channels(int fd, int argc, char **argv)
 			snprintf(tmps, sizeof(tmps), "%d", tmp->channel);
 		} else
 			cw_copy_string(tmps, "pseudo", sizeof(tmps));
-		cw_cli(fd, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
+		cw_dynstr_printf(ds_p, FORMAT, tmps, tmp->exten, tmp->context, tmp->language, tmp->musicclass);
 		tmp = tmp->next;
 	}
 	cw_mutex_unlock(lock);
@@ -9355,7 +9355,7 @@ static int dahdi_show_channels(int fd, int argc, char **argv)
 #undef FORMAT2
 }
 
-static int dahdi_show_channel(int fd, int argc, char **argv)
+static int dahdi_show_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	int channel;
 	struct dahdi_pvt *tmp = NULL;
@@ -9391,7 +9391,7 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 			start = pri->crvs;
 			lock = &pri->lock;
 		} else {
-			cw_cli(fd, "No such trunk group %d\n", trunkgroup);
+			cw_dynstr_printf(ds_p, "No such trunk group %d\n", trunkgroup);
 			return RESULT_FAILURE;
 		}
 	} else
@@ -9404,56 +9404,68 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 		if (tmp->channel == channel) {
 #ifdef ZAPATA_PRI
 			if (pri) 
-				cw_cli(fd, "Trunk/CRV: %d/%d\n", trunkgroup, tmp->channel);
+				cw_dynstr_printf(ds_p, "Trunk/CRV: %d/%d\n", trunkgroup, tmp->channel);
 			else
 #endif			
-			cw_cli(fd, "Channel: %d\n", tmp->channel);
-			cw_cli(fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].dfd);
-			cw_cli(fd, "Span: %d\n", tmp->span);
-			cw_cli(fd, "Extension: %s\n", tmp->exten);
-			cw_cli(fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
-			cw_cli(fd, "Context: %s\n", tmp->context);
-			cw_cli(fd, "Caller ID: %s\n", tmp->cid_num);
-			cw_cli(fd, "Calling TON: %d\n", tmp->cid_ton);
-			cw_cli(fd, "Caller ID name: %s\n", tmp->cid_name);
-			cw_cli(fd, "Destroy: %d\n", tmp->destroy);
-			cw_cli(fd, "InAlarm: %d\n", tmp->inalarm);
-			cw_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
-			cw_cli(fd, "Radio: %d\n", tmp->radio);
-			cw_cli(fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
-			cw_cli(fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");
-			cw_cli(fd, "Callwait: %s%s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "", tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "");
-			cw_cli(fd, "Threeway: %s%s%s\n", tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>", tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "", tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "");
-			cw_cli(fd, "Confno: %d\n", tmp->confno);
-			cw_cli(fd, "Propagated Conference: %d\n", tmp->propconfno);
-			cw_cli(fd, "Real in conference: %d\n", tmp->inconference);
-			cw_cli(fd, "DSP: %s\n", tmp->dsp ? "yes" : "no");
-			cw_cli(fd, "Relax DTMF: %s\n", tmp->dtmfrelax ? "yes" : "no");
-			cw_cli(fd, "Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas);
-			cw_cli(fd, "Default law: %s\n", tmp->law == DAHDI_LAW_MULAW ? "ulaw" : tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown");
-			cw_cli(fd, "Fax Handled: %s\n", tmp->faxhandled ? "yes" : "no");
-			cw_cli(fd, "Pulse phone: %s\n", tmp->pulsedial ? "yes" : "no");
-			cw_cli(fd, "Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, tmp->echocanbridged ? "" : " unless TDM bridged", tmp->echocanon ? "ON" : "OFF");
+			cw_dynstr_printf(ds_p, "Channel: %d\n", tmp->channel);
+
+			cw_dynstr_tprintf(ds_p, 26,
+				cw_fmtval("File Descriptor: %d\n", tmp->subs[SUB_REAL].dfd),
+				cw_fmtval("Span: %d\n", tmp->span),
+				cw_fmtval("Extension: %s\n", tmp->exten),
+				cw_fmtval("Dialing: %s\n", (tmp->dialing ? "yes" : "no")),
+				cw_fmtval("Context: %s\n", tmp->context),
+				cw_fmtval("Caller ID: %s\n", tmp->cid_num),
+				cw_fmtval("Calling TON: %d\n", tmp->cid_ton),
+				cw_fmtval("Caller ID name: %s\n", tmp->cid_name),
+				cw_fmtval("Destroy: %d\n", tmp->destroy),
+				cw_fmtval("InAlarm: %d\n", tmp->inalarm),
+				cw_fmtval("Signalling Type: %s\n", sig2str(tmp->sig)),
+				cw_fmtval("Radio: %d\n", tmp->radio),
+				cw_fmtval("Owner: %s\n", (tmp->owner ? tmp->owner->name : "<None>")),
+				cw_fmtval("Real: %s%s%s\n",
+					(tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>"),
+					(tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : ""),
+					(tmp->subs[SUB_REAL].linear ? " (Linear)" : "")),
+				cw_fmtval("Callwait: %s%s%s\n",
+					(tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>"),
+					(tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : ""),
+					(tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "")),
+				cw_fmtval("Threeway: %s%s%s\n",
+					(tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>"),
+					(tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : ""), (tmp->subs[SUB_THREEWAY].linear ? " (Linear)" : "")),
+				cw_fmtval("Confno: %d\n", tmp->confno),
+				cw_fmtval("Propagated Conference: %d\n", tmp->propconfno),
+				cw_fmtval("Real in conference: %d\n", tmp->inconference),
+				cw_fmtval("DSP: %s\n", (tmp->dsp ? "yes" : "no")),
+				cw_fmtval("Relax DTMF: %s\n", (tmp->dtmfrelax ? "yes" : "no")),
+				cw_fmtval("Dialing/CallwaitCAS: %d/%d\n", tmp->dialing, tmp->callwaitcas),
+				cw_fmtval("Default law: %s\n", (tmp->law == DAHDI_LAW_MULAW ? "ulaw" : (tmp->law == DAHDI_LAW_ALAW ? "alaw" : "unknown"))),
+				cw_fmtval("Fax Handled: %s\n", (tmp->faxhandled ? "yes" : "no")),
+				cw_fmtval("Pulse phone: %s\n", (tmp->pulsedial ? "yes" : "no")),
+				cw_fmtval("Echo Cancellation: %d taps%s, currently %s\n", tmp->echocancel, (tmp->echocanbridged ? "" : " unless TDM bridged"), (tmp->echocanon ? "ON" : "OFF"))
+			);
+
 			if (tmp->master)
-				cw_cli(fd, "Master Channel: %d\n", tmp->master->channel);
+				cw_dynstr_printf(ds_p, "Master Channel: %d\n", tmp->master->channel);
 			for (x=0;x<MAX_SLAVES;x++) {
 				if (tmp->slaves[x])
-					cw_cli(fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
+					cw_dynstr_printf(ds_p, "Slave Channel: %d\n", tmp->slaves[x]->channel);
 			}
 #ifdef ZAPATA_PRI
 			if (tmp->pri) {
-				cw_cli(fd, "PRI Flags: ");
+				cw_dynstr_printf(ds_p, "PRI Flags: ");
 				if (tmp->resetting)
-					cw_cli(fd, "Resetting ");
+					cw_dynstr_printf(ds_p, "Resetting ");
 				if (tmp->call)
-					cw_cli(fd, "Call ");
+					cw_dynstr_printf(ds_p, "Call ");
 				if (tmp->bearer)
-					cw_cli(fd, "Bearer ");
-				cw_cli(fd, "\n");
+					cw_dynstr_printf(ds_p, "Bearer ");
+				cw_dynstr_printf(ds_p, "\n");
 				if (tmp->logicalspan) 
-					cw_cli(fd, "PRI Logical Span: %d\n", tmp->logicalspan);
+					cw_dynstr_printf(ds_p, "PRI Logical Span: %d\n", tmp->logicalspan);
 				else
-					cw_cli(fd, "PRI Logical Span: Implicit\n");
+					cw_dynstr_printf(ds_p, "PRI Logical Span: Implicit\n");
 			}
 				
 #endif
@@ -9461,17 +9473,17 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 			ps.channo = tmp->channel;
 			if (tmp->subs[SUB_REAL].dfd > -1) {
 				if (!ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GETCONF, &ci)) {
-					cw_cli(fd, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
+					cw_dynstr_printf(ds_p, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 				}
 #ifdef DAHDI_GETCONFMUTE
 				if (!ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GETCONFMUTE, &x)) {
-					cw_cli(fd, "Actual Confmute: %s\n", x ? "Yes" : "No");
+					cw_dynstr_printf(ds_p, "Actual Confmute: %s\n", x ? "Yes" : "No");
 				}
 #endif
 				if (ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
 					cw_log(CW_LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
 				} else {
-					cw_cli(fd, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
+					cw_dynstr_printf(ds_p, "Hookstate (FXS only): %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
 				}
 			}
 			cw_mutex_unlock(lock);
@@ -9480,7 +9492,7 @@ static int dahdi_show_channel(int fd, int argc, char **argv)
 		tmp = tmp->next;
 	}
 	
-	cw_cli(fd, "Unable to find given channel %d\n", channel);
+	cw_dynstr_printf(ds_p, "Unable to find given channel %d\n", channel);
 	cw_mutex_unlock(lock);
 	return RESULT_FAILURE;
 }
@@ -9489,7 +9501,7 @@ static char dahdi_show_cadences_help[] =
 "Usage: dahdi show cadences\n"
 "       Shows all cadences currently defined\n";
 
-static int handle_dahdi_show_cadences(int fd, int argc, char *argv[])
+static int handle_dahdi_show_cadences(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int i, j;
 	for (i=0;i<num_cadence;i++) {
@@ -9510,13 +9522,13 @@ static int handle_dahdi_show_cadences(int fd, int argc, char *argv[])
 
 			strncat(output, tmp, sizeof(output) - strlen(output) - 1);
 		}
-		cw_cli(fd,"%s\n",output);
+		cw_dynstr_printf(ds_p,"%s\n",output);
 	}
 	return 0;
 }
 
 /* Based on irqmiss.c */
-static int dahdi_show_status(int fd, int argc, char *argv[]) {
+static int dahdi_show_status(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
 
@@ -9530,10 +9542,10 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 	ctl = open("/dev/dahdi/ctl", O_RDWR);
 	if (ctl < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to open /dev/dahdi/ctl: %s\n", strerror(errno));
-		cw_cli(fd, "No DAHDI interface found.\n");
+		cw_dynstr_printf(ds_p, "No DAHDI interface found.\n");
 		return RESULT_FAILURE;
 	}
-	cw_cli(fd,FORMAT2, "Description", "Alarms","IRQ","bpviol","CRC4");
+	cw_dynstr_printf(ds_p,FORMAT2, "Description", "Alarms","IRQ","bpviol","CRC4");
 
 	for (span=1;span < DAHDI_MAX_SPANS;++span) {
 		s.spanno = span;
@@ -9568,7 +9580,7 @@ static int dahdi_show_status(int fd, int argc, char *argv[]) {
 				strcpy(alarms, "UNCONFIGURED");
 		}
 
-		cw_cli(fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count);
+		cw_dynstr_printf(ds_p, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count);
 	}
 	close(ctl);
 
@@ -9658,162 +9670,142 @@ static struct dahdi_pvt *find_channel(int channel)
 	return p;
 }
 
-static int action_dahdidndon(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_dahdidndon(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *p = NULL;
-	char *hdr;
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *p;
+	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
-	hdr = astman_get_header(m, "DAHDIChannel");
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(hdr));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	p->dnd = 1;
-	astman_send_ack(s, m, "DND Enabled");
-	return 0;
+	if (!cw_strlen_zero(hdr)) {
+		if ((p = find_channel(atoi(hdr)))) {
+			p->dnd = 1;
+			msg = cw_manager_response("Success", "DND Enabled");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
+
+	return msg;
 }
 
-static int action_dahdidndoff(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_dahdidndoff(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *p = NULL;
-	char *hdr = astman_get_header(m, "DAHDIChannel");
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *p;
+	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(hdr));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	p->dnd = 0;
-	astman_send_ack(s, m, "DND Disabled");
-	return 0;
+	if (!cw_strlen_zero(hdr)) {
+		if ((p = find_channel(atoi(hdr)))) {
+			p->dnd = 0;
+			msg = cw_manager_response("Success", "DND Disabled");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
+
+	return msg;
 }
 
-static int action_transfer(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_transfer(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *p = NULL;
-	char *hdr;
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *p;
+	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
-	hdr = astman_get_header(m, "DAHDIChannel");
+	if (!cw_strlen_zero(hdr)) {
+		if ((p = find_channel(atoi(hdr)))) {
+			dahdi_fake_event(p,TRANSFER);
+			msg = cw_manager_response("Success", "Transferred");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(hdr));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	dahdi_fake_event(p,TRANSFER);
-	astman_send_ack(s, m, "Transferred");
-	return 0;
+	return msg;
 }
 
-static int action_transferhangup(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_transferhangup(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *p = NULL;
-	char *hdr;
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *p;
+	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
-	hdr = astman_get_header(m, "DAHDIChannel");
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(hdr));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-	dahdi_fake_event(p,HANGUP);
-	astman_send_ack(s, m, "Hungup");
-	return 0;
+	if (!cw_strlen_zero(hdr)) {
+		if ((p = find_channel(atoi(hdr)))) {
+			dahdi_fake_event(p,HANGUP);
+			msg = cw_manager_response("Success", "Hungup");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
+
+	return msg;
 }
 
-static int action_dahdidialoffhook(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_dahdidialoffhook(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *p = NULL;
-	char *hdr;
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *p;
+	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 	int i;
 
-	hdr = astman_get_header(m, "DAHDIChannel");
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
-	p = find_channel(atoi(hdr));
-	if (!p) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
+	if (!cw_strlen_zero(hdr)) {
+		if ((p = find_channel(atoi(hdr)))) {
+			if (p->owner) {
+				hdr = cw_manager_msg_header(req, "Number");
+				if (!cw_strlen_zero(hdr)) {
+					for (i = 0; i < strlen(hdr); i++) {
+						struct cw_frame f = { CW_FRAME_DTMF, hdr[i] };
+						dahdi_queue_frame(p, &f, NULL); 
+					}
+					msg = cw_manager_response("Success", "Dialled");
+				} else
+					msg = cw_manager_response("Error", "No number specified");
+			} else
+				msg = cw_manager_response("Error", "Channel does not have it's owner");
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-	if (!p->owner) {
-		astman_send_error(s, m, "Channel does not have it's owner");
-		return 0;
-	}
-
-	hdr = astman_get_header(m, "Number");
-	if (cw_strlen_zero(hdr)) {
-		astman_send_error(s, m, "No number specified");
-		return 0;
-	}
-	for (i=0; i<strlen(hdr); i++) {
-		struct cw_frame f = { CW_FRAME_DTMF, hdr[i] };
-		dahdi_queue_frame(p, &f, NULL); 
-	}
-	astman_send_ack(s, m, "Dialled");
-	return 0;
+	return msg;
 }
 
-static int action_dahdishowchannels(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_dahdishowchannels(struct mansession *sess, const struct message *req)
 {
-	struct dahdi_pvt *tmp = NULL;
-	char *action = astman_get_header(m, "Action");
-	char *id = astman_get_header(m, "ActionID");
+	struct cw_manager_message *msg;
+	struct dahdi_pvt *tmp;
+	int err;
 
-	astman_send_ack(s, m, "DAHDI channel status will follow");
+	if ((msg = cw_manager_response("Success", "DAHDI channel status will follow")) && !cw_manager_send(sess, req, &msg)) {
+		err = 0;
 
-	cw_mutex_lock(&iflock);
+		cw_mutex_lock(&iflock);
 	
-	tmp = iflist;
-	while (tmp) {
-		if (tmp->channel > 0) {
-			int alarm = get_alarms(tmp);
-			cw_cli(s->fd,
-				"Event: %s\r\n"
-				"Channel: %d\r\n"
-				"Signalling: %s\r\n"
-				"Context: %s\r\n"
-				"DND: %s\r\n"
-				"Alarm: %s\r\n"
-				"ActionID: %s"
-				"\r\n",
-				action,
-				tmp->channel, sig2str(tmp->sig), tmp->context, 
-				tmp->dnd ? "Enabled" : "Disabled",
-				alarm2str(alarm), id);
-		} 
+		for (tmp = iflist; !err && tmp; tmp = tmp->next) {
+			if (tmp->channel > 0) {
+				int alarm = get_alarms(tmp);
 
-		tmp = tmp->next;
+				cw_manager_msg(&msg, 6,
+					cw_msg_tuple("Event",      "%s", "DAHDIShowChannels"),
+					cw_msg_tuple("Channel",    "%d", tmp->channel),
+					cw_msg_tuple("Signalling", "%s", sig2str(tmp->sig)),
+					cw_msg_tuple("Context",    "%s", tmp->context),
+					cw_msg_tuple("DND",        "%s", (tmp->dnd ? "Enabled" : "Disabled")),
+					cw_msg_tuple("Alarm",      "%s", alarm2str(alarm))
+				);
+
+				err = cw_manager_send(sess, req, &msg);
+			}
+		}
+
+		cw_mutex_unlock(&iflock);
+
+		if (!err)
+			cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "Complete"));
 	}
 
-	cw_mutex_unlock(&iflock);
-	
-	cw_cli(s->fd, 
-		"Event: %sComplete\r\n"
-		"ActionID: %s"
-		"\r\n",
-		action,
-		id);
-	return 0;
+	return msg;
 }
 
 static void *dahdidisableec_app;

@@ -2181,25 +2181,25 @@ static void *process_precache(void *ign)
 	return NULL;
 }
 
-static int dundi_do_debug(int fd, int argc, char *argv[])
+static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	dundidebug = 1;
-	cw_cli(fd, "DUNDi Debugging Enabled\n");
+	cw_dynstr_printf(ds_p, "DUNDi Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_store_history(int fd, int argc, char *argv[])
+static int dundi_do_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	global_storehistory = 1;
-	cw_cli(fd, "DUNDi History Storage Enabled\n");
+	cw_dynstr_printf(ds_p, "DUNDi History Storage Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int dundi_flush(int fd, int argc, char *argv[])
+static int dundi_flush(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int stats=0;
 	if ((argc < 2) || (argc > 3))
@@ -2229,26 +2229,26 @@ static int dundi_flush(int fd, int argc, char *argv[])
 		cw_mutex_unlock(&peerlock);
 	} else {
 		cw_db_deltree("dundi/cache", NULL);
-		cw_cli(fd, "DUNDi Cache Flushed\n");
+		cw_dynstr_printf(ds_p, "DUNDi Cache Flushed\n");
 	}
 	return RESULT_SUCCESS;
 }
 
-static int dundi_no_debug(int fd, int argc, char *argv[])
+static int dundi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	dundidebug = 0;
-	cw_cli(fd, "DUNDi Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "DUNDi Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int dundi_no_store_history(int fd, int argc, char *argv[])
+static int dundi_no_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	global_storehistory = 0;
-	cw_cli(fd, "DUNDi History Storage Disabled\n");
+	cw_dynstr_printf(ds_p, "DUNDi History Storage Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -2266,7 +2266,7 @@ static char *model2str(int model)
 	}
 }
 
-static void complete_peer_4(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_peer_4(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char eid_str[20];
 	struct dundi_peer *p;
@@ -2276,7 +2276,7 @@ static void complete_peer_4(int fd, char *argv[], int lastarg, int lastarg_len)
 
 		for (p = peers; p; p = p->next) {
 			if (!strncasecmp(argv[3], dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid), lastarg_len))
-				cw_cli(fd, "%s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
+				cw_dynstr_printf(ds_p, "%s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &p->eid));
 		}
 
 		cw_mutex_unlock(&peerlock);
@@ -2300,7 +2300,7 @@ static void sort_results(struct dundi_result *results, int count)
 	qsort(results, count, sizeof(results[0]), rescomp);
 }
 
-static int dundi_do_lookup(int fd, int argc, char *argv[])
+static int dundi_do_lookup(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2328,20 +2328,20 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
 	
 	if (res < 0) 
-		cw_cli(fd, "DUNDi lookup returned error.\n");
+		cw_dynstr_printf(ds_p, "DUNDi lookup returned error.\n");
 	else if (!res) 
-		cw_cli(fd, "DUNDi lookup returned no results.\n");
+		cw_dynstr_printf(ds_p, "DUNDi lookup returned no results.\n");
 	else
 		sort_results(dr, res);
 	for (x=0;x<res;x++) {
-		cw_cli(fd, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
-		cw_cli(fd, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
+		cw_dynstr_printf(ds_p, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
+		cw_dynstr_printf(ds_p, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
 	}
-	cw_cli(fd, "DUNDi lookup completed in %d ms\n", cw_tvdiff_ms(cw_tvnow(), start));
+	cw_dynstr_printf(ds_p, "DUNDi lookup completed in %d ms\n", cw_tvdiff_ms(cw_tvnow(), start));
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_precache(int fd, int argc, char *argv[])
+static int dundi_do_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2359,14 +2359,14 @@ static int dundi_do_precache(int fd, int argc, char *argv[])
 	res = dundi_precache(context, tmp);
 	
 	if (res < 0) 
-		cw_cli(fd, "DUNDi precache returned error.\n");
+		cw_dynstr_printf(ds_p, "DUNDi precache returned error.\n");
 	else if (!res) 
-		cw_cli(fd, "DUNDi precache returned no error.\n");
-	cw_cli(fd, "DUNDi lookup completed in %d ms\n", cw_tvdiff_ms(cw_tvnow(), start));
+		cw_dynstr_printf(ds_p, "DUNDi precache returned no error.\n");
+	cw_dynstr_printf(ds_p, "DUNDi lookup completed in %d ms\n", cw_tvdiff_ms(cw_tvnow(), start));
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_query(int fd, int argc, char *argv[])
+static int dundi_do_query(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2376,7 +2376,7 @@ static int dundi_do_query(int fd, int argc, char *argv[])
 	if ((argc < 3) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 	if (dundi_str_to_eid(&eid, argv[2])) {
-		cw_cli(fd, "'%s' is not a valid EID!\n", argv[2]);
+		cw_dynstr_printf(ds_p, "'%s' is not a valid EID!\n", argv[2]);
 		return RESULT_SHOWUSAGE;
 	}
 	cw_copy_string(tmp, argv[2], sizeof(tmp));
@@ -2387,24 +2387,26 @@ static int dundi_do_query(int fd, int argc, char *argv[])
 	}
 	res = dundi_query_eid(&dei, context, eid);
 	if (res < 0) 
-		cw_cli(fd, "DUNDi Query EID returned error.\n");
+		cw_dynstr_printf(ds_p, "DUNDi Query EID returned error.\n");
 	else if (!res) 
-		cw_cli(fd, "DUNDi Query EID returned no results.\n");
+		cw_dynstr_printf(ds_p, "DUNDi Query EID returned no results.\n");
 	else {
-		cw_cli(fd, "DUNDi Query EID succeeded:\n");
-		cw_cli(fd, "Department:      %s\n", dei.orgunit);
-		cw_cli(fd, "Organization:    %s\n", dei.org);
-		cw_cli(fd, "City/Locality:   %s\n", dei.locality);
-		cw_cli(fd, "State/Province:  %s\n", dei.stateprov);
-		cw_cli(fd, "Country:         %s\n", dei.country);
-		cw_cli(fd, "E-mail:          %s\n", dei.email);
-		cw_cli(fd, "Phone:           %s\n", dei.phone);
-		cw_cli(fd, "IP Address:      %s\n", dei.ipaddr);
+		cw_dynstr_tprintf(ds_p, 9,
+			cw_fmtval("DUNDi Query EID succeeded:\n"),
+			cw_fmtval("Department:      %s\n", dei.orgunit),
+			cw_fmtval("Organization:    %s\n", dei.org),
+			cw_fmtval("City/Locality:   %s\n", dei.locality),
+			cw_fmtval("State/Province:  %s\n", dei.stateprov),
+			cw_fmtval("Country:         %s\n", dei.country),
+			cw_fmtval("E-mail:          %s\n", dei.email),
+			cw_fmtval("Phone:           %s\n", dei.phone),
+			cw_fmtval("IP Address:      %s\n", dei.ipaddr)
+		);
 	}
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_peer(int fd, int argc, char *argv[])
+static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct dundi_peer *peer;
 	struct permission *p;
@@ -2439,48 +2441,50 @@ static int dundi_show_peer(int fd, int argc, char *argv[])
 		default:
 			order = "Unknown";
 		}
-		cw_cli(fd, "Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-		cw_cli(fd, "Model:   %s\n", model2str(peer->model));
-		cw_cli(fd, "Host:    %s\n", peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "<Unspecified>");
-		cw_cli(fd, "Dynamic: %s\n", peer->dynamic ? "yes" : "no");
-		cw_cli(fd, "KeyPend: %s\n", peer->keypending ? "yes" : "no");
-		cw_cli(fd, "Reg:     %s\n", peer->registerid < 0 ? "No" : "Yes");
-		cw_cli(fd, "In Key:  %s\n", cw_strlen_zero(peer->inkey) ? "<None>" : peer->inkey);
-		cw_cli(fd, "Out Key: %s\n", cw_strlen_zero(peer->outkey) ? "<None>" : peer->outkey);
+		cw_dynstr_tprintf(ds_p, 8,
+			cw_fmtval("Peer:    %s\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid)),
+			cw_fmtval("Model:   %s\n", model2str(peer->model)),
+			cw_fmtval("Host:    %s\n", (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "<Unspecified>")),
+			cw_fmtval("Dynamic: %s\n", (peer->dynamic ? "yes" : "no")),
+			cw_fmtval("KeyPend: %s\n", (peer->keypending ? "yes" : "no")),
+			cw_fmtval("Reg:     %s\n", (peer->registerid < 0 ? "No" : "Yes")),
+			cw_fmtval("In Key:  %s\n", (cw_strlen_zero(peer->inkey) ? "<None>" : peer->inkey)),
+			cw_fmtval("Out Key: %s\n", (cw_strlen_zero(peer->outkey) ? "<None>" : peer->outkey))
+		);
 		if (peer->include) {
-			cw_cli(fd, "Include logic%s:\n", peer->model & DUNDI_MODEL_OUTBOUND ? "" : " (IGNORED)");
+			cw_dynstr_printf(ds_p, "Include logic%s:\n", peer->model & DUNDI_MODEL_OUTBOUND ? "" : " (IGNORED)");
 		}
 		p = peer->include;
 		while(p) {
-			cw_cli(fd, "-- %s %s\n", p->allow ? "include" : "do not include", p->name);
+			cw_dynstr_printf(ds_p, "-- %s %s\n", p->allow ? "include" : "do not include", p->name);
 			p = p->next;
 		}
 		if (peer->permit) {
-			cw_cli(fd, "Query logic%s:\n", peer->model & DUNDI_MODEL_INBOUND ? "" : " (IGNORED)");
+			cw_dynstr_printf(ds_p, "Query logic%s:\n", peer->model & DUNDI_MODEL_INBOUND ? "" : " (IGNORED)");
 		}
 		p = peer->permit;
 		while(p) {
-			cw_cli(fd, "-- %s %s\n", p->allow ? "permit" : "deny", p->name);
+			cw_dynstr_printf(ds_p, "-- %s %s\n", p->allow ? "permit" : "deny", p->name);
 			p = p->next;
 		}
 		cnt = 0;
 		for (x=0;x<DUNDI_TIMING_HISTORY;x++) {
 			if (peer->lookups[x]) {
 				if (!cnt)
-					cw_cli(fd, "Last few query times:\n");
-				cw_cli(fd, "-- %d. %s (%d ms)\n", x + 1, peer->lookups[x], peer->lookuptimes[x]);
+					cw_dynstr_printf(ds_p, "Last few query times:\n");
+				cw_dynstr_printf(ds_p, "-- %d. %s (%d ms)\n", x + 1, peer->lookups[x], peer->lookuptimes[x]);
 				cnt++;
 			}
 		}
 		if (cnt)
-			cw_cli(fd, "Average query time: %d ms\n", peer->avgms);
+			cw_dynstr_printf(ds_p, "Average query time: %d ms\n", peer->avgms);
 	} else
-		cw_cli(fd, "No such peer '%s'\n", argv[3]);
+		cw_dynstr_printf(ds_p, "No such peer '%s'\n", argv[3]);
 	cw_mutex_unlock(&peerlock);
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_peers(int fd, int argc, char *argv[])
+static int dundi_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s %-15.15s     %-10.10s %-8.8s %-15.15s\n"
 #define FORMAT "%-20.20s %-15.15s %s %-10.10s %-8.8s %-15.15s\n"
@@ -2503,7 +2507,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 			return RESULT_SHOWUSAGE;
  	}
 	cw_mutex_lock(&peerlock);
-	cw_cli(fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
+	cw_dynstr_printf(ds_p, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
 	for (peer = peers;peer;peer = peer->next) {
 		char status[20];
 		int print_line = -1;
@@ -2553,19 +2557,19 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
                 }
 		
         if (print_line) {
-			cw_cli(fd, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid), 
+			cw_dynstr_printf(ds_p, FORMAT, dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid),
 					peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)", model2str(peer->model), avgms, status);
 		}
 	}
-	cw_cli(fd, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
+	cw_dynstr_printf(ds_p, "%d dundi peers [%d online, %d offline, %d unmonitored]\n", total_peers, online_peers, offline_peers, unmonitored_peers);
 	cw_mutex_unlock(&peerlock);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 }
 
-static int dundi_show_trans(int fd, int argc, char *argv[])
+static int dundi_show_trans(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-22.22s %-5.5s %-5.5s %-3.3s %-3.3s %-3.3s\n"
 #define FORMAT "%-16.16s:%5d %-5.5d %-5.5d %-3.3d %-3.3d %-3.3d\n"
@@ -2574,9 +2578,9 @@ static int dundi_show_trans(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&peerlock);
-	cw_cli(fd, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
+	cw_dynstr_printf(ds_p, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	for (trans = alltrans;trans;trans = trans->allnext) {
-			cw_cli(fd, FORMAT, cw_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr), 
+			cw_dynstr_printf(ds_p, FORMAT, cw_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr),
 					ntohs(trans->addr.sin_port), trans->strans, trans->dtrans, trans->oseqno, trans->iseqno, trans->aseqno);
 	}
 	cw_mutex_unlock(&peerlock);
@@ -2585,7 +2589,7 @@ static int dundi_show_trans(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int dundi_show_entityid(int fd, int argc, char *argv[])
+static int dundi_show_entityid(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char eid_str[20];
 	if (argc != 3)
@@ -2593,11 +2597,11 @@ static int dundi_show_entityid(int fd, int argc, char *argv[])
 	cw_mutex_lock(&peerlock);
 	dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
 	cw_mutex_unlock(&peerlock);
-	cw_cli(fd, "Global EID for this system is '%s'\n", eid_str);
+	cw_dynstr_printf(ds_p, "Global EID for this system is '%s'\n", eid_str);
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_requests(int fd, int argc, char *argv[])
+static int dundi_show_requests(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-15s %-15s %-15s %-3.3s %-3.3s\n"
 #define FORMAT "%-15s %-15s %-15s %-3.3d %-3.3d\n"
@@ -2606,9 +2610,9 @@ static int dundi_show_requests(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&peerlock);
-	cw_cli(fd, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
+	cw_dynstr_printf(ds_p, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	for (req = requests;req;req = req->next) {
-			cw_cli(fd, FORMAT, req->number, req->dcontext,
+			cw_dynstr_printf(ds_p, FORMAT, req->number, req->dcontext,
 						dundi_eid_zero(&req->root_eid) ? "<unspecified>" : dundi_eid_to_str(eidstr, sizeof(eidstr), &req->root_eid), req->maxcount, req->respcount);
 	}
 	cw_mutex_unlock(&peerlock);
@@ -2619,7 +2623,7 @@ static int dundi_show_requests(int fd, int argc, char *argv[])
 
 /* Grok-a-dial DUNDi */
 
-static int dundi_show_mappings(int fd, int argc, char *argv[])
+static int dundi_show_mappings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-7.7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 #define FORMAT "%-12.12s %-7d %-12.12s %-10.10s %-5.5s %-25.25s\n"
@@ -2628,9 +2632,9 @@ static int dundi_show_mappings(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&peerlock);
-	cw_cli(fd, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
+	cw_dynstr_printf(ds_p, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	for (map = mappings;map;map = map->next) {
-			cw_cli(fd, FORMAT, map->dcontext, map->weight, 
+			cw_dynstr_printf(ds_p, FORMAT, map->dcontext, map->weight,
 			                    cw_strlen_zero(map->lcontext) ? "<none>" : map->lcontext, 
 								dundi_flags2str(fs, sizeof(fs), map->options), tech2str(map->tech), map->dest);
 	}
@@ -2640,7 +2644,7 @@ static int dundi_show_mappings(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int dundi_show_precache(int fd, int argc, char *argv[])
+static int dundi_show_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-12.12s %-10.10s\n"
 #define FORMAT "%-12.12s %-12.12s %02d:%02d:%02d\n"
@@ -2652,14 +2656,14 @@ static int dundi_show_precache(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	time(&now);
 	cw_mutex_lock(&pclock);
-	cw_cli(fd, FORMAT2, "Number", "Context", "Expiration");
+	cw_dynstr_printf(ds_p, FORMAT2, "Number", "Context", "Expiration");
 	for (qe = pcq;qe;qe = qe->next) {
 		s = qe->expiration - now;
 		h = s / 3600;
 		s = s % 3600;
 		m = s / 60;
 		s = s % 60;
-		cw_cli(fd, FORMAT, qe->number, qe->context, h,m,s);
+		cw_dynstr_printf(ds_p, FORMAT, qe->number, qe->context, h,m,s);
 	}
 	cw_mutex_unlock(&pclock);
 	return RESULT_SUCCESS;

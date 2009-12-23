@@ -1079,7 +1079,7 @@ static int moh_off_one(struct cw_object *obj, void *data)
 }
 
 
-static int moh_reload(int fd, int argc, char *argv[]) 
+static int moh_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mohclass *moh;
 	int x;
@@ -1109,13 +1109,13 @@ static int moh_reload(int fd, int argc, char *argv[])
 	x = load_moh_classes();
 	cw_registry_iterate(&channel_registry, moh_on_one, NULL);
 
-	if (fd >= 0)
-		cw_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
+	if (ds_p)
+		cw_dynstr_printf(ds_p, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
 
 	return 0;
 }
 
-static int cli_files_show(int fd, int argc, char *argv[])
+static int cli_files_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int i;
 	struct mohclass *class;
@@ -1125,27 +1125,29 @@ static int cli_files_show(int fd, int argc, char *argv[])
 		if (!class->total_files)
 			continue;
 
-		cw_cli(fd, "Class: %s\n", class->name);
+		cw_dynstr_printf(ds_p, "Class: %s\n", class->name);
 		for (i = 0; i < class->total_files; i++)
-			cw_cli(fd, "\tFile: %s\n", class->files[i]);
+			cw_dynstr_printf(ds_p, "\tFile: %s\n", class->files[i]);
 	}
 	cw_mutex_unlock(&moh_lock);
 
 	return 0;
 }
 
-static int moh_classes_show(int fd, int argc, char *argv[])
+static int moh_classes_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
 
 	cw_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
-		cw_cli(fd, "Class: %s\n", class->name);
-		cw_cli(fd, "\tMode: %s\n", cw_strlen_zero(class->mode) ? "<none>" : class->mode);
-		cw_cli(fd, "\tDirectory: %s\n", cw_strlen_zero(class->dir) ? "<none>" : class->dir);
+		cw_dynstr_tprintf(ds_p, 4,
+			cw_fmtval("Class: %s\n", class->name),
+			cw_fmtval("\tMode: %s\n", (cw_strlen_zero(class->mode) ? "<none>" : class->mode)),
+			cw_fmtval("\tDirectory: %s\n", (cw_strlen_zero(class->dir) ? "<none>" : class->dir)),
+			cw_fmtval("\tFormat: %s\n", cw_getformatname(class->format))
+		);
 		if (cw_test_flag(class, MOH_CUSTOM))
-			cw_cli(fd, "\tApplication: %s\n", cw_strlen_zero(class->args) ? "<none>" : class->args);
-		cw_cli(fd, "\tFormat: %s\n", cw_getformatname(class->format));
+			cw_dynstr_printf(ds_p, "\tApplication: %s\n", cw_strlen_zero(class->args) ? "<none>" : class->args);
 	}
 	cw_mutex_unlock(&moh_lock);
 
@@ -1218,7 +1220,7 @@ static int load_module(void)
 
 static int reload_module(void)
 {
-	moh_reload(-1, 0, NULL);
+	moh_reload(NULL, 0, NULL);
 	return 0;
 }
 

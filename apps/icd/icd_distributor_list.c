@@ -78,7 +78,7 @@ icd_distributor *icd_distributor_list__pop(icd_distributor_list * that)
 }
 
 /* Print our a copy of the list */
-icd_status icd_distributor_list__dump(icd_distributor_list * that, int fd)
+icd_status icd_distributor_list__dump(icd_distributor_list * that, struct cw_dynstr **ds_p)
 {
     icd_status ret;
 

@@ -1129,7 +1129,7 @@ int cw_waitstream_exten(struct cw_channel *c, const char *context)
 #define FORMAT2 "%-10s %-10s %-20s\n"
 
 struct show_file_formats_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int count;
 };
 
@@ -1138,21 +1138,21 @@ static int show_file_formats_one(struct cw_object *obj, void *data)
 	struct cw_format *f = container_of(obj, struct cw_format, obj);
 	struct show_file_formats_args *args = data;
 
-	cw_cli(args->fd, FORMAT2, cw_getformatname(f->format), f->name, f->exts);
+	cw_dynstr_printf(args->ds_p, FORMAT2, cw_getformatname(f->format), f->name, f->exts);
 	args->count++;
 	return 0;
 }
 
-static int show_file_formats(int fd, int argc, char *argv[])
+static int show_file_formats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct show_file_formats_args args = { fd, 0 };
+	struct show_file_formats_args args = { ds_p, 0 };
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	cw_cli(fd, FORMAT, "Format", "Name", "Extensions");
+	cw_dynstr_printf(ds_p, FORMAT, "Format", "Name", "Extensions");
 	cw_registry_iterate_ordered(&format_registry, show_file_formats_one, &args);
-	cw_cli(fd, "%d file formats registered.\n", args.count);
+	cw_dynstr_printf(ds_p, "%d file formats registered.\n", args.count);
 
 	return RESULT_SUCCESS;
 }

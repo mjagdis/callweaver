@@ -692,7 +692,7 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     return CW_BRIDGE_FAILED;
 }
 
-static int udptl_do_debug_ip(int fd, int argc, char *argv[])
+static int udptl_do_debug_ip(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -719,37 +719,37 @@ static int udptl_do_debug_ip(int fd, int argc, char *argv[])
     memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
     udptldebugaddr.sin_port = htons(port);
     if (port == 0)
-        cw_cli(fd, "UDPTL Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
+        cw_dynstr_printf(ds_p, "UDPTL Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
     else
-        cw_cli(fd, "UDPTL Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
+        cw_dynstr_printf(ds_p, "UDPTL Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
     udptldebug = 1;
     return RESULT_SUCCESS;
 }
 
-static int udptl_do_debug(int fd, int argc, char *argv[])
+static int udptl_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
         if (argc != 4)
             return RESULT_SHOWUSAGE;
-        return udptl_do_debug_ip(fd, argc, argv);
+        return udptl_do_debug_ip(ds_p, argc, argv);
     }
     udptldebug = 1;
     memset(&udptldebugaddr, 0, sizeof(udptldebugaddr));
-    cw_cli(fd, "UDPTL Debugging Enabled\n");
+    cw_dynstr_printf(ds_p, "UDPTL Debugging Enabled\n");
     return RESULT_SUCCESS;
 }
    
-static int udptl_no_debug(int fd, int argc, char *argv[])
+static int udptl_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     udptldebug = 0;
-    cw_cli(fd, "UDPTL Debugging Disabled\n");
+    cw_dynstr_printf(ds_p, "UDPTL Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 
-static int udptl_reload(int fd, int argc, char *argv[])
+static int udptl_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
         return RESULT_SHOWUSAGE;
@@ -757,28 +757,32 @@ static int udptl_reload(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int udptl_show_settings(int fd, int argc, char *argv[])
+static int udptl_show_settings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *error_correction_str;
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
 
     cw_mutex_lock(&settingslock);
 
-    cw_cli(fd, "\n\nUDPTL Settings:\n");
-    cw_cli(fd, "---------------\n");
-    cw_cli(fd, "Checksum UDPTL traffic: %s\n", nochecksums ? "No" : "Yes");
     if (udptlfectype == UDPTL_ERROR_CORRECTION_FEC)
         error_correction_str = "FEC";
     else if (udptlfectype == UDPTL_ERROR_CORRECTION_REDUNDANCY)
         error_correction_str = "Redundancy";
     else
         error_correction_str = "None";
-    cw_cli(fd, "Error correction:       %s\n", error_correction_str);
-    cw_cli(fd, "Max UDPTL packet:       %d bytes\n", udptlmaxdatagram);
-    cw_cli(fd, "FEC entries:            %d\n", udptlfecentries);
-    cw_cli(fd, "FEC span:               %d\n", udptlfecspan);
-    cw_cli(fd, "\n----\n");
+
+    cw_dynstr_tprintf(ds_p, 8,
+        cw_fmtval("\n\nUDPTL Settings:\n"),
+        cw_fmtval("---------------\n"),
+        cw_fmtval("Checksum UDPTL traffic: %s\n", nochecksums ? "No" : "Yes"),
+        cw_fmtval("Error correction:       %s\n", error_correction_str),
+        cw_fmtval("Max UDPTL packet:       %d bytes\n", udptlmaxdatagram),
+        cw_fmtval("FEC entries:            %d\n", udptlfecentries),
+        cw_fmtval("FEC span:               %d\n", udptlfecspan),
+        cw_fmtval("\n----\n")
+    );
 
     cw_mutex_unlock(&settingslock);
 

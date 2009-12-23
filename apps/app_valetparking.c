@@ -752,22 +752,21 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 }
 
 
-static int handle_valetparkedcalls(int fd, int argc, char *argv[])
+static int handle_valetparkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct valetparkeduser *cur;
 
-	cw_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s %-6s %-15s\n", "Num", "Channel"
-		, "Context", "Extension", "Pri", "Elapsed","Timeout","LotName");
+	cw_dynstr_printf(ds_p, "%4s %25s (%-15s %-12s %-4s) %-6s %-6s %-15s\n",
+		"Num", "Channel", "Context", "Extension", "Pri", "Elapsed","Timeout","LotName");
 
 	cw_mutex_lock(&valetparking_lock);
 
-	cur=valetparkinglot;
-	while(cur) {
-		cw_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6lds %6lds %-15s\n"
-			,cur->valetparkingnum, cur->chan->name, cur->context, cur->exten
-			,cur->priority,(time(NULL) - cur->start.tv_sec),cur->valetparkingtime ? (cur->start.tv_sec +  (cur->valetparkingtime/1000) - time(NULL)) : 0,cur->lotname);
-
-		cur = cur->next;
+	for (cur = valetparkinglot; cur; cur = cur->next) {
+		cw_dynstr_printf(ds_p, "%4d %25s (%-15s %-12s %-4d) %6lds %6lds %-15s\n",
+			cur->valetparkingnum, cur->chan->name, cur->context, cur->exten,
+			cur->priority, (time(NULL) - cur->start.tv_sec),
+			(cur->valetparkingtime ? (cur->start.tv_sec +  (cur->valetparkingtime/1000) - time(NULL)) : 0),
+			cur->lotname);
 	}
 
 	cw_mutex_unlock(&valetparking_lock);
@@ -823,36 +822,40 @@ static struct cw_clicmd showvaletparked = {
 
 
 /* Dump lot status */
-static int manager_valetparking_status( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_valetparking_status(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct valetparkeduser *cur;
+	time_t now;
+	int err;
 
-	astman_send_ack(s, m, "Valet Parked calls will follow");
+	if ((msg = cw_manager_response("Success", "Valet Parked calls will follow")) && !cw_manager_send(sess, req, &msg)) {
+		err = 0;
 
-        cw_mutex_lock(&valetparking_lock);
+        	cw_mutex_lock(&valetparking_lock);
 
-        cur=valetparkinglot;
-        while(cur) {
-                cw_cli(s->fd, "Event: ValetParkedCall\r\n"
-						"Exten: %d\r\n"
-						"Channel: %s\r\n"
-						"Timeout: %ld\r\n"
-						"CallerID: %s\r\n"
-						"CallerIDName: %s\r\n"
-						"\r\n"
-                        ,cur->valetparkingnum, cur->chan->name
-                        ,(long)cur->start.tv_sec + (long)(cur->valetparkingtime/1000) - (long)time(NULL)
-						,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
-						,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
+		time(&now);
 
+		for (cur = valetparkinglot; !err && cur; cur = cur->next) {
+			cw_manager_msg(&msg, 6,
+					cw_msg_tuple("Event",        "%s",  "ValetParkedCall"),
+					cw_msg_tuple("Exten",        "%d",  cur->valetparkingnum),
+					cw_msg_tuple("Channel",      "%s",  cur->chan->name),
+					cw_msg_tuple("Timeout",      "%ld", (long)cur->start.tv_sec + (long)(cur->valetparkingtime/1000) - (long)now),
+					cw_msg_tuple("CallerID",     "%s", (cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")),
+					cw_msg_tuple("CallerIDName", "%s", (cur->chan->cid.cid_name ? cur->chan->cid.cid_name : ""))
 			);
 
-                cur = cur->next;
-        }
+			err = cw_manager_send(sess, req, &msg);
+        	}
 
-        cw_mutex_unlock(&valetparking_lock);
+        	cw_mutex_unlock(&valetparking_lock);
 
-        return RESULT_SUCCESS;
+		if (!err)
+			cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "ValetParkedCallsComplete"));
+	}
+
+        return msg;
 }
 
 

@@ -295,7 +295,7 @@ struct iax2_context {
 static int global_rtautoclear = 120;
 
 static int reload_config(void);
-static int iax2_reload(int fd, int argc, char *argv[]);
+static int iax2_reload(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 
 struct iax2_user {
@@ -649,7 +649,7 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static void destroy_peer(struct iax2_peer *peer);
-static int cw_cli_netstats(int fd, int limit_fmt);
+static int cw_cli_netstats(struct cw_dynstr **ds_p, int limit_fmt);
 
 #ifdef __CW_DEBUG_MALLOC
 static void FREE(void *ptr)
@@ -1484,7 +1484,7 @@ static int attempt_transmit(void *data)
 	return 0;
 }
 
-static int iax2_prune_realtime(int fd, int argc, char *argv[])
+static int iax2_prune_realtime(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct iax2_peer *peer;
 
@@ -1492,23 +1492,23 @@ static int iax2_prune_realtime(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 	if (!strcmp(argv[3],"all")) {
 		reload_config();
-		cw_cli(fd, "OK cache is flushed.\n");
+		cw_dynstr_printf(ds_p, "OK cache is flushed.\n");
 	} else if ((peer = find_peer(argv[3], 0))) {
 		if(cw_test_flag(peer, IAX_RTCACHEFRIENDS)) {
 			cw_set_flag(peer, IAX_RTAUTOCLEAR);
 			expire_registry(peer);
-			cw_cli(fd, "OK peer %s was removed from the cache.\n", argv[3]);
+			cw_dynstr_printf(ds_p, "OK peer %s was removed from the cache.\n", argv[3]);
 		} else {
-			cw_cli(fd, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
+			cw_dynstr_printf(ds_p, "SORRY peer %s is not eligible for this operation.\n", argv[3]);
 		}
 	} else {
-		cw_cli(fd, "SORRY peer %s was not found in the cache.\n", argv[3]);
+		cw_dynstr_printf(ds_p, "SORRY peer %s was not found in the cache.\n", argv[3]);
 	}
 	
 	return RESULT_SUCCESS;
 }
 
-static int iax2_test_losspct(int fd, int argc, char *argv[])
+static int iax2_test_losspct(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
        if (argc != 4)
                return RESULT_SHOWUSAGE;
@@ -1519,7 +1519,7 @@ static int iax2_test_losspct(int fd, int argc, char *argv[])
 }
 
 #ifdef IAXTESTS
-static int iax2_test_late(int fd, int argc, char *argv[])
+static int iax2_test_late(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -1529,7 +1529,7 @@ static int iax2_test_late(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_test_resync(int fd, int argc, char *argv[])
+static int iax2_test_resync(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -1542,7 +1542,7 @@ static int iax2_test_resync(int fd, int argc, char *argv[])
 #endif /* IAXTESTS */
 
 /*--- iax2_show_peer: Show one peer in detail ---*/
-static int iax2_show_peer(int fd, int argc, char *argv[])
+static int iax2_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char status[30];
 	char cbuf[256];
@@ -1558,37 +1558,35 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 
 	peer = find_peer(argv[3], load_realtime);
 	if (peer) {
-		cw_cli(fd,"\n\n");
-		cw_cli(fd, "  * Name       : %s\n", peer->name);
-		cw_cli(fd, "  Secret       : %s\n", cw_strlen_zero(peer->secret)?"<Not set>":"<Set>");
-		cw_cli(fd, "  Context      : %s\n", peer->context);
-		cw_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
-		cw_cli(fd, "  Dynamic      : %s\n", cw_test_flag(peer, IAX_DYNAMIC) ? "Yes":"No");
-		cw_cli(fd, "  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
-		cw_cli(fd, "  Expire       : %d\n", peer->expire);
-		cw_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
-		cw_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
-		cw_cli(fd, "  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-		cw_cli(fd, "  Username     : %s\n", peer->username);
-		cw_cli(fd, "  Codecs       : ");
-		cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
-		cw_cli(fd, "%s\n", codec_buf);
-
-		cw_cli(fd, "  Codec Order  : (");
+		cw_dynstr_tprintf(ds_p, 14,
+			cw_fmtval("\n\n"),
+			cw_fmtval("  * Name       : %s\n", peer->name),
+			cw_fmtval("  Secret       : %s\n", cw_strlen_zero(peer->secret)?"<Not set>":"<Set>"),
+			cw_fmtval("  Context      : %s\n", peer->context),
+			cw_fmtval("  Mailbox      : %s\n", peer->mailbox),
+			cw_fmtval("  Dynamic      : %s\n", cw_test_flag(peer, IAX_DYNAMIC) ? "Yes":"No"),
+			cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>")),
+			cw_fmtval("  Expire       : %d\n", peer->expire),
+			cw_fmtval("  ACL          : %s\n", (peer->ha?"Yes":"No")),
+			cw_fmtval("  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port)),
+			cw_fmtval("  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port)),
+			cw_fmtval("  Username     : %s\n", peer->username),
+			cw_fmtval("  Codecs       : %s\n", cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability)),
+			cw_fmtval("  Codec Order  : (")
+		);
 		for(x = 0; x < 32 ; x++) {
 			codec = cw_codec_pref_index(&peer->prefs,x);
 			if(!codec)
 				break;
-			cw_cli(fd, "%s", cw_getformatname(codec));
+			cw_dynstr_printf(ds_p, "%s", cw_getformatname(codec));
 			if(x < 31 && cw_codec_pref_index(&peer->prefs,x+1))
-				cw_cli(fd, ",");
+				cw_dynstr_printf(ds_p, ",");
 		}
 
 		if (!x)
-			cw_cli(fd, "none");
-		cw_cli(fd, ")\n");
+			cw_dynstr_printf(ds_p, "none");
 
-		cw_cli(fd, "  Status       : ");
+		cw_dynstr_printf(ds_p, "\n  Status       : ");
 		if (peer->lastms < 0)
 			cw_copy_string(status, "UNREACHABLE", sizeof(status));
 		else if (peer->historicms > peer->maxms)
@@ -1597,20 +1595,23 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 			snprintf(status, sizeof(status), "OK (%d ms)", peer->historicms);
 		else
 			cw_copy_string(status, "UNKNOWN", sizeof(status));
-		cw_cli(fd, " Qualify        : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1) ? "On" : "Off");
-		cw_cli(fd, "%s\n",status);
-		cw_cli(fd,"\n");
+
+		cw_dynstr_tprintf(ds_p, 3,
+			cw_fmtval(" Qualify        : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1 ? "On" : "Off")),
+			cw_fmtval("%s\n", status),
+			cw_fmtval("\n")
+		);
+
 		if (cw_test_flag(peer, IAX_TEMPONLY))
 			destroy_peer(peer);
 	} else {
-		cw_cli(fd,"Peer %s not found.\n", argv[3]);
-		cw_cli(fd,"\n");
+		cw_dynstr_printf(ds_p, "Peer %s not found.\n\n", argv[3]);
 	}
 
 	return RESULT_SUCCESS;
 }
 
-static void complete_iax2_show_peer(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_iax2_show_peer(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct iax2_peer *p;
 
@@ -1620,14 +1621,14 @@ static void complete_iax2_show_peer(int fd, char *argv[], int lastarg, int lasta
 
 		for (p = peerl.peers; p; p = p->next) {
 			if (!strncasecmp(p->name, argv[3], lastarg_len))
-				cw_cli(fd, "%s\n", p->name);
+				cw_dynstr_printf(ds_p, "%s\n", p->name);
 		}
 
 		cw_mutex_unlock(&peerl.lock);
 	}
 }
 
-static int iax2_show_stats(int fd, int argc, char *argv[])
+static int iax2_show_stats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct iax_frame *cur;
 	int cnt = 0, dead=0, final=0;
@@ -1640,14 +1641,16 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 			final++;
 		cnt++;
 	}
-	cw_cli(fd, "    IAX Statistics\n");
-	cw_cli(fd, "---------------------\n");
-	cw_cli(fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
-	cw_cli(fd, "Packets in transmit queue: %d dead, %d final, %d total\n", dead, final, cnt);
+	cw_dynstr_tprintf(ds_p, 4,
+		cw_fmtval("    IAX Statistics\n"),
+		cw_fmtval("---------------------\n"),
+		cw_fmtval("Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes()),
+		cw_fmtval("Packets in transmit queue: %d dead, %d final, %d total\n", dead, final, cnt)
+	);
 	return RESULT_SUCCESS;
 }
 
-static int iax2_show_cache(int fd, int argc, char *argv[])
+static int iax2_show_cache(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct iax2_dpcache *dp;
 	char tmp[1024], *pc;
@@ -1657,7 +1660,7 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 	gettimeofday(&tv, NULL);
 	cw_mutex_lock(&dpcache_lock);
 	dp = dpcache;
-	cw_cli(fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
+	cw_dynstr_printf(ds_p, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
 	while(dp) {
 		s = dp->expiry.tv_sec - tv.tv_sec;
 		tmp[0] = '\0';
@@ -1692,9 +1695,9 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 			if (dp->waiters[x] > -1)
 				y++;
 		if (s > 0)
-			cw_cli(fd, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
+			cw_dynstr_printf(ds_p, "%-20.20s %-12.12s %-9d %-8d %s\n", pc, dp->exten, s, y, tmp);
 		else
-			cw_cli(fd, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
+			cw_dynstr_printf(ds_p, "%-20.20s %-12.12s %-9.9s %-8d %s\n", pc, dp->exten, "(expired)", y, tmp);
 		dp = dp->next;
 	}
 	cw_mutex_unlock(&dpcache_lock);
@@ -3456,7 +3459,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 	return res;
 }
 
-static int iax2_show_users(int fd, int argc, char *argv[])
+static int iax2_show_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -3483,7 +3486,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	}
 
 	cw_mutex_lock(&userl.lock);
-	cw_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
+	cw_dynstr_printf(ds_p, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C","Codec Pref");
 	for(user=userl.users;user;user=user->next) {
 		if (havepattern && regexec(&regexbuf, user->name, 0, NULL, 0))
 			continue;
@@ -3502,7 +3505,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 		else
 			pstr = cw_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
 
-		cw_cli(fd, FORMAT2, user->name, auth, user->authmethods, 
+		cw_dynstr_printf(ds_p, FORMAT2, user->name, auth, user->authmethods,
 				user->contexts ? user->contexts->context : context,
 				user->ha ? "Yes" : "No", pstr);
 
@@ -3517,7 +3520,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
+static int __iax2_show_peers(int manager, struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -3569,7 +3572,7 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 	}
 
 	cw_mutex_lock(&peerl.lock);
-	cw_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
+	cw_dynstr_printf(ds_p, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status", term);
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20];
@@ -3614,7 +3617,7 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 					ntohs(peer->addr.sin_port), cw_test_flag(peer, IAX_TRUNK) ? "(T)" : "   ",
 					peer->encmethods ? "(E)" : "   ", status, term);
 
-		cw_cli(fd, FORMAT, name, 
+		cw_dynstr_printf(ds_p, FORMAT, name,
 					peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 					cw_test_flag(peer, IAX_DYNAMIC) ? "(D)" : "(S)",
 					nm,
@@ -3624,7 +3627,7 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 	}
 	cw_mutex_unlock(&peerl.lock);
 
-	cw_cli(fd,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
+	cw_dynstr_printf(ds_p,"%d iax2 peers [%d online, %d offline, %d unmonitored]%s", total_peers, online_peers, offline_peers, unmonitored_peers, term);
 
 	if (havepattern)
 		regfree(&regexbuf);
@@ -3634,30 +3637,36 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int iax2_show_peers(int fd, int argc, char *argv[])
+static int iax2_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	return __iax2_show_peers(0, fd, argc, argv);
+	return __iax2_show_peers(0, ds_p, argc, argv);
 }
-static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_iax2_show_netstats(struct mansession *sess, const struct message *req)
 {
-	cw_cli_netstats(s->fd, 0);
-	cw_cli(s->fd, "\r\n");
-	return RESULT_SUCCESS;
+	struct cw_manager_message *msg;
+
+	if ((msg = cw_manager_response("Follows", NULL))) {
+		msg->data->used -= 2;
+		cw_cli_netstats(&msg->data, 0);
+		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+	}
+
+	return msg;
 }
 
-/* JDG: callback to display iax peers in manager */
-static int manager_iax2_show_peers( struct mansession *s, struct message *m )
+static struct cw_manager_message *manager_iax2_show_peers(struct mansession *sess, const struct message *req)
 {
 	char *a[] = { "iax2", "show", "users" };
-	int ret;
-	char *id;
-	id = astman_get_header(m,"ActionID");
-	if (!cw_strlen_zero(id))
-		cw_cli(s->fd, "ActionID: %s\r\n",id);
-	ret = __iax2_show_peers(1, s->fd, 3, a );
-	cw_cli(s->fd, "\r\n\r\n" );
-	return ret;
-} /* /JDG */
+	struct cw_manager_message *msg;
+
+	if ((msg = cw_manager_response("Follows", NULL))) {
+		msg->data->used -= 2;
+		__iax2_show_peers(1, &msg->data, 3, a);
+		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+	}
+
+	return msg;
+}
 
 static char *regstate2str(int regstate)
 {
@@ -3681,7 +3690,7 @@ static char *regstate2str(int regstate)
 	}
 }
 
-static int iax2_show_registry(int fd, int argc, char *argv[])
+static int iax2_show_registry(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
 #define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
@@ -3693,7 +3702,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
-	cw_cli(fd, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
+	cw_dynstr_printf(ds_p, FORMAT2, "Host", "Username", "Perceived", "Refresh", "State");
 
 	cw_mutex_lock(&regl.lock);
 
@@ -3703,7 +3712,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 			snprintf(perceived, sizeof(perceived), "%s:%d", cw_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
 		else
 			cw_copy_string(perceived, "<Unregistered>", sizeof(perceived));
-		cw_cli(fd, FORMAT, host, 
+		cw_dynstr_printf(ds_p, FORMAT, host,
 					reg->username, perceived, reg->refresh, regstate2str(reg->regstate));
 	}
 
@@ -3714,7 +3723,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int iax2_show_channels(int fd, int argc, char *argv[])
+static int iax2_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
 #define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-6.6d %-6.6d  %s\n"
@@ -3725,13 +3734,13 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	cw_cli(fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
+	cw_dynstr_printf(ds_p, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		cw_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 #ifdef BRIDGE_OPTIMIZATION
 			if (iaxs[x]->bridgecallno)
-				cw_cli(fd, FORMATB,
+				cw_dynstr_printf(ds_p, FORMATB,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 						cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
 						!cw_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
@@ -3755,7 +3764,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 				}
 
 				lag = iaxs[x]->remote_rr.delay;
-				cw_cli(fd, FORMAT,
+				cw_dynstr_printf(ds_p, FORMAT,
 					 iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					 cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
 					 !cw_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
@@ -3769,14 +3778,14 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 		}
 		cw_mutex_unlock(&iaxsl[x]);
 	}
-	cw_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	cw_dynstr_printf(ds_p, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
 #undef FORMATB
 }
 
-static int cw_cli_netstats(int fd, int limit_fmt)
+static int cw_cli_netstats(struct cw_dynstr **ds_p, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
@@ -3786,10 +3795,10 @@ static int cw_cli_netstats(int fd, int limit_fmt)
 #ifdef BRIDGE_OPTIMIZATION
 			if (iaxs[x]->bridgecallno) {
 				if (limit_fmt)	
-					cw_cli(fd, "%-25.25s <NATIVE BRIDGED>",
+					cw_dynstr_printf(ds_p, "%-25.25s <NATIVE BRIDGED>",
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
 				else
-					cw_cli(fd, "%s <NATIVE BRIDGED>",
+					cw_dynstr_printf(ds_p, "%s <NATIVE BRIDGED>",
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
                         } else
 #endif
@@ -3814,7 +3823,7 @@ static int cw_cli_netstats(int fd, int limit_fmt)
 					fmt = "%-25.25s %4d %4d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
 				else
 					fmt = "%s %d %d %d %d %d %d %d %d %d %d %d\n";
-				cw_cli(fd, fmt,
+				cw_dynstr_printf(ds_p, fmt,
 					 iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 					 iaxs[x]->pingtime,
 					 localjitter,
@@ -3836,51 +3845,53 @@ static int cw_cli_netstats(int fd, int limit_fmt)
 	return numchans;
 }
 
-static int iax2_show_netstats(int fd, int argc, char *argv[])
+static int iax2_show_netstats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	cw_cli(fd, "                   --------- LOCAL --------  -------- REMOTE --------------------\n");
-	cw_cli(fd, "Channel                    RTT  Jit Lost  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
-	numchans = cw_cli_netstats(fd, 1);
-	cw_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	cw_dynstr_printf(ds_p,
+		"                   --------- LOCAL --------  -------- REMOTE --------------------\n"
+		"Channel                    RTT  Jit Lost  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n"
+	);
+	numchans = cw_cli_netstats(ds_p, 1);
+	cw_dynstr_printf(ds_p, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 }
 
-static int iax2_do_debug(int fd, int argc, char *argv[])
+static int iax2_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 1;
-	cw_cli(fd, "IAX2 Debugging Enabled\n");
+	cw_dynstr_printf(ds_p, "IAX2 Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
+static int iax2_do_trunk_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 1;
-	cw_cli(fd, "IAX2 Trunk Debug Requested\n");
+	cw_dynstr_printf(ds_p, "IAX2 Trunk Debug Requested\n");
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_debug(int fd, int argc, char *argv[])
+static int iax2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 0;
-	cw_cli(fd, "IAX2 Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "IAX2 Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
+static int iax2_no_trunk_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 0;
-	cw_cli(fd, "IAX2 Trunk Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "IAX2 Trunk Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -8131,7 +8142,7 @@ static int reload_config(void)
 	return 0;
 }
 
-static int iax2_reload(int fd, int argc, char *argv[])
+static int iax2_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	return reload_config();
 }

@@ -2205,7 +2205,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     return CW_BRIDGE_FAILED;
 }
 
-static int rtp_do_debug_ip(int fd, int argc, char *argv[])
+static int rtp_do_debug_ip(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -2229,33 +2229,33 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
     memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
     rtpdebugaddr.sin_port = htons(port);
     if (port == 0)
-        cw_cli(fd, "RTP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
+        cw_dynstr_printf(ds_p, "RTP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
     else
-        cw_cli(fd, "RTP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
+        cw_dynstr_printf(ds_p, "RTP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
     rtpdebug = 1;
     return RESULT_SUCCESS;
 }
 
-static int rtp_do_debug(int fd, int argc, char *argv[])
+static int rtp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
         if (argc != 4)
             return RESULT_SHOWUSAGE;
-        return rtp_do_debug_ip(fd, argc, argv);
+        return rtp_do_debug_ip(ds_p, argc, argv);
     }
     rtpdebug = 1;
     memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
-    cw_cli(fd, "RTP Debugging Enabled\n");
+    cw_dynstr_printf(ds_p, "RTP Debugging Enabled\n");
     return RESULT_SUCCESS;
 }
    
-static int rtp_no_debug(int fd, int argc, char *argv[])
+static int rtp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc !=3)
         return RESULT_SHOWUSAGE;
     rtpdebug = 0;
-    cw_cli(fd,"RTP Debugging Disabled\n");
+    cw_dynstr_printf(ds_p,"RTP Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 

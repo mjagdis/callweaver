@@ -595,7 +595,7 @@ static struct cw_channel *local_request(const char *type, int format, void *data
 }
 
 /*--- locals_show: CLI command "local show channels" */
-static int locals_show(int fd, int argc, char **argv)
+static int locals_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	struct local_pvt *p;
 
@@ -605,12 +605,12 @@ static int locals_show(int fd, int argc, char **argv)
 	p = locals;
 	while(p) {
 		cw_mutex_lock(&p->lock);
-		cw_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
+		cw_dynstr_printf(ds_p, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
 		cw_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	if (!locals)
-		cw_cli(fd, "No local channels in use\n");
+		cw_dynstr_printf(ds_p, "No local channels in use\n");
 	cw_mutex_unlock(&locallock);
 	return RESULT_SUCCESS;
 }

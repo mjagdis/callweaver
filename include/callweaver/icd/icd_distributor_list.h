@@ -44,6 +44,7 @@
 #ifndef ICD_LIST_H
 #define ICD_LIST_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 #ifdef __cplusplus
@@ -67,7 +68,7 @@ extern "C" {
     icd_distributor *icd_distributor_list__pop(icd_distributor_list * that);
 
 /* Print our a copy of the list */
-    icd_status icd_distributor_list__dump(icd_distributor_list * that, int fd);
+    icd_status icd_distributor_list__dump(icd_distributor_list * that, struct cw_dynstr **ds_p);
 
 /***** Locking *****/
 

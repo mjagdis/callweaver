@@ -833,21 +833,21 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 static int cdrbe_print(struct cw_object *obj, void *data)
 {
 	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 
-	cw_cli(*fd, "CDR registered backend: %s\n", cdrbe->name);
+	cw_dynstr_printf(ds_p, "CDR registered backend: %s\n", cdrbe->name);
 	return 0;
 }
 
 
-static int handle_cli_status(int fd, int argc, char *argv[])
+static int handle_cli_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc > 2)
 		return RESULT_SHOWUSAGE;
 
-	cw_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
+	cw_dynstr_printf(ds_p, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
 	if (enabled)
-		cw_registry_iterate_ordered(&cdrbe_registry, cdrbe_print, &fd);
+		cw_registry_iterate_ordered(&cdrbe_registry, cdrbe_print, ds_p);
 
 	return 0;
 }

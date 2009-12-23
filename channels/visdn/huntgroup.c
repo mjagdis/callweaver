@@ -296,22 +296,22 @@ static char *complete_show_visdn_huntgroups(
 }
 
 static void do_show_visdn_huntgroups_details(
-	int fd, struct visdn_huntgroup *hg)
+	struct cw_dynstr **ds_p, struct visdn_huntgroup *hg)
 {
-	cw_cli(fd, "\n-- '%s'--\n", hg->name);
-
-	cw_cli(fd, "Mode: %s\n",
-		visdn_huntgroup_mode_to_text(hg->mode));
-
-	cw_cli(fd, "Members: ");
 	struct visdn_huntgroup_member *hgm;
+
+	cw_dynstr_tprintf(ds_p, 3,
+		cw_fmtval("\n-- '%s'--\n", hg->name),
+		cw_fmtval("Mode: %s\n", visdn_huntgroup_mode_to_text(hg->mode)),
+		cw_fmtval("Members: ")
+	);
 	list_for_each_entry(hgm, &hg->members, node) {
-		cw_cli(fd, "%s, ", hgm->intf->name);
+		cw_dynstr_printf(ds_p, "%s, ", hgm->intf->name);
 	}
-	cw_cli(fd, "\n");
+	cw_dynstr_printf(ds_p, "\n");
 }
 
-static int do_show_visdn_huntgroups(int fd, int argc, char *argv[])
+static int do_show_visdn_huntgroups(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 

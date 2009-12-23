@@ -181,7 +181,7 @@ static int unload_module(const char *name, int hangup)
 
 
 struct module_generator_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	const char *name;
 	int name_len;
 };
@@ -192,15 +192,15 @@ static int module_generator_one(struct cw_object *obj, void *data)
 	struct module_generator_args *args = data;
 
 	if (!strncmp(args->name, mod->name, args->name_len))
-		cw_cli(args->fd, "%s\n", mod->name);
+		cw_dynstr_printf(args->ds_p, "%s\n", mod->name);
 
 	return 0;
 }
 
-static void module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
+static void module_generator(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct module_generator_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.name = argv[lastarg],
 		.name_len = lastarg_len,
 	};
@@ -516,7 +516,7 @@ int load_modules(const int preload_only)
 
 
 struct handle_modlist_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int count;
 	const char *like;
 };
@@ -528,17 +528,17 @@ static int handle_modlist_one(struct cw_object *obj, void *data)
 
 	if (!args->like || strcasestr(mod->name, args->like) ) {
 		args->count++;
-		cw_cli(args->fd, "%-30s %-40.40s %10d %10d\n",
+		cw_dynstr_printf(args->ds_p, "%-30s %-40.40s %10d %10d\n",
 			mod->name, mod->modinfo->description, cw_object_refs(mod), mod->modinfo->localusecnt);
 	}
 
 	return 0;
 }
 
-static int handle_modlist(int fd, int argc, char *argv[])
+static int handle_modlist(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct handle_modlist_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.count = 0,
 		.like = NULL,
 	};
@@ -552,15 +552,15 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		args.like = argv[3];
 	}
 
-	cw_cli(fd, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
+	cw_dynstr_printf(ds_p, "%-30s %-40.40s %10s %10s\n", "Module", "Description", "Refs", "Chan Usage");
 	cw_registry_iterate_ordered(&module_registry, handle_modlist_one, &args);
-	cw_cli(fd, "%d modules loaded\n", args.count);
+	cw_dynstr_printf(ds_p, "%d modules loaded\n", args.count);
 
 	return RESULT_SUCCESS;
 }
 
 
-static int handle_load(int fd, int argc, char *argv[])
+static int handle_load(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct loader_err loader_err;
 	struct load_module_args args;
@@ -589,7 +589,7 @@ static int handle_load(int fd, int argc, char *argv[])
 
 
 struct complete_fn_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	const char *word;
 	int word_len;
 };
@@ -601,12 +601,12 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 
 	if ((basename = strrchr(filename, '/')) && (basename++, 1)
 	&& !strncmp(basename, args->word, args->word_len))
-		cw_cli(args->fd, "%s\n", basename);
+		cw_dynstr_printf(args->ds_p, "%s\n", basename);
 
 	return 0;
 }
 
-static void complete_fn(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_fn(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_fn_args args;
 	char *p;
@@ -616,11 +616,11 @@ static void complete_fn(int fd, char *argv[], int lastarg, int lastarg_len)
 		if (argv[lastarg][0] == '/') {
 			i = 0;
 			while ((p = (char *)rl_filename_completion_function(argv[lastarg], i++))) {
-				cw_cli(fd, "%s\n", p);
+				cw_dynstr_printf(ds_p, "%s\n", p);
 				free(p);
 			}
 		} else {
-			args.fd = fd;
+			args.ds_p = ds_p;
 			args.word = argv[lastarg];
 			args.word_len = lastarg_len;
 			lt_dlforeachfile(lt_dlgetsearchpath(), complete_fn_one, &args);
@@ -629,7 +629,7 @@ static void complete_fn(int fd, char *argv[], int lastarg, int lastarg_len)
 }
 
 
-static int handle_reconfigure(int fd, int argc, char *argv[])
+static int handle_reconfigure(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int x;
 
@@ -641,10 +641,10 @@ static int handle_reconfigure(int fd, int argc, char *argv[])
 			int res = cw_module_reconfigure(argv[x]);
 			switch (res) {
 			case 0:
-				cw_cli(fd, "No such module '%s'\n", argv[x]);
+				cw_dynstr_printf(ds_p, "No such module '%s'\n", argv[x]);
 				break;
 			case 1:
-				cw_cli(fd, "Module '%s' does not support reconfigure\n", argv[x]);
+				cw_dynstr_printf(ds_p, "Module '%s' does not support reconfigure\n", argv[x]);
 				break;
 			}
 		}
@@ -655,7 +655,7 @@ static int handle_reconfigure(int fd, int argc, char *argv[])
 }
 
 
-static void reconfigure_module_generator(int fd, char *argv[], int lastarg, int lastarg_len)
+static void reconfigure_module_generator(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *core[] = {
 		"extconfig",
@@ -669,14 +669,14 @@ static void reconfigure_module_generator(int fd, char *argv[], int lastarg, int 
 
 	for (i = 0; i < arraysize(core); i++) {
 		if (!strncasecmp(argv[lastarg], core[i], lastarg_len))
-			cw_cli(fd, "%s\n", core[i]);
+			cw_dynstr_printf(ds_p, "%s\n", core[i]);
 	}
 
-	module_generator(fd, argv, lastarg, lastarg_len);
+	module_generator(ds_p, argv, lastarg, lastarg_len);
 }
 
 
-static int handle_unload(int fd, int argc, char *argv[])
+static int handle_unload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int x;
 	int hangup = 0;
@@ -696,7 +696,7 @@ static int handle_unload(int fd, int argc, char *argv[])
 		} else if (x !=  argc - 1) 
 			return RESULT_SHOWUSAGE;
 		else if (unload_module(argv[x], hangup)) {
-			cw_cli(fd, "Unable to unload module %s\n", argv[x]);
+			cw_dynstr_printf(ds_p, "Unable to unload module %s\n", argv[x]);
 			return RESULT_FAILURE;
 		}
 	}

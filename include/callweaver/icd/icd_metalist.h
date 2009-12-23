@@ -53,6 +53,7 @@
 #ifndef ICD_METALIST_H
 #define ICD_METALIST_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 #ifdef __cplusplus
@@ -90,7 +91,7 @@ extern "C" {
     icd_status icd_metalist__remove_list_by_element(icd_metalist * that, icd_list * target);
 
 /* Prints the contents of the metalist to the given file descriptor. */
-    icd_status icd_metalist__dump(icd_metalist * that, int fd);
+    icd_status icd_metalist__dump(icd_metalist * that, struct cw_dynstr **ds_p);
 
 /**** Iterator functions ****/
 

@@ -5070,7 +5070,7 @@ static char *show_isdnstate(unsigned int isdnstate, char *str)
 /*
  * do command capi show channels
  */
-static int pbxcli_capi_show_channels(int fd, int argc, char *argv[])
+static int pbxcli_capi_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct capi_pvt *i;
 	char iochar;
@@ -5080,9 +5080,10 @@ static int pbxcli_capi_show_channels(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	
-	cw_cli(fd, "CAPI B-channel information:\n");
-	cw_cli(fd, "Line-Name       NTmode state i/o bproto isdnstate   ton  number\n");
-	cw_cli(fd, "----------------------------------------------------------------\n");
+	cw_dynstr_printf(ds_p,
+		"CAPI B-channel information:\n"
+		"Line-Name       NTmode state i/o bproto isdnstate   ton  number\n"
+		"----------------------------------------------------------------\n");
 
 	cc_mutex_lock(&iflock);
 
@@ -5102,7 +5103,7 @@ static int pbxcli_capi_show_channels(int fd, int argc, char *argv[])
 		else
 			b3q[0] = '\0';
 
-		cw_cli(fd,
+		cw_dynstr_printf(ds_p,
 			"%-16s %s   %s  %c  %s  %-10s  0x%02x '%s'->'%s'%s\n",
 			i->vname,
 			i->ntmode ? "yes":"no ",
@@ -5125,7 +5126,7 @@ static int pbxcli_capi_show_channels(int fd, int argc, char *argv[])
 /*
  * do command capi info
  */
-static int pbxcli_capi_info(int fd, int argc, char *argv[])
+static int pbxcli_capi_info(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int i = 0;
 	
@@ -5134,7 +5135,7 @@ static int pbxcli_capi_info(int fd, int argc, char *argv[])
 		
 	for (i = 1; i <= capi_num_controllers; i++) {
 		if (capi_controllers[i] != NULL) {
-			cw_cli(fd, "Contr%d: %d B channels total, %d B channels free.\n",
+			cw_dynstr_printf(ds_p, "Contr%d: %d B channels total, %d B channels free.\n",
 				i, capi_controllers[i]->nbchannels,
 				capi_controllers[i]->nfreebchannels);
 		}
@@ -5145,13 +5146,13 @@ static int pbxcli_capi_info(int fd, int argc, char *argv[])
 /*
  * enable debugging
  */
-static int pbxcli_capi_do_debug(int fd, int argc, char *argv[])
+static int pbxcli_capi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 		
 	capidebug = 1;
-	cw_cli(fd, "CAPI Debugging Enabled\n");
+	cw_dynstr_printf(ds_p, "CAPI Debugging Enabled\n");
 	
 	return RESULT_SUCCESS;
 }
@@ -5159,13 +5160,13 @@ static int pbxcli_capi_do_debug(int fd, int argc, char *argv[])
 /*
  * disable debugging
  */
-static int pbxcli_capi_no_debug(int fd, int argc, char *argv[])
+static int pbxcli_capi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	capidebug = 0;
-	cw_cli(fd, "CAPI Debugging Disabled\n");
+	cw_dynstr_printf(ds_p, "CAPI Debugging Disabled\n");
 	
 	return RESULT_SUCCESS;
 }

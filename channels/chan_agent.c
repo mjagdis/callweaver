@@ -1398,81 +1398,78 @@ static int powerof(unsigned int v)
  * @returns 
  * @sa action_agent_logoff(), action_agent_callback_login(), load_module().
  */
-static int action_agents(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_agents(struct mansession *sess, const struct message *req)
 {
-	char *id = astman_get_header(m,"ActionID");
-	char idText[256] = "";
 	char chanbuf[256];
+	struct cw_manager_message *msg;
 	struct agent_pvt *p;
-	char *username = NULL;
 	char *loginChan = NULL;
 	char *talkingtoChan = NULL;
 	char *status = NULL;
+	int err;
 
-	if (!cw_strlen_zero(id))
-		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
-	astman_send_ack(s, m, "Agents will follow");
-	cw_mutex_lock(&agentlock);
-	p = agents;
-	while(p) {
-        	cw_mutex_lock(&p->lock);
+	if ((msg = cw_manager_response("Success", "Agents will follow")) && !cw_manager_send(sess, req, &msg)) {
+		err = 0;
 
-		/* Status Values:
-		   AGENT_LOGGEDOFF - Agent isn't logged in
-		   AGENT_IDLE      - Agent is logged in, and waiting for call
-		   AGENT_ONCALL    - Agent is logged in, and on a call
-		   AGENT_UNKNOWN   - Don't know anything about agent. Shouldn't ever get this. */
+		cw_mutex_lock(&agentlock);
 
-		if(!cw_strlen_zero(p->name)) {
-			username = p->name;
-		} else {
-			username = "None";
-		}
+		for (p = agents; !err && p; p = p->next) {
+        		cw_mutex_lock(&p->lock);
 
-		/* Set a default status. It 'should' get changed. */
-		status = "AGENT_UNKNOWN";
+			/* Status Values:
+			   AGENT_LOGGEDOFF - Agent isn't logged in
+			   AGENT_IDLE      - Agent is logged in, and waiting for call
+			   AGENT_ONCALL    - Agent is logged in, and on a call
+			   AGENT_UNKNOWN   - Don't know anything about agent. Shouldn't ever get this. */
 
-		if (!cw_strlen_zero(p->loginchan) && !p->chan) {
-			loginChan = p->loginchan;
-			talkingtoChan = "n/a";
-			status = "AGENT_IDLE";
-			if (p->acknowledged) {
-				snprintf(chanbuf, sizeof(chanbuf), " %s (Confirmed)", p->loginchan);
-				loginChan = chanbuf;
-			}
-		} else if (p->chan) {
-			loginChan = cw_strdupa(p->chan->name);
-			if (p->owner && p->owner->_bridge) {
-        			talkingtoChan = p->chan->cid.cid_num;
-        			status = "AGENT_ONCALL";
+			/* Set a default status. It 'should' get changed. */
+			status = "AGENT_UNKNOWN";
+
+			if (!cw_strlen_zero(p->loginchan) && !p->chan) {
+				loginChan = p->loginchan;
+				talkingtoChan = "n/a";
+				status = "AGENT_IDLE";
+				if (p->acknowledged) {
+					snprintf(chanbuf, sizeof(chanbuf), " %s (Confirmed)", p->loginchan);
+					loginChan = chanbuf;
+				}
+			} else if (p->chan) {
+				loginChan = cw_strdupa(p->chan->name);
+				if (p->owner && p->owner->_bridge) {
+					talkingtoChan = p->chan->cid.cid_num;
+					status = "AGENT_ONCALL";
+				} else {
+					talkingtoChan = "n/a";
+					status = "AGENT_IDLE";
+				}
 			} else {
-        			talkingtoChan = "n/a";
-        			status = "AGENT_IDLE";
+				loginChan = "n/a";
+				talkingtoChan = "n/a";
+				status = "AGENT_LOGGEDOFF";
 			}
-		} else {
-			loginChan = "n/a";
-			talkingtoChan = "n/a";
-			status = "AGENT_LOGGEDOFF";
+
+			cw_manager_msg(&msg, 7,
+				cw_msg_tuple("Event",        "%s",  "Agents"),
+				cw_msg_tuple("Agent",        "%s",  p->agent),
+				cw_msg_tuple("Name",         "%s",  (!cw_strlen_zero(p->name) ? p->name : "None")),
+				cw_msg_tuple("Status",       "%s",  status),
+				cw_msg_tuple("LoggedInChan", "%s",  loginChan),
+				cw_msg_tuple("LoggedInTime", "%ld", (long int)p->loginstart),
+				cw_msg_tuple("TalkingTo",    "%s",  talkingtoChan)
+			);
+
+			cw_mutex_unlock(&p->lock);
+
+			err = cw_manager_send(sess, req, &msg);
 		}
 
-		cw_cli(s->fd, "Event: Agents\r\n"
-			"Agent: %s\r\n"
-			"Name: %s\r\n"
-			"Status: %s\r\n"
-			"LoggedInChan: %s\r\n"
-			"LoggedInTime: %ld\r\n"
-			"TalkingTo: %s\r\n"
-			"%s"
-			"\r\n",
-			p->agent, username, status, loginChan, (long int)p->loginstart, talkingtoChan, idText);
-		cw_mutex_unlock(&p->lock);
-		p = p->next;
+		cw_mutex_unlock(&agentlock);
+
+		if (!err)
+			cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "AgentsComplete"));
 	}
-	cw_mutex_unlock(&agentlock);
-	cw_cli(s->fd, "Event: AgentsComplete\r\n"
-		"%s"
-		"\r\n",idText);
-	return 0;
+
+	return msg;
 }
 
 static int agent_logoff(char *agent, int soft)
@@ -1515,7 +1512,7 @@ static int agent_logoff(char *agent, int soft)
 	return ret;
 }
 
-static int agent_logoff_cmd(int fd, int argc, char **argv)
+static int agent_logoff_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	int ret;
 	char *agent;
@@ -1528,7 +1525,7 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 	agent = argv[2] + 6;
 	ret = agent_logoff(agent, argc == 4);
 	if (ret == 0)
-		cw_cli(fd, "Logging out %s\n", agent);
+		cw_dynstr_printf(ds_p, "Logging out %s\n", agent);
 
 	return RESULT_SUCCESS;
 }
@@ -1541,33 +1538,24 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
  * @returns 
  * @sa action_agents(), action_agent_callback_login(), load_module().
  */
-static int action_agent_logoff(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_agent_logoff(struct mansession *sess, const struct message *req)
 {
-	char *agent = astman_get_header(m, "Agent");
-	char *soft_s = astman_get_header(m, "Soft"); /* "true" is don't hangup */
-	int soft;
-	int ret; /* return value of agent_logoff */
+	struct cw_manager_message *msg;
+	char *agent = cw_manager_msg_header(req, "Agent");
 
-	if (cw_strlen_zero(agent)) {
-		astman_send_error(s, m, "No agent specified");
-		return 0;
-	}
+	if (!cw_strlen_zero(agent)) {
+		if (!agent_logoff(agent, cw_true(cw_manager_msg_header(req, "Soft"))))
+			msg = cw_manager_response("Success", "Agent logged out");
+		else
+			msg = cw_manager_response("Error", "No such agent");
 
-	if (cw_true(soft_s))
-		soft = 1;
-	else
-		soft = 0;
+	} else
+		msg = cw_manager_response("Error", "No agent specified");
 
-	ret = agent_logoff(agent, soft);
-	if (ret == 0)
-		astman_send_ack(s, m, "Agent logged out");
-	else
-		astman_send_error(s, m, "No such agent");
-
-	return 0;
+	return msg;
 }
 
-static void complete_agent_logoff_cmd(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_agent_logoff_cmd(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char name[CW_MAX_AGENT];
 	struct agent_pvt *p;
@@ -1576,16 +1564,16 @@ static void complete_agent_logoff_cmd(int fd, char *argv[], int lastarg, int las
 		for (p = agents; p; p = p->next) {
 			snprintf(name, sizeof(name), "Agent/%s", p->agent);
 			if (!strncasecmp(argv[2], name, lastarg_len))
-				cw_cli(fd, "%s\n", name);
+				cw_dynstr_printf(ds_p, "%s\n", name);
 		}
 	} else if (lastarg == 3)
-		cw_cli(fd, "soft\n");
+		cw_dynstr_printf(ds_p, "soft\n");
 }
 
 /**
  * Show agents in cli.
  */
-static int agents_show(int fd, int argc, char **argv)
+static int agents_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	char username[CW_MAX_BUF];
 	char location[CW_MAX_BUF] = "";
@@ -1604,9 +1592,9 @@ static int agents_show(int fd, int argc, char **argv)
 		cw_mutex_lock(&p->lock);
 		if (p->pending) {
 			if (p->group)
-				cw_cli(fd, "-- Pending call to group %d\n", powerof(p->group));
+				cw_dynstr_printf(ds_p, "-- Pending call to group %d\n", powerof(p->group));
 			else
-				cw_cli(fd, "-- Pending call to agent %s\n", p->agent);
+				cw_dynstr_printf(ds_p, "-- Pending call to agent %s\n", p->agent);
 		} else {
 			if (!cw_strlen_zero(p->name))
 				snprintf(username, sizeof(username), "(%s) ", p->name);
@@ -1637,7 +1625,7 @@ static int agents_show(int fd, int argc, char **argv)
 			}
 			if (!cw_strlen_zero(p->moh))
 				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
-			cw_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
+			cw_dynstr_printf(ds_p, "%-12.12s %s%s%s%s\n", p->agent,
 				username, location, talkingto, moh);
 			count_agents++;
 		}
@@ -1646,11 +1634,11 @@ static int agents_show(int fd, int argc, char **argv)
 	}
 	cw_mutex_unlock(&agentlock);
 	if ( !count_agents ) {
-		cw_cli(fd, "No Agents are configured in %s\n",config);
+		cw_dynstr_printf(ds_p, "No Agents are configured in %s\n",config);
 	} else {
-		cw_cli(fd, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
+		cw_dynstr_printf(ds_p, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
 	}
-	cw_cli(fd, "\n");
+	cw_dynstr_printf(ds_p, "\n");
 	                
 	return RESULT_SUCCESS;
 }
@@ -2162,82 +2150,89 @@ static int callback_exec(struct cw_channel *chan, int argc, char **argv, char *r
  * @returns 
  * @sa action_agents(), action_agent_logoff(), load_module().
  */
-static int action_agent_callback_login(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_agent_callback_login(struct mansession *sess, const struct message *req)
 {
-	char *agent = astman_get_header(m, "Agent");
-	char *exten = astman_get_header(m, "Exten");
-	char *context = astman_get_header(m, "Context");
-	char *wrapuptime_s = astman_get_header(m, "WrapupTime");
-	char *ackcall_s = astman_get_header(m, "AckCall");
+	struct cw_manager_message *msg;
+	char *agent = cw_manager_msg_header(req, "Agent");
+	char *exten = cw_manager_msg_header(req, "Exten");
+	char *context = cw_manager_msg_header(req, "Context");
+	char *wrapuptime_s = cw_manager_msg_header(req, "WrapupTime");
+	char *ackcall_s = cw_manager_msg_header(req, "AckCall");
 	struct agent_pvt *p;
 	int login_state = 0;
 
-	if (cw_strlen_zero(agent)) {
-		astman_send_error(s, m, "No agent specified");
-		return 0;
-	}
+	if (!cw_strlen_zero(agent)) {
+		if (!cw_strlen_zero(exten)) {
+			cw_mutex_lock(&agentlock);
 
-	if (cw_strlen_zero(exten)) {
-		astman_send_error(s, m, "No extension specified");
-		return 0;
-	}
+			for (p = agents; p; p = p->next) {
+				if (strcmp(p->agent, agent) || p->pending)
+					continue;
 
-	cw_mutex_lock(&agentlock);
-	p = agents;
-	while(p) {
-		if (strcmp(p->agent, agent) || p->pending) {
-			p = p->next;
-			continue;
-		}
-		if (p->chan) {
-			login_state = 2; /* already logged in (and on the phone)*/
-			break;
-		}
-		cw_mutex_lock(&p->lock);
-		login_state = 1; /* Successful Login */
+				if (p->chan) {
+					login_state = 2; /* already logged in (and on the phone)*/
+					break;
+				}
+
+				cw_mutex_lock(&p->lock);
+
+				login_state = 1; /* Successful Login */
 		
-		if (cw_strlen_zero(context))
-			cw_copy_string(p->loginchan, exten, sizeof(p->loginchan));
-		else
-			snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", exten, context);
+				if (cw_strlen_zero(context))
+					cw_copy_string(p->loginchan, exten, sizeof(p->loginchan));
+				else
+					snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", exten, context);
 
-		if (!cw_strlen_zero(wrapuptime_s)) {
-			p->wrapuptime = atoi(wrapuptime_s);
-			if (p->wrapuptime < 0)
-				p->wrapuptime = 0;
-		}
+				if (!cw_strlen_zero(wrapuptime_s)) {
+					p->wrapuptime = atoi(wrapuptime_s);
+					if (p->wrapuptime < 0)
+						p->wrapuptime = 0;
+				}
 
-		if (cw_true(ackcall_s))
-			p->ackcall = 1;
-		else
-			p->ackcall = 0;
+				if (cw_true(ackcall_s))
+					p->ackcall = 1;
+				else
+					p->ackcall = 0;
 
-		if (p->loginstart == 0)
-			time(&p->loginstart);
-		cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
-			2,
-			cw_msg_tuple("Agent",     "%s", p->agent),
-			cw_msg_tuple("Loginchan", "%s", p->loginchan)
-		);
-		cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
-		if (option_verbose > 1)
-			cw_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
-		cw_device_state_changed("Agent/%s", p->agent);
-		cw_mutex_unlock(&p->lock);
-		p = p->next;
-		if (persistent_agents)
-			dump_agents();
-	}
-	cw_mutex_unlock(&agentlock);
+				if (p->loginstart == 0)
+					time(&p->loginstart);
 
-	if (login_state == 1)
-		astman_send_ack(s, m, "Agent logged in");
-	else if (login_state == 0)
-		astman_send_error(s, m, "No such agent");
-	else if (login_state == 2)
-		astman_send_error(s, m, "Agent already logged in");
+				cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+					2,
+					cw_msg_tuple("Agent",     "%s", p->agent),
+					cw_msg_tuple("Loginchan", "%s", p->loginchan)
+				);
+				cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
+				if (option_verbose > 1)
+					cw_verbose(VERBOSE_PREFIX_2 "Callback Agent '%s' logged in on %s\n", p->agent, p->loginchan);
 
-	return 0;
+				cw_device_state_changed("Agent/%s", p->agent);
+
+				cw_mutex_unlock(&p->lock);
+
+				if (persistent_agents)
+					dump_agents();
+			}
+			cw_mutex_unlock(&agentlock);
+
+			switch (login_state) {
+				case 0:
+					msg = cw_manager_response("Error", "No such agent");
+					break;
+				case 1:
+					msg = cw_manager_response("Success", "Agent logged in");
+					break;
+				case 2:
+				default:
+					msg = cw_manager_response("Error", "Agent already logged in");
+					break;
+			}
+		} else
+			msg = cw_manager_response("Error", "No extension specified");
+	} else
+		msg = cw_manager_response("Error", "No agent specified");
+
+	return msg;
 }
 
 /**

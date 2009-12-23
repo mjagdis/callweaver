@@ -568,7 +568,7 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 }
 
 /*** CLI HANDLING ***/
-static int misdn_set_debug(int fd, int argc, char *argv[])
+static int misdn_set_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4 && argc != 5 && argc != 6 && argc != 7)
 		return RESULT_SHOWUSAGE; 
@@ -590,7 +590,7 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 						misdn_debug[i] = level;
 						misdn_debug_only[i] = only;
 					}
-					cw_cli(fd, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
+					cw_dynstr_printf(ds_p, "changing debug level for all ports to %d%s\n",misdn_debug[0], only?" (only)":"");
 				}
 				break;
 		case 6: 
@@ -601,13 +601,13 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 					if (port <= 0 || port > max_ports) {
 						switch (max_ports) {
 							case 0:
-								cw_cli(fd, "port number not valid! no ports available so you won't get lucky with any number here...\n");
+								cw_dynstr_printf(ds_p, "port number not valid! no ports available so you won't get lucky with any number here...\n");
 								break;
 							case 1:
-								cw_cli(fd, "port number not valid! only port 1 is availble.\n");
+								cw_dynstr_printf(ds_p, "port number not valid! only port 1 is availble.\n");
 								break;
 							default:
-								cw_cli(fd, "port number not valid! only ports 1 to %d are available.\n", max_ports);
+								cw_dynstr_printf(ds_p, "port number not valid! only ports 1 to %d are available.\n", max_ports);
 							}
 							return 0;
 					}
@@ -619,13 +619,13 @@ static int misdn_set_debug(int fd, int argc, char *argv[])
 					} else
 						misdn_debug_only[port] = 0;
 					misdn_debug[port] = level;
-					cw_cli(fd, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
+					cw_dynstr_printf(ds_p, "changing debug level to %d%s for port %d\n", misdn_debug[port], misdn_debug_only[port]?" (only)":"", port);
 				}
 	}
 	return 0;
 }
 
-static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
+static int misdn_set_crypt_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE; 
 
@@ -633,7 +633,7 @@ static int misdn_set_crypt_debug(int fd, int argc, char *argv[])
 }
 
 
-static int misdn_port_block(int fd, int argc, char *argv[])
+static int misdn_port_block(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -647,7 +647,7 @@ static int misdn_port_block(int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_unblock(int fd, int argc, char *argv[])
+static int misdn_port_unblock(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -662,7 +662,7 @@ static int misdn_port_unblock(int fd, int argc, char *argv[])
 }
 
 
-static int misdn_restart_port (int fd, int argc, char *argv[])
+static int misdn_restart_port (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -676,7 +676,7 @@ static int misdn_restart_port (int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_up (int fd, int argc, char *argv[])
+static int misdn_port_up (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -690,7 +690,7 @@ static int misdn_port_up (int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_down (int fd, int argc, char *argv[])
+static int misdn_port_down (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -704,7 +704,7 @@ static int misdn_port_down (int fd, int argc, char *argv[])
 	return 0;
 }
 
-static inline void show_config_description (int fd, enum misdn_cfg_elements elem)
+static inline void show_config_description (struct cw_dynstr **ds_p, enum misdn_cfg_elements elem)
 {
 	char section[BUFFERSIZE];
 	char name[BUFFERSIZE];
@@ -721,12 +721,12 @@ static inline void show_config_description (int fd, enum misdn_cfg_elements elem
 		snprintf(section, BUFFERSIZE, "GENERAL SECTION", sizeof(section));
 
 	if (*def)
-		cw_cli(fd, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
+		cw_dynstr_printf(ds_p, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
 	else
-		cw_cli(fd, "[%s] %s\n\t%s\n", section, name, desc);
+		cw_dynstr_printf(ds_p, "[%s] %s\n\t%s\n", section, name, desc);
 }
 
-static int misdn_show_config (int fd, int argc, char *argv[])
+static int misdn_show_config (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
@@ -739,9 +739,9 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 			if (argc == 5) {
 				enum misdn_cfg_elements elem = misdn_cfg_get_elem (argv[4]);
 				if (elem == MISDN_CFG_FIRST)
-					cw_cli(fd, "Unknown element: %s\n", argv[4]);
+					cw_dynstr_printf(ds_p, "Unknown element: %s\n", argv[4]);
 				else
-					show_config_description(fd, elem);
+					show_config_description(ds_p, elem);
 				return 0;
 			}
 			return RESULT_SHOWUSAGE;
@@ -749,58 +749,60 @@ static int misdn_show_config (int fd, int argc, char *argv[])
 		if (!strcmp(argv[3], "descriptions")) {
 			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "general"))) {
 				for (elem = MISDN_GEN_FIRST + 1; elem < MISDN_GEN_LAST; ++elem) {
-					show_config_description(fd, elem);
-					cw_cli(fd, "\n");
+					show_config_description(ds_p, elem);
+					cw_dynstr_printf(ds_p, "\n");
 				}
 				ok = 1;
 			}
 			if ((argc == 4) || ((argc == 5) && !strcmp(argv[4], "ports"))) {
 				for (elem = MISDN_CFG_FIRST + 1; elem < MISDN_CFG_LAST - 1 /* the ptp hack, remove the -1 when ptp is gone */; ++elem) {
-					show_config_description(fd, elem);
-					cw_cli(fd, "\n");
+					show_config_description(ds_p, elem);
+					cw_dynstr_printf(ds_p, "\n");
 				}
 				ok = 1;
 			}
 			return ok ? 0 : RESULT_SHOWUSAGE;
 		}
 		if (!sscanf(argv[3], "%d", &onlyport) || onlyport < 0) {
-			cw_cli(fd, "Unknown option: %s\n", argv[3]);
+			cw_dynstr_printf(ds_p, "Unknown option: %s\n", argv[3]);
 			return RESULT_SHOWUSAGE;
 		}
 	}
 	
 	if (argc == 3 || onlyport == 0) {
-		cw_cli(fd,"Misdn General-Config: \n"); 
-		cw_cli(fd," -> Version: chan_misdn-" CHAN_MISDN_VERSION "\n");
+		cw_dynstr_printf(ds_p,
+			"Misdn General-Config: \n"
+			" -> Version: chan_misdn-" CHAN_MISDN_VERSION "\n"
+		);
 		for (elem = MISDN_GEN_FIRST + 1, linebreak = 1; elem < MISDN_GEN_LAST; elem++, linebreak++) {
 			misdn_cfg_get_config_string( 0, elem, buffer, BUFFERSIZE);
-			cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+			cw_dynstr_printf(ds_p, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 		}
-		cw_cli(fd, "\n");
+		cw_dynstr_printf(ds_p, "\n");
 	}
 
 	if (onlyport < 0) {
 		int port = misdn_cfg_get_next_port(0);
 		for (; port > 0; port = misdn_cfg_get_next_port(port)) {
-			cw_cli(fd, "\n[PORT %d]\n", port);
+			cw_dynstr_printf(ds_p, "\n[PORT %d]\n", port);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string( port, elem, buffer, BUFFERSIZE);
-				cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				cw_dynstr_printf(ds_p, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			cw_cli(fd, "\n");
+			cw_dynstr_printf(ds_p, "\n");
 		}
 	}
 	
 	if (onlyport > 0) {
 		if (misdn_cfg_is_port_valid(onlyport)) {
-			cw_cli(fd, "[PORT %d]\n", onlyport);
+			cw_dynstr_printf(ds_p, "[PORT %d]\n", onlyport);
 			for (elem = MISDN_CFG_FIRST + 1, linebreak = 1; elem < MISDN_CFG_LAST; elem++, linebreak++) {
 				misdn_cfg_get_config_string(onlyport, elem, buffer, BUFFERSIZE);
-				cw_cli(fd, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
+				cw_dynstr_printf(ds_p, "%-36s%s", buffer, !(linebreak % 2) ? "\n" : "");
 			}	
-			cw_cli(fd, "\n");
+			cw_dynstr_printf(ds_p, "\n");
 		} else {
-			cw_cli(fd, "Port %d is not active!\n", onlyport);
+			cw_dynstr_printf(ds_p, "Port %d is not active!\n", onlyport);
 		}
 	}
 	return 0;
@@ -869,17 +871,17 @@ static void reload_config(void)
 	}
 }
 
-static int misdn_reload (int fd, int argc, char *argv[])
+static int misdn_reload (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	cw_cli(fd, "Reloading mISDN Config\n");
+	cw_dynstr_printf(ds_p, "Reloading mISDN Config\n");
 	reload_config();
 	return 0;
 }
 
-static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel* bc)
+static void print_bc_info (struct cw_dynstr **ds_p, struct chan_list* help, struct misdn_bchannel* bc)
 {
 	struct cw_channel *cw=help->cw;
-	cw_cli(fd,
+	cw_dynstr_printf(ds_p,
 		"* Pid:%d Prt:%d Ch:%d Mode:%s Org:%s dad:%s oad:%s rad:%s ctx:%s state:%s\n",
 
 		bc->pid, bc->port, bc->channel,
@@ -892,7 +894,7 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
 		misdn_get_ch_state(help)
 		);
 	if (misdn_debug[bc->port] > 0)
-		cw_cli(fd,
+		cw_dynstr_printf(ds_p,
 			"  --> cwname: %s\n"
 			"  --> ch_l3id: %x\n"
 			"  --> ch_addr: %x\n"
@@ -937,23 +939,23 @@ static void print_bc_info (int fd, struct chan_list* help, struct misdn_bchannel
   
 }
 
-static int misdn_show_cls (int fd, int argc, char *argv[])
+static int misdn_show_cls (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct chan_list *help=cl_te;
   
-	cw_cli(fd,"Chan List: %p\n",cl_te); 
+	cw_dynstr_printf(ds_p,"Chan List: %p\n",cl_te);
   
 	for (;help; help=help->next) {
 		struct misdn_bchannel *bc=help->bc;   
 		struct cw_channel *cw=help->cw;
-		if (misdn_debug[0] > 2) cw_cli(fd, "Bc:%p Opbx:%p\n", bc, cw);
+		if (misdn_debug[0] > 2) cw_dynstr_printf(ds_p, "Bc:%p Opbx:%p\n", bc, cw);
 		if (bc) {
-			print_bc_info(fd, help, bc);
+			print_bc_info(ds_p, help, bc);
 		} else if ( (bc=help->holded_bc) ) {
 			chan_misdn_log(0, 0, "ITS A HOLDED BC:\n");
-			print_bc_info(fd, help,  bc);
+			print_bc_info(ds_p, help,  bc);
 		} else {
-			cw_cli(fd,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", cw->exten, CW_CID_P(cw));
+			cw_dynstr_printf(ds_p,"* Channel in unknown STATE !!! Exten:%s, Callerid:%s\n", cw->exten, CW_CID_P(cw));
 		}
 	}
   
@@ -961,7 +963,7 @@ static int misdn_show_cls (int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_show_cl (int fd, int argc, char *argv[])
+static int misdn_show_cl (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct chan_list *help=cl_te;
 
@@ -974,7 +976,7 @@ static int misdn_show_cl (int fd, int argc, char *argv[])
     
 		if (bc && cw) {
 			if (!strcasecmp(cw->name,argv[3])) {
-				print_bc_info(fd, help, bc);
+				print_bc_info(ds_p, help, bc);
 				break; 
 			}
 		} 
@@ -987,7 +989,7 @@ static int misdn_show_cl (int fd, int argc, char *argv[])
 cw_mutex_t lock;
 int MAXTICS=8;
 
-static int misdn_set_tics (int fd, int argc, char *argv[])
+static int misdn_set_tics (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -997,41 +999,41 @@ static int misdn_set_tics (int fd, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_show_stacks (int fd, int argc, char *argv[])
+static int misdn_show_stacks (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
 
-	cw_cli(fd, "BEGIN STACK_LIST:\n");
+	cw_dynstr_printf(ds_p, "BEGIN STACK_LIST:\n");
 
 	for (port=misdn_cfg_get_next_port(0); port > 0;
 	     port=misdn_cfg_get_next_port(port)) {
 		char buf[128];
 		get_show_stack_details(port,buf);
-		cw_cli(fd,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
+		cw_dynstr_printf(ds_p,"  %s  Debug:%d%s\n", buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
 	}
 		
 	return 0;
 }
 
 
-static int misdn_show_ports_stats (int fd, int argc, char *argv[])
+static int misdn_show_ports_stats (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
 
-	cw_cli(fd, "Port\tin_calls\tout_calls\n");
+	cw_dynstr_printf(ds_p, "Port\tin_calls\tout_calls\n");
 	
 	for (port=misdn_cfg_get_next_port(0); port > 0;
 	     port=misdn_cfg_get_next_port(port)) {
-		cw_cli(fd,"%d\t%d\t\t%d\n",port,misdn_in_calls[port],misdn_out_calls[port]);
+		cw_dynstr_printf(ds_p,"%d\t%d\t\t%d\n",port,misdn_in_calls[port],misdn_out_calls[port]);
 	}
-	cw_cli(fd,"\n");
+	cw_dynstr_printf(ds_p,"\n");
 	
 	return 0;
 
 }
 
 
-static int misdn_show_port (int fd, int argc, char *argv[])
+static int misdn_show_port (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -1040,17 +1042,17 @@ static int misdn_show_port (int fd, int argc, char *argv[])
   
 	port = atoi(argv[3]);
   
-	cw_cli(fd, "BEGIN STACK_LIST:\n");
+	cw_dynstr_printf(ds_p, "BEGIN STACK_LIST:\n");
 
 	char buf[128];
 	get_show_stack_details(port,buf);
-	cw_cli(fd,"  %s  Debug:%d%s\n",buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
+	cw_dynstr_printf(ds_p,"  %s  Debug:%d%s\n",buf, misdn_debug[port], misdn_debug_only[port]?"(only)":"");
 
 	
 	return 0;
 }
 
-static int misdn_send_cd (int fd, int argc, char *argv[])
+static int misdn_send_cd (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *nr; 
@@ -1061,13 +1063,13 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 	channame = argv[3];
 	nr = argv[4];
 	
-	cw_cli(fd, "Sending Calldeflection (%s) to %s\n",nr, channame);
+	cw_dynstr_printf(ds_p, "Sending Calldeflection (%s) to %s\n",nr, channame);
 	
 	{
 		struct chan_list *tmp=get_chan_by_cw_name(channame);
 		
 		if (!tmp) {
-			cw_cli(fd, "Sending CD with nr %s to %s failed Channel does not exist\n",nr, channame);
+			cw_dynstr_printf(ds_p, "Sending CD with nr %s to %s failed Channel does not exist\n",nr, channame);
 			return 0; 
 		} else {
 			
@@ -1078,7 +1080,7 @@ static int misdn_send_cd (int fd, int argc, char *argv[])
 	return 0; 
 }
 
-static int misdn_send_digit (int fd, int argc, char *argv[])
+static int misdn_send_digit (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *msg; 
@@ -1089,20 +1091,20 @@ static int misdn_send_digit (int fd, int argc, char *argv[])
 	channame = argv[3];
 	msg = argv[4];
 
-	cw_cli(fd, "Sending %s to %s\n",msg, channame);
+	cw_dynstr_printf(ds_p, "Sending %s to %s\n",msg, channame);
   
 	{
 		struct chan_list *tmp=get_chan_by_cw_name(channame);
     
 		if (!tmp) {
-			cw_cli(fd, "Sending %s to %s failed Channel does not exist\n",msg, channame);
+			cw_dynstr_printf(ds_p, "Sending %s to %s failed Channel does not exist\n",msg, channame);
 			return 0; 
 		} else {
 #if 1
 			int i;
 			int msglen = strlen(msg);
 			for (i=0; i<msglen; i++) {
-				cw_cli(fd, "Sending: %c\n",msg[i]);
+				cw_dynstr_printf(ds_p, "Sending: %c\n",msg[i]);
 				send_digit_to_chan(tmp, msg[i]);
 				/* res = cw_safe_sleep(tmp->cw, 250); */
 				usleep(250000);
@@ -1118,7 +1120,7 @@ static int misdn_send_digit (int fd, int argc, char *argv[])
 	return 0; 
 }
 
-static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
+static int misdn_toggle_echocancel (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *channame; 
 
@@ -1127,13 +1129,13 @@ static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
 	
 	channame = argv[3];
   
-	cw_cli(fd, "Toggling EchoCancel on %s\n", channame);
+	cw_dynstr_printf(ds_p, "Toggling EchoCancel on %s\n", channame);
   
 	{
 		struct chan_list *tmp=get_chan_by_cw_name(channame);
     
 		if (!tmp) {
-			cw_cli(fd, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
+			cw_dynstr_printf(ds_p, "Toggling EchoCancel %s failed Channel does not exist\n", channame);
 			return 0; 
 		} else {
 			
@@ -1151,7 +1153,7 @@ static int misdn_toggle_echocancel (int fd, int argc, char *argv[])
 	return 0; 
 }
 
-static int misdn_send_display (int fd, int argc, char *argv[])
+static int misdn_send_display (struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *msg; 
@@ -1162,7 +1164,7 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	channame = argv[3];
 	msg = argv[4];
 
-	cw_cli(fd, "Sending %s to %s\n",msg, channame);
+	cw_dynstr_printf(ds_p, "Sending %s to %s\n",msg, channame);
 	{
 		struct chan_list *tmp;
 		tmp=get_chan_by_cw_name(channame);
@@ -1171,7 +1173,7 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 			cw_copy_string(tmp->bc->display, msg, sizeof(tmp->bc->display));
 			misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
 		} else {
-			cw_cli(fd,"No such channel %s\n",channame);
+			cw_dynstr_printf(ds_p,"No such channel %s\n",channame);
 			return RESULT_FAILURE;
 		}
 	}
@@ -1179,31 +1181,29 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	return RESULT_SUCCESS ;
 }
 
-static void complete_ch(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
-	struct cw_channel *c;
-
 	if (lastarg == 3)
-		cw_complete_channel(fd, argv[3], lastarg_len);
+		cw_complete_channel(ds_p, argv[3], lastarg_len);
 }
 
-static void complete_debug_port(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_debug_port(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	switch (lastarg) {
 		case 4:
 			if (!strncmp(argv[4], "port", lastarg_len))
-				cw_cli(fd, "port\n");
+				cw_dynstr_printf(ds_p, "port\n");
 			if (!strncmp(argv[4], "only", lastarg_len))
-				cw_cli(fd, "only\n");
+				cw_dynstr_printf(ds_p, "only\n");
 			break;
 		case 6:
 			if (!strncmp(argv[6], "only", lastarg_len))
-				cw_cli(fd, "only\n");
+				cw_dynstr_printf(ds_p, "only\n");
 			break;
 	}
 }
 
-static void complete_show_config(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_config(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
@@ -1212,18 +1212,18 @@ static void complete_show_config(int fd, char *argv[], int lastarg, int lastarg_
 	switch (lastarg) {
 		case 3:
 			if ((!strncmp(argv[3], "description", lastarg_len)))
-				cw_cli(fd, "description\n");
+				cw_dynstr_printf(ds_p, "description\n");
 
 			if ((!strncmp(argv[3], "descriptions", lastarg_len)))
-				cw_cli(fd, "descriptions\n");
+				cw_dynstr_printf(ds_p, "descriptions\n");
 
 			if ((!strncmp(argv[3], "0", lastarg_len)))
-				cw_cli(fd, "0\n");
+				cw_dynstr_printf(ds_p, "0\n");
 
 			while ((port = misdn_cfg_get_next_port(port)) != -1) {
 				snprintf(buffer, sizeof(buffer), "%d", port);
 				if ((!strncmp(argv[3], buffer, lastarg_len)))
-					cw_cli(fd, "%s\n", buffer);
+					cw_dynstr_printf(ds_p, "%s\n", buffer);
 			}
 			break;
 
@@ -1235,13 +1235,13 @@ static void complete_show_config(int fd, char *argv[], int lastarg, int lastarg_
 
 					misdn_cfg_get_name(elem, buffer, BUFFERSIZE);
 					if (!strncmp(argv[4], buffer, lastarg_len))
-						cw_cli(fd, "%s\n", buffer);
+						cw_dynstr_printf(ds_p, "%s\n", buffer);
 				}
 			} else if (!strcmp(argv[3], "descriptions")) {
 				if (!strncmp(argv[4], "general", lastarg_len))
-					cw_cli(fd, "general\n");
+					cw_dynstr_printf(ds_p, "general\n");
 				if (!strncmp(argv[4], "ports", lastarg_len))
-					cw_cli(fd, "ports\n");
+					cw_dynstr_printf(ds_p, "ports\n");
 			}
 			break;
 	}

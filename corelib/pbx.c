@@ -213,22 +213,22 @@ static inline struct cw_switch *pbx_findswitch(const char *name)
 static int switch_print(struct cw_object *obj, void *data)
 {
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 
-        cw_cli(*fd, "%s: %s\n", sw->name, sw->description);
+        cw_dynstr_printf(ds_p, "%s: %s\n", sw->name, sw->description);
 	return 0;
 }
 
-static int handle_show_switches(int fd, int argc, char *argv[])
+static int handle_show_switches(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	cw_cli(fd, "\n    -= Registered CallWeaver Alternative Switches =-\n");
-	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, &fd);
+	cw_dynstr_printf(ds_p, "\n    -= Registered CallWeaver Alternative Switches =-\n");
+	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, ds_p);
 	return RESULT_SUCCESS;
 }
 
 /*! \brief  handle_show_globals: CLI support for listing global variables */
 struct handle_show_globals_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int count;
 };
 
@@ -238,30 +238,30 @@ static int handle_show_globals_one(struct cw_object *obj, void *data)
 	struct handle_show_globals_args *args = data;
 
 	args->count++;
-        cw_cli(args->fd, "  %s=%s\n", cw_var_name(var), var->value);
+        cw_dynstr_printf(args->ds_p, "  %s=%s\n", cw_var_name(var), var->value);
 	return 0;
 }
 
-static int handle_show_globals(int fd, int argc, char *argv[])
+static int handle_show_globals(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct handle_show_globals_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.count = 0,
 	};
 
 	cw_registry_iterate_ordered(&var_registry, handle_show_globals_one, &args);
 
-	cw_cli(fd, "\n    -- %d variables\n", args.count);
+	cw_dynstr_printf(ds_p, "\n    -- %d variables\n", args.count);
 	return RESULT_SUCCESS;
 }
 
 /*! \brief  CLI support for setting global variables */
-static int handle_set_global(int fd, int argc, char *argv[])
+static int handle_set_global(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 4)
         return RESULT_SHOWUSAGE;
     pbx_builtin_setvar_helper(NULL, argv[2], argv[3]);
-    cw_cli(fd, "\n    -- Global variable %s set to %s\n", argv[2], argv[3]);
+    cw_dynstr_printf(ds_p, "\n    -- Global variable %s set to %s\n", argv[2], argv[3]);
     return RESULT_SUCCESS;
 }
 
@@ -2600,7 +2600,7 @@ static const char set_global_help[] =
  */
 
 /*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
-static int handle_show_hints(int fd, int argc, char *argv[])
+static int handle_show_hints(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct cw_hint *hint;
     int num = 0;
@@ -2609,11 +2609,11 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 
     if (!hints)
     {
-        cw_cli(fd, "There are no registered dialplan hints\n");
+        cw_dynstr_printf(ds_p, "There are no registered dialplan hints\n");
         return RESULT_SUCCESS;
     }
     /* ... we have hints ... */
-    cw_cli(fd, "\n    -== Registered CallWeaver Dial Plan Hints ==-\n");
+    cw_dynstr_printf(ds_p, "\n    -== Registered CallWeaver Dial Plan Hints ==-\n");
     if (cw_mutex_lock(&hintlock))
     {
         cw_log(CW_LOG_ERROR, "Unable to lock hints\n");
@@ -2625,14 +2625,16 @@ static int handle_show_hints(int fd, int argc, char *argv[])
         watchers = 0;
         for (watcher = hint->callbacks; watcher; watcher = watcher->next)
             watchers++;
-        cw_cli(fd, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
+        cw_dynstr_printf(ds_p, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
             cw_get_extension_name(hint->exten), cw_get_extension_app(hint->exten),
             cw_extension_state2str(hint->laststate), watchers);
         num++;
         hint = hint->next;
     }
-    cw_cli(fd, "----------------\n");
-    cw_cli(fd, "- %d hints registered\n", num);
+    cw_dynstr_printf(ds_p,
+        "----------------\n"
+        "- %d hints registered\n", num
+    );
     cw_mutex_unlock(&hintlock);
     return RESULT_SUCCESS;
 }
@@ -2641,7 +2643,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static void complete_show_dialplan_context(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_dialplan_context(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_context *c;
 
@@ -2652,7 +2654,7 @@ static void complete_show_dialplan_context(int fd, char *argv[], int lastarg, in
             for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c))
 	    {
                 if (!strncasecmp(argv[2], cw_get_context_name(c), lastarg_len))
-                    cw_cli(fd, "%s\n", cw_get_context_name(c));
+                    cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 	    }
             cw_unlock_contexts();
         }
@@ -2672,7 +2674,7 @@ struct dialplan_counters
     int extension_existence;
 };
 
-static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
+static int show_dialplan_helper(struct cw_dynstr **ds_p, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
 {
     struct cw_context *c;
     int res=0, old_total_exten = dpc->total_exten;
@@ -2708,7 +2710,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                 if (!exten)
                 {
                     dpc->total_context++;
-                    cw_cli(fd, "[ Context '%s' (%#x) created by '%s' ]\n",
+                    cw_dynstr_printf(ds_p, "[ Context '%s' (%#x) created by '%s' ]\n",
                         cw_get_context_name(c), c->hash, cw_get_context_registrar(c));
                     context_info_printed = 1;
                 }
@@ -2738,13 +2740,13 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                         if (rinclude)
                         {
                             /* TODO Print more info about rinclude */
-                            cw_cli(fd, "[ Included context '%s' (%#x) created by '%s' ]\n",
+                            cw_dynstr_printf(ds_p, "[ Included context '%s' (%#x) created by '%s' ]\n",
                                 cw_get_context_name(c), c->hash,
                                 cw_get_context_registrar(c));
                         }
                         else
                         {
-                            cw_cli(fd, "[ Context '%s' (%#x) created by '%s' ]\n",
+                            cw_dynstr_printf(ds_p, "[ Context '%s' (%#x) created by '%s' ]\n",
                                 cw_get_context_name(c), c->hash,
                                 cw_get_context_registrar(c));
                         }
@@ -2773,7 +2775,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                             (char *)cw_get_extension_app_data(e));
                     }
 
-                    cw_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
+                    cw_dynstr_printf(ds_p, "  %-17s %-45s [%s]\n", buf, buf2,
                         cw_get_extension_registrar(e));
 
                     dpc->total_exten++;
@@ -2801,7 +2803,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                                 (char *)cw_get_extension_app_data(p));
                         }
 
-                        cw_cli(fd,"  %-17s %-45s [%s]\n",
+                        cw_dynstr_printf(ds_p,"  %-17s %-45s [%s]\n",
                             buf, buf2,
                             cw_get_extension_registrar(p));
                     }
@@ -2836,7 +2838,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                             if (!dupe)
                             {
                                 includes[includecount] = (char *)cw_get_include_name(i);
-                                show_dialplan_helper(fd, (char *)cw_get_include_name(i),
+                                show_dialplan_helper(ds_p, (char *)cw_get_include_name(i),
                                                     exten, dpc, i, includecount + 1, includes);
                             }
                             else
@@ -2848,7 +2850,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                     }
                     else
                     {
-                        cw_cli(fd, "  Include =>        %-45s [%s]\n",
+                        cw_dynstr_printf(ds_p, "  Include =>        %-45s [%s]\n",
                                  buf, cw_get_include_registrar(i));
                     }
                 }
@@ -2863,7 +2865,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                     snprintf(ignorepat, sizeof(ignorepat), "_%s.", ipname);
                     if ((!exten)  ||  cw_extension_match(ignorepat, exten))
                     {
-                        cw_cli(fd, "  Ignore pattern => %-45s [%s]\n",
+                        cw_dynstr_printf(ds_p, "  Ignore pattern => %-45s [%s]\n",
                             buf, cw_get_ignorepat_registrar(ip));
                     }
                 }
@@ -2874,7 +2876,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                         snprintf(buf, sizeof(buf), "'%s/%s'",
                             cw_get_switch_name(sw),
                             cw_get_switch_data(sw));
-                        cw_cli(fd, "  Alt. Switch =>    %-45s [%s]\n",
+                        cw_dynstr_printf(ds_p, "  Alt. Switch =>    %-45s [%s]\n",
                             buf, cw_get_switch_registrar(sw));    
                     }
                 }
@@ -2882,7 +2884,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
                 cw_unlock_context(c);
 
                 /* if we print something in context, make an empty line */
-                if (context_info_printed) cw_cli(fd, "\r\n");
+                if (context_info_printed) cw_dynstr_printf(ds_p, "\r\n");
             }
         }
     }
@@ -2896,7 +2898,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
     return res;
 }
 
-static int handle_show_dialplan(int fd, int argc, char *argv[])
+static int handle_show_dialplan(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *exten = NULL, *context = NULL;
     /* Variables used for different counters */
@@ -2923,7 +2925,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
                 exten = NULL;
             if (cw_strlen_zero(context))
                 context = NULL;
-            show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
+            show_dialplan_helper(ds_p, context, exten, &counters, NULL, 0, incstack);
         }
         else
         {
@@ -2931,37 +2933,37 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
             context = argv[2];
             if (cw_strlen_zero(context))
                 context = NULL;
-            show_dialplan_helper(fd, context, exten, &counters, NULL, 0, incstack);
+            show_dialplan_helper(ds_p, context, exten, &counters, NULL, 0, incstack);
         }
     }
     else
     {
         /* Show complete dial plan */
-        show_dialplan_helper(fd, NULL, NULL, &counters, NULL, 0, incstack);
+        show_dialplan_helper(ds_p, NULL, NULL, &counters, NULL, 0, incstack);
     }
 
     /* check for input failure and throw some error messages */
     if (context  &&  !counters.context_existence)
     {
-        cw_cli(fd, "No such context '%s'\n", context);
+        cw_dynstr_printf(ds_p, "No such context '%s'\n", context);
         return RESULT_FAILURE;
     }
 
     if (exten  &&  !counters.extension_existence)
     {
         if (context)
-            cw_cli(fd,
+            cw_dynstr_printf(ds_p,
                      "No such extension %s in context %s\n",
                      exten,
                      context);
         else
-            cw_cli(fd,
+            cw_dynstr_printf(ds_p,
                      "No such extension '%s' extension in any context\n",
                      exten);
         return RESULT_FAILURE;
     }
 
-    cw_cli(fd,"-= %d %s (%d %s) in %d %s. =-\n",
+    cw_dynstr_printf(ds_p,"-= %d %s (%d %s) in %d %s. =-\n",
                 counters.total_exten, counters.total_exten == 1 ? "extension" : "extensions",
                 counters.total_prio, counters.total_prio == 1 ? "priority" : "priorities",
                 counters.total_context, counters.total_context == 1 ? "context" : "contexts");

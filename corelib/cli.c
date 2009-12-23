@@ -132,28 +132,6 @@ static struct cw_clicmd *find_cli(char *cmds[], int exact)
 
 extern unsigned long global_fin, global_fout;
 
-void cw_cli(int fd, char *fmt, ...)
-{
-	va_list ap, ap2;
-	char *s;
-	int n;
-	char c;
-
-	va_start(ap, fmt);
-
-	va_copy(ap2, ap);
-	n = vsnprintf(&c, 1, fmt, ap2);
-	va_end(ap2);
-
-	if (n > 0) {
-		s = alloca(n + 1);
-		vsnprintf(s, n + 1, fmt, ap);
-        	cw_carefulwrite(fd, s, n, 100);
-	}
-
-	va_end(ap);
-}
-
 
 static const char help_help[] =
 "Usage: help [topic]\n"
@@ -186,7 +164,7 @@ static const char softhangup_help[] =
 "       the next time the driver reads or writes from the channel\n";
 
 
-static int handle_set_verbose(int fd, int argc, char *argv[])
+static int handle_set_verbose(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int val = 0;
     int oldval = 0;
@@ -205,15 +183,15 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
             option_verbose = val;
     }
     if (oldval != option_verbose && option_verbose > 0)
-        cw_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
+        cw_dynstr_printf(ds_p, "Verbosity was %d and is now %d\n", oldval, option_verbose);
     else if (oldval > 0 && option_verbose > 0)
-        cw_cli(fd, "Verbosity is at least %d\n", option_verbose);
+        cw_dynstr_printf(ds_p, "Verbosity is at least %d\n", option_verbose);
     else if (oldval > 0 && option_verbose == 0)
-        cw_cli(fd, "Verbosity is now OFF\n");
+        cw_dynstr_printf(ds_p, "Verbosity is now OFF\n");
     return RESULT_SUCCESS;
 }
 
-static int handle_set_debug(int fd, int argc, char *argv[])
+static int handle_set_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int val = 0;
     int oldval = 0;
@@ -231,11 +209,11 @@ static int handle_set_debug(int fd, int argc, char *argv[])
             option_debug = val;
     }
     if (oldval != option_debug && option_debug > 0)
-        cw_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
+        cw_dynstr_printf(ds_p, "Core debug was %d and is now %d\n", oldval, option_debug);
     else if (oldval > 0 && option_debug > 0)
-        cw_cli(fd, "Core debug is at least %d\n", option_debug);
+        cw_dynstr_printf(ds_p, "Core debug is at least %d\n", option_debug);
     else if (oldval > 0 && option_debug == 0)
-        cw_cli(fd, "Core debug is now OFF\n");
+        cw_dynstr_printf(ds_p, "Core debug is now OFF\n");
     return RESULT_SUCCESS;
 }
 
@@ -326,7 +304,7 @@ static char *format_uptimestr(time_t timeval)
     return strlen(timestr) ? strdup(timestr) : NULL;
 }
 
-static int handle_showuptime(int fd, int argc, char *argv[])
+static int handle_showuptime(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     time_t curtime, tmptime;
     char *timestr;
@@ -340,11 +318,11 @@ static int handle_showuptime(int fd, int argc, char *argv[])
     if (cw_startuptime) {
         tmptime = curtime - cw_startuptime;
         if (printsec) {
-            cw_cli(fd, "System uptime: %lu\n",tmptime);
+            cw_dynstr_printf(ds_p, "System uptime: %lu\n",tmptime);
         } else {
             timestr = format_uptimestr(tmptime);
             if (timestr) {
-                cw_cli(fd, "System uptime: %s\n", timestr);
+                cw_dynstr_printf(ds_p, "System uptime: %s\n", timestr);
                 free(timestr);
             }
         }
@@ -352,11 +330,11 @@ static int handle_showuptime(int fd, int argc, char *argv[])
     if (cw_lastreloadtime) {
         tmptime = curtime - cw_lastreloadtime;
         if (printsec) {
-            cw_cli(fd, "Last reload: %lu\n", tmptime);
+            cw_dynstr_printf(ds_p, "Last reload: %lu\n", tmptime);
         } else {
             timestr = format_uptimestr(tmptime);
             if ((timestr) && (!printsec)) {
-                cw_cli(fd, "Last reload: %s\n", timestr);
+                cw_dynstr_printf(ds_p, "Last reload: %s\n", timestr);
                 free(timestr);
             } 
         }
@@ -364,12 +342,12 @@ static int handle_showuptime(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int handle_version(int fd, int argc, char *argv[])
+static int handle_version(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
         return RESULT_SHOWUSAGE;
 
-    cw_cli(fd, "%s %s, %s %s\n",
+    cw_dynstr_printf(ds_p, "%s %s, %s %s\n",
         cw_version_string,
         "built on " BUILD_HOSTNAME,
         (strchr("aeiouhx", BUILD_MACHINE[0]) ? "an" : "a"),
@@ -386,7 +364,7 @@ static int handle_version(int fd, int argc, char *argv[])
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
 struct handle_chanlist_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int concise;
 	int verbose;
 	int numchans;
@@ -414,7 +392,7 @@ static int handle_chanlist_one(struct cw_object *obj, void *data)
 	}
 
 	if (args->concise) {
-		cw_cli(args->fd, CONCISE_FORMAT_STRING, chan->name,
+		cw_dynstr_printf(args->ds_p, CONCISE_FORMAT_STRING, chan->name,
 			chan->context, chan->exten, chan->priority,
 			cw_state2str(chan->_state),
 			(chan->appl ? chan->appl : "(None)"),
@@ -424,7 +402,7 @@ static int handle_chanlist_one(struct cw_object *obj, void *data)
 			buf,
 			(bc ? bc->name : "(None)"));
 	} else if (args->verbose) {
-		cw_cli(args->fd, VERBOSE_FORMAT_STRING, chan->name,
+		cw_dynstr_printf(args->ds_p, VERBOSE_FORMAT_STRING, chan->name,
 			chan->context, chan->exten, chan->priority,
 			cw_state2str(chan->_state),
 			(chan->appl ? chan->appl : "(None)"),
@@ -438,7 +416,7 @@ static int handle_chanlist_one(struct cw_object *obj, void *data)
 		else
 			strcpy(buf, "(None)");
 
-		cw_cli(args->fd, FORMAT_STRING, chan->name,
+		cw_dynstr_printf(args->ds_p, FORMAT_STRING, chan->name,
 			buf,
 			cw_state2str(chan->_state),
 			(chan->appl ? chan->appl : "(None)"));
@@ -452,7 +430,7 @@ static int handle_chanlist_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_chanlist(int fd, int argc, char *argv[])
+static int handle_chanlist(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct handle_chanlist_args args;
 
@@ -463,25 +441,25 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	if (!args.concise  &&  !args.verbose)
-		cw_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application");
+		cw_dynstr_printf(ds_p, FORMAT_STRING2, "Channel", "Location", "State", "Application");
 	else if (args.verbose)
-		cw_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "CallerID", "Duration", "Accountcode", "BridgedTo");
+		cw_dynstr_printf(ds_p, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "CallerID", "Duration", "Accountcode", "BridgedTo");
 
-	args.fd = fd;
+	args.ds_p = ds_p;
 	args.numchans = 0;
 	cw_registry_iterate_ordered(&channel_registry, handle_chanlist_one, &args);
 
 	if (!args.concise) {
-		cw_cli(fd, "%d active channel%s\n", args.numchans, (args.numchans != 1)  ?  "s"  :  "");
+		cw_dynstr_printf(ds_p, "%d active channel%s\n", args.numchans, (args.numchans != 1)  ?  "s"  :  "");
 		if (option_maxcalls) {
-			cw_cli(fd,
+			cw_dynstr_printf(ds_p,
 				"%d of %d max active call%s (%5.2f%% of capacity)\n",
 				cw_active_calls(),
 				option_maxcalls,
 				(cw_active_calls() != 1)  ?  "s"  :  "",
 				((float) cw_active_calls() / (float) option_maxcalls)*100.0);
 		} else {
-			cw_cli(fd, "%d active call%s\n", cw_active_calls(), (cw_active_calls() != 1)  ?  "s"  :  "");
+			cw_dynstr_printf(ds_p, "%d active call%s\n", cw_active_calls(), (cw_active_calls() != 1)  ?  "s"  :  "");
 		}
 	}
 
@@ -512,7 +490,7 @@ static const char nodebugchan_help[] =
 "       Disables debugging on a specific channel.\n";
 
 
-static int handle_softhangup(int fd, int argc, char *argv[])
+static int handle_softhangup(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct cw_channel *c = NULL;
 
@@ -520,17 +498,17 @@ static int handle_softhangup(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 
     if ((c = cw_get_channel_by_name_locked(argv[2]))) {
-        cw_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
+        cw_dynstr_printf(ds_p, "Requested Hangup on channel '%s'\n", c->name);
         cw_softhangup(c, CW_SOFTHANGUP_EXPLICIT);
         cw_channel_unlock(c);
 	cw_object_put(c);
     } else
-        cw_cli(fd, "%s is not a known channel\n", argv[2]);
+        cw_dynstr_printf(ds_p, "%s is not a known channel\n", argv[2]);
     return RESULT_SUCCESS;
 }
 
 
-static int handle_debuglevel(int fd, int argc, char *argv[])
+static int handle_debuglevel(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int newlevel;
     char *filename = "<any>";
@@ -545,7 +523,7 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
     } else {
         debug_filename[0] = '\0';
     }
-    cw_cli(fd, "Debugging level set to %d, file '%s'\n", newlevel, filename);
+    cw_dynstr_printf(ds_p, "Debugging level set to %d, file '%s'\n", newlevel, filename);
     return RESULT_SUCCESS;
 }
 
@@ -553,14 +531,14 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 static int debugchan_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 
 	cw_channel_lock(chan);
 
         if (!(chan->fin & DEBUGCHAN_FLAG) || !(chan->fout & DEBUGCHAN_FLAG)) {
             chan->fin |= DEBUGCHAN_FLAG;
             chan->fout |= DEBUGCHAN_FLAG;
-            cw_cli(*fd, "Debugging enabled on channel %s\n", chan->name);
+            cw_dynstr_printf(ds_p, "Debugging enabled on channel %s\n", chan->name);
         }
 
 	cw_channel_unlock(chan);
@@ -570,14 +548,14 @@ static int debugchan_one(struct cw_object *obj, void *data)
 static int nodebugchan_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	int *fd = data;
+	struct cw_dynstr **ds_p = data;
 
 	cw_channel_lock(chan);
 
         if ((chan->fin & DEBUGCHAN_FLAG) || (chan->fout & DEBUGCHAN_FLAG)) {
             chan->fin &= ~DEBUGCHAN_FLAG;
             chan->fout &= ~DEBUGCHAN_FLAG;
-            cw_cli(*fd, "Debugging disabled on channel %s\n", chan->name);
+            cw_dynstr_printf(ds_p, "Debugging disabled on channel %s\n", chan->name);
         }
 
 	cw_channel_unlock(chan);
@@ -585,7 +563,7 @@ static int nodebugchan_one(struct cw_object *obj, void *data)
 }
 
 /* XXX todo: merge next two functions!!! */
-static int handle_debugchan(int fd, int argc, char *argv[])
+static int handle_debugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_channel *chan;
 
@@ -594,23 +572,23 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 
 	if (strcasecmp("all", argv[2])) {
 		if ((chan = cw_get_channel_by_name_locked(argv[2]))) {
-			debugchan_one(&chan->obj, &fd);
+			debugchan_one(&chan->obj, ds_p);
 			cw_object_put(chan);
 		} else
-			cw_cli(fd, "No such channel %s\n", argv[2]);
+			cw_dynstr_printf(ds_p, "No such channel %s\n", argv[2]);
 		return RESULT_SUCCESS;
 	}
 
 	global_fin |= DEBUGCHAN_FLAG;
 	global_fout |= DEBUGCHAN_FLAG;
-	cw_cli(fd, "Debugging on new channels is enabled\n");
+	cw_dynstr_printf(ds_p, "Debugging on new channels is enabled\n");
 
-	cw_registry_iterate_ordered(&channel_registry, debugchan_one, &fd);
+	cw_registry_iterate_ordered(&channel_registry, debugchan_one, ds_p);
 
 	return RESULT_SUCCESS;
 }
 
-static int handle_nodebugchan(int fd, int argc, char *argv[])
+static int handle_nodebugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_channel *chan;
 
@@ -619,24 +597,24 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 
 	if (strcasecmp("all", argv[3])) {
 		if ((chan = cw_get_channel_by_name_locked(argv[3]))) {
-			debugchan_one(&chan->obj, &fd);
+			debugchan_one(&chan->obj, ds_p);
 			cw_object_put(chan);
 		} else
-			cw_cli(fd, "No such channel %s\n", argv[3]);
+			cw_dynstr_printf(ds_p, "No such channel %s\n", argv[3]);
 		return RESULT_SUCCESS;
 	}
 
 	global_fin &= ~DEBUGCHAN_FLAG;
 	global_fout &= ~DEBUGCHAN_FLAG;
-	cw_cli(fd, "Debugging on new channels is disabled\n");
+	cw_dynstr_printf(ds_p, "Debugging on new channels is disabled\n");
 
-	cw_registry_iterate_ordered(&channel_registry, nodebugchan_one, &fd);
+	cw_registry_iterate_ordered(&channel_registry, nodebugchan_one, ds_p);
 
 	return RESULT_SUCCESS;
 }
 
 
-static int handle_showchan(int fd, int argc, char *argv[])
+static int handle_showchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char buf[2048];
     char cdrtime[256];
@@ -648,7 +626,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 
     if (!(chan = cw_get_channel_by_name_locked(argv[2]))) {
-        cw_cli(fd, "%s is not a known channel\n", argv[2]);
+        cw_dynstr_printf(ds_p, "%s is not a known channel\n", argv[2]);
         return RESULT_SUCCESS;
     }
 
@@ -661,7 +639,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 
     bchan = cw_bridged_channel(chan);
 
-    cw_cli(fd,
+    cw_dynstr_printf(ds_p,
         " -- General --\n"
         "           Name: %s\n"
         "           Type: %s\n"
@@ -717,9 +695,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
         );
 
     if (pbx_builtin_serialize_variables(chan, buf, sizeof(buf)))
-        cw_cli(fd, "      Variables:\n%s\n", buf);
+        cw_dynstr_printf(ds_p, "      Variables:\n%s\n", buf);
     if (chan->cdr && cw_cdr_serialize_variables(chan->cdr, buf, sizeof(buf), '=', '\n', 1))
-        cw_cli(fd, "  CDR Variables:\n%s\n", buf);
+        cw_dynstr_printf(ds_p, "  CDR Variables:\n%s\n", buf);
     
     cw_channel_unlock(chan);
     if (bchan)
@@ -728,7 +706,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static void complete_show_channels(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_channels(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *choices[] = { "concise", "verbose" };
     int i;
@@ -736,26 +714,26 @@ static void complete_show_channels(int fd, char *argv[], int lastarg, int lastar
     if (lastarg == 2) {
         for (i = 0; i < sizeof(choices) / sizeof(choices[0]); i++) {
             if (!strncasecmp(argv[2], choices[i], lastarg_len))
-                cw_cli(fd, "%s\n", choices[i]);
+                cw_dynstr_printf(ds_p, "%s\n", choices[i]);
         }
     }
 }
 
 
-static void complete_ch_3(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch_3(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 2)
-		cw_complete_channel(fd, argv[2], lastarg_len);
+		cw_complete_channel(ds_p, argv[2], lastarg_len);
 }
 
-static void complete_ch_4(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch_4(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3)
-		cw_complete_channel(fd, argv[3], lastarg_len);
+		cw_complete_channel(ds_p, argv[3], lastarg_len);
 }
 
 
-static int handle_help(int fd, int argc, char *argv[]);
+static int handle_help(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 static struct cw_clicmd builtins[] = {
     {
@@ -872,7 +850,7 @@ static char *find_best(char *argv[])
 
 struct help_workhorse_args {
     char matchstr[80];
-    int fd;
+    struct cw_dynstr **ds_p;
     int match;
 };
 
@@ -885,17 +863,17 @@ static int help_workhorse_one(struct cw_object *obj, void *data)
     join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
 
     if (!args->match || !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr)))
-        cw_cli(args->fd, "%25.25s  %s\n", fullcmd, clicmd->summary);
+        cw_dynstr_printf(args->ds_p, "%25.25s  %s\n", fullcmd, clicmd->summary);
 
     return 0;
 }
 
-static int help_workhorse(int fd, char *match[])
+static int help_workhorse(struct cw_dynstr **ds_p, char *match[])
 {
     struct help_workhorse_args args = {
         .match = 0,
         .matchstr = "",
-        .fd = fd,
+        .ds_p = ds_p,
     };
 
     if (match) {
@@ -907,7 +885,7 @@ static int help_workhorse(int fd, char *match[])
     return 0;
 }
 
-static int handle_help(int fd, int argc, char *argv[]) {
+static int handle_help(struct cw_dynstr **ds_p, int argc, char *argv[]) {
     struct cw_clicmd *clicmd;
     int ret;
 
@@ -919,20 +897,20 @@ static int handle_help(int fd, int argc, char *argv[]) {
         clicmd = find_cli(argv + 1, 1);
         if (clicmd) {
             if (clicmd->usage)
-                cw_cli(fd, "%s", clicmd->usage);
+                cw_dynstr_printf(ds_p, "%s", clicmd->usage);
             else
-                cw_cli(fd, "No help available\n");
+                cw_dynstr_printf(ds_p, "No help available\n");
             cw_object_put(clicmd);
         } else {
             clicmd = find_cli(argv + 1, -1);
             if (clicmd) {
-                ret = help_workhorse(fd, argv + 1);
+                ret = help_workhorse(ds_p, argv + 1);
                 cw_object_put(clicmd);
             } else
-                cw_cli(fd, "No such command\n");
+                cw_dynstr_printf(ds_p, "No such command\n");
         }
     } else
-        ret = help_workhorse(fd, NULL);
+        ret = help_workhorse(ds_p, NULL);
 
     return ret;
 }
@@ -1002,7 +980,7 @@ struct cli_generator_args {
     char matchstr[80];
     char *argv[CW_MAX_ARGS];
     char *word;
-    int fd;
+    struct cw_dynstr **ds_p;
     int lastarg;
     int lastarg_len;
 };
@@ -1021,18 +999,18 @@ static int cli_generator_one(struct cw_object *obj, void *data)
     /* If we matched everything we were given we have a result. */
     if (i == args->lastarg && clicmd->cmda[i]) {
         if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
-            cw_cli(args->fd, "%s\r\n", clicmd->cmda[i]);
+            cw_dynstr_printf(args->ds_p, "%s\r\n", clicmd->cmda[i]);
     } else if (!clicmd->cmda[i] && clicmd->generator) {
-        clicmd->generator(args->fd, args->argv, args->lastarg, args->lastarg_len);
+        clicmd->generator(args->ds_p, args->argv, args->lastarg, args->lastarg_len);
     }
 
     return 0;
 }
 
-void cw_cli_generator(int fd, char *text)
+void cw_cli_generator(struct cw_dynstr **ds_p, char *text)
 {
     struct cli_generator_args args = {
-        .fd = fd,
+        .ds_p = ds_p,
     };
     char *dup;
     int tws;
@@ -1052,7 +1030,7 @@ void cw_cli_generator(int fd, char *text)
 }
 
 
-int cw_cli_command(int fd, char *s)
+void cw_cli_command(struct cw_dynstr **ds_p, char *s)
 {
     char *argv[CW_MAX_ARGS];
     struct cw_clicmd *clicmd;
@@ -1065,21 +1043,20 @@ int cw_cli_command(int fd, char *s)
         if (x > 0) {
             clicmd = find_cli(argv, 0);
             if (clicmd) {
-                switch(clicmd->handler(fd, x, argv)) {
+                switch (clicmd->handler(ds_p, x, argv)) {
                 case RESULT_SHOWUSAGE:
-                    cw_cli(fd, "%s", clicmd->usage);
+                    cw_dynstr_printf(ds_p, "%s", clicmd->usage);
                     break;
                 }
                 cw_object_put(clicmd);
             } else 
-                cw_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+                cw_dynstr_printf(ds_p, "No such command '%s' (type 'help' for help)\n", find_best(argv));
         }
         free(dup);
     } else {
+        (*ds_p)->error = 1;
         cw_log(CW_LOG_WARNING, "Out of memory\n");
-        return -1;
     }
-    return 0;
 }
 
 

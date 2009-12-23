@@ -39,6 +39,8 @@
 
 #ifndef ICD_MEMBER_LIST_H
 #define ICD_MEMBER_LIST_H
+
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 #ifdef __cplusplus
@@ -88,7 +90,7 @@ extern "C" {
     icd_member *icd_member_list__get_for_caller(icd_member_list * that, icd_caller * caller);
 
 /* Prints the contents of the member structures to the given file descriptor. */
-    icd_status icd_member_list__dump(icd_member_list * that, int verbosity, int fd);
+    icd_status icd_member_list__dump(icd_member_list * that, int verbosity, struct cw_dynstr **ds_p);
 
 /* Removes a member from the list when given an id, returns success or failure. */
     icd_status icd_member_list__remove_member(icd_member_list * that, char *id);
@@ -122,7 +124,7 @@ extern "C" {
 /***** Predefined Behaviours *****/
 
 /* Standard member list dump function */
-    icd_status icd_member_list__standard_dump(icd_list * that, int verbosity, int fd, void *extra);
+    icd_status icd_member_list__standard_dump(icd_list * that, int verbosity, struct cw_dynstr **ds_p, void *extra);
 
 #ifdef __cplusplus
 }

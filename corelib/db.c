@@ -89,11 +89,11 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int tree_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames);
-static int database_show(int fd, int argc, char *argv[]);
-static int database_put(int fd, int argc, char *argv[]);
-static int database_get(int fd, int argc, char *argv[]);
-static int database_del(int fd, int argc, char *argv[]);
-static int database_deltree(int fd, int argc, char *argv[]);
+static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int database_put(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int database_get(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int database_del(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int database_deltree(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 
 static int sanity_check(void)
@@ -517,15 +517,14 @@ void cw_db_freetree(struct cw_db_entry *dbe)
 
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
-	int *fdp = pArg;
-	int fd = *fdp;
+	struct cw_dynstr **ds_p = pArg;
 
-	cw_cli(fd, "/%s/%-50s: %-25s\n", argv[0], argv[1], argv[2]);
+	cw_dynstr_printf(ds_p, "/%s/%-50s: %-25s\n", argv[0], argv[1], argv[2]);
 
 	return 0;
 }
 
-static int database_show(int fd, int argc, char *argv[])
+static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *prefix, *family;
 	char *sql;
@@ -566,7 +565,7 @@ static int database_show(int fd, int argc, char *argv[])
 		res = sqlite3_exec(db,
 						   sql,
 						   show_callback,
-						   &fd,
+						   ds_p,
 						   &zErr
 						   );
 		
@@ -593,21 +592,21 @@ static int database_show(int fd, int argc, char *argv[])
 
 
 
-static int database_put(int fd, int argc, char *argv[])
+static int database_put(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
 	res = cw_db_put(argv[2], argv[3], argv[4]);
 	if (res)  {
-		cw_cli(fd, "Failed to update entry\n");
+		cw_dynstr_printf(ds_p, "Failed to update entry\n");
 	} else {
-		cw_cli(fd, "Updated database successfully\n");
+		cw_dynstr_printf(ds_p, "Updated database successfully\n");
 	}
 	return RESULT_SUCCESS;
 }
 
-static int database_get(int fd, int argc, char *argv[])
+static int database_get(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -615,28 +614,28 @@ static int database_get(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	res = cw_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) {
-		cw_cli(fd, "Database entry not found.\n");
+		cw_dynstr_printf(ds_p, "Database entry not found.\n");
 	} else {
-		cw_cli(fd, "Value: %s\n", tmp);
+		cw_dynstr_printf(ds_p, "Value: %s\n", tmp);
 	}
 	return RESULT_SUCCESS;
 }
 
-static int database_del(int fd, int argc, char *argv[])
+static int database_del(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	res = cw_db_del(argv[2], argv[3]);
 	if (res) {
-		cw_cli(fd, "Database entry does not exist.\n");
+		cw_dynstr_printf(ds_p, "Database entry does not exist.\n");
 	} else {
-		cw_cli(fd, "Database entry removed.\n");
+		cw_dynstr_printf(ds_p, "Database entry removed.\n");
 	}
 	return RESULT_SUCCESS;
 }
 
-static int database_deltree(int fd, int argc, char *argv[])
+static int database_deltree(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res;
 	if ((argc < 3) || (argc > 4))
@@ -647,9 +646,9 @@ static int database_deltree(int fd, int argc, char *argv[])
 		res = cw_db_deltree(argv[2], NULL);
 	}
 	if (res) {
-		cw_cli(fd, "Database entries do not exist.\n");
+		cw_dynstr_printf(ds_p, "Database entries do not exist.\n");
 	} else {
-		cw_cli(fd, "Database entries removed.\n");
+		cw_dynstr_printf(ds_p, "Database entries removed.\n");
 	}
 	return RESULT_SUCCESS;
 }

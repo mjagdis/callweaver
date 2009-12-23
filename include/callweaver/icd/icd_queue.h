@@ -42,6 +42,7 @@
 #ifndef ICD_QUEUE_H
 #define ICD_QUEUE_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 #include "callweaver/icd/icd_member.h"
 
@@ -127,11 +128,11 @@ extern "C" {
 
 
 /* Print out a debug dump of the queue.*/
-    icd_status icd_queue__dump(icd_queue * that, int verbosity, int fd);
-    icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, int fd, void *extra);
+    icd_status icd_queue__dump(icd_queue * that, int verbosity, struct cw_dynstr **ds_p);
+    icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_dynstr **ds_p, void *extra);
 
 /* Print out key Info on Queues for cli UI */
-    icd_status icd_queue__show(icd_queue * that, int verbosity, int fd);
+    icd_status icd_queue__show(icd_queue * that, int verbosity, struct cw_dynstr **ds_p);
 
 /***** Locking *****/
 
@@ -170,7 +171,7 @@ extern "C" {
     int icd_queue__get_chime_freq(icd_queue * that);
     int icd_queue__set_holdannounce_holdtime(icd_queue * that, int time);
     icd_status icd_queue__calc_holdtime(icd_queue * that);
-    icd_status icd_queue__set_dump_func(icd_queue * that, icd_status(*dump_fn) (icd_queue *, int verbosity, int fd,
+    icd_status icd_queue__set_dump_func(icd_queue * that, icd_status(*dump_fn) (icd_queue *, int verbosity, struct cw_dynstr **ds_p,
             void *extra), void *extra);
 
 typedef enum {

@@ -3896,15 +3896,15 @@ static int get_group(char *s)
     return group;
 }
 
-static void complete_span(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_span(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     int span;
 
     for (span = 1;  span <= NUM_SPANS;  span++)
-        cw_cli(fd, "%d\n", span);
+        cw_dynstr_printf(ds_p, "%d\n", span);
 }
 
-static int handle_uc_debug(int fd, int argc, char *argv[])
+static int handle_uc_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int chan;
     unicall_pvt_t *tmp = NULL;
@@ -3915,7 +3915,7 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
     chan = atoi(argv[3]);
     if (chan < 1  ||  chan > NUM_SPANS)
     {
-        cw_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
+        cw_dynstr_printf(ds_p, "Invalid span %s.  Should be a number %d to %d\n", argv[3], 1, NUM_SPANS);
         return RESULT_SUCCESS;
     }
     /*endif*/
@@ -3926,7 +3926,7 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
             if (tmp->uc)
             {
                 uc_set_logging(tmp->uc, logging_level, 0, NULL);
-                cw_cli(fd, "Enabled debugging on channel %d\n", chan);
+                cw_dynstr_printf(ds_p, "Enabled debugging on channel %d\n", chan);
                 return RESULT_SUCCESS;
             }
             /*endif*/
@@ -3936,14 +3936,14 @@ static int handle_uc_debug(int fd, int argc, char *argv[])
     }
     /*endfor*/
     if (tmp) 
-        cw_cli(fd, "UniCall not running on channel %d\n", chan);
+        cw_dynstr_printf(ds_p, "UniCall not running on channel %d\n", chan);
     else
-        cw_cli(fd, "No such zap channel %d\n", chan);
+        cw_dynstr_printf(ds_p, "No such zap channel %d\n", chan);
     /*endif*/
     return RESULT_SUCCESS;
 }
 
-static int handle_uc_no_debug(int fd, int argc, char *argv[])
+static int handle_uc_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int chan;
     unicall_pvt_t *tmp;
@@ -3954,7 +3954,7 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
     chan = atoi(argv[4]);
     if (chan < 1  ||  chan > NUM_SPANS)
     {
-        cw_cli(fd, "Invalid channel %d.  Should be a number greater than 0\n", chan);
+        cw_dynstr_printf(ds_p, "Invalid channel %d.  Should be a number greater than 0\n", chan);
         return RESULT_SUCCESS;
     }
     /*endif*/
@@ -3965,7 +3965,7 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
             if (tmp->uc)
             {
                 uc_set_logging(tmp->uc, 0, 0, NULL);
-                cw_cli(fd, "Disabled debugging on channel %d\n", chan);
+                cw_dynstr_printf(ds_p, "Disabled debugging on channel %d\n", chan);
                 return RESULT_SUCCESS;
             }
             /*endif*/
@@ -3975,9 +3975,9 @@ static int handle_uc_no_debug(int fd, int argc, char *argv[])
     }
     /*endwhile*/
     if (tmp) 
-        cw_cli(fd, "UniCall not running on channel %d\n", chan);
+        cw_dynstr_printf(ds_p, "UniCall not running on channel %d\n", chan);
     else
-        cw_cli(fd, "No such zap channel %d\n", chan);
+        cw_dynstr_printf(ds_p, "No such zap channel %d\n", chan);
     /*endif*/
     return RESULT_SUCCESS;
 }
@@ -4006,7 +4006,7 @@ static struct cw_clicmd uc_no_debug = {
     .usage = uc_no_debug_help,
 };
 
-static int unicall_destroy_channel(int fd, int argc, char **argv)
+static int unicall_destroy_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     unicall_pvt_t *tmp;
     unicall_pvt_t *prev;
@@ -4030,7 +4030,7 @@ static int unicall_destroy_channel(int fd, int argc, char **argv)
     return RESULT_FAILURE;
 }
 
-static int unicall_show_channels(int fd, int argc, char **argv)
+static int unicall_show_channels(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 #define FORMAT1 "%7s %-10.10s %-15.15s %-10.10s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-10.10s %-20.20s\n"
@@ -4044,7 +4044,7 @@ static int unicall_show_channels(int fd, int argc, char **argv)
         return RESULT_SHOWUSAGE;
     /*endif*/
     cw_mutex_lock(&iflock);
-    cw_cli(fd, FORMAT2, "Channel", "Extension", "Context", "Status", "Language", "MusicOnHold");
+    cw_dynstr_printf(ds_p, FORMAT2, "Channel", "Extension", "Context", "Status", "Language", "MusicOnHold");
     
     for (tmp = iffirst;  tmp;  tmp = tmp->next)
     {
@@ -4058,7 +4058,7 @@ static int unicall_show_channels(int fd, int argc, char **argv)
             tmp2 = "Idle";
         else
             snprintf(tmp2 = tmp2x, sizeof(tmp2x), "%d", tmp->crn);
-        cw_cli(fd, FORMAT1, tmp1, tmp->exten, tmp->context, tmp2, tmp->language, tmp->musicclass);
+        cw_dynstr_printf(ds_p, FORMAT1, tmp1, tmp->exten, tmp->context, tmp2, tmp->language, tmp->musicclass);
     }
     /*endfor*/
     cw_mutex_unlock(&iflock);
@@ -4067,7 +4067,7 @@ static int unicall_show_channels(int fd, int argc, char **argv)
 #undef FORMAT2
 }
 
-static int unicall_show_channel(int fd, int argc, char **argv)
+static int unicall_show_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     unicall_pvt_t *tmp = NULL;
     int channel;
@@ -4083,45 +4083,48 @@ static int unicall_show_channel(int fd, int argc, char **argv)
     {
         if (tmp->channel == channel)
         {
-            cw_cli(fd, "Channel: %d\n", tmp->channel);
-            cw_cli(fd, "File descriptor: %d\n", tmp->subs[SUB_REAL].fd);
-            cw_cli(fd, "Group: %d\n", tmp->group);
-            cw_cli(fd, "Extension: %s\n", tmp->exten);
-            cw_cli(fd, "Context: %s\n", tmp->context);
-            cw_cli(fd, "Destroy: %d\n", tmp->destroy);
-            cw_cli(fd, "Signalling type: %s\n", tmp->protocol_class);
-            cw_cli(fd, "Signalling variant: %s\n", tmp->protocol_variant);
-            cw_cli(fd, "Signalling end: %s\n", (tmp->protocol_end == UC_MODE_CO)  ?  "CO"  :  "CPE");
-            cw_cli(fd, "Owner: %s\n", (tmp->owner)  ?  tmp->owner->name  :  "<None>");
-            cw_cli(fd, "Real: %s%s\n", (tmp->subs[SUB_REAL].owner)  ?  tmp->subs[SUB_REAL].owner->name  :  "<None>", (tmp->subs[SUB_REAL].inthreeway)  ?  " (Confed)"  :  "");
-            cw_cli(fd, "Callwait: %s%s\n", (tmp->subs[SUB_CALLWAIT].owner)  ?  tmp->subs[SUB_CALLWAIT].owner->name  :  "<None>", (tmp->subs[SUB_CALLWAIT].inthreeway)  ?  " (Confed)"  :  "");
-            cw_cli(fd, "Threeway: %s%s\n", (tmp->subs[SUB_THREEWAY].owner)  ?  tmp->subs[SUB_THREEWAY].owner->name  :  "<None>", (tmp->subs[SUB_THREEWAY].inthreeway)  ?  " (Confed)"  :  "");
-            cw_cli(fd, "Confno: %d\n", tmp->confno);
-            cw_cli(fd, "Propagated conference: %d\n", tmp->propconfno);
-            cw_cli(fd, "Real in conference: %d\n", tmp->inconference);
-            cw_cli(fd, "Dialing: %d\n", tmp->dialing);
-            cw_cli(fd, "Default law: %s\n", (tmp->law == UC_CODEC_ULAW)  ?  "ulaw"  :  (tmp->law == UC_CODEC_ALAW)  ?  "alaw"  :  "unknown");
-            cw_cli(fd, "Fax handled: %s\n", (tmp->faxhandled)  ?  "yes"  :  "no");
+            cw_dynstr_tprintf(ds_p, 19,
+                cw_fmtval("Channel: %d\n", tmp->channel),
+                cw_fmtval("File descriptor: %d\n", tmp->subs[SUB_REAL].fd),
+                cw_fmtval("Group: %d\n", tmp->group),
+                cw_fmtval("Extension: %s\n", tmp->exten),
+                cw_fmtval("Context: %s\n", tmp->context),
+                cw_fmtval("Destroy: %d\n", tmp->destroy),
+                cw_fmtval("Signalling type: %s\n", tmp->protocol_class),
+                cw_fmtval("Signalling variant: %s\n", tmp->protocol_variant),
+                cw_fmtval("Signalling end: %s\n", (tmp->protocol_end == UC_MODE_CO ? "CO" : "CPE")),
+                cw_fmtval("Owner: %s\n", (tmp->owner ? tmp->owner->name : "<None>")),
+                cw_fmtval("Real: %s%s\n", (tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>"), (tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "")),
+                cw_fmtval("Callwait: %s%s\n", (tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>"), (tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "")),
+                cw_fmtval("Threeway: %s%s\n", (tmp->subs[SUB_THREEWAY].owner ? tmp->subs[SUB_THREEWAY].owner->name : "<None>"), (tmp->subs[SUB_THREEWAY].inthreeway ? " (Confed)" : "")),
+                cw_fmtval("Confno: %d\n", tmp->confno),
+                cw_fmtval("Propagated conference: %d\n", tmp->propconfno),
+                cw_fmtval("Real in conference: %d\n", tmp->inconference),
+                cw_fmtval("Dialing: %d\n", tmp->dialing),
+                cw_fmtval("Default law: %s\n", (tmp->law == UC_CODEC_ULAW ? "ulaw" : (tmp->law == UC_CODEC_ALAW ? "alaw" : "unknown"))),
+                cw_fmtval("Fax handled: %s\n", (tmp->faxhandled ? "yes" : "no"))
+            );
+
             if (tmp->master)
-                cw_cli(fd, "Master Channel: %d\n", tmp->master->channel);
+                cw_dynstr_printf(ds_p, "Master Channel: %d\n", tmp->master->channel);
             /*endif*/
             for (x = 0;  x < MAX_SLAVES;  x++)
             {
                 if (tmp->slaves[x])
-                    cw_cli(fd, "Slave Channel: %d\n", tmp->slaves[x]->channel);
+                    cw_dynstr_printf(ds_p, "Slave Channel: %d\n", tmp->slaves[x]->channel);
                 /*endif*/
             }
             /*endfor*/
             if (tmp->uc)
             {
-                cw_cli(fd, "UniCall flags: ");
+                cw_dynstr_printf(ds_p, "UniCall flags: ");
                 if (tmp->blocked)
-                    cw_cli(fd, "Blocked ");
+                    cw_dynstr_printf(ds_p, "Blocked ");
                 /*endif*/
                 if (tmp->crn)
-                    cw_cli(fd, "Call ");
+                    cw_dynstr_printf(ds_p, "Call ");
                 /*endif*/
-                cw_cli(fd, "\n");
+                cw_dynstr_printf(ds_p, "\n");
             }
             /*endif*/
             cw_mutex_unlock(&iflock);
@@ -4131,7 +4134,7 @@ static int unicall_show_channel(int fd, int argc, char **argv)
     }
     /*endfor*/
     
-    cw_cli(fd, "Unable to find given channel %d\n", channel);
+    cw_dynstr_printf(ds_p, "Unable to find given channel %d\n", channel);
     cw_mutex_unlock(&iflock);
     return RESULT_FAILURE;
 }

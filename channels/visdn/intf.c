@@ -764,130 +764,94 @@ static const char *visdn_intf_status_to_text(enum visdn_intf_status status)
 	return "*UNKNOWN*";
 }
 
-static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
+static void visdn_print_intf_details(struct cw_dynstr **ds_p, struct visdn_intf *intf)
 {
 	struct visdn_ic *ic = intf->current_ic;
 
-	cw_cli(fd, "\n-- %s --\n", intf->name);
-		cw_cli(fd, "Status                    : %s\n",
-			visdn_intf_status_to_text(intf->status));
+	cw_dynstr_tprintf(ds_p, 2,
+		cw_fmtval("\n-- %s --\n", intf->name),
+		cw_fmtval("Status                    : %s\n", visdn_intf_status_to_text(intf->status))
+	);
 
 	if (intf->q931_intf) {
-		cw_cli(fd, "Role                      : %s\n",
-			intf->q931_intf->role == LAPD_INTF_ROLE_NT ?
-				"NT" : "TE");
-
-		cw_cli(fd,
-			"Mode                      : %s\n",
-			visdn_intf_mode_to_string(
-				intf->q931_intf->mode));
+		cw_dynstr_tprintf(ds_p, 2,
+			cw_fmtval("Role                      : %s\n", intf->q931_intf->role == LAPD_INTF_ROLE_NT ?  "NT" : "TE"),
+			cw_fmtval("Mode                      : %s\n", visdn_intf_mode_to_string(intf->q931_intf->mode))
+		);
 
 		if (intf->q931_intf->tei != LAPD_DYNAMIC_TEI)
-			cw_cli(fd, "TEI                       : %d\n",
-				intf->q931_intf->tei);
+			cw_dynstr_printf(ds_p, "TEI                       : %d\n", intf->q931_intf->tei);
 		else
-			cw_cli(fd, "TEI                       : "
-					"Dynamic\n");
+			cw_dynstr_printf(ds_p, "TEI                       : Dynamic\n");
 	}
 
-	cw_cli(fd,
-		"Network role              : %s\n"
-		"Context                   : %s\n"
-		"Language                  : %s\n",
-		visdn_ic_network_role_to_string(
-			ic->network_role),
-		ic->context,
-		ic->language);
-
-	cw_cli(fd, "Transparent Numbers       : ");
+	cw_dynstr_tprintf(ds_p, 4,
+		cw_fmtval("Network role              : %s\n", visdn_ic_network_role_to_string(ic->network_role)),
+		cw_fmtval("Context                   : %s\n", ic->context),
+		cw_fmtval("Language                  : %s\n", ic->language),
+		cw_fmtval("Transparent Numbers       : ")
+	);
 	{
 	struct visdn_number *num;
 	list_for_each_entry(num, &ic->clip_numbers_list, node) {
-		cw_cli(fd, "%s ", num->number);
+		cw_dynstr_printf(ds_p, "%s ", num->number);
 	}
 	}
-	cw_cli(fd, "\n");
 
-	cw_cli(fd,
-		"Echo canceller            : %s\n"
-		"Echo canceller taps       : %d (%d ms)\n"
-		"Tones option              : %s\n"
-		"Overlap Sending           : %s\n"
-		"Overlap Receiving         : %s\n"
-		"Call bumping              : %s\n",
-		ic->echocancel ? "Yes" : "No",
-		ic->echocancel_taps, ic->echocancel_taps / 8,
-		ic->tones_option ? "Yes" : "No",
-		ic->overlap_sending ? "Yes" : "No",
-		ic->overlap_receiving ? "Yes" : "No",
-		ic->call_bumping ? "Yes" : "No");
+	cw_dynstr_tprintf(ds_p, 23,
+		cw_fmtval("\n"),
+		cw_fmtval("Echo canceller            : %s\n", (ic->echocancel ? "Yes" : "No")),
+		cw_fmtval("Echo canceller taps       : %d (%d ms)\n", ic->echocancel_taps, ic->echocancel_taps / 8),
+		cw_fmtval("Tones option              : %s\n", (ic->tones_option ? "Yes" : "No")),
+		cw_fmtval("Overlap Sending           : %s\n", (ic->overlap_sending ? "Yes" : "No")),
+		cw_fmtval("Overlap Receiving         : %s\n", (ic->overlap_receiving ? "Yes" : "No")),
+		cw_fmtval("Call bumping              : %s\n", (ic->call_bumping ? "Yes" : "No")),
+		cw_fmtval("National prefix           : %s\n", ic->national_prefix),
+		cw_fmtval("International prefix      : %s\n", ic->international_prefix),
+		cw_fmtval("Newtork specific prefix   : %s\n", ic->network_specific_prefix),
+		cw_fmtval("Subscriber prefix         : %s\n", ic->subscriber_prefix),
+		cw_fmtval("Abbreviated prefix        : %s\n", ic->abbreviated_prefix),
+		cw_fmtval("Autorelease time          : %d\n\n", ic->dlc_autorelease_time),
+		cw_fmtval("Outbound type of number   : %s\n\n", visdn_ton_to_string(ic->outbound_called_ton)),
+		cw_fmtval("Forced CLI                : %s\n", ic->force_outbound_cli),
+		cw_fmtval("Forced CLI type of number : %s\n", visdn_ton_to_string(ic->force_outbound_cli_ton)),
+		cw_fmtval("CLI rewriting             : %s\n", (ic->cli_rewriting ? "Yes" : "No")),
+		cw_fmtval("CLIR mode                 : %s\n", visdn_clir_mode_to_text(ic->clir_mode)),
+		cw_fmtval("CLIP enabled              : %s\n", (ic->clip_enabled ? "Yes" : "No")),
+		cw_fmtval("CLIP override             : %s\n", (ic->clip_override ? "Yes" : "No")),
+		cw_fmtval("CLIP default              : %s <%s>\n", ic->clip_default_name, ic->clip_default_number),
+		cw_fmtval("CLIP special arrangement  : %s\n", (ic->clip_special_arrangement ? "Yes" : "No")),
+		cw_fmtval("CLIP Numbers              : ")
+	);
 
-	cw_cli(fd,
-		"National prefix           : %s\n"
-		"International prefix      : %s\n"
-		"Newtork specific prefix   : %s\n"
-		"Subscriber prefix         : %s\n"
-		"Abbreviated prefix        : %s\n"
-		"Autorelease time          : %d\n\n",
-		ic->national_prefix,
-		ic->international_prefix,
-		ic->network_specific_prefix,
-		ic->subscriber_prefix,
-		ic->abbreviated_prefix,
-		ic->dlc_autorelease_time);
-
-	cw_cli(fd,
-		"Outbound type of number   : %s\n\n"
-		"Forced CLI                : %s\n"
-		"Forced CLI type of number : %s\n"
-		"CLI rewriting             : %s\n"
-		"CLIR mode                 : %s\n"
-		"CLIP enabled              : %s\n"
-		"CLIP override             : %s\n"
-		"CLIP default              : %s <%s>\n"
-		"CLIP special arrangement  : %s\n",
-		visdn_ton_to_string(
-			ic->outbound_called_ton),
-		ic->force_outbound_cli,
-		visdn_ton_to_string(
-			ic->force_outbound_cli_ton),
-		ic->cli_rewriting ? "Yes" : "No",
-		visdn_clir_mode_to_text(ic->clir_mode),
-		ic->clip_enabled ? "Yes" : "No",
-		ic->clip_override ? "Yes" : "No",
-		ic->clip_default_name,
-		ic->clip_default_number,
-		ic->clip_special_arrangement ? "Yes" : "No");
-
-	cw_cli(fd, "CLIP Numbers              : ");
 	{
 	struct visdn_number *num;
 	list_for_each_entry(num, &ic->clip_numbers_list, node) {
-		cw_cli(fd, "%s ", num->number);
+		cw_dynstr_printf(ds_p, "%s ", num->number);
 	}
 	}
-	cw_cli(fd, "\n\n");
+	cw_dynstr_printf(ds_p, "\n\n");
 
 	if (intf->q931_intf) {
 		if (intf->q931_intf->role == LAPD_INTF_ROLE_NT) {
-			cw_cli(fd, "DLCs                      : ");
+			cw_dynstr_printf(ds_p, "DLCs                      : ");
 
 			struct q931_dlc *dlc;
 			list_for_each_entry(dlc, &intf->q931_intf->dlcs,
 					intf_node) {
-				cw_cli(fd, "%d ", dlc->tei);
+				cw_dynstr_printf(ds_p, "%d ", dlc->tei);
 
 			}
 
-			cw_cli(fd, "\n\n");
+			cw_dynstr_printf(ds_p, "\n\n");
 
 #define TIMER_CONFIG(timer)					\
-	cw_cli(fd, #timer ": %3lld%-5s",			\
+	cw_dynstr_printf(ds_p, #timer ": %3lld%-5s",			\
 		intf->q931_intf->timer / 1000000LL,		\
 		ic->timer ? " (*)" : "");
 
 #define TIMER_CONFIG_LN(timer)					\
-	cw_cli(fd, #timer ": %3lld%-5s\n",			\
+	cw_dynstr_printf(ds_p, #timer ": %3lld%-5s\n",			\
 		intf->q931_intf->timer / 1000000LL,		\
 		ic->timer ? " (*)" : "");
 
@@ -898,7 +862,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			TIMER_CONFIG(T304);
 			TIMER_CONFIG(T305);
 			TIMER_CONFIG(T306);
-			cw_cli(fd, "T307: %d\n", ic->T307);
+			cw_dynstr_printf(ds_p, "T307: %d\n", ic->T307);
 			TIMER_CONFIG(T308);
 			TIMER_CONFIG(T309);
 			TIMER_CONFIG(T310);
@@ -916,7 +880,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			TIMER_CONFIG_LN(T304);
 			TIMER_CONFIG(T305);
 			TIMER_CONFIG(T306);
-			cw_cli(fd, "T307: %d\n", ic->T307);
+			cw_dynstr_printf(ds_p, "T307: %d\n", ic->T307);
 			TIMER_CONFIG_LN(T308);
 			TIMER_CONFIG(T309);
 			TIMER_CONFIG(T310);
@@ -934,7 +898,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 
 	}
 
-	cw_cli(fd, "\nParked calls:\n");
+	cw_dynstr_printf(ds_p, "\nParked calls:\n");
 	struct visdn_suspended_call *suspended_call;
 	list_for_each_entry(suspended_call, &intf->suspended_calls,
 		       					node) {
@@ -958,15 +922,15 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 		sane_str[i] = '\0';
 		hex_str[i*2] = '\0';
 
-		cw_cli(fd, "    %s (%s)\n",
+		cw_dynstr_printf(ds_p, "    %s (%s)\n",
 			sane_str,
 			hex_str);
 	}
 
-	cw_cli(fd, "\nChannels:\n");
+	cw_dynstr_printf(ds_p, "\nChannels:\n");
 	int i;
 	for (i=0; i<intf->q931_intf->n_channels; i++) {
-		cw_cli(fd, "  B%d: %s",
+		cw_dynstr_printf(ds_p, "  B%d: %s",
 			intf->q931_intf->channels[i].id + 1,
 			q931_channel_state_to_text(
 				intf->q931_intf->channels[i].state));
@@ -975,7 +939,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 			struct q931_call *call =
 				intf->q931_intf->channels[i].call;
 			
-			cw_cli(fd, "  Call: %5d.%c %s",
+			cw_dynstr_printf(ds_p, "  Call: %5d.%c %s",
 				call->call_reference,
 				(call->direction ==
 					Q931_CALL_DIRECTION_INBOUND)
@@ -983,7 +947,7 @@ static void visdn_print_intf_details(int fd, struct visdn_intf *intf)
 				q931_call_state_to_text(call->state));
 		}
 
-		cw_cli(fd, "\n");
+		cw_dynstr_printf(ds_p, "\n");
 	}
 }
 
@@ -1015,12 +979,12 @@ static char *complete_show_visdn_interfaces(
 	return visdn_intf_complete(line, word, pos, state);
 }
 
-static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
+static int do_show_visdn_interfaces(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 
 	if (argc == 3) {
-		cw_cli(fd, "Interface  Role Mode TEI Status        Calls\n");
+		cw_dynstr_printf(ds_p, "Interface  Role Mode TEI Status        Calls\n");
 		
 		struct visdn_intf *intf;
 		list_for_each_entry(intf, &visdn.ifs, ifs_node) {
@@ -1047,7 +1011,7 @@ static int do_show_visdn_interfaces(int fd, int argc, char *argv[])
 				ncalls++;
 
 			
-			cw_cli(fd, "%-10s %-4s %-4s %-3s %-13s %d\n",
+			cw_dynstr_printf(ds_p, "%-10s %-4s %-4s %-3s %-13s %d\n",
 				intf->name,
 				intf->q931_intf->role == LAPD_INTF_ROLE_NT ?
 					"NT" : "TE",

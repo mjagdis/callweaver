@@ -298,12 +298,12 @@ icd_member *icd_member_list__get_for_caller(icd_member_list * that, icd_caller *
 }
 
 /* Prints the contents of the member structures to the given file descriptor. */
-icd_status icd_member_list__dump(icd_member_list * that, int verbosity, int fd)
+icd_status icd_member_list__dump(icd_member_list * that, int verbosity, struct cw_dynstr **ds_p)
 {
     assert(that != NULL);
     assert(((icd_list *) that)->dump_fn != NULL);
 
-    return ((icd_list *) that)->dump_fn((icd_list *) that, verbosity, fd, ((icd_list *) that)->dump_fn_extra);
+    return ((icd_list *) that)->dump_fn((icd_list *) that, verbosity, ds_p, ((icd_list *) that)->dump_fn_extra);
 }
 
 /* Removes a member from the list when given an id, returns success or failure. */
@@ -381,7 +381,7 @@ icd_status icd_member_list__remove_listener(icd_member_list * that, void *listen
 /**** Predefined Hooks ****/
 
 /* Standard member list dump function */
-icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, int fd, void *extra)
+icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     icd_member_list *member_list;
     icd_list_iterator *iter;
@@ -407,30 +407,30 @@ icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, int fd
     while (icd_list_iterator__has_more(iter)) {
         member = (icd_member *) icd_list_iterator__next(iter);
         caller = icd_member__get_caller(member);
-        icd_caller__dump(caller, 0, fd);
+        icd_caller__dump(caller, 0, ds_p);
     }
 
     /* </HACK> */
 
     // here is what belongs here.... but not doing anything useful to debug yet, see above
     /*
-       cw_cli(fd,"\nDumping icd_member list {\n");
+       cw_dynstr_printf(ds_p,"\nDumping icd_member list {\n");
        icd_list__standard_dump(list, verbosity, fd, ((void *)&skipconst));
 
        if (verbosity > 1) {
-       cw_cli(fd,"    member {\n");
+       cw_dynstr_printf(ds_p,"    member {\n");
        iter = icd_list__get_iterator(list);
        if (iter == NULL) {
        return ICD_ERESOURCE;
        }
        while (icd_list_iterator__has_more(iter)) {
        member = (icd_member *)icd_list_iterator__next(iter);
-       icd_member__dump(member, verbosity - 1, fd);
+       icd_member__dump(member, verbosity - 1, ds_p);
        }
        destroy_icd_list_iterator(&iter);
-       cw_cli(fd,"    }\n");
+       cw_dynstr_printf(ds_p,"    }\n");
        }
-       cw_cli(fd,"}\n");
+       cw_dynstr_printf(ds_p,"}\n");
      */
 
     return ICD_SUCCESS;

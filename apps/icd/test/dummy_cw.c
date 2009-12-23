@@ -47,9 +47,6 @@ void cw_verbose(const char *fmt, ...) {
 }
 
 
-void cw_cli(int fd, char *fmt, ...) {
-}
-
 int cw_hangup(struct cw_channel *chan) {
     return 0;
 }

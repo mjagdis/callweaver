@@ -109,8 +109,8 @@ typedef struct switch_config switch_config;
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames);
 
 struct switch_config {
+	struct cw_dynstr **ds_p;
 	int timeout;
-	int fd;
 	int seeheads;
 };
 
@@ -241,40 +241,36 @@ CW_MUTEX_DEFINE_STATIC(cdr_lock);
 
 
 static int cli_callback(void *pArg, int argc, char **argv, char **columnNames){
-	int fd=0;
-	int x=0;
 	switch_config *config = pArg;
+	int x = 0;
 
-	if (config) {
-		fd = config->fd;
-	}
-	else
+	if (!config)
 		return -1;
 
 	if (vh == 'v') {
-		cw_cli(fd,"\n");
-		for(x=0;x<argc;x++)
-			cw_cli(fd,"%s=%s\n",columnNames[x],argv[x]);
-		cw_cli(fd,"\n");
+		cw_dynstr_printf(config->ds_p, "\n");
+		for(x = 0; x < argc; x++)
+			cw_dynstr_printf(config->ds_p, "%s=%s\n", columnNames[x], argv[x]);
+		cw_dynstr_printf(config->ds_p, "\n");
 	}
 	else {
 		if (!config->seeheads) {
-			cw_cli(fd,",");
-			for(x=0;x<argc;x++)
-				cw_cli(fd,"%s,",columnNames[x]);
+			cw_dynstr_printf(config->ds_p, ",");
+			for(x = 0; x < argc; x++)
+				cw_dynstr_printf(config->ds_p, "%s,", columnNames[x]);
 			config->seeheads = 1;
-			cw_cli(fd,"\n");
+			cw_dynstr_printf(config->ds_p, "\n");
 		}
-		cw_cli(fd,",");
-		for(x=0;x<argc;x++)
-			cw_cli(fd,"%s,",argv[x]);
-		cw_cli(fd,"\n");
+		cw_dynstr_printf(config->ds_p, ",");
+		for(x = 0; x < argc; x++)
+			cw_dynstr_printf(config->ds_p, "%s,", argv[x]);
+		cw_dynstr_printf(config->ds_p, "\n");
 	}
 
 	return 0;
 }
 
-static int sqlite_cli(int fd, int argc, char *argv[]) {
+static int sqlite_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	char sqlbuf[1024];
 	char path[ARRAY_SIZE];
 	switch_config config;
@@ -293,7 +289,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				strncpy(switch_table,argv[2],ARRAY_SIZE);
 				cw_mutex_unlock(&switch_lock);
 			}
-			cw_cli(fd,"\nswitch table is %s\n\n",switch_table);
+			cw_dynstr_printf(ds_p,"\nswitch table is %s\n\n",switch_table);
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"switchdb")) {
@@ -302,7 +298,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				pick_path(argv[2],switch_dbfile,ARRAY_SIZE);
 				cw_mutex_unlock(&switch_lock);
 			}
-			cw_cli(fd,"\nswitch db is %s\n\n",switch_dbfile);
+			cw_dynstr_printf(ds_p,"\nswitch db is %s\n\n",switch_dbfile);
 			return 0;
 		}
 	}
@@ -315,7 +311,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				strncpy(cdr_table,argv[2],ARRAY_SIZE);
 				cw_mutex_unlock(&cdr_lock);
 			}
-			cw_cli(fd,"\ncdr table is %s\n\n",cdr_table);
+			cw_dynstr_printf(ds_p,"\ncdr table is %s\n\n",cdr_table);
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"cdrdb")) {
@@ -324,7 +320,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				pick_path(argv[2],cdr_dbfile,ARRAY_SIZE);
 				cw_mutex_unlock(&cdr_lock);
 			}
-			cw_cli(fd,"\ncdr db is %s\n\n",cdr_dbfile);
+			cw_dynstr_printf(ds_p,"\ncdr db is %s\n\n",cdr_dbfile);
 			return 0;
 		}
 	}
@@ -360,7 +356,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				sql = NULL;
 
 			} else {
-				cw_cli(fd,"\nmalloc failed, good luck\n");
+				cw_dynstr_printf(ds_p,"\nmalloc failed, good luck\n");
 			}
 			sqlite3_close(db);
 			return 0;
@@ -372,7 +368,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				strncpy(clidb,path,ARRAY_SIZE);
 				cw_mutex_unlock(&switch_lock);
 			}
-			cw_cli(fd,"\nnow using %s\n\n",clidb);
+			cw_dynstr_printf(ds_p,"\nnow using %s\n\n",clidb);
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"cachetimeout")) {
@@ -383,7 +379,7 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 					default_timeout = 300;
 				cw_mutex_unlock(&switch_lock);
 			}
-			cw_cli(fd,"\ncachetimeout is %d\n\n",default_timeout);
+			cw_dynstr_printf(ds_p,"\ncachetimeout is %d\n\n",default_timeout);
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"vh")) {
@@ -392,12 +388,12 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 				vh = argv[2][0] == 'v' ? 'v' : 'h';
 				cw_mutex_unlock(&switch_lock);
 			}
-			cw_cli(fd,"\nvh is %c\n\n",vh);
+			cw_dynstr_printf(ds_p,"\nvh is %c\n\n",vh);
 			return 0;
 		}
 		else if (argv[1] && !strcmp(argv[1],"clearcache")) {
 			cw_registry_flush(&cache_registry);
-			cw_cli(fd,"\nOK. Cache Clear!\n\n");
+			cw_dynstr_printf(ds_p,"\nOK. Cache Clear!\n\n");
 			return 0;
 		}
 	}
@@ -408,9 +404,9 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 			strncat(sqlbuf,argv[x],1024);
 			strncat(sqlbuf," ",1024);
 		}
-		config.fd = fd;
+		config.ds_p = ds_p;
 		config.seeheads = 0;
-		cw_cli(fd,"\n\n");
+		cw_dynstr_printf(ds_p,"\n\n");
 		cw_mutex_lock(&switch_lock);
 		if ((db = open_db(clidb))) {
 			sqlite3_exec(
@@ -422,21 +418,21 @@ static int sqlite_cli(int fd, int argc, char *argv[]) {
 						 );
 			cw_mutex_unlock(&switch_lock);
 			if (errmsg) {
-				cw_cli(fd,"ERROR: '%s'\n[%s]\n",errmsg,sqlbuf);
+				cw_dynstr_printf(ds_p,"ERROR: '%s'\n[%s]\n",errmsg,sqlbuf);
 				sqlite3_free(errmsg);
 				errmsg = NULL;
 			}
 			sqlite3_close(db);
 		} else {
-			cw_cli(fd,"ERROR OPEINING DB.\n");
+			cw_dynstr_printf(ds_p,"ERROR OPEINING DB.\n");
 			return -1;
 		}
 
 	} else {
-		cw_cli(fd,"ERROR! NO SQL?\n");
+		cw_dynstr_printf(ds_p,"ERROR! NO SQL?\n");
 		return -1;
 	}
-	cw_cli(fd,"\n\n");
+	cw_dynstr_printf(ds_p,"\n\n");
 
 	return 0;
 }

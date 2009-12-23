@@ -10057,7 +10057,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 #define FORMAT3 "%-25.25s %15d %-15.15s \n"
 
 struct sip_show_inuse_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int showall;
 };
 
@@ -10067,9 +10067,9 @@ static int sip_show_inuse_user(struct cw_object *obj, void *data)
 	struct sip_show_inuse_args *args = data;
 
         if (user->call_limit)
-            cw_cli(args->fd, FORMAT2, user->name, user->inUse, user->call_limit);
+            cw_dynstr_printf(args->ds_p, FORMAT2, user->name, user->inUse, user->call_limit);
 	else if (args->showall)
-            cw_cli(args->fd, FORMAT3, user->name, user->inUse, "N/A");
+            cw_dynstr_printf(args->ds_p, FORMAT3, user->name, user->inUse, "N/A");
 
 	return 0;
 }
@@ -10080,19 +10080,19 @@ static int sip_show_inuse_peer(struct cw_object *obj, void *data)
 	struct sip_show_inuse_args *args = data;
 
 	if (peer->call_limit)
-		cw_cli(args->fd, FORMAT2, peer->name, peer->inUse, peer->call_limit);
+		cw_dynstr_printf(args->ds_p, FORMAT2, peer->name, peer->inUse, peer->call_limit);
 	else if (args->showall)
-		cw_cli(args->fd, FORMAT3, peer->name, peer->inUse, "N/A");
+		cw_dynstr_printf(args->ds_p, FORMAT3, peer->name, peer->inUse, "N/A");
 
 	return 0;
 }
 
 /*! \brief  sip_show_inuse: CLI Command to show calls within limits set by 
       call_limit */
-static int sip_show_inuse(int fd, int argc, char *argv[])
+static int sip_show_inuse(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct sip_show_inuse_args args = {
-        .fd = fd,
+        .ds_p = ds_p,
 	.showall = 0,
     };
 
@@ -10102,10 +10102,10 @@ static int sip_show_inuse(int fd, int argc, char *argv[])
     if (argc == 4 && !strcmp(argv[3],"all")) 
             args.showall = 1;
     
-    cw_cli(fd, FORMAT, "* User name", "In use", "Limit");
+    cw_dynstr_printf(ds_p, FORMAT, "* User name", "In use", "Limit");
     cw_registry_iterate_ordered(&userbyname_registry, sip_show_inuse_user, &args);
 
-    cw_cli(fd, FORMAT, "* Peer name", "In use", "Limit");
+    cw_dynstr_printf(ds_p, FORMAT, "* Peer name", "In use", "Limit");
     cw_registry_iterate_ordered(&peerbyname_registry, sip_show_inuse_peer, &args);
 
     return RESULT_SUCCESS;
@@ -10153,7 +10153,7 @@ static const char *peer_status(struct sip_peer *peer)
 
 
 struct sip_show_users_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int havepattern;
 	regex_t regexbuf;
 };
@@ -10166,7 +10166,7 @@ static int sip_show_users_one(struct cw_object *obj, void *data)
 	struct sip_show_users_args *args = data;
 
 	if (!args->havepattern || !regexec(&args->regexbuf, user->name, 0, NULL, 0)) {
-		cw_cli(args->fd, FORMAT, user->name,
+		cw_dynstr_printf(args->ds_p, FORMAT, user->name,
 			user->secret,
 			user->accountcode,
 			user->context,
@@ -10177,10 +10177,10 @@ static int sip_show_users_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_users: CLI Command 'SIP Show Users' */
-static int sip_show_users(int fd, int argc, char *argv[])
+static int sip_show_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct sip_show_users_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.havepattern = 0,
 	};
 
@@ -10199,7 +10199,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 			return RESULT_SHOWUSAGE;
 	}
 
-	cw_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
+	cw_dynstr_printf(ds_p, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
 
 	cw_registry_iterate_ordered(&userbyname_registry, sip_show_users_one, &args);
 
@@ -10215,103 +10215,42 @@ static char mandescr_show_peers[] =
 "Variables: \n"
 "  ActionID: <id>    Action ID for this transaction. Will be returned.\n";
 
-static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[]);
-
-/*! \brief  manager_sip_show_peers: Show SIP peers in the manager API */
-/*    Inspired from chan_iax2 */
-static int manager_sip_show_peers( struct mansession *s, struct message *m )
-{
-    char *id = astman_get_header(m,"ActionID");
-    char *a[] = { "sip", "show", "peers" };
-    char idtext[256] = "";
-    int total = 0;
-
-    if (!cw_strlen_zero(id))
-        snprintf(idtext,256,"ActionID: %s\r\n",id);
-
-    astman_send_ack(s, m, "Peer status list will follow");
-    /* List the peers in separate manager events */
-    _sip_show_peers(s->fd, &total, s, m, 3, a);
-    /* Send final confirmation */
-    cw_cli(s->fd,
-    "Event: PeerlistComplete\r\n"
-    "ListItems: %d\r\n"
-    "%s"
-    "\r\n", total, idtext);
-    return 0;
-}
-
-/*! \brief  sip_show_peers: CLI Show Peers command */
-static int sip_show_peers(int fd, int argc, char *argv[])
-{
-    return _sip_show_peers(fd, NULL, NULL, NULL, argc, argv);
-}
-
 
 #define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-12s %-d\n"
 #define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-12s %-7s\n"
 
-struct _sip_show_peers_args {
-	int fd;
-	struct mansession *s;
+struct sip_show_peers_args {
+	struct cw_dynstr **ds_p;
 	regex_t regexbuf;
 	int havepattern;
 	int total_peers;
 	int peers_online;
 	int peers_offline;
-	char idtext[256];
 };
 
-static int _sip_show_peers_one(struct cw_object *obj, void *data)
+static int sip_show_peers_one(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
-	struct _sip_show_peers_args *args = data;
+	struct sip_show_peers_args *args = data;
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
 
 	if (!args->havepattern || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
-		if (!cw_strlen_zero(peer->username) && !args->s)
+		if (!cw_strlen_zero(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
-		else
-			cw_copy_string(name, peer->name, sizeof(name));
 
 		if ((peer->maxms && peer->timer_t1 < 0) || !peer->addr.sin_addr.s_addr)
 			args->peers_offline++;
 		else
 			args->peers_online++;
 
-		if (!args->s) {
-			/* Normal CLI list */
-			cw_cli(args->fd, FORMAT, name,
-				peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-				cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
-				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
-				peer->ha ? " A " : "   ",       /* permit/deny */
-				ntohs(peer->addr.sin_port),
-				peer_status(peer), peer->timer_t1);
-		} else {    /* Manager format */
-			/* The names here need to be the same as other channels */
-			cw_cli(args->fd,
-				"Event: PeerEntry\r\n%s"
-				"Channeltype: SIP\r\n"
-				"ObjectName: %s\r\n"
-				"ChanObjectType: peer\r\n"    /* "peer" or "user" */
-				"IPaddress: %s\r\n"
-				"IPport: %d\r\n"
-				"Dynamic: %s\r\n"
-				"Natsupport: %s\r\n"
-				"ACL: %s\r\n"
-				"Status: %s\r\n"
-				"RTT: %dms\r\n\r\n",
-				args->idtext,
-				peer->name,
-				peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "-none-",
-				ntohs(peer->addr.sin_port),
-				cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no",  /* Dynamic or not? */
-				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",    /* NAT=yes? */
-				peer->ha ? "yes" : "no",       /* permit/deny */
-				peer_status(peer), peer->timer_t1);
-		}
+		cw_dynstr_printf(args->ds_p, FORMAT, name,
+			peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
+			cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
+			(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
+			peer->ha ? " A " : "   ",       /* permit/deny */
+			ntohs(peer->addr.sin_port),
+			peer_status(peer), peer->timer_t1);
 
 		args->total_peers++;
 	}
@@ -10319,25 +10258,16 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-/*! \brief  _sip_show_peers: Execute sip show peers command */
-static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[])
+/*! \brief  sip_show_peers: Execute sip show peers command */
+static int sip_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct _sip_show_peers_args args = {
-		.fd = fd,
-		.s = s,
+	struct sip_show_peers_args args = {
+		.ds_p = ds_p,
 		.havepattern = 0,
 		.peers_online = 0,
 		.peers_offline = 0,
 		.total_peers = 0,
-		.idtext = "",
 	};
-	char *id;
-
-	if (s) {
-		id = astman_get_header(m,"ActionID");
-		if (!cw_strlen_zero(id))
-			snprintf(args.idtext, sizeof(args.idtext) - 1, "ActionID: %s\r\n", id);
-	}
 
 	switch (argc) {
 		case 5:
@@ -10354,33 +10284,78 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			return RESULT_SHOWUSAGE;
 	}
 
-	/* Normal list? */
-	if (!s)
-		cw_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", "RTT(ms)");
+	cw_dynstr_printf(ds_p, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", "RTT(ms)");
 
-	cw_registry_iterate_ordered(&peerbyname_registry, _sip_show_peers_one, &args);
+	cw_registry_iterate_ordered(&peerbyname_registry, sip_show_peers_one, &args);
 
-	if (!s)
-		cw_cli(fd,"%d sip peers [%d online , %d offline]\n", args.total_peers, args.peers_online, args.peers_offline);
+	cw_dynstr_printf(ds_p,"%d sip peers [%d online , %d offline]\n", args.total_peers, args.peers_online, args.peers_offline);
 
 	if (args.havepattern)
 		regfree(&args.regexbuf);
 
-	if (total)
-		*total = args.total_peers;
-
 	return RESULT_SUCCESS;
 }
+
+
+struct manager_sip_show_peers_args {
+	struct mansession *sess;
+	const struct message *req;
+	int total;
+};
+
+static int manager_sip_show_peers_one(struct cw_object *obj, void *data)
+{
+	char iabuf[INET_ADDRSTRLEN];
+	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+	struct manager_sip_show_peers_args *args = data;
+	struct cw_manager_message *msg = NULL;
+
+	cw_manager_msg(&msg, 11,
+		cw_msg_tuple("Event",          "%s",   "PeerEntry"),
+		cw_msg_tuple("ChannelType",    "%s",   "SIP"),
+		cw_msg_tuple("ObjectName",     "%s",   peer->name),
+		cw_msg_tuple("ChanObjectType", "%s",   "peer"),
+		cw_msg_tuple("IPaddress",      "%s",   (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "-none-")),
+		cw_msg_tuple("IPport",         "%d",   ntohs(peer->addr.sin_port)),
+		cw_msg_tuple("Dynamic",        "%s",   (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no")),
+		cw_msg_tuple("Natsupport",     "%s",   ((cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no")),
+		cw_msg_tuple("ACL",            "%s",   (peer->ha ? "yes" : "no")),
+		cw_msg_tuple("Status",         "%s",   peer_status(peer)),
+		cw_msg_tuple("RTT",            "%dms", peer->timer_t1)
+	);
+
+	args->total++;
+
+	if (msg)
+		return cw_manager_send(args->sess, args->req, &msg);
+
+	return -1;
+}
+/*! \brief  manager_sip_show_peers: Show SIP peers in the manager API */
+static struct cw_manager_message *manager_sip_show_peers(struct mansession *sess, const struct message *req)
+{
+	struct manager_sip_show_peers_args args = {
+		.sess = sess,
+		.req = req,
+		.total = 0,
+	};
+	struct cw_manager_message *msg;
+
+	if ((msg = cw_manager_response("Success", "Peer status list will follow")) && !cw_manager_send(sess, req, &msg)) {
+		cw_registry_iterate_ordered(&peerbyname_registry, manager_sip_show_peers_one, &args);
+
+		cw_manager_msg(&msg, 2,
+			cw_msg_tuple("Event", "%s", "PeerListComplete"),
+			cw_msg_tuple("ListItems", "%d", args.total)
+		);
+	}
+
+	return msg;
+}
+
 #undef FORMAT
 #undef FORMAT2
 
-
-/*! \brief  print_group: Print call group and pickup group */
-static void  print_group(int fd, unsigned int group, int crlf) 
-{
-    char buf[256];
-    cw_cli(fd, crlf ? "%s\r\n" : "%s\n", cw_print_group(buf, sizeof(buf), group) );
-}
 
 /*! \brief  dtmfmode2str: Convert DTMF mode to printable string */
 static const char *dtmfmode2str(int mode)
@@ -10451,7 +10426,7 @@ static int sip_prune_realtime_user(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
-static int sip_prune_realtime(int fd, int argc, char *argv[])
+static int sip_prune_realtime(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct sip_prune_realtime_args args = {
 		.name = NULL,
@@ -10522,9 +10497,9 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 			cw_registry_iterate(&peerbyname_registry, sip_prune_realtime_peer, &args);
 
 			if (args.pruned)
-				cw_cli(fd, "%d peers pruned.\n", args.pruned);
+				cw_dynstr_printf(ds_p, "%d peers pruned.\n", args.pruned);
 			else
-				cw_cli(fd, "No peers found to prune.\n");
+				cw_dynstr_printf(ds_p, "No peers found to prune.\n");
 		}
 		if (pruneuser) {
 			args.pruned = 0;
@@ -10532,35 +10507,35 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 			cw_registry_iterate(&userbyname_registry, sip_prune_realtime_user, &args);
 
 			if (args.pruned)
-				cw_cli(fd, "%d users pruned.\n", args.pruned);
+				cw_dynstr_printf(ds_p, "%d users pruned.\n", args.pruned);
 			else
-				cw_cli(fd, "No users found to prune.\n");
+				cw_dynstr_printf(ds_p, "No users found to prune.\n");
 		}
 	} else {
 		if (prunepeer) {
 			if ((peer = find_peer(args.name, NULL, 0))) {
 				if (!cw_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
-					cw_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", args.name);
+					cw_dynstr_printf(ds_p, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", args.name);
 				else {
-					cw_cli(fd, "Peer '%s' pruned.\n", args.name);
+					cw_dynstr_printf(ds_p, "Peer '%s' pruned.\n", args.name);
 					cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
 					cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 				}
 				cw_object_put(peer);
 			} else
-				cw_cli(fd, "Peer '%s' not found.\n", args.name);
+				cw_dynstr_printf(ds_p, "Peer '%s' not found.\n", args.name);
 		}
 		if (pruneuser) {
 			if ((user = find_user(args.name, 0))) {
 				if (!cw_test_flag(&user->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
-					cw_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", args.name);
+					cw_dynstr_printf(ds_p, "User '%s' is not a Realtime user, cannot be pruned.\n", args.name);
 				else {
-					cw_cli(fd, "User '%s' pruned.\n", args.name);
+					cw_dynstr_printf(ds_p, "User '%s' pruned.\n", args.name);
 					cw_registry_del(&userbyname_registry, user->reg_entry_byname);
 				}
 				cw_object_put(user);
 			} else
-				cw_cli(fd, "User '%s' not found.\n", args.name);
+				cw_dynstr_printf(ds_p, "User '%s' not found.\n", args.name);
 		}
 	}
 
@@ -10568,7 +10543,7 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 }
 
 /*! \brief  print_codec_to_cli: Print codec list from preference to CLI/manager */
-static void print_codec_to_cli(int fd, struct cw_codec_pref *pref) 
+static void print_codec_to_cli(struct cw_dynstr **ds_p, struct cw_codec_pref *pref)
 {
     int x, codec;
 
@@ -10577,12 +10552,12 @@ static void print_codec_to_cli(int fd, struct cw_codec_pref *pref)
         codec = cw_codec_pref_index(pref, x);
         if (!codec)
             break;
-        cw_cli(fd, "%s", cw_getformatname(codec));
+        cw_dynstr_printf(ds_p, "%s", cw_getformatname(codec));
         if (x < 31  &&  cw_codec_pref_index(pref, x + 1))
-            cw_cli(fd, ",");
+            cw_dynstr_printf(ds_p, ",");
     }
     if (!x)
-        cw_cli(fd, "none");
+        cw_dynstr_printf(ds_p, "none");
 }
 
 static const char *domain_mode_to_text(const enum domain_mode mode)
@@ -10600,275 +10575,244 @@ static const char *domain_mode_to_text(const enum domain_mode mode)
 
 /*! \brief  sip_show_domains: CLI command to list local domains */
 #define FORMAT "%-40.40s %-20.20s %-16.16s\n"
-static int sip_show_domains(int fd, int argc, char *argv[])
+static int sip_show_domains(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct domain *d;
 
     if (CW_LIST_EMPTY(&domain_list))
     {
-        cw_cli(fd, "SIP Domain support not enabled.\n\n");
+        cw_dynstr_printf(ds_p, "SIP Domain support not enabled.\n\n");
         return RESULT_SUCCESS;
     }
     else
     {
-        cw_cli(fd, FORMAT, "Our local SIP domains:", "Context", "Set by");
+        cw_dynstr_printf(ds_p, FORMAT, "Our local SIP domains:", "Context", "Set by");
         CW_LIST_LOCK(&domain_list);
         CW_LIST_TRAVERSE(&domain_list, d, list)
-            cw_cli(fd, FORMAT, d->domain, cw_strlen_zero(d->context) ? "(default)": d->context,
+            cw_dynstr_printf(ds_p, FORMAT, d->domain, cw_strlen_zero(d->context) ? "(default)": d->context,
                 domain_mode_to_text(d->mode));
         CW_LIST_UNLOCK(&domain_list);
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n");
         return RESULT_SUCCESS;
     }
 }
 #undef FORMAT
 
+
 static char mandescr_show_peer[] =
 "Description: Show one SIP peer with details on current status.\n"
-"  The XML format is under development, feedback welcome! /oej\n"
 "Variables: \n"
-"  Peer: <name>           The peer name you want to check.\n"
-"  ActionID: <id>      Optional action ID for this AMI transaction.\n";
+"  Peer: <name>           The peer name you want to check.\n";
 
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[]);
-
-/*! \brief  manager_sip_show_peer: Show SIP peers in the manager API  */
-static int manager_sip_show_peer( struct mansession *s, struct message *m )
+static int sip_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-    char *id = astman_get_header(m,"ActionID");
-    char *a[4];
-    char *peer;
-    int ret;
-
-    peer = astman_get_header(m,"Peer");
-    if (cw_strlen_zero(peer))
-    {
-        astman_send_error(s, m, "Peer: <name> missing.\n");
-        return 0;
-    }
-    a[0] = "sip";
-    a[1] = "show";
-    a[2] = "peer";
-    a[3] = peer;
-
-    if (!cw_strlen_zero(id))
-        cw_cli(s->fd, "ActionID: %s\r\n",id);
-    ret = _sip_show_peer(1, s->fd, s, m, 4, a );
-    cw_cli( s->fd, "\r\n\r\n" );
-    return ret;
-}
-
-
-
-/*! \brief  sip_show_peer: Show one peer in detail */
-static int sip_show_peer(int fd, int argc, char *argv[])
-{
-    return _sip_show_peer(0, fd, NULL, NULL, argc, argv);
-}
-
-static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[])
-{
+    char callgroup[256], pickupgroup[256];
     char cbuf[256];
-    char iabuf[INET_ADDRSTRLEN];
+    char iabuf1[INET_ADDRSTRLEN];
+    char iabuf2[INET_ADDRSTRLEN];
     struct sip_peer *peer;
     char codec_buf[512];
-    struct cw_codec_pref *pref;
     struct cw_variable *v;
     struct sip_auth *auth;
-    int x = 0, codec = 0, load_realtime = 0;
+    int x = 0, load_realtime = 0;
 
     if (argc < 4)
         return RESULT_SHOWUSAGE;
 
     load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
     peer = find_peer(argv[3], NULL, load_realtime);
-    if (s)
+    if (peer)
     {
-        /* Manager */
-        if (peer)
-            cw_cli(s->fd, "Response: Success\r\n");
-        else
-        {
-            snprintf (cbuf, sizeof(cbuf), "Peer %s not found.\n", argv[3]);
-            astman_send_error(s, m, cbuf);
-            return 0;
-        }
-    }
-    if (peer  &&  type == 0)
-    {
-        /* Normal listing */
-        cw_cli(fd,"\n\n");
-        cw_cli(fd, "  * Name       : %s\n", peer->name);
-        cw_cli(fd, "  Secret       : %s\n", cw_strlen_zero(peer->secret)?"<Not set>":"<Set>");
-        cw_cli(fd, "  MD5Secret    : %s\n", cw_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
-        auth = peer->auth;
-        while (auth)
-        {
-            cw_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s ", auth->realm, auth->username);
-            cw_cli(fd, "%s\n", !cw_strlen_zero(auth->secret)?"<Secret set>":(!cw_strlen_zero(auth->md5secret)?"<MD5secret set>" : "<Not set>"));
-            auth = auth->next;
-        }
-        cw_cli(fd, "  Context      : %s\n", peer->context);
-        cw_cli(fd, "  Subscr.Cont. : %s\n", cw_strlen_zero(peer->subscribecontext)?"<Not set>":peer->subscribecontext);
-        cw_cli(fd, "  Language     : %s\n", peer->language);
-        if (!cw_strlen_zero(peer->accountcode))
-            cw_cli(fd, "  Accountcode  : %s\n", peer->accountcode);
-        cw_cli(fd, "  AMA flags    : %s\n", cw_cdr_flags2str(peer->amaflags));
-        cw_cli(fd, "  CallingPres  : %s\n", cw_describe_caller_presentation(peer->callingpres));
-        if (!cw_strlen_zero(peer->fromuser))
-            cw_cli(fd, "  FromUser     : %s\n", peer->fromuser);
-        if (!cw_strlen_zero(peer->fromdomain))
-            cw_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
-        cw_cli(fd, "  Callgroup    : ");
-        print_group(fd, peer->callgroup, 0);
-        cw_cli(fd, "  Pickupgroup  : ");
-        print_group(fd, peer->pickupgroup, 0);
-        cw_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
-        cw_cli(fd, "  VM Extension : %s\n", peer->vmexten);
-        cw_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
-        cw_cli(fd, "  Call limit   : %d\n", peer->call_limit);
-        cw_cli(fd, "  Dynamic      : %s\n", (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)?"Yes":"No"));
-        cw_cli(fd, "  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
-        cw_cli(fd, "  Expire       : %ld\n", cw_sched_when(sched,peer->expire));
-        cw_cli(fd, "  Insecure     : %s\n", insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE)));
-        cw_cli(fd, "  Nat          : %s\n", nat2str(cw_test_flag(peer, SIP_NAT)));
-        cw_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
-        cw_cli(fd, "  CanReinvite  : %s\n", (cw_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
-        cw_cli(fd, "  PromiscRedir : %s\n", (cw_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
-        cw_cli(fd, "  User=Phone   : %s\n", (cw_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
-        cw_cli(fd, "  Trust RPID   : %s\n", (cw_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
-        cw_cli(fd, "  Send RPID    : %s\n", (cw_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
+        cw_dynstr_tprintf(ds_p, 42,
+            cw_fmtval("\n\n"),
+            cw_fmtval("  * Name           : %s\n", peer->name),
+            cw_fmtval("  Secret           : %s\n", (cw_strlen_zero(peer->secret) ? "<Not set>" : "<Set>")),
+            cw_fmtval("  MD5Secret        : %s\n", (cw_strlen_zero(peer->md5secret) ? "<Not set>" : "<Set>")),
+            cw_fmtval("  Context          : %s\n", peer->context),
+            cw_fmtval("  Subscr.Cont.     : %s\n", (cw_strlen_zero(peer->subscribecontext) ? "<Not set>" : peer->subscribecontext)),
+            cw_fmtval("  Language         : %s\n", peer->language),
+            cw_fmtval("  Accountcode      : %s\n", (!cw_strlen_zero(peer->accountcode) ? peer->accountcode : "")),
+            cw_fmtval("  AMA flags        : %s\n", cw_cdr_flags2str(peer->amaflags)),
+            cw_fmtval("  CallingPres      : %s\n", cw_describe_caller_presentation(peer->callingpres)),
+            cw_fmtval("  Callerid         : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "")),
+            cw_fmtval("  FromUser         : %s\n", (!cw_strlen_zero(peer->fromuser) ? peer->fromuser : "")),
+            cw_fmtval("  FromDomain       : %s\n", (!cw_strlen_zero(peer->fromdomain) ? peer->fromdomain : "")),
+            cw_fmtval("  Callgroup        : %s\n", cw_print_group(callgroup, sizeof(callgroup), peer->callgroup)),
+            cw_fmtval("  Pickupgroup      : %s\n", cw_print_group(pickupgroup, sizeof(pickupgroup), peer->pickupgroup)),
+            cw_fmtval("  VoiceMailbox     : %s\n", peer->mailbox),
+            cw_fmtval("  VM Extension     : %s\n", peer->vmexten),
+            cw_fmtval("  LastMsgsSent     : %d\n", peer->lastmsgssent),
+            cw_fmtval("  Call limit       : %d\n", peer->call_limit),
+            cw_fmtval("  Dynamic          : %c\n", (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? 'Y' : 'N')),
+            cw_fmtval("  Expire           : %ld\n", cw_sched_when(sched, peer->expire)),
+            cw_fmtval("  Insecure         : %s\n", insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
+            cw_fmtval("  Nat              : %s\n", nat2str(cw_test_flag(peer, SIP_NAT))),
+            cw_fmtval("  ACL              : %s\n", (peer->ha?"Yes":"No")),
+            cw_fmtval("  CanReinvite      : %c\n", (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
+            cw_fmtval("  PromiscRedir     : %c\n", (cw_test_flag(peer, SIP_PROMISCREDIR) ? 'Y' : 'N')),
+            cw_fmtval("  User=Phone       : %c\n", (cw_test_flag(peer, SIP_USEREQPHONE) ? 'Y' : 'N')),
+            cw_fmtval("  Trust RPID       : %c\n", (cw_test_flag(peer, SIP_TRUSTRPID) ? 'Y' : 'N')),
+            cw_fmtval("  Send RPID        : %c\n", (cw_test_flag(peer, SIP_SENDRPID) ? 'Y' : 'N')),
+            cw_fmtval("  DTMFmode         : %s\n", dtmfmode2str(cw_test_flag(peer, SIP_DTMF))),
+            cw_fmtval("  LastMsg          : %d\n", peer->lastmsg),
+            cw_fmtval("  ToHost           : %s\n", peer->tohost),
+            cw_fmtval("  Address-IP       : %s\n", (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf1, sizeof(iabuf1), peer->addr.sin_addr) : "")),
+            cw_fmtval("  Address-port     : %d\n", ntohs(peer->addr.sin_port)),
+            cw_fmtval("  Default-addr-IP  : %s\n", cw_inet_ntoa(iabuf2, sizeof(iabuf2), peer->defaddr.sin_addr)),
+            cw_fmtval("  Default-addr-port: %d\n", ntohs(peer->defaddr.sin_port)),
+            cw_fmtval("  Default-Username : %s\n", peer->username),
+            cw_fmtval("  Status           : %s\n", peer_status(peer)),
+            cw_fmtval("  RTT              : %dms\n", peer->timer_t1),
+            cw_fmtval("  Useragent        : %s\n", peer->useragent),
+            cw_fmtval("  Reg-Contact      : %s\n", peer->fullcontact),
+            cw_fmtval("  Codecs           : %s\n", cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability))
+	);
 
-        /* - is enumerated */
-        cw_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(cw_test_flag(peer, SIP_DTMF)));
-        cw_cli(fd, "  LastMsg      : %d\n", peer->lastmsg);
-        cw_cli(fd, "  ToHost       : %s\n", peer->tohost);
-        cw_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
-        cw_cli(fd, "  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-        cw_cli(fd, "  Def. Username: %s\n", peer->username);
-        cw_cli(fd, "  SIP Options  : ");
+        cw_dynstr_printf(ds_p, "  Codec Order  : (");
+        print_codec_to_cli(ds_p, &peer->prefs);
+        cw_dynstr_printf(ds_p, ")\n");
+
+        for (auth = peer->auth; auth; auth = auth->next) {
+            cw_dynstr_printf(ds_p,
+                  "  Realm-auth   : Realm %-15.15s User %-10.20s %s\n",
+                  auth->realm, auth->username,
+                  (!cw_strlen_zero(auth->secret) ? "<Secret set>"
+                      : (!cw_strlen_zero(auth->md5secret) ? "<MD5secret set>" : "<Not set>"))
+            );
+        }
+
         if (peer->sipoptions)
         {
+            cw_dynstr_printf(ds_p, "  SIP Options  : ");
             for (x = 0;  (x < (sizeof(sip_options)/sizeof(sip_options[0])));  x++)
             {
                 if (peer->sipoptions & sip_options[x].id)
-                    cw_cli(fd, "%s ", sip_options[x].text);
+                    cw_dynstr_printf(ds_p, "%s ", sip_options[x].text);
             }
         }
         else
-            cw_cli(fd, "(none)");
+            cw_dynstr_printf(ds_p, "(none)");
+        cw_dynstr_printf(ds_p, "\n");
 
-        cw_cli(fd, "\n");
-        cw_cli(fd, "  Codecs       : ");
-        cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
-        cw_cli(fd, "%s\n", codec_buf);
-        cw_cli(fd, "  Codec Order  : (");
-        print_codec_to_cli(fd, &peer->prefs);
-
-        cw_cli(fd, ")\n");
-
-        cw_cli(fd, "  Status       : %s\n", peer_status(peer));
-        cw_cli(fd, "  RTT          : %dms\n", peer->timer_t1);
-        cw_cli(fd, "  Useragent    : %s\n", peer->useragent);
-        cw_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
         if (peer->chanvars)
         {
-            cw_cli(fd, "  Variables    :\n");
+            cw_dynstr_printf(ds_p, "  Variables    :\n");
             for (v = peer->chanvars;  v;  v = v->next)
-                cw_cli(fd, "                 %s = %s\n", v->name, v->value);
-        }
-        cw_cli(fd, "\n");
-        cw_object_put(peer);
-    }
-    else if (peer && type == 1)
-    {
-        /* manager listing */
-        char *actionid = astman_get_header(m,"ActionID");
-
-        cw_cli(fd, "Channeltype: SIP\r\n");
-        if (actionid)
-            cw_cli(fd, "ActionID: %s\r\n", actionid);
-        cw_cli(fd, "ObjectName: %s\r\n", peer->name);
-        cw_cli(fd, "ChanObjectType: peer\r\n");
-        cw_cli(fd, "SecretExist: %s\r\n", cw_strlen_zero(peer->secret)?"N":"Y");
-        cw_cli(fd, "MD5SecretExist: %s\r\n", cw_strlen_zero(peer->md5secret)?"N":"Y");
-        cw_cli(fd, "Context: %s\r\n", peer->context);
-        cw_cli(fd, "Language: %s\r\n", peer->language);
-        if (!cw_strlen_zero(peer->accountcode))
-            cw_cli(fd, "Accountcode: %s\r\n", peer->accountcode);
-        cw_cli(fd, "AMAflags: %s\r\n", cw_cdr_flags2str(peer->amaflags));
-        cw_cli(fd, "CID-CallingPres: %s\r\n", cw_describe_caller_presentation(peer->callingpres));
-        if (!cw_strlen_zero(peer->fromuser))
-            cw_cli(fd, "SIP-FromUser: %s\r\n", peer->fromuser);
-        if (!cw_strlen_zero(peer->fromdomain))
-            cw_cli(fd, "SIP-FromDomain: %s\r\n", peer->fromdomain);
-        cw_cli(fd, "Callgroup: ");
-        print_group(fd, peer->callgroup, 1);
-        cw_cli(fd, "Pickupgroup: ");
-        print_group(fd, peer->pickupgroup, 1);
-        cw_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
-        cw_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
-        cw_cli(fd, "Call limit: %d\r\n", peer->call_limit);
-        cw_cli(fd, "Dynamic: %s\r\n", (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)?"Y":"N"));
-        cw_cli(fd, "Callerid: %s\r\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
-        cw_cli(fd, "RegExpire: %ld seconds\r\n", cw_sched_when(sched,peer->expire));
-        cw_cli(fd, "SIP-AuthInsecure: %s\r\n", insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE)));
-        cw_cli(fd, "SIP-NatSupport: %s\r\n", nat2str(cw_test_flag(peer, SIP_NAT)));
-        cw_cli(fd, "ACL: %s\r\n", (peer->ha?"Y":"N"));
-        cw_cli(fd, "SIP-CanReinvite: %s\r\n", (cw_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
-        cw_cli(fd, "SIP-PromiscRedir: %s\r\n", (cw_test_flag(peer, SIP_PROMISCREDIR)?"Y":"N"));
-        cw_cli(fd, "SIP-UserPhone: %s\r\n", (cw_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
-
-        /* - is enumerated */
-        cw_cli(fd, "SIP-DTMFmode %s\r\n", dtmfmode2str(cw_test_flag(peer, SIP_DTMF)));
-        cw_cli(fd, "SIPLastMsg: %d\r\n", peer->lastmsg);
-        cw_cli(fd, "ToHost: %s\r\n", peer->tohost);
-        cw_cli(fd, "Address-IP: %s\r\nAddress-Port: %d\r\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", ntohs(peer->addr.sin_port));
-        cw_cli(fd, "Default-addr-IP: %s\r\nDefault-addr-port: %d\r\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
-        cw_cli(fd, "Default-Username: %s\r\n", peer->username);
-        cw_cli(fd, "Codecs: ");
-        cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
-        cw_cli(fd, "%s\r\n", codec_buf);
-        cw_cli(fd, "CodecOrder: ");
-        pref = &peer->prefs;
-        for (x = 0;  x < 32;  x++)
-        {
-            codec = cw_codec_pref_index(pref,x);
-            if (!codec)
-                break;
-            cw_cli(fd, "%s", cw_getformatname(codec));
-            if (x < 31 && cw_codec_pref_index(pref,x+1))
-                cw_cli(fd, ",");
-        }
-
-        cw_cli(fd, "\r\n");
-        cw_cli(fd, "Status: %s\r\n", peer_status(peer));
-        cw_cli(fd, "RTT: %dms\r\n", peer->timer_t1);
-        cw_cli(fd, "SIP-Useragent: %s\r\n", peer->useragent);
-        cw_cli(fd, "Reg-Contact : %s\r\n", peer->fullcontact);
-        if (peer->chanvars)
-        {
-            for (v = peer->chanvars;  v;  v = v->next)
-            {
-                cw_cli(fd, "ChanVariable:\n");
-                cw_cli(fd, " %s,%s\r\n", v->name, v->value);
-            }
+                cw_dynstr_printf(ds_p, "                 %s = %s\n", v->name, v->value);
         }
 
         cw_object_put(peer);
     }
     else
-    {
-        cw_cli(fd,"Peer %s not found.\n", argv[3]);
-        cw_cli(fd,"\n");
-    }
+        cw_dynstr_printf(ds_p,"Peer %s not found.\n", argv[3]);
+
+    cw_dynstr_printf(ds_p,"\n");
 
     return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_show_user: Show one user in detail */
-static int sip_show_user(int fd, int argc, char *argv[])
+/*! \brief  manager_sip_show_peer: Show SIP peers in the manager API  */
+static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess, const struct message *req)
 {
+	char codec_buf[512];
+	char callgroup[256], pickupgroup[256];
+	char cbuf[256];
+	char iabuf1[INET_ADDRSTRLEN];
+	char iabuf2[INET_ADDRSTRLEN];
+	struct sip_peer *peer;
+	struct sip_auth *auth;
+	struct cw_codec_pref *pref;
+	struct cw_variable *v;
+	struct cw_manager_message *msg;
+	char *peer_s = cw_manager_msg_header(req, "Peer");
+	int x = 0, codec = 0;
+
+	if (!cw_strlen_zero(peer_s)) {
+		if ((peer = find_peer(peer_s, NULL, 0))) {
+			if ((msg = cw_manager_response("Success", NULL))) {
+				cw_manager_msg(&msg, 39,
+					cw_msg_tuple("Channeltype",       "%s",    "SIP"),
+					cw_msg_tuple("ObjectName",        "%s",    peer->name),
+					cw_msg_tuple("ChanObjectType",    "%s",    "peer"),
+					cw_msg_tuple("SecretExist",       "%c",    (cw_strlen_zero(peer->secret) ? 'N' : 'Y')),
+					cw_msg_tuple("MD5SecretExist",    "%c",    (cw_strlen_zero(peer->md5secret) ? 'N' : 'Y')),
+					cw_msg_tuple("Context",           "%s",    peer->context),
+					cw_msg_tuple("Language",          "%s",    peer->language),
+					cw_msg_tuple("Accountcode",       "%s",    (!cw_strlen_zero(peer->accountcode) ? peer->accountcode : "")),
+					cw_msg_tuple("AMAflags",          "%s",    cw_cdr_flags2str(peer->amaflags)),
+					cw_msg_tuple("CID-CallingPres",   "%s",    cw_describe_caller_presentation(peer->callingpres)),
+					cw_msg_tuple("Callerid",          "%s",    cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "")),
+					cw_msg_tuple("SIP-FromUser",      "%s",    (!cw_strlen_zero(peer->fromuser) ? peer->fromuser : "")),
+					cw_msg_tuple("SIP-FromDomain",    "%s",    (!cw_strlen_zero(peer->fromdomain) ? peer->fromdomain : "")),
+					cw_msg_tuple("Callgroup",         "%s",    cw_print_group(callgroup, sizeof(callgroup), peer->callgroup)),
+					cw_msg_tuple("Pickupgroup",       "%s",    cw_print_group(pickupgroup, sizeof(pickupgroup), peer->pickupgroup)),
+					cw_msg_tuple("VoiceMailbox",      "%s",    peer->mailbox),
+					cw_msg_tuple("LastMsgsSent",      "%d",    peer->lastmsgssent),
+					cw_msg_tuple("Call limit",        "%d",    peer->call_limit),
+					cw_msg_tuple("Dynamic",           "%s",    (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "Y" : "N")),
+					cw_msg_tuple("RegExpire",         "%ld"  , cw_sched_when(sched, peer->expire)),
+					cw_msg_tuple("SIP-AuthInsecure",  "%s",    insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
+					cw_msg_tuple("SIP-NatSupport",    "%s",    nat2str(cw_test_flag(peer, SIP_NAT))),
+					cw_msg_tuple("ACL",               "%c",    (peer->ha ? 'Y' : 'N')),
+					cw_msg_tuple("SIP-CanReinvite",   "%c",    (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
+					cw_msg_tuple("SIP-PromiscRedir",  "%c",    (cw_test_flag(peer, SIP_PROMISCREDIR) ? 'Y' : 'N')),
+					cw_msg_tuple("SIP-UserPhone",     "%c",    (cw_test_flag(peer, SIP_USEREQPHONE) ? 'Y' : 'N')),
+					cw_msg_tuple("SIP-DTMFmode",      "%s",    dtmfmode2str(cw_test_flag(peer, SIP_DTMF))),
+					cw_msg_tuple("SIPLastMsg",        "%d",    peer->lastmsg),
+					cw_msg_tuple("ToHost",            "%s",    peer->tohost),
+					cw_msg_tuple("Address-IP",        "%s",    (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf1, sizeof(iabuf1), peer->addr.sin_addr) : "")),
+					cw_msg_tuple("Address-port",      "%d",    ntohs(peer->addr.sin_port)),
+					cw_msg_tuple("Default-addr-IP",   "%s",    cw_inet_ntoa(iabuf2, sizeof(iabuf2), peer->defaddr.sin_addr)),
+					cw_msg_tuple("Default-addr-port", "%d",    ntohs(peer->defaddr.sin_port)),
+					cw_msg_tuple("Default-Username",  "%s",    peer->username),
+					cw_msg_tuple("Status",            "%s",    peer_status(peer)),
+					cw_msg_tuple("RTT",               "%dms",  peer->timer_t1),
+					cw_msg_tuple("SIP-Useragent",     "%s",    peer->useragent),
+					cw_msg_tuple("Reg-Contact",       "%s",    peer->fullcontact),
+					cw_msg_tuple("Codecs",            "%s",    cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability))
+				);
+
+				if (msg) {
+					int ret = 0;
+					pref = &peer->prefs;
+					for (x = 0;  x < 32;  x++) {
+						if (!(codec = cw_codec_pref_index(pref, x)))
+							break;
+						if (ret < sizeof(codec_buf) - 1)
+							ret += snprintf(codec_buf + ret, sizeof(codec_buf) - ret, ",%s", cw_getformatname(codec));
+					}
+					codec_buf[sizeof(codec_buf) - 1] = '\0';
+
+					cw_manager_msg(&msg, 1, cw_msg_tuple("CodecOrder", "%s", codec_buf + 1));
+				}
+
+				if (msg) {
+					for (auth = peer->auth; msg && auth; auth = auth->next) {
+						cw_manager_msg(&msg, 1,
+							cw_msg_tuple("Realm-auth", "Realm %-15.15s User %-10.20s %s", auth->realm, auth->username, (!cw_strlen_zero(auth->secret) ? "<Secret set>" : (!cw_strlen_zero(auth->md5secret) ? "<MD5secret set>" : "<Not set>"))));
+					}
+				}
+
+				if (msg && peer->chanvars) {
+					for (v = peer->chanvars; msg && v; v = v->next)
+						cw_manager_msg(&msg, 1, cw_msg_tuple("ChanVariable", "%s,%s", v->name, v->value));
+				}
+
+				cw_object_put(peer);
+			}
+		} else
+			msg = cw_manager_response("Error", "Peer not found");
+	} else
+		msg = cw_manager_response("Error", "Peer: <name> missing.\n");
+
+	return msg;
+}
+
+
+/*! \brief  sip_show_user: Show one user in detail */
+static int sip_show_user(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+    char callgroup[256], pickupgroup[256];
     char cbuf[256];
     struct sip_user *user;
     struct cw_codec_pref *pref;
@@ -10884,59 +10828,58 @@ static int sip_show_user(int fd, int argc, char *argv[])
     user = find_user(argv[3], load_realtime);
     if (user)
     {
-        cw_cli(fd,"\n\n");
-        cw_cli(fd, "  * Name       : %s\n", user->name);
-        cw_cli(fd, "  Secret       : %s\n", cw_strlen_zero(user->secret)?"<Not set>":"<Set>");
-        cw_cli(fd, "  MD5Secret    : %s\n", cw_strlen_zero(user->md5secret)?"<Not set>":"<Set>");
-        cw_cli(fd, "  Context      : %s\n", user->context);
-        cw_cli(fd, "  Language     : %s\n", user->language);
-        if (!cw_strlen_zero(user->accountcode))
-            cw_cli(fd, "  Accountcode  : %s\n", user->accountcode);
-        cw_cli(fd, "  AMA flags    : %s\n", cw_cdr_flags2str(user->amaflags));
-        cw_cli(fd, "  CallingPres  : %s\n", cw_describe_caller_presentation(user->callingpres));
-        cw_cli(fd, "  Call limit   : %d\n", user->call_limit);
-        cw_cli(fd, "  Callgroup    : ");
-        print_group(fd, user->callgroup, 0);
-        cw_cli(fd, "  Pickupgroup  : ");
-        print_group(fd, user->pickupgroup, 0);
-        cw_cli(fd, "  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
-        cw_cli(fd, "  ACL          : %s\n", (user->ha?"Yes":"No"));
-        cw_cli(fd, "  Codec Order  : (");
+        cw_dynstr_tprintf(ds_p, 15,
+            cw_fmtval("\n\n"),
+            cw_fmtval("  * Name       : %s\n", user->name),
+            cw_fmtval("  Secret       : %s\n", cw_strlen_zero(user->secret)?"<Not set>":"<Set>"),
+            cw_fmtval("  MD5Secret    : %s\n", cw_strlen_zero(user->md5secret)?"<Not set>":"<Set>"),
+            cw_fmtval("  Context      : %s\n", user->context),
+            cw_fmtval("  Language     : %s\n", user->language),
+            cw_fmtval("  Accountcode  : %s\n", (!cw_strlen_zero(user->accountcode) ? user->accountcode : "")),
+            cw_fmtval("  AMA flags    : %s\n", cw_cdr_flags2str(user->amaflags)),
+            cw_fmtval("  CallingPres  : %s\n", cw_describe_caller_presentation(user->callingpres)),
+            cw_fmtval("  Call limit   : %d\n", user->call_limit),
+            cw_fmtval("  Callgroup    : %s\n", cw_print_group(callgroup, sizeof(callgroup), user->callgroup)),
+            cw_fmtval("  Pickupgroup  : %s\n", cw_print_group(pickupgroup, sizeof(pickupgroup), user->pickupgroup)),
+            cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>")),
+            cw_fmtval("  ACL          : %s\n", (user->ha?"Yes":"No")),
+            cw_fmtval("  Codec Order  : (")
+	);
+
         pref = &user->prefs;
         for (x = 0;  x < 32;  x++)
         {
             codec = cw_codec_pref_index(pref,x);
             if (!codec)
                 break;
-            cw_cli(fd, "%s", cw_getformatname(codec));
+            cw_dynstr_printf(ds_p, "%s", cw_getformatname(codec));
             if (x < 31 && cw_codec_pref_index(pref,x+1))
-                cw_cli(fd, ",");
+                cw_dynstr_printf(ds_p, ",");
         }
-
         if (!x)
-            cw_cli(fd, "none");
-        cw_cli(fd, ")\n");
+            cw_dynstr_printf(ds_p, "none");
+        cw_dynstr_printf(ds_p, ")\n");
 
         if (user->chanvars)
         {
-            cw_cli(fd, "  Variables    :\n");
+            cw_dynstr_printf(ds_p, "  Variables    :\n");
             for (v = user->chanvars;  v;  v = v->next)
-                cw_cli(fd, "                 %s = %s\n", v->name, v->value);
+                cw_dynstr_printf(ds_p, "                 %s = %s\n", v->name, v->value);
         }
-        cw_cli(fd,"\n");
+        cw_dynstr_printf(ds_p,"\n");
+
         cw_object_put(user);
     }
     else
     {
-        cw_cli(fd,"User %s not found.\n", argv[3]);
-        cw_cli(fd,"\n");
+        cw_dynstr_printf(ds_p,"User %s not found.\n\n", argv[3]);
     }
 
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_show_registry: Show SIP Registry (registrations with other SIP proxies */
-static int sip_show_registry(int fd, int argc, char *argv[])
+static int sip_show_registry(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
@@ -10946,13 +10889,13 @@ static int sip_show_registry(int fd, int argc, char *argv[])
     if (argc != 3)
         return RESULT_SHOWUSAGE;
 
-    cw_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
+    cw_dynstr_printf(ds_p, FORMAT2, "Host", "Username", "Refresh", "State");
 
     cw_mutex_lock(&sip_reload_lock);
 
     for (reg = regl; reg; reg = reg->next) {
         snprintf(host, sizeof(host), "%s:%d", reg->hostname, (reg->portno ? reg->portno : DEFAULT_SIP_PORT));
-        cw_cli(fd, FORMAT, host, reg->username, reg->refresh, regstate2str(reg->regstate));
+        cw_dynstr_printf(ds_p, FORMAT, host, reg->username, reg->refresh, regstate2str(reg->regstate));
     }
 
     cw_mutex_unlock(&sip_reload_lock);
@@ -10963,7 +10906,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 }
 
 /*! \brief  sip_show_settings: List global settings for the SIP channel */
-static int sip_show_settings(int fd, int argc, char *argv[])
+static int sip_show_settings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char tmp[BUFSIZ];
     int realtimepeers = 0;
@@ -10974,80 +10917,84 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;
-    cw_cli(fd, "\n\nGlobal Settings:\n");
-    cw_cli(fd, "----------------\n");
-    cw_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
-    cw_cli(fd, "  Bindaddress:            %s\n", cw_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
-    cw_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
-    cw_cli(fd, "  T.38 UDPTL Support:     %s\n", t38udptlsupport ? "Yes" : "No");
-    cw_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
-    cw_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
-    cw_cli(fd, "  Promsic. redir:         %s\n", cw_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
-    cw_cli(fd, "  SIP domain support:     %s\n", CW_LIST_EMPTY(&domain_list) ? "No" : "Yes");
-    cw_cli(fd, "  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No");
-    cw_cli(fd, "  URI user is phone no:   %s\n", cw_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
-    cw_cli(fd, "  Our auth realm          %s\n", global_realm);
-    cw_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
-    cw_cli(fd, "  User Agent:             %s\n", default_useragent);
-    cw_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
-    cw_cli(fd, "  Reg. context:           %s\n", cw_strlen_zero(regcontext) ? "(not set)" : regcontext);
-    cw_cli(fd, "  Caller ID:              %s\n", default_callerid);
-    cw_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
-    cw_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
-    cw_cli(fd, "  Call Events:            %s\n", callevents ? "On" : "Off");
-    cw_cli(fd, "  IP ToS:                 0x%x\n", tos);
+
+    cw_dynstr_tprintf(ds_p, 27,
+        cw_fmtval("\n\nGlobal Settings:\n"),
+        cw_fmtval("----------------\n"),
+        cw_fmtval("  SIP Port:               %d\n", ntohs(bindaddr.sin_port)),
+        cw_fmtval("  Bindaddress:            %s\n", cw_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr)),
+        cw_fmtval("  Videosupport:           %s\n", videosupport ? "Yes" : "No"),
+        cw_fmtval("  T.38 UDPTL Support:     %s\n", t38udptlsupport ? "Yes" : "No"),
+        cw_fmtval("  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No"),
+        cw_fmtval("  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No"),
+        cw_fmtval("  Promsic. redir:         %s\n", cw_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No"),
+        cw_fmtval("  SIP domain support:     %s\n", CW_LIST_EMPTY(&domain_list) ? "No" : "Yes"),
+        cw_fmtval("  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No"),
+        cw_fmtval("  URI user is phone no:   %s\n", cw_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No"),
+        cw_fmtval("  Our auth realm          %s\n", global_realm),
+        cw_fmtval("  Realm. auth:            %s\n", authl ? "Yes": "No"),
+        cw_fmtval("  User Agent:             %s\n", default_useragent),
+        cw_fmtval("  MWI checking interval:  %d secs\n", global_mwitime),
+        cw_fmtval("  Reg. context:           %s\n", cw_strlen_zero(regcontext) ? "(not set)" : regcontext),
+        cw_fmtval("  Caller ID:              %s\n", default_callerid),
+        cw_fmtval("  From: Domain:           %s\n", default_fromdomain),
+        cw_fmtval("  Record SIP history:     %s\n", recordhistory ? "On" : "Off"),
+        cw_fmtval("  Call Events:            %s\n", callevents ? "On" : "Off"),
+        cw_fmtval("  IP ToS:                 0x%x\n", tos),
 #ifdef OSP_SUPPORT
-    cw_cli(fd, "  OSP Support:            Yes\n");
+        cw_fmtval("  OSP Support:            Yes\n"),
 #else
-    cw_cli(fd, "  OSP Support:            No\n");
+        cw_fmtval("  OSP Support:            No\n"),
 #endif
-    if (!realtimepeers && !realtimeusers)
-        cw_cli(fd, "  SIP realtime:           Disabled\n" );
-    else
-        cw_cli(fd, "  SIP realtime:           Enabled\n" );
+        cw_fmtval("  SIP realtime:           %s\n", (!realtimepeers && !realtimeusers ? "Disabled" : "Enabled")),
 
-    cw_cli(fd, "\nGlobal Signalling Settings:\n");
-    cw_cli(fd, "---------------------------\n");
-    cw_cli(fd, "  Codecs:                 ");
-    print_codec_to_cli(fd, &prefs);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "  Relax DTMF:             %s\n", relaxdtmf ? "Yes" : "No");
-    cw_cli(fd, "  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No");
-    cw_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
-    cw_cli(fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
-    cw_cli(fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
-    cw_cli(fd, "  DNS SRV lookup:         %s\n", srvlookup ? "Yes" : "No");
-    cw_cli(fd, "  Pedantic SIP support:   %s\n", pedanticsipchecking ? "Yes" : "No");
-    cw_cli(fd, "  Reg. max duration:      %d secs\n", max_expiry);
-    cw_cli(fd, "  Reg. default duration:  %d secs\n", default_expiry);
-    cw_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
-    cw_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
-    cw_cli(fd, "  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No");
-    cw_cli(fd, "\nDefault Settings:\n");
-    cw_cli(fd, "-----------------\n");
-    cw_cli(fd, "  Context:                %s\n", default_context);
-    cw_cli(fd, "  Nat:                    %s\n", nat2str(cw_test_flag(&global_flags, SIP_NAT)));
-    cw_cli(fd, "  DTMF:                   %s\n", dtmfmode2str(cw_test_flag(&global_flags, SIP_DTMF)));
-    cw_cli(fd, "  Qualify:                %d\n", default_qualify);
-    cw_cli(fd, "  Use ClientCode:         %s\n", cw_test_flag(&global_flags, SIP_USECLIENTCODE) ? "Yes" : "No");
-    cw_cli(fd, "  Progress inband:        %s\n", (cw_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (cw_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
-    cw_cli(fd, "  Language:               %s\n", cw_strlen_zero(default_language) ? "(Defaults to English)" : default_language);
-    cw_cli(fd, "  Musicclass:             %s\n", global_musicclass);
-    cw_cli(fd, "  Voice Mail Extension:   %s\n", global_vmexten);
+        cw_fmtval("\nGlobal Signalling Settings:\n"),
+        cw_fmtval("---------------------------\n"),
+        cw_fmtval("  Codecs:                 ")
+    );
+    print_codec_to_cli(ds_p, &prefs);
+    cw_dynstr_tprintf(ds_p, 24,
+        cw_fmtval("\n"),
+        cw_fmtval("  Relax DTMF:             %s\n", relaxdtmf ? "Yes" : "No"),
+        cw_fmtval("  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No"),
+        cw_fmtval("  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" ),
+        cw_fmtval("  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)"),
+        cw_fmtval("  MWI NOTIFY mime type:   %s\n", default_notifymime),
+        cw_fmtval("  DNS SRV lookup:         %s\n", srvlookup ? "Yes" : "No"),
+        cw_fmtval("  Pedantic SIP support:   %s\n", pedanticsipchecking ? "Yes" : "No"),
+        cw_fmtval("  Reg. max duration:      %d secs\n", max_expiry),
+        cw_fmtval("  Reg. default duration:  %d secs\n", default_expiry),
+        cw_fmtval("  Outbound reg. timeout:  %d secs\n", global_reg_timeout),
+        cw_fmtval("  Outbound reg. attempts: %d\n", global_regattempts_max),
+        cw_fmtval("  Notify ringing state:   %s\n", global_notifyringing ? "Yes" : "No"),
+        cw_fmtval("\nDefault Settings:\n"),
+        cw_fmtval("-----------------\n"),
+        cw_fmtval("  Context:                %s\n", default_context),
+        cw_fmtval("  Nat:                    %s\n", nat2str(cw_test_flag(&global_flags, SIP_NAT))),
+        cw_fmtval("  DTMF:                   %s\n", dtmfmode2str(cw_test_flag(&global_flags, SIP_DTMF))),
+        cw_fmtval("  Qualify:                %d\n", default_qualify),
+        cw_fmtval("  Use ClientCode:         %s\n", cw_test_flag(&global_flags, SIP_USECLIENTCODE) ? "Yes" : "No"),
+        cw_fmtval("  Progress inband:        %s\n", (cw_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (cw_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" ),
+        cw_fmtval("  Language:               %s\n", cw_strlen_zero(default_language) ? "(Defaults to English)" : default_language),
+        cw_fmtval("  Musicclass:             %s\n", global_musicclass),
+        cw_fmtval("  Voice Mail Extension:   %s\n", global_vmexten)
+    );
 
-    
     if (realtimepeers || realtimeusers)
     {
-        cw_cli(fd, "\nRealtime SIP Settings:\n");
-        cw_cli(fd, "----------------------\n");
-        cw_cli(fd, "  Realtime Peers:         %s\n", realtimepeers ? "Yes" : "No");
-        cw_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
-        cw_cli(fd, "  Cache Friends:          %s\n", cw_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
-        cw_cli(fd, "  Update:                 %s\n", cw_test_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
-        cw_cli(fd, "  Ignore Reg. Expire:     %s\n", cw_test_flag(&global_flags_page2, SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No");
-        cw_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
+        cw_dynstr_tprintf(ds_p, 8,
+            cw_fmtval("\nRealtime SIP Settings:\n"),
+            cw_fmtval("----------------------\n"),
+            cw_fmtval("  Realtime Peers:         %s\n", (realtimepeers ? "Yes" : "No")),
+            cw_fmtval("  Realtime Users:         %s\n", (realtimeusers ? "Yes" : "No")),
+            cw_fmtval("  Cache Friends:          %s\n", (cw_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No")),
+            cw_fmtval("  Update:                 %s\n", (cw_test_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE) ? "Yes" : "No")),
+            cw_fmtval("  Ignore Reg. Expire:     %s\n", (cw_test_flag(&global_flags_page2, SIP_PAGE2_IGNOREREGEXPIRE) ? "Yes" : "No")),
+            cw_fmtval("  Auto Clear:             %d\n", global_rtautoclear)
+        );
     }
-    cw_cli(fd, "\n----\n");
+
+    cw_dynstr_printf(ds_p, "\n----\n");
     return RESULT_SUCCESS;
 }
 
@@ -11082,24 +11029,24 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 }
 
 /* Forward declaration */
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions);
+static int __sip_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[], int subscriptions);
 
 /*! \brief  sip_show_channels: Show active SIP channels */
-static int sip_show_channels(int fd, int argc, char *argv[])  
+static int sip_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-        return __sip_show_channels(fd, argc, argv, 0);
+        return __sip_show_channels(ds_p, argc, argv, 0);
 }
  
 /*! \brief  sip_show_subscriptions: Show active SIP subscriptions */
-static int sip_show_subscriptions(int fd, int argc, char *argv[])
+static int sip_show_subscriptions(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-        return __sip_show_channels(fd, argc, argv, 1);
+        return __sip_show_channels(ds_p, argc, argv, 1);
 }
 
 
 struct __sip_show_channels_args {
 	int subscriptions;
-	int fd;
+	struct cw_dynstr **ds_p;
 	int numchans;
 };
 
@@ -11114,7 +11061,7 @@ static int __sip_show_channels_one(struct cw_object *obj, void *data)
 	struct __sip_show_channels_args *args = data;
 
 	if (dialogue->subscribed == NONE && !args->subscriptions) {
-		cw_cli(args->fd, FORMAT,
+		cw_dynstr_printf(args->ds_p, FORMAT,
 			cw_inet_ntoa(iabuf, sizeof(iabuf), dialogue->sa.sin_addr),
 			(cw_strlen_zero(dialogue->username)
 				? (cw_strlen_zero(dialogue->cid_num) ? "(None)" : dialogue->cid_num)
@@ -11129,7 +11076,7 @@ static int __sip_show_channels_one(struct cw_object *obj, void *data)
 		args->numchans++;
 	}
 	if (dialogue->subscribed != NONE && args->subscriptions) {
-		cw_cli(args->fd, FORMAT3,
+		cw_dynstr_printf(args->ds_p, FORMAT3,
 			cw_inet_ntoa(iabuf, sizeof(iabuf), dialogue->sa.sin_addr),
 			(cw_strlen_zero(dialogue->username)
 				? (cw_strlen_zero(dialogue->cid_num) ? "(None)" : dialogue->cid_num)
@@ -11144,11 +11091,11 @@ static int __sip_show_channels_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
+static int __sip_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[], int subscriptions)
 {
     struct __sip_show_channels_args args = {
 	    .subscriptions = subscriptions,
-	    .fd = fd,
+	    .ds_p = ds_p,
 	    .numchans = 0,
     };
 
@@ -11156,16 +11103,16 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
         return RESULT_SHOWUSAGE;
 
     if (!subscriptions)
-        cw_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
+        cw_dynstr_printf(ds_p, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Message");
     else
-        cw_cli(fd, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type");
+        cw_dynstr_printf(ds_p, FORMAT3, "Peer", "User", "Call ID", "Extension", "Last state", "Type");
 
     cw_registry_iterate_ordered(&dialogue_registry, __sip_show_channels_one, &args);
 
     if (!subscriptions)
-        cw_cli(fd, "%d active SIP channel%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
+        cw_dynstr_printf(ds_p, "%d active SIP channel%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
     else
-        cw_cli(fd, "%d active SIP subscription%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
+        cw_dynstr_printf(ds_p, "%d active SIP subscription%s\n", args.numchans, (args.numchans != 1) ? "s" : "");
     return RESULT_SUCCESS;
 }
 
@@ -11175,7 +11122,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 
 
 struct complete_sipch_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	const char *prefix;
 	int prefix_len;
 };
@@ -11186,16 +11133,16 @@ static int complete_sipch_one(struct cw_object *obj, void *data)
 	struct complete_sipch_args *args = data;
 
         if (!strncasecmp(args->prefix, dialogue->callid, args->prefix_len))
-		cw_cli(args->fd, "%s\n", dialogue->callid);
+		cw_dynstr_printf(args->ds_p, "%s\n", dialogue->callid);
 
 	return 0;
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
-static void complete_sipch(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sipch(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_sipch_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.prefix = argv[lastarg],
 		.prefix_len = lastarg_len,
 	};
@@ -11205,7 +11152,7 @@ static void complete_sipch(int fd, char *argv[], int lastarg, int lastarg_len)
 
 
 struct complete_sip_peer_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	char *word;
 	int word_len;
 	int flags2;
@@ -11218,17 +11165,17 @@ static int complete_sip_peer_one(struct cw_object *obj, void *data)
 
 	if (!strncasecmp(args->word, peer->name, args->word_len)) {
 		if (!args->flags2 || cw_test_flag(&peer->flags_page2, args->flags2))
-			cw_cli(args->fd, "%s\n", peer->name);
+			cw_dynstr_printf(args->ds_p, "%s\n", peer->name);
 	}
 
 	return 0;
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name */
-static void complete_sip_peer(int fd, char *word, int word_len, int flags2)
+static void complete_sip_peer(struct cw_dynstr **ds_p, char *word, int word_len, int flags2)
 {
 	struct complete_sip_peer_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.word = word,
 		.word_len = word_len,
 		.flags2 = flags2,
@@ -11238,23 +11185,23 @@ static void complete_sip_peer(int fd, char *word, int word_len, int flags2)
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
-static void complete_sip_show_peer(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_show_peer(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
-        complete_sip_peer(fd, argv[3], lastarg_len, 0);
+        complete_sip_peer(ds_p, argv[3], lastarg_len, 0);
 }
 
 
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
-static void complete_sip_debug_peer(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_debug_peer(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
-         complete_sip_peer(fd, argv[3], lastarg_len, 0);
+         complete_sip_peer(ds_p, argv[3], lastarg_len, 0);
 }
 
 
 struct complete_sip_user_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	char *word;
 	int word_len;
 	int flags2;
@@ -11267,17 +11214,17 @@ static int complete_sip_user_one(struct cw_object *obj, void *data)
 
 	if (!strncasecmp(args->word, user->name, args->word_len)) {
 		if (!args->flags2 || cw_test_flag(&user->flags_page2, args->flags2))
-			cw_cli(args->fd, "%s\n", user->name);
+			cw_dynstr_printf(args->ds_p, "%s\n", user->name);
 	}
 
 	return 0;
 }
 
 /*! \brief  complete_sip_user: Do completion on user name */
-static void complete_sip_user(int fd, char *word, int word_len, int flags2)
+static void complete_sip_user(struct cw_dynstr **ds_p, char *word, int word_len, int flags2)
 {
 	struct complete_sip_user_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.word = word,
 		.word_len = word_len,
 		.flags2 = flags2,
@@ -11288,15 +11235,15 @@ static void complete_sip_user(int fd, char *word, int word_len, int flags2)
 
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
-static void complete_sip_show_user(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_show_user(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
-        complete_sip_user(fd, argv[3], lastarg_len, 0);
+        complete_sip_user(ds_p, argv[3], lastarg_len, 0);
 }
 
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
-static void complete_sipnotify(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sipnotify(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 2)
     {
@@ -11309,31 +11256,31 @@ static void complete_sipnotify(int fd, char *argv[], int lastarg, int lastarg_le
             for (cat = cw_category_browse(notify_types, NULL); cat; cat = cw_category_browse(notify_types, cat))
             {
                 if (!strncasecmp(argv[2], cat, lastarg_len))
-                    cw_cli(fd, "%s\n", cat);
+                    cw_dynstr_printf(ds_p, "%s\n", cat);
             }
         }
     }
     else if (lastarg > 2)
-        complete_sip_peer(fd, argv[lastarg], lastarg_len, 0);
+        complete_sip_peer(ds_p, argv[lastarg], lastarg_len, 0);
 }
 
 /*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI */
-static void complete_sip_prune_realtime_peer(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_prune_realtime_peer(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 4)
-        complete_sip_peer(fd, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
+        complete_sip_peer(ds_p, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI */
-static void complete_sip_prune_realtime_user(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_prune_realtime_user(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 4)
-        complete_sip_user(fd, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
+        complete_sip_user(ds_p, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 
 struct sip_show_channel_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int found;
 	const char *prefix;
 	size_t prefix_len;
@@ -11348,81 +11295,60 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 	struct sip_show_channel_args *args = data;
 
 	if (!strncasecmp(dialogue->callid, args->prefix, args->prefix_len)) {
-		cw_cli(args->fd,"\n");
+		cw_dynstr_printf(args->ds_p,"\n");
 
 		if (dialogue->subscribed != NONE)
-			cw_cli(args->fd, "  * Subscription (type: %s)\n", subscription_type2str(dialogue->subscribed));
+			cw_dynstr_printf(args->ds_p, "  * Subscription (type: %s)\n", subscription_type2str(dialogue->subscribed));
 		else
-			cw_cli(args->fd, "  * SIP Call\n");
+			cw_dynstr_printf(args->ds_p, "  * SIP Call\n");
 
-		cw_cli(args->fd,
-			"  Direction:              %s\n"
-			"  Call-ID:                %s\n"
-			"  Our Codec Capability:   %d\n"
-			"  Non-Codec Capability:   %d\n"
-			"  Their Codec Capability:   %d\n"
-			"  Joint Codec Capability:   %d\n"
-			"  Format                  %s\n"
-			"  Theoretical Address:    %s:%d\n"
-			"  Received Address:       %s:%d\n"
-			"  NAT Support:            %s\n"
-			"  Audio IP:               %s %s\n"
-			"  Our Tag:                %s\n"
-			"  Their Tag:              %s\n"
-			"  SIP User agent:         %s\n",
-			(cw_test_flag(dialogue, SIP_OUTGOING) ? "Outgoing" : "Incoming"),
-			dialogue->callid,
-			dialogue->capability,
-			dialogue->noncodeccapability,
-			dialogue->peercapability,
-			dialogue->jointcapability,
-			cw_getformatname(dialogue->owner ? dialogue->owner->nativeformats : 0),
-			cw_inet_ntoa(iabuf1, sizeof(iabuf1), dialogue->sa.sin_addr), ntohs(dialogue->sa.sin_port),
-			cw_inet_ntoa(iabuf2, sizeof(iabuf2), dialogue->recv.sin_addr), ntohs(dialogue->recv.sin_port),
-			nat2str(cw_test_flag(dialogue, SIP_NAT)),
-			cw_inet_ntoa(iabuf3, sizeof(iabuf3), (dialogue->redirip.sin_addr.s_addr ? dialogue->redirip.sin_addr : dialogue->ourip)), (dialogue->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)"),
-			dialogue->tag,
-			dialogue->theirtag,
-			dialogue->useragent
+		cw_dynstr_tprintf(args->ds_p, 14,
+			cw_fmtval("  Direction:              %s\n", (cw_test_flag(dialogue, SIP_OUTGOING) ? "Outgoing" : "Incoming")),
+			cw_fmtval("  Call-ID:                %s\n", dialogue->callid),
+			cw_fmtval("  Our Codec Capability:   %d\n", dialogue->capability),
+			cw_fmtval("  Non-Codec Capability:   %d\n", dialogue->noncodeccapability),
+			cw_fmtval("  Their Codec Capability: %d\n", dialogue->peercapability),
+			cw_fmtval("  Joint Codec Capability: %d\n", dialogue->jointcapability),
+			cw_fmtval("  Format:                 %s\n", cw_getformatname(dialogue->owner ? dialogue->owner->nativeformats : 0)),
+			cw_fmtval("  Theoretical Address:    %s:%d\n", cw_inet_ntoa(iabuf1, sizeof(iabuf1), dialogue->sa.sin_addr), ntohs(dialogue->sa.sin_port)),
+			cw_fmtval("  Received Address:       %s:%d\n", cw_inet_ntoa(iabuf2, sizeof(iabuf2), dialogue->recv.sin_addr), ntohs(dialogue->recv.sin_port)),
+			cw_fmtval("  NAT Support:            %s\n", nat2str(cw_test_flag(dialogue, SIP_NAT))),
+			cw_fmtval("  Audio IP:               %s %s\n", cw_inet_ntoa(iabuf3, sizeof(iabuf3), (dialogue->redirip.sin_addr.s_addr ? dialogue->redirip.sin_addr : dialogue->ourip)), (dialogue->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)")),
+			cw_fmtval("  Our Tag:                %s\n", dialogue->tag),
+			cw_fmtval("  Their Tag:              %s\n", dialogue->theirtag),
+			cw_fmtval("  SIP User agent:         %s\n", dialogue->useragent)
 		);
 
 		if (!cw_strlen_zero(dialogue->username))
-			cw_cli(args->fd, "  Username:               %s\n", dialogue->username);
+			cw_dynstr_printf(args->ds_p, "  Username:               %s\n", dialogue->username);
 		if (!cw_strlen_zero(dialogue->peername))
-			cw_cli(args->fd, "  Peername:               %s\n", dialogue->peername);
+			cw_dynstr_printf(args->ds_p, "  Peername:               %s\n", dialogue->peername);
 		if (!cw_strlen_zero(dialogue->uri))
-			cw_cli(args->fd, "  Original uri:           %s\n", dialogue->uri);
+			cw_dynstr_printf(args->ds_p, "  Original uri:           %s\n", dialogue->uri);
 		if (!cw_strlen_zero(dialogue->cid_num))
-			cw_cli(args->fd, "  Caller-ID:              %s\n", dialogue->cid_num);
+			cw_dynstr_printf(args->ds_p, "  Caller-ID:              %s\n", dialogue->cid_num);
 
-		cw_cli(args->fd,
-			"  Last Message:           %s\n"
-			"  Promiscuous Redir:      %s\n"
-			"  Route:                  %s\n"
-			"  T38 State:              %d\n"
-			"  DTMF Mode:              %s\n"
-			"  On HOLD:                %s\n"
-			"  SIP Options:            ",
-			dialogue->lastmsg,
-			(cw_test_flag(dialogue, SIP_PROMISCREDIR) ? "Yes" : "No"),
-			dialogue->route ? dialogue->route->hop : "N/A",
-			dialogue->t38state,
-			dtmfmode2str(cw_test_flag(dialogue, SIP_DTMF)),
-			(cw_test_flag(dialogue, SIP_CALL_ONHOLD) ? "Yes" : "No")
+		cw_dynstr_tprintf(args->ds_p, 7,
+			cw_fmtval("  Last Message:           %s\n", dialogue->lastmsg),
+			cw_fmtval("  Promiscuous Redir:      %s\n", (cw_test_flag(dialogue, SIP_PROMISCREDIR) ? "Yes" : "No")),
+			cw_fmtval("  Route:                  %s\n", (dialogue->route ? dialogue->route->hop : "N/A")),
+			cw_fmtval("  T38 State:              %d\n", dialogue->t38state),
+			cw_fmtval("  DTMF Mode:              %s\n", dtmfmode2str(cw_test_flag(dialogue, SIP_DTMF))),
+			cw_fmtval("  On HOLD:                %s\n", (cw_test_flag(dialogue, SIP_CALL_ONHOLD) ? "Yes" : "No")),
+			cw_fmtval("  SIP Options:            ")
 		);
-
 
 		if (dialogue->sipoptions) {
 			int x;
 
 			for (x = 0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
 				if ((dialogue->sipoptions & sip_options[x].id))
-					cw_cli(args->fd, "%s ", sip_options[x].text);
+					cw_dynstr_printf(args->ds_p, "%s ", sip_options[x].text);
 			}
 		} else
-			cw_cli(args->fd, "(none)\n");
+			cw_dynstr_printf(args->ds_p, "(none)\n");
 
-		cw_cli(args->fd, "\n\n");
+		cw_dynstr_printf(args->ds_p, "\n\n");
 		args->found++;
 	}
 
@@ -11430,10 +11356,10 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_channel: Show details of one call */
-static int sip_show_channel(int fd, int argc, char *argv[])
+static int sip_show_channel(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct sip_show_channel_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.found = 0,
 	};
 
@@ -11446,14 +11372,14 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	cw_registry_iterate_ordered(&dialogue_registry, sip_show_channel_one, &args);
 
 	if (!args.found)
-		cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
+		cw_dynstr_printf(ds_p, "No such SIP Call ID starting with '%s'\n", argv[3]);
 
 	return RESULT_SUCCESS;
 }
 
 
 struct sip_show_history_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int found;
 	const char *prefix;
 	size_t prefix_len;
@@ -11465,17 +11391,17 @@ static int sip_show_history_one(struct cw_object *obj, void *data)
 	struct sip_show_history_args *args = data;
 
 	if (!strncasecmp(dialogue->callid, args->prefix, args->prefix_len)) {
-		cw_cli(args->fd, "\n");
+		cw_dynstr_printf(args->ds_p, "\n");
 
 		if (dialogue->subscribed != NONE)
-			cw_cli(args->fd, "  * Subscription\n");
+			cw_dynstr_printf(args->ds_p, "  * Subscription\n");
 		else
-			cw_cli(args->fd, "  * SIP Call\n");
+			cw_dynstr_printf(args->ds_p, "  * SIP Call\n");
 
 		if (dialogue->history)
-			cw_cli(args->fd, "%s", dialogue->history);
+			cw_dynstr_printf(args->ds_p, "%s", dialogue->history);
 		else
-			cw_cli(args->fd, "Call '%s' has no history\n", dialogue->callid);
+			cw_dynstr_printf(args->ds_p, "Call '%s' has no history\n", dialogue->callid);
 
 		args->found++;
 	}
@@ -11484,10 +11410,10 @@ static int sip_show_history_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_history: Show history details of one call */
-static int sip_show_history(int fd, int argc, char *argv[])
+static int sip_show_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct sip_show_history_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.found = 0,
 	};
 
@@ -11495,7 +11421,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	if (!recordhistory)
-		cw_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
+		cw_dynstr_printf(ds_p, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
 
 	args.prefix = argv[3];
 	args.prefix_len = strlen(argv[3]);
@@ -11503,7 +11429,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	cw_registry_iterate_ordered(&dialogue_registry, sip_show_history_one, &args);
 
 	if (!args.found)
-		cw_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
+		cw_dynstr_printf(ds_p, "No such SIP Call ID starting with '%s'\n", argv[3]);
 
 	return RESULT_SUCCESS;
 }
@@ -11652,7 +11578,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
-static int sip_do_debug_ip(int fd, int argc, char *argv[])
+static int sip_do_debug_ip(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -11676,15 +11602,15 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
     memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
     debugaddr.sin_port = htons(port);
     if (port == 0)
-        cw_cli(fd, "SIP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr));
+        cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr));
     else
-        cw_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), port);
+        cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), port);
     sipdebug |= SIP_DEBUG_CONSOLE;
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_do_debug_peer: Turn on SIP debugging with peer mask */
-static int sip_do_debug_peer(int fd, int argc, char *argv[])
+static int sip_do_debug_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct sip_peer *peer;
     char iabuf[INET_ADDRSTRLEN];
@@ -11698,20 +11624,20 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
             debugaddr.sin_family = AF_INET;
             memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
             debugaddr.sin_port = peer->addr.sin_port;
-            cw_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
+            cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
             sipdebug |= SIP_DEBUG_CONSOLE;
         }
         else
-            cw_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
+            cw_dynstr_printf(ds_p, "Unable to get IP address of peer '%s'\n", argv[3]);
         cw_object_put(peer);
     }
     else
-        cw_cli(fd, "No such peer '%s'\n", argv[3]);
+        cw_dynstr_printf(ds_p, "No such peer '%s'\n", argv[3]);
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
-static int sip_do_debug(int fd, int argc, char *argv[])
+static int sip_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int oldsipdebug = sipdebug & SIP_DEBUG_CONSOLE;
     if (argc != 2)
@@ -11719,22 +11645,22 @@ static int sip_do_debug(int fd, int argc, char *argv[])
         if (argc != 4) 
             return RESULT_SHOWUSAGE;
         else if (strncmp(argv[2], "ip\0", 3) == 0)
-            return sip_do_debug_ip(fd, argc, argv);
+            return sip_do_debug_ip(ds_p, argc, argv);
         else if (strncmp(argv[2], "peer\0", 5) == 0)
-            return sip_do_debug_peer(fd, argc, argv);
+            return sip_do_debug_peer(ds_p, argc, argv);
         else return RESULT_SHOWUSAGE;
     }
     sipdebug |= SIP_DEBUG_CONSOLE;
     memset(&debugaddr, 0, sizeof(debugaddr));
     if (oldsipdebug)
-        cw_cli(fd, "SIP Debugging re-enabled\n");
+        cw_dynstr_printf(ds_p, "SIP Debugging re-enabled\n");
     else
-        cw_cli(fd, "SIP Debugging enabled\n");
+        cw_dynstr_printf(ds_p, "SIP Debugging enabled\n");
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_notify: Send SIP notify to peer */
-static int sip_notify(int fd, int argc, char *argv[])
+static int sip_notify(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct cw_variable *varlist;
     int i;
@@ -11744,7 +11670,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 
     if (!notify_types)
     {
-        cw_cli(fd, "No %s file found, or no types listed there\n", notify_config);
+        cw_dynstr_printf(ds_p, "No %s file found, or no types listed there\n", notify_config);
         return RESULT_FAILURE;
     }
 
@@ -11752,7 +11678,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 
     if (!varlist)
     {
-        cw_cli(fd, "Unable to find notify type '%s'\n", argv[2]);
+        cw_dynstr_printf(ds_p, "Unable to find notify type '%s'\n", argv[2]);
         return RESULT_FAILURE;
     }
 
@@ -11773,7 +11699,7 @@ static int sip_notify(int fd, int argc, char *argv[])
         {
             /* Maybe they're not registered, etc. */
             sip_destroy(p);
-            cw_cli(fd, "Could not create address for '%s'\n", argv[i]);
+            cw_dynstr_printf(ds_p, "Could not create address for '%s'\n", argv[i]);
             continue;
         }
 
@@ -11792,7 +11718,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 
         p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
-        cw_cli(fd, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
+        cw_dynstr_printf(ds_p, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
         transmit_sip_request(p, &req);
         sip_scheddestroy(p, -1);
     }
@@ -11800,37 +11726,37 @@ static int sip_notify(int fd, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 /*! \brief  sip_do_history: Enable SIP History logging (CLI) */
-static int sip_do_history(int fd, int argc, char *argv[])
+static int sip_do_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
         return RESULT_SHOWUSAGE;
     }
     recordhistory = 1;
-    cw_cli(fd, "SIP History Recording Enabled (use 'sip show history')\n");
+    cw_dynstr_printf(ds_p, "SIP History Recording Enabled (use 'sip show history')\n");
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_no_history: Disable SIP History logging (CLI) */
-static int sip_no_history(int fd, int argc, char *argv[])
+static int sip_no_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 3)
     {
         return RESULT_SHOWUSAGE;
     }
     recordhistory = 0;
-    cw_cli(fd, "SIP History Recording Disabled\n");
+    cw_dynstr_printf(ds_p, "SIP History Recording Disabled\n");
     return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
-static int sip_no_debug(int fd, int argc, char *argv[])
+static int sip_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 {
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     sipdebug &= ~SIP_DEBUG_CONSOLE;
-    cw_cli(fd, "SIP Debugging Disabled\n");
+    cw_dynstr_printf(ds_p, "SIP Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 
@@ -17764,7 +17690,7 @@ static int sip_do_reload(void)
 }
 
 /*! \brief  sip_reload: Force reload of module from cli */
-static int sip_reload(int fd, int argc, char *argv[])
+static int sip_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 
     cw_mutex_lock(&sip_reload_lock);

@@ -84,17 +84,6 @@ static int displayconnects;
 static int queuesize;
 
 
-struct message {
-	char *actionid;
-	char *action;
-	int hdrcount;
-	struct {
-		char *key;
-		char *val;
-	} header[80];
-};
-
-
 struct manager_listener_pvt {
 	struct cw_object obj;
 	int (*handler)(struct mansession *, const struct cw_manager_message *);
@@ -162,21 +151,21 @@ static int snprintf_authority(char *buf, size_t buflen, int authority)
 }
 
 
-static int printf_authority(int fd, int authority)
+static int printf_authority(struct cw_dynstr **ds_p, int authority)
 {
 	int i, used, sep = 0;
 
 	used = 0;
 	for (i = 0; i < arraysize(perms); i++) {
 		if ((authority & (1 << i)) && perms[i].label) {
-			cw_cli(fd, (sep ? ", %s" : "%s"), perms[i].label);
+			cw_dynstr_printf(ds_p, (sep ? ", %s" : "%s"), perms[i].label);
 			used += perms[i].len + sep;
 			sep = 2;
 		}
 	}
 
 	if (!sep) {
-		cw_cli(fd, "<none>");
+		cw_dynstr_printf(ds_p, "<none>");
 		used = sizeof("<none>") - 1;
 	}
 
@@ -228,29 +217,43 @@ int manager_str_to_eventmask(char *instr)
 }
 
 
-static void append_msg(struct mansession *sess, struct cw_manager_message *msg)
+int cw_manager_send(struct mansession *sess, const struct message *req, struct cw_manager_message **resp_p)
 {
 	int q_w_next;
+	int ret = -1;
 
-	pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
-	pthread_mutex_lock(&sess->lock);
+	if (*resp_p) {
+		if (!(*resp_p)->data->error && (!req || !req->actionid || !cw_manager_msg(resp_p, 1, cw_msg_tuple("ActionID", "%s", req->actionid)))) {
+			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
+			pthread_mutex_lock(&sess->lock);
 
-	q_w_next = (sess->q_w + 1) % sess->q_size;
+			q_w_next = (sess->q_w + 1) % sess->q_size;
 
-	if (q_w_next != sess->q_r) {
-		if (++sess->q_count > sess->q_max)
-			sess->q_max = sess->q_count;
+			if (q_w_next != sess->q_r) {
+				if (++sess->q_count > sess->q_max)
+					sess->q_max = sess->q_count;
 
-		sess->q[sess->q_w] = cw_object_dup(msg);
+				sess->q[sess->q_w] = *resp_p;
 
-		if (sess->q_w == sess->q_r)
-			pthread_cond_signal(&sess->activity);
+				if (sess->q_w == sess->q_r)
+					pthread_cond_signal(&sess->activity);
 
-		sess->q_w = q_w_next;
-	} else
-		sess->q_overflow++;
+				sess->q_w = q_w_next;
+				ret = 0;
+			} else {
+				sess->q_overflow++;
+				cw_object_put(*resp_p);
+				ret = 1;
+			}
 
-	pthread_cleanup_pop(1);
+			pthread_cleanup_pop(1);
+		} else
+			cw_object_put(*resp_p);
+
+		*resp_p = NULL;
+	}
+
+	return ret;
 }
 
 
@@ -306,7 +309,7 @@ static const char showmancmd_help[] =
 
 
 struct complete_show_manact_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	char *word;
 	int word_len;
 };
@@ -317,15 +320,15 @@ static int complete_show_manact_one(struct cw_object *obj, void *data)
 	struct complete_show_manact_args *args = data;
 
 	if (!strncasecmp(args->word, it->action, args->word_len))
-		cw_cli(args->fd, "%s\n", it->action);
+		cw_dynstr_printf(args->ds_p, "%s\n", it->action);
 
 	return 0;
 }
 
-static void complete_show_manact(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manact(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_manact_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.word = argv[lastarg],
 		.word_len = lastarg_len,
 	};
@@ -334,7 +337,7 @@ static void complete_show_manact(int fd, char *argv[], int lastarg, int lastarg_
 }
 
 
-static int handle_show_manact(int fd, int argc, char *argv[])
+static int handle_show_manact(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_object *it;
 	struct manager_action *act;
@@ -343,15 +346,15 @@ static int handle_show_manact(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 
 	if (!(it = cw_registry_find(&manager_action_registry, 0, 0, argv[3]))) {
-		cw_cli(fd, "No manager action by that name registered.\n");
+		cw_dynstr_printf(ds_p, "No manager action by that name registered.\n");
 		return RESULT_FAILURE;
 	}
 	act = container_of(it, struct manager_action, obj);
 
 	/* FIXME: Tidy up this output and make it more like function output */
-	cw_cli(fd, "Action: %s\nSynopsis: %s\nPrivilege: ", act->action, act->synopsis);
-	printf_authority(fd, act->authority);
-	cw_cli(fd, "\n%s\n", (act->description ? act->description : ""));
+	cw_dynstr_printf(ds_p, "Action: %s\nSynopsis: %s\nPrivilege: ", act->action, act->synopsis);
+	printf_authority(ds_p, act->authority);
+	cw_dynstr_printf(ds_p, "\n%s\n", (act->description ? act->description : ""));
 
 	cw_object_put(act);
 	return RESULT_SUCCESS;
@@ -363,19 +366,19 @@ static const char showmancmds_help[] =
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
-static void complete_show_manacts(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manacts(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3) {
 		if (!strncasecmp(argv[3], "like", lastarg_len))
-			cw_cli(fd, "like\n");
+			cw_dynstr_printf(ds_p, "like\n");
 		if (!strncasecmp(argv[3], "describing", lastarg_len))
-			cw_cli(fd, "describing\n");
+			cw_dynstr_printf(ds_p, "describing\n");
 	}
 }
 
 
 struct manacts_print_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -409,20 +412,20 @@ static int manacts_print(struct cw_object *obj, void *data)
 
 	if (printapp) {
 		args->matches++;
-		cw_cli(args->fd, MANACTS_FORMAT_A, it->action);
-		n = printf_authority(args->fd, it->authority);
+		cw_dynstr_printf(args->ds_p, MANACTS_FORMAT_A, it->action);
+		n = printf_authority(args->ds_p, it->authority);
 		if (n < 15)
-			cw_cli(args->fd, "%.*s", 15 - n, "               ");
-		cw_cli(args->fd, MANACTS_FORMAT_C, it->synopsis);
+			cw_dynstr_printf(args->ds_p, "%.*s", 15 - n, "               ");
+		cw_dynstr_printf(args->ds_p, MANACTS_FORMAT_C, it->synopsis);
 	}
 
 	return 0;
 }
 
-static int handle_show_manacts(int fd, int argc, char *argv[])
+static int handle_show_manacts(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct manacts_print_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.matches = 0,
 		.argc = argc,
 		.argv = argv,
@@ -433,7 +436,7 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 	else if ((argc > 4) && (!strcmp(argv[3], "describing")))
 		args.describing = 1;
 
-	cw_cli(fd, "    -= %s Manager Actions =-\n"
+	cw_dynstr_printf(ds_p, "    -= %s Manager Actions =-\n"
 		MANACTS_FORMAT_A MANACTS_FORMAT_B MANACTS_FORMAT_C
 		MANACTS_FORMAT_A MANACTS_FORMAT_B MANACTS_FORMAT_C,
 		(args.like || args.describing ? "Matching" : "Registered"),
@@ -442,7 +445,7 @@ static int handle_show_manacts(int fd, int argc, char *argv[])
 
 	cw_registry_iterate_ordered(&manager_action_registry, manacts_print, &args);
 
-	cw_cli(fd, "    -= %d Actions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
+	cw_dynstr_printf(ds_p, "    -= %d Actions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
 	return RESULT_SUCCESS;
 }
 
@@ -453,7 +456,7 @@ static const char showlistener_help[] =
 
 
 struct listener_print_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 };
 
 #define MANLISTEN_FORMAT "%-10s %s\n"
@@ -468,19 +471,19 @@ static int listener_print(struct cw_object *obj, void *data)
 		cw_address_print(buf, sizeof(buf), &conn->addr);
 		buf[sizeof(buf) - 1] = '\0';
 
-		cw_cli(args->fd, MANLISTEN_FORMAT, cw_connection_state_name[conn->state], buf);
+		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state], buf);
 	}
 
 	return 0;
 }
 
-static int handle_show_listener(int fd, int argc, char *argv[])
+static int handle_show_listener(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct listener_print_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 	};
 
-	cw_cli(fd, MANLISTEN_FORMAT MANLISTEN_FORMAT,
+	cw_dynstr_printf(ds_p, MANLISTEN_FORMAT MANLISTEN_FORMAT,
 		"State", "Address",
 		"-----", "-------");
 
@@ -497,7 +500,7 @@ static const char showmanconn_help[] =
 
 
 struct mansess_print_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 };
 
 #define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
@@ -508,17 +511,17 @@ static int mansess_print(struct cw_object *obj, void *data)
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
-	cw_cli(args->fd, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
+	cw_dynstr_printf(args->ds_p, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
 	return 0;
 }
 
-static int handle_show_mansess(int fd, int argc, char *argv[])
+static int handle_show_mansess(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mansess_print_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 	};
 
-	cw_cli(fd, MANSESS_FORMAT1 MANSESS_FORMAT1,
+	cw_dynstr_printf(ds_p, MANSESS_FORMAT1 MANSESS_FORMAT1,
 		"Address", "Username", "Queued", "Max Queue", "Overflow",
 		"--------", "-------", "------", "---------", "--------");
 
@@ -582,151 +585,135 @@ static void mansession_release(struct cw_object *obj)
 }
 
 
-char *astman_get_header(struct message *m, char *key)
+char *cw_manager_msg_header(const struct message *msg, const char *key)
 {
 	int x;
 
-	for (x = 0;  x < m->hdrcount;  x++) {
-		if (!strcasecmp(key, m->header[x].key))
-			return m->header[x].val;
+	for (x = 0;  x < msg->hdrcount;  x++) {
+		if (!strcasecmp(key, msg->header[x].key))
+			return msg->header[x].val;
 	}
 	return NULL;
 }
 
-void astman_get_variables(struct cw_registry *vars, struct message *m)
-{
-	char *name, *val;
-	int x;
 
-	for (x = 0;  x < m->hdrcount;  x++) {
-		if (!strcasecmp("Variable", m->header[x].key)) {
-			name = val = cw_strdupa(m->header[x].val);
-			strsep(&val, "=");
-			if (!val || cw_strlen_zero(name))
-				continue;
-			cw_var_assign(vars, name, val);
-		}
+struct cw_manager_message *cw_manager_response(const char *resp, const char *msgstr)
+{
+	struct cw_manager_message *msg = NULL;
+
+	if (!cw_manager_msg(&msg, 1, cw_msg_tuple("Response", "%s", resp))) {
+		if (msgstr)
+			if (cw_manager_msg(&msg, 1, cw_msg_tuple("Message", "%s", msgstr)))
+				goto error;
 	}
+
+	return msg;
+
+error:
+	cw_object_put(msg);
+	return NULL;
 }
 
 
-void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete)
+static struct cw_manager_message *authenticate(struct mansession *sess, const struct message *req)
 {
-	cw_cli(s->fd, "Response: %s\r\n", resp);
-
-	if (!cw_strlen_zero(m->actionid))
-		cw_cli(s->fd, "ActionID: %s\r\n", m->actionid);
-
-	if (msg)
-		cw_cli(s->fd, "Message: %s\r\n", msg);
-
-	if (complete)
-		cw_cli(s->fd, "\r\n");
-}
-
-
-void astman_send_error(struct mansession *s, struct message *m, const char *error)
-{
-	astman_send_response(s, m, "Error", error, 1);
-}
-
-
-void astman_send_ack(struct mansession *s, struct message *m, const char *msg)
-{
-	astman_send_response(s, m, "Success", msg, 1);
-}
-
-
-static int authenticate(struct mansession *sess, struct message *m)
-{
+	struct cw_manager_message *msg = NULL;
 	struct cw_config *cfg;
 	char *cat;
-	char *user = astman_get_header(m, "Username");
-	char *pass = astman_get_header(m, "Secret");
-	char *authtype = astman_get_header(m, "AuthType");
-	char *key = astman_get_header(m, "Key");
-	char *events = astman_get_header(m, "Events");
+	char *user = cw_manager_msg_header(req, "Username");
+	char *pass = cw_manager_msg_header(req, "Secret");
+	char *authtype = cw_manager_msg_header(req, "AuthType");
+	char *key = cw_manager_msg_header(req, "Key");
+	char *events = cw_manager_msg_header(req, "Events");
 	int ret = -1;
-	
-	if (!user) {
-		astman_send_error(sess, m, "Required header \"Username\" missing");
-		return -1;
-	}
 
-	cfg = cw_config_load("manager.conf");
-	if (!cfg)
-		return -1;
+	if (!user)
+		return cw_manager_response("Error", "Required header \"Username\" missing");
 
-	for (cat = cw_category_browse(cfg, NULL); cat; cat = cw_category_browse(cfg, cat)) {
-		if (strcasecmp(cat, "general")) {
-			/* This is a user */
-			if (!strcasecmp(cat, user)) {
-				struct cw_variable *v;
-				struct cw_ha *ha = NULL;
-				char *password = NULL;
+	if ((cfg = cw_config_load("manager.conf"))) {
+		for (cat = cw_category_browse(cfg, NULL); cat; cat = cw_category_browse(cfg, cat)) {
+			if (strcasecmp(cat, "general")) {
+				/* This is a user */
+				if (!strcasecmp(cat, user)) {
+					struct cw_variable *v;
+					struct cw_ha *ha = NULL;
+					char *password = NULL;
 
-				for (v = cw_variable_browse(cfg, cat); v; v = v->next) {
-					if (!strcasecmp(v->name, "secret")) {
-						password = v->value;
-					} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-						ha = cw_append_ha(v->name, v->value, ha);
-					} else if (!strcasecmp(v->name, "writetimeout")) {
-						cw_log(CW_LOG_WARNING, "writetimeout is deprecated - remove it from manager.conf\n");
-					}
-				}
-
-				ret = 0;
-
-				if (ha) {
-					if (sess->addr.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr.sin)) {
-						cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
-						ret = -1;
-					}
-
-					cw_free_ha(ha);
-				}
-
-				if (!ret) {
-					if (authtype && !strcasecmp(authtype, "MD5")) {
-						if (!cw_strlen_zero(key) && !cw_strlen_zero(sess->challenge) && !cw_strlen_zero(password)) {
-							char md5key[256] = "";
-							cw_md5_hash_two(md5key, sess->challenge, password);
-							if (strcmp(md5key, key))
-								ret = -1;
+					for (v = cw_variable_browse(cfg, cat); v; v = v->next) {
+						if (!strcasecmp(v->name, "secret")) {
+							password = v->value;
+						} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+							ha = cw_append_ha(v->name, v->value, ha);
+						} else if (!strcasecmp(v->name, "writetimeout")) {
+							cw_log(CW_LOG_WARNING, "writetimeout is deprecated - remove it from manager.conf\n");
 						}
-					} else if (!pass || !password || strcasecmp(password, pass))
-						ret = -1;
-				}
+					}
 
-				if (!ret)
-					break;
+					ret = 0;
+
+					if (ha) {
+						if (sess->addr.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr.sin)) {
+							cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
+							ret = -1;
+						}
+
+						cw_free_ha(ha);
+					}
+
+					if (!ret) {
+						if (authtype && !strcasecmp(authtype, "MD5")) {
+							if (!cw_strlen_zero(key) && !cw_strlen_zero(sess->challenge) && !cw_strlen_zero(password)) {
+								char md5key[256] = "";
+								cw_md5_hash_two(md5key, sess->challenge, password);
+								if (strcmp(md5key, key))
+									ret = -1;
+							}
+						} else if (!pass || !password || strcasecmp(password, pass))
+							ret = -1;
+					}
+
+					if (!ret)
+						break;
+				}
 			}
 		}
+
+		if (cat && !ret) {
+			int readperm, writeperm, eventmask = 0;
+
+			readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
+			writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
+			if (events)
+				eventmask = manager_str_to_eventmask(events);
+
+			pthread_mutex_lock(&sess->lock);
+
+			cw_copy_string(sess->username, cat, sizeof(sess->username));
+			sess->readperm = readperm;
+			sess->writeperm = writeperm;
+			if (events)
+				sess->send_events = eventmask;
+
+			pthread_mutex_unlock(&sess->lock);
+
+			sess->authenticated = 1;
+			if (option_verbose > 3 && displayconnects)
+				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", sess->username, sess->name);
+			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", sess->username, sess->name);
+			msg = cw_manager_response("Success", "Authentication accepted");
+		}
+
+		cw_config_destroy(cfg);
 	}
 
-	if (cat && !ret) {
-		int readperm, writeperm, eventmask = 0;
-
-		readperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "read"));
-		writeperm = manager_str_to_eventmask(cw_variable_retrieve(cfg, cat, "write"));
-		if (events)
-			eventmask = manager_str_to_eventmask(events);
-
-		pthread_mutex_lock(&sess->lock);
-
-		cw_copy_string(sess->username, cat, sizeof(sess->username));
-		sess->readperm = readperm;
-		sess->writeperm = writeperm;
-		if (events)
-			sess->send_events = eventmask;
-
-		pthread_mutex_unlock(&sess->lock);
-		ret = 0;
-	} else
+	if (!msg) {
 		cw_log(CW_LOG_ERROR, "%s failed to authenticate as '%s'\n", sess->name, user);
+		/* FIXME: this should be handled by a scheduled callback not a sleep */
+		sleep(1);
+		msg = cw_manager_response("Error", "Authentication failed");
+	}
 
-	cw_config_destroy(cfg);
-	return ret;
+	return msg;
 }
 
 
@@ -735,21 +722,28 @@ static const char mandescr_ping[] =
 "  manager connection open.\n"
 "Variables: NONE\n";
 
-static int action_ping(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_ping(struct mansession *sess, const struct message *req)
 {
-	astman_send_response(s, m, "Pong", NULL, 1);
-	return 0;
+	return cw_manager_response("Pong", NULL);
 }
 
 
 static const char mandescr_version[] =
 "Description: Returns the version, hostname and pid of the running CallWeaver\n";
 
-static int action_version(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_version(struct mansession *sess, const struct message *req)
 {
-	astman_send_response(s, m, "Version", NULL, 0);
-	cw_cli(s->fd, "Version: %s\r\nHostname: %s\r\nPid: %u\r\n\r\n", cw_version_string, hostname, (unsigned int)getpid());
-	return 0;
+	struct cw_manager_message *msg;
+
+	if ((msg = cw_manager_response("Version", NULL))) {
+		cw_manager_msg(&msg, 3,
+			cw_msg_tuple("Version", "%s", cw_version_string),
+			cw_msg_tuple("Hostname", "%s", hostname),
+			cw_msg_tuple("Pid", "%u", (unsigned int)getpid())
+		);
+	}
+
+	return msg;
 }
 
 
@@ -759,32 +753,29 @@ static const char mandescr_listcommands[] =
 "Variables: NONE\n";
 
 struct listcommands_print_args {
-	struct mansession *s;
+	struct cw_manager_message *msg;
 };
 
 static int listcommands_print(struct cw_object *obj, void *data)
 {
+	char buf[1024];
 	struct manager_action *it = container_of(obj, struct manager_action, obj);
 	struct listcommands_print_args *args = data;
 
-	cw_cli(args->s->fd, "%s: %s (Priv: ", it->action, it->synopsis);
-	printf_authority(args->s->fd, it->authority);
-	cw_cli(args->s->fd, ")\r\n");
+	snprintf_authority(buf, sizeof(buf), it->authority);
+	cw_manager_msg(&args->msg, 1, cw_msg_vtuple(it->action, "%s (Priv: %s)", it->synopsis, buf));
 
-	return 0;
+	return (args->msg == NULL);
 }
 
-static int action_listcommands(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_listcommands(struct mansession *sess, const struct message *req)
 {
-	struct listcommands_print_args args = {
-		.s = s,
-	};
+	struct listcommands_print_args args;
 
-	astman_send_response(s, m, "Success", NULL, 0);
-	cw_registry_iterate_ordered(&manager_action_registry, listcommands_print, &args);
-	cw_cli(s->fd, "\r\n");
+	if ((args.msg = cw_manager_response("Success", NULL)))
+		cw_registry_iterate_ordered(&manager_action_registry, listcommands_print, &args);
 
-	return RESULT_SUCCESS;
+	return args.msg;
 }
 
 static const char mandescr_events[] =
@@ -795,9 +786,10 @@ static const char mandescr_events[] =
 "		'off' if no events should be sent,\n"
 "		'system,call,log' to select which flags events should have to be sent.\n";
 
-static int action_events(struct mansession *sess, struct message *m)
+static struct cw_manager_message *action_events(struct mansession *sess, const struct message *req)
 {
-	char *mask = astman_get_header(m, "EventMask");
+	struct cw_manager_message *msg;
+	char *mask = cw_manager_msg_header(req, "EventMask");
 
 	if (mask) {
 		int eventmask = manager_str_to_eventmask(mask);
@@ -808,49 +800,40 @@ static int action_events(struct mansession *sess, struct message *m)
 
 		pthread_mutex_unlock(&sess->lock);
 
-		astman_send_response(sess, m, (eventmask ? "Events On" : "Events Off"), NULL, 1);
+		msg = cw_manager_response((eventmask ? "Events On" : "Events Off"), NULL);
 	} else
-		astman_send_error(sess, m, "Required header \"Mask\" missing");
+		msg = cw_manager_response("Error", "Required header \"Mask\" missing");
 
-	return 0;
+	return msg;
 }
 
 static const char mandescr_logoff[] =
 "Description: Logoff this manager session\n"
 "Variables: NONE\n";
 
-static int action_logoff(struct mansession *s, struct message *m)
-{
-	astman_send_response(s, m, "Goodbye", "Thanks for all the fish.", 1);
-	return -1;
-}
-
-
 static const char mandescr_hangup[] =
 "Description: Hangup a channel\n"
 "Variables: \n"
 "	Channel: The channel name to be hungup\n";
 
-static int action_hangup(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_hangup(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg = NULL;
 	struct cw_channel *chan = NULL;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
 			cw_channel_unlock(chan);
-			astman_send_ack(s, m, "Channel Hungup");
+			msg = cw_manager_response("Success", "Channel Hungup");
 			cw_object_put(chan);
-			return 0;
-		}
+		} else
+			msg = cw_manager_response("Error", "No such channel");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-		astman_send_error(s, m, "No such channel");
-		return 0;
-	}
-
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
@@ -861,33 +844,29 @@ static const char mandescr_setvar[] =
 "	*Variable: Variable name\n"
 "	*Value: Value\n";
 
-static int action_setvar(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_setvar(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg = NULL;
         struct cw_channel *chan;
-        char *name = astman_get_header(m, "Channel");
+        char *name = cw_manager_msg_header(req, "Channel");
         char *varname;
 
 	if (!cw_strlen_zero(name)) {
-		varname = astman_get_header(m, "Variable");
+		varname = cw_manager_msg_header(req, "Variable");
 		if (!cw_strlen_zero(varname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
-				pbx_builtin_setvar_helper(chan, varname, astman_get_header(m, "Value"));
+				pbx_builtin_setvar_helper(chan, varname, cw_manager_msg_header(req, "Value"));
 				cw_channel_unlock(chan);
-				astman_send_ack(s, m, "Variable Set");
+				msg = cw_manager_response("Success", "Variable Set");
 				cw_object_put(chan);
-				return 0;
-			}
+			} else
+				msg = cw_manager_response("Error", "No such channel");
+		} else
+			msg = cw_manager_response("Error", "No variable specified");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
-
-		astman_send_error(s, m, "No variable specified");
-		return 0;
-	}
-
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
@@ -895,154 +874,136 @@ static const char mandescr_getvar[] =
 "Description: Get the value of a local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Channel: Channel to read variable from\n"
-"	*Variable: Variable name\n"
-"	ActionID: Optional Action id for message matching.\n";
+"	*Variable: Variable name\n";
 
-static int action_getvar(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_getvar(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg;
 	struct cw_channel *chan;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 	char *varname;
 	struct cw_var_t *var;
 
 	if (!cw_strlen_zero(name)) {
-		varname = astman_get_header(m, "Variable");
+		varname = cw_manager_msg_header(req, "Variable");
 		if (!cw_strlen_zero(varname)) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
 				cw_channel_unlock(chan);
 				var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(varname), varname);
 
-				astman_send_response(s, m, "Success", NULL, 0);
-				cw_cli(s->fd, "Variable: %s\r\nValue: %s\r\n\r\n", varname, (var ? var->value : ""));
+				if ((msg = cw_manager_response("Success", NULL))) {
+					cw_manager_msg(&msg, 2,
+						cw_msg_tuple("Variable", "%s", varname),
+						cw_msg_tuple("Value", "%s", (var ? var->value : ""))
+					);
+				}
 
+				cw_object_put(chan);
 				if (var)
 					cw_object_put(var);
-				cw_object_put(chan);
-				return 0;
-			}
+			} else
+				msg = cw_manager_response("Error", "No such channel");
+		} else
+			msg = cw_manager_response("Error", "No variable specified");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
-
-		astman_send_error(s, m, "No variable specified");
-		return 0;
-	}
-
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
 /*! \brief  action_status: Manager "status" command to show channels */
 /* Needs documentation... */
 struct action_status_args {
-	int fd;
-	const char *id;
 	struct timeval now;
+	struct mansession *sess;
+	const struct message *req;
 };
 
 static int action_status_one(struct cw_object *obj, void *data)
 {
-	char bridge[sizeof ("Link: ") - 1 + CW_CHANNEL_NAME + sizeof("\r\n") - 1 + 1];
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 	struct action_status_args *args = data;
+	struct cw_manager_message *msg = NULL;
 	long elapsed_seconds = 0;
 	long billable_seconds = 0;
 
 	cw_channel_lock(chan);
 
-	if (chan->_bridge)
-		snprintf(bridge, sizeof(bridge), "Link: %s\r\n", chan->_bridge->name);
-	else
-		bridge[0] = '\0';
+	cw_manager_msg(&msg, 8,
+		cw_msg_tuple("Event",        "%s", "Status"),
+		cw_msg_tuple("Privilege",    "%s", "Call"),
+		cw_msg_tuple("Channel",      "%s", chan->name),
+		cw_msg_tuple("Uniqueid",     "%s", chan->uniqueid),
+		cw_msg_tuple("CallerID",     "%s", (chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")),
+		cw_msg_tuple("CallerIDName", "%s", (chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")),
+		cw_msg_tuple("Account",      "%s", chan->accountcode),
+		cw_msg_tuple("State",        "%s", cw_state2str(chan->_state))
+	);
 
-	if (chan->pbx) {
-		if (chan->cdr)
-			elapsed_seconds = args->now.tv_sec - chan->cdr->start.tv_sec;
-			if (chan->cdr->answer.tv_sec > 0)
-				billable_seconds = args->now.tv_sec - chan->cdr->answer.tv_sec;
-		cw_cli(args->fd,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
- 			"Context: %s\r\n"
-			"Extension: %s\r\n"
-			"Priority: %d\r\n"
-			"Seconds: %ld\r\n"
-			"BillableSeconds: %ld\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"\r\n",
-			chan->name,
-			(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>"),
-			(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>"),
-			chan->accountcode,
-			cw_state2str(chan->_state),
-			chan->context, chan->exten, chan->priority,
-			elapsed_seconds, billable_seconds,
-			bridge, chan->uniqueid, args->id);
-	} else {
-		cw_cli(args->fd,
-			"Event: Status\r\n"
-			"Privilege: Call\r\n"
-			"Channel: %s\r\n"
-			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n"
-			"Account: %s\r\n"
-			"State: %s\r\n"
-			"%s"
-			"Uniqueid: %s\r\n"
-			"%s"
-			"\r\n",
-			chan->name,
-			(chan->cid.cid_num ? chan->cid.cid_num : "<unknown>"),
-			(chan->cid.cid_name ? chan->cid.cid_name : "<unknown>"),
-			chan->accountcode,
-			cw_state2str(chan->_state), bridge, chan->uniqueid, args->id);
+	if (msg && chan->pbx) {
+		cw_manager_msg(&msg, 3,
+				cw_msg_tuple("Context",   "%s", chan->context),
+				cw_msg_tuple("Extension", "%s", chan->exten),
+				cw_msg_tuple("Priority",  "%d", chan->priority)
+		);
+	}
+
+	if (msg && chan->cdr) {
+		elapsed_seconds = args->now.tv_sec - chan->cdr->start.tv_sec;
+		if (chan->cdr->answer.tv_sec > 0)
+			billable_seconds = args->now.tv_sec - chan->cdr->answer.tv_sec;
+
+		cw_manager_msg(&msg, 2,
+				cw_msg_tuple("Seconds",         "%ld", elapsed_seconds),
+				cw_msg_tuple("BillableSeconds", "%ld", billable_seconds)
+		);
+	}
+
+	if (msg && chan->_bridge) {
+		cw_manager_msg(&msg, 1,
+				cw_msg_tuple("Link", "%s", chan->_bridge->name)
+		);
 	}
 
 	cw_channel_unlock(chan);
 
-	return 0;
+	if (msg)
+		return cw_manager_send(args->sess, args->req, &msg);
+
+	return -1;
 }
 
-static int action_status(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_status(struct mansession *sess, const struct message *req)
 {
-	char idText[256] = "";
 	struct action_status_args args;
-	char *name = astman_get_header(m, "Channel");
+	struct cw_manager_message *msg = NULL;
+	char *name = cw_manager_msg_header(req, "Channel");
 	struct cw_channel *chan;
+	int err = 0;
 
-	astman_send_ack(s, m, "Channel status will follow");
-	if (!cw_strlen_zero(m->actionid))
-		snprintf(idText, 256, "ActionID: %s\r\n", m->actionid);
+	if ((msg = cw_manager_response("Success", "Channel status will follow")) && !cw_manager_send(sess, req, &msg)) {
+		args.sess = sess;
+		args.req = req;
+		args.now = cw_tvnow();
 
-	args.fd = s->fd;
-	args.id = idText;
-	args.now = cw_tvnow();
+		if (!cw_strlen_zero(name)) {
+			if ((chan = cw_get_channel_by_name_locked(name))) {
+				err = action_status_one(&chan->obj, &args);
+				cw_channel_unlock(chan);
+				cw_object_put(chan);
+			} else {
+				if (!(msg = cw_manager_response("Error", "No such channel")) || cw_manager_send(sess, req, &msg))
+					err = -1;
+			}
+		} else
+			err = cw_registry_iterate(&channel_registry, action_status_one, &args);
 
-	if (!cw_strlen_zero(name)) {
-		if (!(chan = cw_get_channel_by_name_locked(name))) {
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
-		action_status_one(&chan->obj, &args);
-		cw_object_put(chan);
-	} else {
-		cw_registry_iterate(&channel_registry, action_status_one, &args);
+		if (!err)
+			cw_manager_msg(&msg, 1, cw_msg_tuple("Event", "%s", "StatusComplete"));
 	}
 
-	cw_cli(s->fd,
-		"Event: StatusComplete\r\n"
-		"%s"
-		"\r\n", idText);
-	return 0;
+	return msg;
 }
 
 
@@ -1053,108 +1014,102 @@ static const char mandescr_redirect[] =
 "	ExtraChannel: Second call leg to transfer (optional)\n"
 "	*Exten: Extension to transfer to\n"
 "	*Context: Context to transfer to\n"
-"	*Priority: Priority to transfer to\n"
-"	ActionID: Optional Action id for message matching.\n";
+"	*Priority: Priority to transfer to\n";
 
 /*! \brief  action_redirect: The redirect manager command */
-static int action_redirect(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_redirect(struct mansession *sess, const struct message *req)
 {
-	char buf[BUFSIZ];
-	char *name = astman_get_header(m, "Channel");
+	struct cw_manager_message *msg = NULL;
+	char *name = cw_manager_msg_header(req, "Channel");
 	struct cw_channel *chan;
 	char *context;
 	char *exten;
 	char *priority;
 	int res;
 
-	if (cw_strlen_zero(name)) {
-		astman_send_error(s, m, "Channel not specified");
-		return 0;
-	}
+	if (!cw_strlen_zero(name)) {
+		if ((chan = cw_get_channel_by_name_locked(name))) {
+			context = cw_manager_msg_header(req, "Context");
+			exten = cw_manager_msg_header(req, "Exten");
+			priority = cw_manager_msg_header(req, "Priority");
 
-	if ((chan = cw_get_channel_by_name_locked(name))) {
-		context = astman_get_header(m, "Context");
-		exten = astman_get_header(m, "Exten");
-		priority = astman_get_header(m, "Priority");
+			res = cw_async_goto(chan, context, exten, priority);
+			cw_channel_unlock(chan);
+			cw_object_put(chan);
 
-		res = cw_async_goto(chan, context, exten, priority);
-		cw_channel_unlock(chan);
-		cw_object_put(chan);
+			if (!res) {
+				name = cw_manager_msg_header(req, "ExtraChannel");
+				if (!cw_strlen_zero(name)) {
+					if ((chan = cw_get_channel_by_name_locked(name))) {
+						if (!cw_async_goto(chan, context, exten, priority))
+							msg = cw_manager_response("Success", "Dual Redirect successful");
+						else
+							msg = cw_manager_response("Error", "Secondary redirect failed");
 
-		if (!res) {
-			name = astman_get_header(m, "ExtraChannel");
-			if (!cw_strlen_zero(name)) {
-				if (!(chan = cw_get_channel_by_name_locked(name)))
-					goto no_chan;
+						cw_channel_unlock(chan);
+						cw_object_put(chan);
+					} else
+						msg = cw_manager_response("Error", "Secondary channel does not exist");
+				}
 
-				if (!cw_async_goto(chan, context, exten, priority))
-					astman_send_ack(s, m, "Dual Redirect successful");
-				else
-					astman_send_error(s, m, "Secondary redirect failed");
+				if (!msg)
+					msg = cw_manager_response("Success", "Redirect successful");
+			} else
+				msg = cw_manager_response("Error", "Redirect failed");
+		} else
+			msg = cw_manager_response("Error", "Channel does not exist");
+	} else
+		msg = cw_manager_response("Error", "Channel not specified");
 
-				cw_channel_unlock(chan);
-				cw_object_put(chan);
-				return 0;
-			}
-
-			astman_send_ack(s, m, "Redirect successful");
-			return 0;
-		}
-
-		astman_send_error(s, m, "Redirect failed");
-		return 0;
-	}
-
-no_chan:
-	snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
-	astman_send_error(s, m, buf);
-	return 0;
+	return msg;
 }
 
 
 static const char mandescr_command[] =
 "Description: Run a CLI command.\n"
 "Variables: (Names marked with * are required)\n"
-"	*Command: CallWeaver CLI command to run\n"
-"	ActionID: Optional Action id for message matching.\n";
+"	*Command: CallWeaver CLI command to run\n";
 
 /*! \brief  action_command: Manager command "command" - execute CLI command */
-static int action_command(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_command(struct mansession *sess, const struct message *req)
 {
-	char *cmd = astman_get_header(m, "Command");
+	struct cw_manager_message *msg = NULL;
+	char *cmd = cw_manager_msg_header(req, "Command");
 
 	if (cmd) {
-		astman_send_response(s, m, "Follows", NULL, 0);
+		if ((msg = cw_manager_response("Follows", NULL))) {
+			msg->data->used -= 2;
 
-		cw_cli_command(s->fd, cmd);
+			cw_cli_command(&msg->data, cmd);
+			cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+		}
+	} else
+		msg = cw_manager_response("Error", NULL);
 
-		cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
-	}
-
-	return 0;
+	return msg;
 }
 
 
 static const char mandescr_complete[] =
 "Description: Return possible completions for a CallWeaver CLI command.\n"
-"	*Command: CallWeaver CLI command to complete\n"
-"	ActionID: Optional Action id for message matching.\n";
+"	*Command: CallWeaver CLI command to complete\n";
 
-static int action_complete(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_complete(struct mansession *sess, const struct message *req)
 {
-	char *cmd = astman_get_header(m, "Command");
+	struct cw_manager_message *msg = NULL;
+	char *cmd = cw_manager_msg_header(req, "Command");
 
 	if (cmd) {
-		astman_send_response(s, m, "Completion", NULL, 0);
+		if ((msg = cw_manager_response("Completion", NULL))) {
+			msg->data->used -= 2;
 
-		cw_cli_generator(s->fd, cmd);
+			cw_cli_generator(&msg->data, cmd);
+			cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+		}
+	} else
+		msg = cw_manager_response("Error", NULL);
 
-		cw_cli(s->fd, "--END COMMAND--\r\n\r\n");
-	} else {
-		astman_send_error(s, m, NULL);
-	}
-
-	return 0;
+	return msg;
 }
 
 
@@ -1211,49 +1166,45 @@ static const char mandescr_originate[] =
 "	Account: Account code\n"
 "	Async: Set to 'true' for fast origination\n";
 
-static int action_originate(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_originate(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg = NULL;
+	char tmp[256];
+	char tmp2[256];
 	struct fast_originate_helper *fast;
-	char *name = astman_get_header(m, "Channel");
-	char *exten = astman_get_header(m, "Exten");
-	char *context = astman_get_header(m, "Context");
-	char *priority = astman_get_header(m, "Priority");
-	char *timeout = astman_get_header(m, "Timeout");
-	char *callerid = astman_get_header(m, "CallerID");
-	char *account = astman_get_header(m, "Account");
-	char *app = astman_get_header(m, "Application");
-	char *appdata = astman_get_header(m, "Data");
-	char *async = astman_get_header(m, "Async");
+	char *name = cw_manager_msg_header(req, "Channel");
+	char *exten = cw_manager_msg_header(req, "Exten");
+	char *context = cw_manager_msg_header(req, "Context");
+	char *priority = cw_manager_msg_header(req, "Priority");
+	char *timeout = cw_manager_msg_header(req, "Timeout");
+	char *callerid = cw_manager_msg_header(req, "CallerID");
+	char *account = cw_manager_msg_header(req, "Account");
+	char *app = cw_manager_msg_header(req, "Application");
+	char *appdata = cw_manager_msg_header(req, "Data");
+	char *async = cw_manager_msg_header(req, "Async");
 	char *tech, *data;
 	char *l=NULL, *n=NULL;
+	pthread_t th;
 	int pi = 0;
 	int res;
 	int to = 30000;
 	int reason = 0;
-	char tmp[256];
-	char tmp2[256];
-	
-	pthread_t th;
 
-	if (!name) {
-		astman_send_error(s, m, "Channel not specified");
-		return 0;
-	}
-	if (!cw_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		astman_send_error(s, m, "Invalid priority");
-		return 0;
-	}
-	if (!cw_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
-		astman_send_error(s, m, "Invalid timeout");
-		return 0;
-	}
+	if (!name)
+		return cw_manager_response("Error", "Channel not specified");
+
+	if (!cw_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1))
+		return cw_manager_response("Error", "Invalid priority");
+
+	if (!cw_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1))
+		return cw_manager_response("Error", "Invalid timeout");
+
 	cw_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
-	if (!data) {
-		astman_send_error(s, m, "Invalid channel");
-		return 0;
-	}
+	if (!data)
+		return cw_manager_response("Error", "Invalid channel");
+
 	*data++ = '\0';
 	cw_copy_string(tmp2, callerid, sizeof(tmp2));
 	cw_callerid_parse(tmp2, &n, &l);
@@ -1268,8 +1219,20 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 
 	if ((fast = malloc(sizeof(struct fast_originate_helper)))) {
+		int x;
+
 		cw_var_registry_init(&fast->vars, 1024);
-		astman_get_variables(&fast->vars, m);
+
+		for (x = 0; x < req->hdrcount; x++) {
+			if (!strcasecmp("Variable", req->header[x].key)) {
+				char *n, *v;
+				n = v = cw_strdupa(req->header[x].val);
+				strsep(&v, "=");
+				if (v && !cw_strlen_zero(n))
+					cw_var_assign(&fast->vars, n, v);
+			}
+		}
+
 		if (account) {
 			/* FIXME: this is rubbish, surely? */
 			cw_var_assign(&fast->vars, "CDR(accountcode|r)", account);
@@ -1277,8 +1240,8 @@ static int action_originate(struct mansession *s, struct message *m)
 
 		if (cw_true(async)) {
 			memset(fast, 0, sizeof(struct fast_originate_helper));
-			if (!cw_strlen_zero(m->actionid))
-				cw_copy_string(fast->actionid, m->actionid, sizeof(fast->actionid));
+			if (!cw_strlen_zero(req->actionid))
+				cw_copy_string(fast->actionid, req->actionid, sizeof(fast->actionid));
 			cw_copy_string(fast->tech, tech, sizeof(fast->tech));
    			cw_copy_string(fast->data, data, sizeof(fast->data));
 			cw_copy_string(fast->app, app, sizeof(fast->app));
@@ -1306,7 +1269,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			if (exten && context && pi)
 				res = cw_pbx_outgoing_exten(tech, CW_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, &fast->vars, NULL);
 			else {
-				astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
+				msg = cw_manager_response("Error", "Originate with 'Exten' requires 'Context' and 'Priority'");
 				res = -1;
 			}
 			cw_registry_destroy(&fast->vars);
@@ -1315,62 +1278,72 @@ static int action_originate(struct mansession *s, struct message *m)
 	} else
 		res = -1;
 
-	if (!res)
-		astman_send_ack(s, m, "Originate successfully queued");
-	else
-		astman_send_error(s, m, "Originate failed");
-	return 0;
+	if (!msg) {
+		if (!res)
+			cw_manager_response("Success", "Originate successfully queued");
+		else
+			cw_manager_response("Error", "Originate failed");
+	}
+
+	return msg;
 }
 
 static const char mandescr_mailboxstatus[] =
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
-"	ActionID: Optional ActionID for message matching.\n"
 "Returns number of messages.\n"
 "	Message: Mailbox Status\n"
 "	Mailbox: <mailboxid>\n"
 "	Waiting: <count>\n"
 "\n";
-static int action_mailboxstatus(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_mailboxstatus(struct mansession *sess, const struct message *req)
 {
-	char *mailbox = astman_get_header(m, "Mailbox");
-	int ret;
+	struct cw_manager_message *msg = NULL;
+	char *mailbox = cw_manager_msg_header(req, "Mailbox");
 
-	if (cw_strlen_zero(mailbox)) {
-		astman_send_error(s, m, "Mailbox not specified");
-		return 0;
-	}
-	ret = cw_app_has_voicemail(mailbox, NULL);
-	astman_send_response(s, m, "Success", "Mailbox Status", 0);
-	cw_cli(s->fd, "Mailbox: %s\r\nWaiting: %d\r\n\r\n", mailbox, ret);
-	return 0;
+	if (!cw_strlen_zero(mailbox)) {
+		if ((msg = cw_manager_response("Success", "Mailbox Status"))) {
+			cw_manager_msg(&msg, 2,
+				cw_msg_tuple("Mailbox", "%s", mailbox),
+				cw_msg_tuple("Waiting", "%d", cw_app_has_voicemail(mailbox, NULL))
+			);
+		}
+	} else
+		msg = cw_manager_response("Error", "Mailbox not specified");
+
+	return msg;
 }
 
 static const char mandescr_mailboxcount[] =
 "Description: Checks a voicemail account for new messages.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
-"	ActionID: Optional ActionID for message matching.\n"
 "Returns number of new and old messages.\n"
 "	Message: Mailbox Message Count\n"
 "	Mailbox: <mailboxid>\n"
 "	NewMessages: <count>\n"
 "	OldMessages: <count>\n"
 "\n";
-static int action_mailboxcount(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_mailboxcount(struct mansession *sess, const struct message *req)
 {
-	char *mailbox = astman_get_header(m, "Mailbox");
+	struct cw_manager_message *msg = NULL;
+	char *mailbox = cw_manager_msg_header(req, "Mailbox");
 	int newmsgs = 0, oldmsgs = 0;
 
-	if (cw_strlen_zero(mailbox)) {
-		astman_send_error(s, m, "Mailbox not specified");
-		return 0;
-	}
-	cw_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-	astman_send_response(s, m, "Success", "Mailbox Message Count", 0);
-	cw_cli(s->fd, "Mailbox: %s\r\nNewMessages: %d\r\nOldMessages: %d\r\n\r\n", mailbox, newmsgs, oldmsgs);
-	return 0;
+	if (!cw_strlen_zero(mailbox)) {
+		if ((msg = cw_manager_response("Success", "Mailbox Message Count"))) {
+			cw_app_messagecount(mailbox, &newmsgs, &oldmsgs);
+			cw_manager_msg(&msg, 3,
+				cw_msg_tuple("Mailbox", "%s", mailbox),
+				cw_msg_tuple("NewMessages", "%d", newmsgs),
+				cw_msg_tuple("OldMessages", "%d", oldmsgs)
+			);
+		}
+	} else
+		msg = cw_manager_response("Error", "Mailbox not specified");
+
+	return msg;
 }
 
 static const char mandescr_extensionstate[] =
@@ -1380,30 +1353,36 @@ static const char mandescr_extensionstate[] =
 "Variables: (Names marked with * are required)\n"
 "	*Exten: Extension to check state on\n"
 "	*Context: Context for extension\n"
-"	ActionId: Optional ID for this transaction\n"
 "Will return an \"Extension Status\" message.\n"
 "The response will include the hint for the extension and the status.\n";
 
-static int action_extensionstate(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_extensionstate(struct mansession *sess, const struct message *req)
 {
-	char *exten = astman_get_header(m, "Exten");
-	char *context = astman_get_header(m, "Context");
 	char hint[256] = "";
+	struct cw_manager_message *msg = NULL;
+	char *exten = cw_manager_msg_header(req, "Exten");
+	char *context = cw_manager_msg_header(req, "Context");
 	int status;
 	
-	if (cw_strlen_zero(exten)) {
-		astman_send_error(s, m, "Extension not specified");
-		return 0;
-	}
-	if (cw_strlen_zero(context))
-		context = "default";
-	status = cw_extension_state(NULL, context, exten);
-	cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
+	if (!cw_strlen_zero(exten)) {
+		if ((msg = cw_manager_response("Success", "Extension Status"))) {
+			if (cw_strlen_zero(context))
+				context = "default";
 
-	astman_send_response(s, m, "Success", "Extension Status", 0);
-	cw_cli(s->fd, "Exten: %s\r\nContext: %s\r\nHint: %s\r\nStatus: %d\r\n\r\n", exten, context, hint, status);
+			status = cw_extension_state(NULL, context, exten);
+			cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
 
-	return 0;
+			cw_manager_msg(&msg, 4,
+				cw_msg_tuple("Exten", "%s", exten),
+				cw_msg_tuple("Context", "%s", context),
+				cw_msg_tuple("Hint", "%s", hint),
+				cw_msg_tuple("Status", "%d", status)
+			);
+		}
+	} else
+		msg = cw_manager_response("Error", "Extension not specified");
+
+	return msg;
 }
 
 
@@ -1414,81 +1393,76 @@ static const char mandescr_timeout[] =
 "	*Timeout: Maximum duration of the call (sec)\n"
 "Acknowledges set time with 'Timeout Set' message\n";
 
-static int action_timeout(struct mansession *s, struct message *m)
+static struct cw_manager_message *action_timeout(struct mansession *sess, const struct message *req)
 {
+	struct cw_manager_message *msg = NULL;
 	struct cw_channel *chan = NULL;
-	char *name = astman_get_header(m, "Channel");
+	char *name = cw_manager_msg_header(req, "Channel");
 	int timeout;
 
 	if (!cw_strlen_zero(name)) {
-		if ((timeout = atoi(astman_get_header(m, "Timeout")))) {
+		if ((timeout = atoi(cw_manager_msg_header(req, "Timeout")))) {
 			if ((chan = cw_get_channel_by_name_locked(name))) {
 				cw_channel_setwhentohangup(chan, timeout);
 				cw_channel_unlock(chan);
-				astman_send_ack(s, m, "Timeout Set");
 				cw_object_put(chan);
-				return 0;
-			}
+				msg = cw_manager_response("Success", "Timeout Set");
+			} else
+				msg = cw_manager_response("Error", "No such channel");
+		} else
+			msg = cw_manager_response("Error", "No timeout specified");
+	} else
+		msg = cw_manager_response("Error", "No channel specified");
 
-			astman_send_error(s, m, "No such channel");
-			return 0;
-		}
-
-		astman_send_error(s, m, "No timeout specified");
-		return 0;
-	}
-
-	astman_send_error(s, m, "No channel specified");
-	return 0;
+	return msg;
 }
 
 
-static int process_message(struct mansession *s, struct message *m)
+static int process_message(struct mansession *sess, const struct message *req)
 {
-	int ret = 0;
+	struct cw_manager_message *msg = NULL;
+	int islogoff = 0;
 
-	if (cw_strlen_zero(m->action))
-		astman_send_error(s, m, "Missing action in request");
-	else if (s->authenticated) {
-		struct cw_object *it;
-
-		if ((it = cw_registry_find(&manager_action_registry, 0, 0, m->action))) {
-			struct manager_action *act = container_of(it, struct manager_action, obj);
-			if ((s->writeperm & act->authority) == act->authority)
-				ret = act->func(s, m);
-			else
-				astman_send_error(s, m, "Permission denied");
-			cw_object_put(act);
-		} else
-			astman_send_error(s, m, "Invalid/unknown command");
-	} else if (!strcasecmp(m->action, "Challenge")) {
+	if (cw_strlen_zero(req->action))
+		msg = cw_manager_response("Error", "Missing action in request");
+	else if (!strcasecmp(req->action, "Challenge")) {
 		char *authtype;
 
-		if ((authtype = astman_get_header(m, "AuthType")) && !strcasecmp(authtype, "MD5")) {
-			if (cw_strlen_zero(s->challenge))
-				snprintf(s->challenge, sizeof(s->challenge), "%lu", cw_random());
-			astman_send_response(s, m, "Success", NULL, 0);
-			cw_cli(s->fd, "Challenge: %s\r\n\r\n", s->challenge);
-		} else
-			astman_send_error(s, m, "Must specify AuthType");
-	} else if (!strcasecmp(m->action, "Login")) {
-		if (authenticate(s, m)) {
-			sleep(1);
-			astman_send_error(s, m, "Authentication failed");
-		} else {
-			s->authenticated = 1;
-			if (option_verbose > 3 && displayconnects)
-				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", s->username, s->name);
-			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", s->username, s->name);
-			astman_send_ack(s, m, "Authentication accepted");
-		}
-	} else if (!strcasecmp(m->action, "Logoff")) {
-		astman_send_ack(s, m, "See ya");
-		ret = -1;
-	} else
-		astman_send_error(s, m, "Authentication Required");
+		if ((authtype = cw_manager_msg_header(req, "AuthType")) && !strcasecmp(authtype, "MD5")) {
+			if ((msg = cw_manager_response("Success", NULL))) {
+				if (cw_strlen_zero(sess->challenge))
+					snprintf(sess->challenge, sizeof(sess->challenge), "%lu", cw_random());
 
-	return ret;
+				cw_manager_msg(&msg, 1, cw_msg_tuple("Challenge", "%s", sess->challenge));
+			}
+		} else
+			msg = cw_manager_response("Error", "Must specify AuthType");
+	} else if (!strcasecmp(req->action, "Login")) {
+		msg = authenticate(sess, req);
+	} else if (!strcasecmp(req->action, "Logoff")) {
+		msg = cw_manager_response("Success", "See ya");
+		islogoff = 1;
+	} else if (sess->authenticated) {
+		struct cw_object *it;
+
+		if ((it = cw_registry_find(&manager_action_registry, 0, 0, req->action))) {
+			struct manager_action *act = container_of(it, struct manager_action, obj);
+			if ((sess->writeperm & act->authority) == act->authority)
+				msg = act->func(sess, req);
+			else
+				msg = cw_manager_response("Error", "Permission denied");
+			cw_object_put(act);
+		} else
+			msg = cw_manager_response("Error", "Invalid/unknown command");
+	} else
+		msg = cw_manager_response("Error", "Authentication Required");
+
+	if (msg) {
+		if (!cw_manager_send(sess, req, &msg) && !islogoff)
+			return 0;
+	}
+
+	return -1;
 }
 
 
@@ -1813,31 +1787,89 @@ static void manager_msg_free(struct cw_object *obj)
 	free(it);
 }
 
-static struct cw_manager_message *make_msg(size_t count, int map[], const char *fmt, va_list ap)
+
+static int add_msg(struct cw_manager_message **msg_p, size_t count, int map[], const char *fmt, va_list ap)
+{
+	struct cw_manager_message *msg;
+	int o_count, o_len;
+	int i;
+
+	o_count = (*msg_p)->count;
+
+	if ((msg = realloc(*msg_p, sizeof(struct cw_manager_message) + sizeof(msg->map[0]) * (((o_count + count) << 1) + 1)))) {
+		*msg_p = msg;
+
+		/* Drop the previous blank line termination marker */
+		msg->data->used -= 2;
+		o_len = msg->data->used;
+
+		if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
+			for (i = 0; i < count; i++) {
+				msg->map[((o_count + i) << 1) + 0] = map[(i << 1) + 0] + o_len;
+				msg->map[((o_count + i) << 1) + 1] = map[(i << 1) + 1] + o_len;
+			}
+			msg->count = o_count + count;
+			return 0;
+		}
+	}
+
+	/* Out of memory to expand the msg or dynstr but we can't log it here because
+	 * logging it just generates another event that will ultimately come
+	 * here and find it's out of memory and will log the fact causing another
+	 * event to be generated that will...
+	 */
+	cw_object_put(*msg_p);
+	*msg_p = NULL;
+	return -1;
+}
+
+
+static struct cw_manager_message *make_msg(size_t initsize, size_t chunk, size_t count, int map[], const char *fmt, va_list ap)
 {
 	struct cw_manager_message *msg;
 
 	if ((msg = malloc(sizeof(struct cw_manager_message) + sizeof(msg->map[0]) * ((count << 1) + 1)))) {
-		cw_object_init(msg, NULL, 1);
-		msg->obj.release = manager_msg_free;
-		msg->data = NULL;
+		if (!initsize || (msg->data = cw_dynstr_alloc(initsize, chunk))) {
+			cw_object_init(msg, NULL, 1);
+			msg->obj.release = manager_msg_free;
+			msg->data = NULL;
 
-		if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
-			msg->count = count;
-			memcpy(msg->map, map, ((count << 1) + 1) * sizeof(msg->map[0]));
-		} else {
-			/* Out of memory to expand the dynstr but we can't log it here because
-			 * logging it just generates another event that will ultimately come
-			 * here and find it's out of memory and will log the fact causing another
-			 * event to be generated that will...
-			 */
-			cw_object_put(msg);
-			msg = NULL;
+			if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
+				msg->count = count;
+				memcpy(msg->map , map, ((count << 1) + 1) * sizeof(msg->map[0]));
+				goto out;
+			}
 		}
+
+		/* Out of memory to alloc or expand the dynstr but we can't log it here
+		 * because logging it just generates another event that will ultimately
+		 * come here and find it's out of memory and will log the fact causing
+		 * another event to be generated that will...
+		 */
+		cw_object_put(msg);
+		msg = NULL;
 	}
 
+out:
 	return msg;
 }
+
+
+int cw_manager_msg_func(struct cw_manager_message **msg_p, size_t count, int map[], const char *fmt, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, fmt);
+	if (*msg_p)
+		ret = add_msg(msg_p, count, map, fmt, ap);
+	else
+		ret = !(*msg_p = make_msg(1024, 1024, count, map, fmt, ap));
+	va_end(ap);
+
+	return ret;
+}
+
 
 struct manager_event_args {
 	int category;
@@ -1854,8 +1886,10 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	struct manager_event_args *args = data;
 
 	if ((it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
-		if (args->msg || (args->msg = make_msg(args->count, args->map, args->fmt, args->ap)))
-			append_msg(it, args->msg);
+		if (args->msg || (args->msg = make_msg(0, 0, args->count, args->map, args->fmt, args->ap))) {
+			struct cw_manager_message *msg = cw_object_dup(args->msg);
+			cw_manager_send(it, NULL, &msg);
+		}
 	}
 
 	return 0;
@@ -1919,7 +1953,7 @@ static struct manager_action manager_actions[] = {
 	{
 		.action = "Logoff",
 		.authority = 0,
-		.func = action_logoff,
+		.func = NULL,
 		.synopsis = "Logoff Manager",
 		.description = mandescr_logoff,
 	},

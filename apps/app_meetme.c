@@ -514,9 +514,9 @@ cnfout:
     return cnf;
 }
 
-static int confs_show(int fd, int argc, char **argv)
+static int confs_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    cw_cli(fd, "Deprecated! Please use 'meetme' instead.\n");
+    cw_dynstr_printf(ds_p, "Deprecated! Please use 'meetme' instead.\n");
     return RESULT_SUCCESS;
 }
 
@@ -531,7 +531,7 @@ static struct cw_clicmd cli_show_confs =
     .usage = show_confs_usage,
 };
 
-static int conf_cmd(int fd, int argc, char **argv)
+static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     /* Process the command */
     char buf[1024] = "";
@@ -544,12 +544,12 @@ static int conf_cmd(int fd, int argc, char **argv)
     time_t now;
 
     if (argc > 8)
-        cw_cli(fd, "Invalid Arguments.\n");
+        cw_dynstr_printf(ds_p, "Invalid Arguments.\n");
     /* Check for length so no buffer will overflow... */
     for (i = 0; i < argc; i++)
     {
         if (strlen(argv[i]) > 100)
-            cw_cli(fd, "Invalid Arguments.\n");
+            cw_dynstr_printf(ds_p, "Invalid Arguments.\n");
     }
     if (argc == 1)
     {
@@ -558,10 +558,10 @@ static int conf_cmd(int fd, int argc, char **argv)
         cnf = confs;
         if (!cnf)
         {
-            cw_cli(fd, "No active MeetMe conferences.\n");
+            cw_dynstr_printf(ds_p, "No active MeetMe conferences.\n");
             return RESULT_SUCCESS;
         }
-        cw_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
+        cw_dynstr_printf(ds_p, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
         while (cnf)
         {
             if (cnf->markedusers == 0)
@@ -572,12 +572,12 @@ static int conf_cmd(int fd, int argc, char **argv)
             min = ((now - cnf->start) % 3600) / 60;
             sec = (now - cnf->start) % 60;
 
-            cw_cli(fd, data_format, cnf->confno, cnf->users, buf, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
+            cw_dynstr_printf(ds_p, data_format, cnf->confno, cnf->users, buf, hr, min, sec, cnf->isdynamic ? "Dynamic" : "Static");
 
             total += cnf->users;
             cnf = cnf->next;
         }
-        cw_cli(fd, "* Total number of MeetMe users: %d\n", total);
+        cw_dynstr_printf(ds_p, "* Total number of MeetMe users: %d\n", total);
         return RESULT_SUCCESS;
     }
     if (argc < 3)
@@ -646,7 +646,7 @@ static int conf_cmd(int fd, int argc, char **argv)
         /* List all the users in a conference */
         if (!confs)
         {
-            cw_cli(fd, "No active conferences.\n");
+            cw_dynstr_printf(ds_p, "No active conferences.\n");
             return RESULT_SUCCESS;
         }
         cnf = confs;
@@ -661,7 +661,7 @@ static int conf_cmd(int fd, int argc, char **argv)
             }
             else
             {
-                cw_cli(fd, "No such conference: %s.\n",argv[2]);
+                cw_dynstr_printf(ds_p, "No such conference: %s.\n",argv[2]);
                 return RESULT_SUCCESS;
             }
         }
@@ -669,10 +669,10 @@ static int conf_cmd(int fd, int argc, char **argv)
         user = cnf->firstuser;
         while (user)
         {
-            cw_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n", user->user_no, user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>", user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>", user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
+            cw_dynstr_printf(ds_p, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n", user->user_no, user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>", user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>", user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
             user = user->nextuser;
         }
-        cw_cli(fd,"%d users in that conference.\n",cnf->users);
+        cw_dynstr_printf(ds_p,"%d users in that conference.\n",cnf->users);
         return RESULT_SUCCESS;
     }
     else
@@ -682,7 +682,7 @@ static int conf_cmd(int fd, int argc, char **argv)
     return 0;
 }
 
-static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_confcmd(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
     int x = 0;
@@ -696,7 +696,7 @@ static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
         for (x = 0; x < arraysize(cmds); x++)
         {
             if (!strncasecmp(cmds[x], argv[1], lastarg_len))
-                cw_cli(fd, "%s\n", cmds[x]);
+                cw_dynstr_printf(ds_p, "%s\n", cmds[x]);
         }
     }
     else if (lastarg == 2)
@@ -706,7 +706,7 @@ static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
         for (cnf = confs; cnf; cnf = cnf->next)
         {
             if (!strncasecmp(argv[2], cnf->confno, lastarg_len))
-                cw_cli(fd, "%s\n", cnf->confno);
+                cw_dynstr_printf(ds_p, "%s\n", cnf->confno);
         }
         cw_mutex_unlock(&conflock);
     }
@@ -716,7 +716,7 @@ static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
         if (!strcmp(argv[1], "mute") || !strcmp(argv[1], "kick"))
         {
             if ((!strcmp(argv[1], "kick") || !strcmp(argv[1],"mute")) && !(strncasecmp(argv[3], "all", lastarg_len)))
-                cw_cli(fd, "all\n");
+                cw_dynstr_printf(ds_p, "all\n");
 
             cw_mutex_lock(&conflock);
 
@@ -729,7 +729,7 @@ static void complete_confcmd(int fd, char *argv[], int lastarg, int lastarg_len)
                     {
                         snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
                         if (!strncasecmp(argv[3], usrno, lastarg_len))
-                            cw_cli(fd, "%s\n", usrno);
+                            cw_dynstr_printf(ds_p, "%s\n", usrno);
                     }
 		}
             }

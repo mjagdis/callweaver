@@ -2516,25 +2516,27 @@ blt_parse_config(void)
 
 
 static int
-blt_show_peers(int fd, int argc, char *argv[])
+blt_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
   blt_dev_t * dev;
 
   if (cw_mutex_lock(&iface_lock)) {
     cw_log(CW_LOG_ERROR, "Failed to get Iface lock\n");
-    cw_cli(fd, "Failed to get iface lock\n");
+    cw_dynstr_printf(ds_p, "Failed to get iface lock\n");
     return RESULT_FAILURE;
   }
 
   dev = iface_head;
 
-  cw_cli(fd, "BDAddr            Name       Role Status      A/C SCOCon/Fd/Th Sig\n");
-  cw_cli(fd, "----------------- ---------- ---- ----------- --- ------------ ---\n");
+  cw_dynstr_printf(ds_p,
+    "BDAddr            Name       Role Status      A/C SCOCon/Fd/Th Sig\n"
+    "----------------- ---------- ---- ----------- --- ------------ ---\n"
+  );
 
   while (dev) {
     char b1[18];
     ba2str(&(dev->bdaddr), b1);
-    cw_cli(fd, "%s %-10s %-4s %-11s %-3s %2d/%02d/%-6ld %s\n",
+    cw_dynstr_printf(ds_p, "%s %-10s %-4s %-11s %-3s %2d/%02d/%-6ld %s\n",
                 b1, dev->name, (dev->role == BLT_ROLE_HS) ? "HS" : "AG", status2str(dev->status),
                 (dev->autoconnect) ? "Yes" : "No",
                 dev->sco_running,
@@ -2550,20 +2552,22 @@ blt_show_peers(int fd, int argc, char *argv[])
 }
 
 static int
-blt_show_information(int fd, int argc, char *argv[])
+blt_show_information(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
   char b1[18];
   ba2str(&local_bdaddr, b1);
-  cw_cli(fd, "-------------------------------------------\n");
-  cw_cli(fd, "     RFCOMM AG : Channel %d, FD %d\n", rfcomm_channel_ag, rfcomm_sock_ag);
-  cw_cli(fd, "     RFCOMM HS : Channel %d, FD %d\n", rfcomm_channel_hs, rfcomm_sock_hs);
-  cw_cli(fd, "        Device : hci%d, MAC Address %s\n", hcidev_id, b1);
-  cw_cli(fd, "-------------------------------------------\n");
+  cw_dynstr_tprintf(ds_p, 5,
+    cw_fmtval("-------------------------------------------\n"),
+    cw_fmtval("     RFCOMM AG : Channel %d, FD %d\n", rfcomm_channel_ag, rfcomm_sock_ag),
+    cw_fmtval("     RFCOMM HS : Channel %d, FD %d\n", rfcomm_channel_hs, rfcomm_sock_hs),
+    cw_fmtval("        Device : hci%d, MAC Address %s\n", hcidev_id, b1),
+    cw_fmtval("-------------------------------------------\n")
+  );
   return RESULT_SUCCESS;
 }
 
 static int
-blt_ag_sendcmd(int fd, int argc, char *argv[])
+blt_ag_sendcmd(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
   blt_dev_t * dev;
 
@@ -2580,24 +2584,24 @@ blt_ag_sendcmd(int fd, int argc, char *argv[])
   cw_mutex_unlock(&iface_lock);
 
   if (!dev) {
-    cw_cli(fd, "Device '%s' does not exist\n", argv[2]);
+    cw_dynstr_printf(ds_p, "Device '%s' does not exist\n", argv[2]);
     return RESULT_FAILURE;
   }
 
   if (dev->role != BLT_ROLE_AG) {
-    cw_cli(fd, "Device '%s' is not an AudioGateway\n", argv[2]);
+    cw_dynstr_printf(ds_p, "Device '%s' is not an AudioGateway\n", argv[2]);
     return RESULT_FAILURE;
   }
 
   if (dev->status == BLT_STATUS_DOWN || dev->status == BLT_STATUS_NEGOTIATING) {
-    cw_cli(fd, "Device '%s' is not connected\n", argv[2]);
+    cw_dynstr_printf(ds_p, "Device '%s' is not connected\n", argv[2]);
     return RESULT_FAILURE;
   }
 
   if (*(argv[3] + strlen(argv[3]) - 1) == '.')
     *(argv[3] + strlen(argv[3]) - 1) = '?';
 
-  cw_cli(fd, "Sending AT command to %s: %s\n", dev->name, argv[3]);
+  cw_dynstr_printf(ds_p, "Sending AT command to %s: %s\n", dev->name, argv[3]);
 
   cw_mutex_lock(&(dev->lock));
   send_atcmd(dev, argv[3]);
@@ -2607,7 +2611,7 @@ blt_ag_sendcmd(int fd, int argc, char *argv[])
 }
 
 static void
-complete_device(int fd, char *argv[], int lastarg, int lastarg_len, int rpos, blt_role_t role)
+complete_device(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len, int rpos, blt_role_t role)
 {
   blt_dev_t * dev;
 
@@ -2616,7 +2620,7 @@ complete_device(int fd, char *argv[], int lastarg, int lastarg_len, int rpos, bl
 
     for (dev = iface_head; dev; dev = dev->next) {
       if ((dev->role == role) && (!strncasecmp(argv[lastarg], dev->name, lastarg_len))) {
-        cw_cli(fd, "%s\n", dev->name);
+        cw_dynstr_printf(ds_p, "%s\n", dev->name);
       }
     }
 
@@ -2625,9 +2629,9 @@ complete_device(int fd, char *argv[], int lastarg, int lastarg_len, int rpos, bl
 }
 
 static void
-complete_device_2_ag(int fd, char *argv[], int lastarg, int lastarg_len)
+complete_device_2_ag(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
-  complete_device(fd, argv, lastarg, lastarg_len, 2, BLT_ROLE_AG);
+  complete_device(ds_p, argv, lastarg, lastarg_len, 2, BLT_ROLE_AG);
 }
 
 static void remove_sdp_records(void)

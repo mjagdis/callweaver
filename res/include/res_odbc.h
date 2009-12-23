@@ -29,6 +29,9 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
+#include <callweaver/dynstr.h>
+
+
 typedef struct odbc_obj odbc_obj;
 
 typedef enum { ODBC_SUCCESS=0,ODBC_FAIL=-1} odbc_status;
@@ -53,7 +56,7 @@ extern CW_API_PUBLIC odbc_status odbc_obj_disconnect(odbc_obj *obj);
 extern CW_API_PUBLIC void destroy_odbc_obj(odbc_obj **obj);
 extern CW_API_PUBLIC int register_odbc_obj(char *name,odbc_obj *obj);
 extern CW_API_PUBLIC odbc_obj *fetch_odbc_obj(const char *name, int check);
-extern CW_API_PUBLIC int odbc_dump_fd(int fd,odbc_obj *obj);
+extern CW_API_PUBLIC int odbc_dump_fd(struct cw_dynstr **ds_p, odbc_obj *obj);
 extern CW_API_PUBLIC int odbc_sanity_check(odbc_obj *obj);
 extern CW_API_PUBLIC int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt);
 extern CW_API_PUBLIC int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql);

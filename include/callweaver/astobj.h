@@ -742,8 +742,8 @@ extern "C" {
  * refcount fields of all the objects in a container to the specified file
  * descriptor.
  */
-#define ASTOBJ_CONTAINER_DUMP(fd,s,slen,container) \
-	ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { ASTOBJ_DUMP(s,slen,iterator); cw_cli(fd, s); } while(0))
+#define ASTOBJ_CONTAINER_DUMP(ds_p,s,slen,container) \
+	ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { ASTOBJ_DUMP(s,slen,iterator); cw_dynstr_printf(ds_p, s); } while(0))
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

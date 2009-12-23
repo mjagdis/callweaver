@@ -3478,37 +3478,37 @@ static int pbx_load_module(void)
 }
 
 /* CLI interface */
-static int ael2_debug_read(int fd, int argc, char *argv[])
+static int ael2_debug_read(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	aeldebug |= DEBUG_READ;
 	return 0;
 }
 
-static int ael2_debug_tokens(int fd, int argc, char *argv[])
+static int ael2_debug_tokens(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	aeldebug |= DEBUG_TOKENS;
 	return 0;
 }
 
-static int ael2_debug_procs(int fd, int argc, char *argv[])
+static int ael2_debug_procs(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	aeldebug |= DEBUG_PROCS;
 	return 0;
 }
 
-static int ael2_debug_contexts(int fd, int argc, char *argv[])
+static int ael2_debug_contexts(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	aeldebug |= DEBUG_CONTEXTS;
 	return 0;
 }
 
-static int ael2_no_debug(int fd, int argc, char *argv[])
+static int ael2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	aeldebug = 0;
 	return 0;
 }
 
-static int ael2_reload(int fd, int argc, char *argv[])
+static int ael2_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_context_destroy(NULL, registrar);
 	return (pbx_load_module());

@@ -234,7 +234,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-static int group_show_channels(int fd, int argc, char *argv[])
+static int group_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	struct cw_group_info *gi = NULL;
@@ -251,24 +251,23 @@ static int group_show_channels(int fd, int argc, char *argv[])
 		havepattern = 1;
 	}
 
-	cw_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
+	cw_dynstr_printf(ds_p, FORMAT_STRING, "Channel", "Group", "Category");
 
 	cw_app_group_list_lock();
 
-	gi = cw_app_group_list_head();
-	while (gi) {
+	for (gi = cw_app_group_list_head(); gi; gi = CW_LIST_NEXT(gi, list)) {
 		if (!havepattern || !regexec(&regexbuf, gi->group, 0, NULL, 0)) {
-			cw_cli(fd, FORMAT_STRING, gi->chan->name, gi->group, (cw_strlen_zero(gi->category) ? "(default)" : gi->category));
+			cw_dynstr_printf(ds_p, FORMAT_STRING, gi->chan->name, gi->group, (cw_strlen_zero(gi->category) ? "(default)" : gi->category));
 			numchans++;
 		}
-		gi = CW_LIST_NEXT(gi, list);
 	}
+
 	cw_app_group_list_unlock();
 
 	if (havepattern)
 		regfree(&regexbuf);
 
-	cw_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	cw_dynstr_printf(ds_p, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 }
 #undef FORMAT_STRING

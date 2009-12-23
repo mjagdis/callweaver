@@ -306,7 +306,7 @@ int __cw_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, i
     }
 }
 
-static int handle_show_memory(int fd, int argc, char *argv[])
+static int handle_show_memory(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;
@@ -349,13 +349,13 @@ static int handle_show_memory(int fd, int argc, char *argv[])
             }
             if (fn == NULL  ||  strcasecmp(fn, reg->file) == 0)
             {
-                cw_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
+                cw_dynstr_printf(ds_p, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
                 len += reg->len;
                 count++;
             }
         }
     }
-    cw_cli(fd, "%d bytes allocated %d units total\n", len, count);
+    cw_dynstr_printf(ds_p, "%d bytes allocated %d units total\n", len, count);
     cw_mutex_unlock(&showmemorylock);
     return RESULT_SUCCESS;
 }
@@ -369,7 +369,7 @@ struct file_summary
     struct file_summary *next;
 };
 
-static int handle_show_memory_summary(int fd, int argc, char *argv[])
+static int handle_show_memory_summary(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;
@@ -423,12 +423,12 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
         {
             if (fn)
             {
-                cw_cli(fd, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n", 
+                cw_dynstr_printf(ds_p, "%10d bytes (%10d cache) in %d allocations in function '%s' of '%s'\n",
                     cur->len, cur->cache_len, cur->count, cur->fn, fn);
             }
             else
             {
-                cw_cli(fd, "%10d bytes (%10d cache) in %d allocations in file '%s'\n", 
+                cw_dynstr_printf(ds_p, "%10d bytes (%10d cache) in %d allocations in file '%s'\n",
                     cur->len, cur->cache_len, cur->count, cur->fn);
             }
         }
@@ -436,20 +436,20 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
         {
             if (fn)
             {
-                cw_cli(fd, "%10d bytes in %d allocations in function '%s' of '%s'\n", 
+                cw_dynstr_printf(ds_p, "%10d bytes in %d allocations in function '%s' of '%s'\n",
                     cur->len, cur->count, cur->fn, fn);
             }
             else
             {
-                cw_cli(fd, "%10d bytes in %d allocations in file '%s'\n", 
+                cw_dynstr_printf(ds_p, "%10d bytes in %d allocations in file '%s'\n",
                     cur->len, cur->count, cur->fn);
             }
         }
     }
     if (cache_len)
-        cw_cli(fd, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
+        cw_dynstr_printf(ds_p, "%d bytes allocated (%d in caches) in %d allocations\n", len, cache_len, count);
     else
-        cw_cli(fd, "%d bytes allocated in %d allocations\n", len, count);
+        cw_dynstr_printf(ds_p, "%d bytes allocated in %d allocations\n", len, count);
     return RESULT_SUCCESS;
 }
 

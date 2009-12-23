@@ -70,7 +70,16 @@ struct cw_manager_message {
 };
 
 
-struct message;
+struct message {
+	char *actionid;
+	char *action;
+	int hdrcount;
+	struct {
+		char *key;
+		char *val;
+	} header[80];
+};
+
 
 struct mansession {
 	struct cw_object obj;
@@ -102,7 +111,7 @@ struct manager_action {
 	struct cw_registry_entry *reg_entry;
 	const char *action;		/*!< Name of the action */
 	int authority;			/*!< Permission required for action.  EVENT_FLAG_* */
-	int (*func)(struct mansession *s, struct message *m); /*!< Function to be called */
+	struct cw_manager_message *(*func)(struct mansession *sess, const struct message *req); /*!< Function to be called */
 	const char *synopsis;		/*!< Short description of the action */
 	const char *description;	/*!< Detailed description of the action */
 };
@@ -150,15 +159,23 @@ extern CW_API_PUBLIC struct cw_registry manager_action_registry;
 extern CW_API_PUBLIC int manager_str_to_eventmask(char *events);
 
 /*! Get header from mananger transaction */
-extern CW_API_PUBLIC char *astman_get_header(struct message *m, char *var);
+extern CW_API_PUBLIC char *cw_manager_msg_header(const struct message *msg, const char *key);
 
-/*! Fill a registry with the contents of the Variable: headers */
-extern CW_API_PUBLIC void astman_get_variables(struct cw_registry *vars, struct message *m);
 
-/*! Send error in manager transaction */
-extern CW_API_PUBLIC void astman_send_response(struct mansession *s, struct message *m, const char *resp, const char *msg, int complete);
-extern CW_API_PUBLIC void astman_send_error(struct mansession *s, struct message *m, const char *error);
-extern CW_API_PUBLIC void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
+/*! \brief send a message to a manager session
+ *
+ * \param sess     the manager session to send to
+ * \param req      the request being responded to
+ * \param resp_p   an indirect reference to the message to be sent
+ *
+ * The message is a referenced counted object. In all cases cw_manager_send
+ * consumes a reference and sets the given pointer to NULL.
+ *
+ * \return 0 on success, 1 on queue overflow, -1 if the message was flagged as in error
+ */
+extern CW_API_PUBLIC int cw_manager_send(struct mansession *sess, const struct message *req, struct cw_manager_message **resp_p);
+
+extern CW_API_PUBLIC struct cw_manager_message *cw_manager_response(const char *resp, const char *msgstr);
 
 extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
 extern CW_API_PUBLIC void manager_session_shutdown(struct mansession *sess);
@@ -219,6 +236,12 @@ extern int init_manager(void);
  * the compiled code will not generate events (they will be optimized
  * out).
  */
+static __inline__ int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
+	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
+static __inline__ int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
+{
+	return 0;
+}
 static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (2)));
 static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
@@ -230,14 +253,53 @@ static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
 {
 	return NULL;
 }
+static __inline__ char *cw_msg_vtuple(const char *key, const char *fmt, ...)
+	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1,2), format (printf, 2,3)));
+static __inline__ char *cw_msg_vtuple(const char *key, const char *fmt, ...)
+{
+	return NULL;
+}
+
+/*! \brief create a callweaver manager message
+ *      \note The actual parameters passed are hidden by the wrapping macro below
+ *      \param msg_p		An indirect reference to the msg to be created or extended
+ *      \param count		Number of key-value tuples
+ *      \param map		Map of offsets for keys and values
+ *      \param fmt		printf style format string
+ */
+extern CW_API_PUBLIC int cw_manager_msg_func(struct cw_manager_message **msg_p, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 4,5)));
+
+/*! \brief send a callweaver manager event
+ *      \note The actual parameters passed are hidden by the wrapping macro
+ *      \param category	Event category, matches manager authorization
+ *      \param count		Number of key-value tuples
+ *      \param map		Map of offsets for keys and values
+ *      \param fmt		printf style format string
+ */
+extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 4,5)));
 
 #ifndef CW_DEBUG_MAN_EVENT
 #  define CW_ME_DEBRACKET_cw_msg_tuple(key, fmt, ...)	key, fmt, ## __VA_ARGS__
+#  define CW_ME_DEBRACKET_cw_msg_vtuple(key, fmt, ...)	key, fmt, ## __VA_ARGS__
 #  define CW_ME_DO(op, ...)				op(__VA_ARGS__)
 #  define CW_ME_FMT(n, a)				CW_ME_DO(CW_ME_FMT_I, n, CW_CPP_CAT(CW_ME_DEBRACKET_, a))
 #  define CW_ME_FMT_I(n, key, fmt, ...)			"%s: %n" fmt "\r\n%n"
 #  define CW_ME_ARGS(n, a)				CW_ME_DO(CW_ME_ARGS_I, n, CW_CPP_CAT(CW_ME_DEBRACKET_, a))
 #  define CW_ME_ARGS_I(n, key, fmt, ...)		key, &map[(n << 1) + 1], ## __VA_ARGS__, &map[(n << 1) + 2],
+
+#  define cw_manager_msg(msg_p, count, ...) ({ \
+	(void)cw_manager_msg(msg_p, count, \
+		__VA_ARGS__ \
+	); \
+	int map[(count << 1) + 1] = { 0 }; \
+	cw_manager_msg_func(msg_p, count, map, \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_FMT, __VA_ARGS__) "%s", \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_ARGS, __VA_ARGS__) \
+		"\r\n" \
+	); \
+   })
 
 #  define cw_manager_event(category, event, count, ...) ({ \
 	cw_manager_event(category, event, count, \
@@ -253,12 +315,6 @@ static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
 	); \
    })
 
-   /*! \brief send a callweaver manager event
-    *      \param category	Event category, matches manager authorization
-    *      \param contents	Contents of event
-    */
-   extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
-	__attribute__ ((format (printf, 4,5)));
 #endif
 
 

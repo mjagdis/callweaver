@@ -45,6 +45,7 @@
 #ifndef ICD_CALLER_PRIVATE_H
 #define ICD_CALLER_PRIVATE_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/icd/icd_types.h"
@@ -117,7 +118,7 @@ extern "C" {
         icd_plugable_fn_list *plugable_fns_list;        /*The List of plugable functions for each dist */
 
         icd_listeners *listeners;
-          icd_status(*dump_fn) (icd_caller * caller, int verbosity, int fd, void *extra);
+          icd_status(*dump_fn) (icd_caller * caller, int verbosity, struct cw_dynstr **ds_p, void *extra);
         void *dump_fn_extra;
 
         /* Threading and locking */

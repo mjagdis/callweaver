@@ -69,7 +69,7 @@ static const char cdr_mysql_status_help[] =
 "Usage: cdr mysql status\n"
 "       Shows current connection status for cdr_mysql\n";
 
-static int handle_cdr_mysql_status(int fd, int argc, char *argv[])
+static int handle_cdr_mysql_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (connected) {
 		char status[256], status2[100] = "";
@@ -86,23 +86,23 @@ static int handle_cdr_mysql_status(int fd, int argc, char *argv[])
 		if (dbtable && *dbtable)
 			snprintf(status2, 99, " using table %s", dbtable);
 		if (ctime > 31536000) {
-			cw_cli(fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 86400) {
-			cw_cli(fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 3600) {
-			cw_cli(fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 60) {
-			cw_cli(fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
 		} else {
-			cw_cli(fd, "%s%s for %d seconds.\n", status, status2, ctime);
+			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, ctime);
 		}
 		if (records == totalrecords)
-			cw_cli(fd, "  Wrote %d records since last restart.\n", totalrecords);
+			cw_dynstr_printf(ds_p, "  Wrote %d records since last restart.\n", totalrecords);
 		else
-			cw_cli(fd, "  Wrote %d records since last restart and %d records since last reconnect.\n", totalrecords, records);
+			cw_dynstr_printf(ds_p, "  Wrote %d records since last restart and %d records since last reconnect.\n", totalrecords, records);
 		return RESULT_SUCCESS;
 	} else {
-		cw_cli(fd, "Not currently connected to a MySQL server.\n");
+		cw_dynstr_printf(ds_p, "Not currently connected to a MySQL server.\n");
 		return RESULT_FAILURE;
 	}
 }

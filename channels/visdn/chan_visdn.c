@@ -4361,13 +4361,13 @@ static void visdn_q931_ccb_receive()
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_generic(int fd, int argc, char *argv[])
+static int do_debug_visdn_generic(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug = TRUE;
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN debugging enabled\n");
+	cw_dynstr_printf(ds_p, "vISDN debugging enabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4387,13 +4387,13 @@ static struct cw_cli_entry debug_visdn_generic =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_generic(int fd, int argc, char *argv[])
+static int do_no_debug_visdn_generic(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug = FALSE;
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN debugging disabled\n");
+	cw_dynstr_printf(ds_p, "vISDN debugging disabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4409,7 +4409,7 @@ static struct cw_cli_entry no_debug_visdn_generic =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_q921(int fd, int argc, char *argv[])
+static int do_debug_visdn_q921(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	// Enable debugging on new DLCs FIXME TODO
 
@@ -4418,7 +4418,7 @@ static int do_debug_visdn_q921(int fd, int argc, char *argv[])
 	visdn_set_socket_debug(1);
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN q.921 debugging enabled\n");
+	cw_dynstr_printf(ds_p, "vISDN q.921 debugging enabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4439,7 +4439,7 @@ static struct cw_cli_entry debug_visdn_q921 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_q921(int fd, int argc, char *argv[])
+static int do_no_debug_visdn_q921(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	// Disable debugging on new DLCs FIXME TODO
 
@@ -4448,7 +4448,7 @@ static int do_no_debug_visdn_q921(int fd, int argc, char *argv[])
 	visdn_set_socket_debug(0);
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN q.921 debugging disabled\n");
+	cw_dynstr_printf(ds_p, "vISDN q.921 debugging disabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4464,13 +4464,13 @@ static struct cw_cli_entry no_debug_visdn_q921 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_q931(int fd, int argc, char *argv[])
+static int do_debug_visdn_q931(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug_q931 = TRUE;
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN q.931 debugging enabled\n");
+	cw_dynstr_printf(ds_p, "vISDN q.931 debugging enabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4491,13 +4491,13 @@ static struct cw_cli_entry debug_visdn_q931 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_q931(int fd, int argc, char *argv[])
+static int do_no_debug_visdn_q931(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug_q931 = FALSE;
 	cw_mutex_unlock(&visdn.lock);
 
-	cw_cli(fd, "vISDN q.931 debugging disabled\n");
+	cw_dynstr_printf(ds_p, "vISDN q.931 debugging disabled\n");
 
 	return RESULT_SUCCESS;
 }
@@ -4513,7 +4513,7 @@ static struct cw_cli_entry no_debug_visdn_q931 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_visdn_reload(int fd, int argc, char *argv[])
+static int do_visdn_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	visdn_reload_config();
 
@@ -4539,7 +4539,7 @@ static struct cw_cli_entry visdn_reload =
 /*---------------------------------------------------------------------------*/
 
 static void visdn_print_call_summary_entry(
-	int fd,
+	struct cw_dynstr **ds_p,
 	struct q931_call *call)
 {
 	char idstr[20];
@@ -4550,7 +4550,7 @@ static void visdn_print_call_summary_entry(
 			Q931_CALL_DIRECTION_INBOUND)
 				? 'I' : 'O');
 
-	cw_cli(fd, "%-17s %-25s",
+	cw_dynstr_printf(ds_p, "%-17s %-25s",
 		idstr,
 		q931_call_state_to_text(call->state));
 
@@ -4558,16 +4558,16 @@ static void visdn_print_call_summary_entry(
 	if (cw_chan) {
 		struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 
-		cw_cli(fd, "%s%s",
+		cw_dynstr_printf(ds_p, "%s%s",
 			visdn_chan->number,
 			visdn_chan->sending_complete ? "(SC)" : "");
 	}
 
-	cw_cli(fd, "\n");
+	cw_dynstr_printf(ds_p, "\n");
 }
 
 static int visdn_cli_print_call_list(
-	int fd,
+	struct cw_dynstr **ds_p,
 	struct q931_interface *filter_intf)
 {
 	int first_call;
@@ -4588,7 +4588,7 @@ static int visdn_cli_print_call_list(
 			if (!filter_intf || call->intf == filter_intf) {
 
 				if (first_call) {
-					cw_cli(fd,
+					cw_dynstr_printf(ds_p,
 						"ID                "
 						"State                    "
 						"Number\n");
@@ -4606,36 +4606,32 @@ static int visdn_cli_print_call_list(
 }
 
 static void visdn_cli_print_call_timer_info(
-	int fd, struct q931_timer *timer,
+	struct cw_dynstr **ds_p, struct q931_timer *timer,
 	const char *name)
 {
 	if (timer->pending) {
 		longtime_t delay = timer->expires - q931_longtime_now();
-		cw_cli(fd, "%s (in %.1f s) ", name, delay / 1000000.0);
+		cw_dynstr_printf(ds_p, "%s (in %.1f s) ", name, delay / 1000000.0);
 	}
 }
 
-static void visdn_cli_print_call(int fd, struct q931_call *call)
+static void visdn_cli_print_call(struct cw_dynstr **ds_p, struct q931_call *call)
 {
-	cw_cli(fd, "--------- Call %s/%d.%s\n",
+	cw_dynstr_printf(ds_p, "--------- Call %s/%d.%s\n",
 		call->intf->name,
 		call->call_reference,
 		call->direction == Q931_CALL_DIRECTION_INBOUND ?
 			"inbound" : "outbound");
 
 	if (call->dlc)
-		cw_cli(fd, "DLC (TEI)       : %d\n", call->dlc->tei);
+		cw_dynstr_printf(ds_p, "DLC (TEI)       : %d\n", call->dlc->tei);
 
-	cw_cli(fd, "State           : %s\n",
-		q931_call_state_to_text(call->state));
-
-	cw_cli(fd, "Broadcast setup : %s\n",
-		call->broadcast_setup ? "Yes" : "No");
-
-	cw_cli(fd, "Tones option    : %s\n",
-		call->tones_option ? "Yes" : "No");
-
-	cw_cli(fd, "Active timers   : ");
+	cw_dynstr_tprintf(ds_p, 4,
+		cw_fmtval("State           : %s\n", q931_call_state_to_text(call->state)),
+		cw_fmtval("Broadcast setup : %s\n", call->broadcast_setup ? "Yes" : "No"),
+		cw_fmtval("Tones option    : %s\n", call->tones_option ? "Yes" : "No"),
+		cw_fmtval("Active timers   : ")
+	);
 
 	visdn_cli_print_call_timer_info(fd, &call->T301, "T301");
 	visdn_cli_print_call_timer_info(fd, &call->T302, "T302");
@@ -4656,55 +4652,42 @@ static void visdn_cli_print_call(int fd, struct q931_call *call)
 	visdn_cli_print_call_timer_info(fd, &call->T321, "T321");
 	visdn_cli_print_call_timer_info(fd, &call->T322, "T322");
 
-	cw_cli(fd, "\n");
-
-	cw_cli(fd, "CES:\n");
+	cw_dynstr_printf(ds_p, "\nCES:\n");
 	struct q931_ces *ces;
 	list_for_each_entry(ces, &call->ces, node) {
-		cw_cli(fd, "%d %s %s ",
+		cw_dynstr_printf(ds_p, "%d %s %s ",
 			ces->dlc->tei,
 			q931_ces_state_to_text(ces->state),
 			(ces == call->selected_ces ? "presel" :
 			  (ces == call->preselected_ces ? "sel" : "")));
 
-		if (ces->T304.pending) cw_cli(fd, "T304 ");
-		if (ces->T308.pending) cw_cli(fd, "T308 ");
-		if (ces->T322.pending) cw_cli(fd, "T322 ");
+		if (ces->T304.pending) cw_dynstr_printf(ds_p, "T304 ");
+		if (ces->T308.pending) cw_dynstr_printf(ds_p, "T308 ");
+		if (ces->T322.pending) cw_dynstr_printf(ds_p, "T322 ");
 
-		cw_cli(fd, "\n");
+		cw_dynstr_printf(ds_p, "\n");
 	}
 
 	struct cw_channel *cw_chan = callpvt_to_cwchan(call);
 	if (cw_chan) {
 		struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 
-		cw_cli(fd, "------ CallWeaver Channel\n");
-
-		cw_cli(fd,
-			"Number               : %s%s\n"
-			"Options              : %s\n"
-			"Is voice             : %s\n"
-			"Handle stream        : %s\n"
-			"Streamport Chanid    : %06d\n"
-			"EC NearEnd Chanid    : %06d\n"
-			"EC FarEnd Chanid     : %06d\n"
-			"Bearer Chanid        : %06d\n"
-			"In-band informations : %s\n"
-			"DTMF Deferred        : %s\n",
-			visdn_chan->number,
-			visdn_chan->sending_complete ? " (SC)" : "",
-			visdn_chan->options,
-			visdn_chan->is_voice ? "Yes" : "No",
-			visdn_chan->handle_stream ? "Yes" : "No",
-			visdn_chan->sp_channel_id,
-			visdn_chan->ec_ne_channel_id,
-			visdn_chan->ec_fe_channel_id,
-			visdn_chan->bearer_channel_id,
-			visdn_chan->inband_info ? "Yes" : "No",
-			visdn_chan->dtmf_deferred ? "Yes" : "No");
+		cw_dynstr_tprintf(ds_p, 11,
+			cw_fmtval("------ CallWeaver Channel\n"),
+			cw_fmtval("Number               : %s%s\n", visdn_chan->number, (visdn_chan->sending_complete ? " (SC)" : "")),
+			cw_fmtval("Options              : %s\n", visdn_chan->options),
+			cw_fmtval("Is voice             : %s\n", (visdn_chan->is_voice ? "Yes" : "No")),
+			cw_fmtval("Handle stream        : %s\n", (visdn_chan->handle_stream ? "Yes" : "No")),
+			cw_fmtval("Streamport Chanid    : %06d\n", visdn_chan->sp_channel_id),
+			cw_fmtval("EC NearEnd Chanid    : %06d\n", visdn_chan->ec_ne_channel_id),
+			cw_fmtval("EC FarEnd Chanid     : %06d\n", visdn_chan->ec_fe_channel_id),
+			cw_fmtval("Bearer Chanid        : %06d\n", visdn_chan->bearer_channel_id),
+			cw_fmtval("In-band informations : %s\n", (visdn_chan->inband_info ? "Yes" : "No")),
+			cw_fmtval("DTMF Deferred        : %s\n", (visdn_chan->dtmf_deferred ? "Yes" : "No"))
+		);
 
 		if (strlen(visdn_chan->dtmf_queue))
-			cw_cli(fd, "DTMF Queue           : %s\n",
+			cw_dynstr_printf(ds_p, "DTMF Queue           : %s\n",
 				visdn_chan->dtmf_queue);
 	}
 
@@ -4759,7 +4742,7 @@ static char *complete_show_visdn_calls(
 	return NULL;
 }
 
-static int do_show_visdn_calls(int fd, int argc, char *argv[])
+static int do_show_visdn_calls(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc < 4) {
 		visdn_cli_print_call_list(fd, NULL);
@@ -4793,7 +4776,7 @@ static int do_show_visdn_calls(int fd, int argc, char *argv[])
 	}
 
 	if (!filter_intf) {
-		cw_cli(fd, "Interface '%s' not found\n", argv[3]);
+		cw_dynstr_printf(ds_p, "Interface '%s' not found\n", argv[3]);
 		return RESULT_FAILURE;
 	}
 
@@ -4811,7 +4794,7 @@ static int do_show_visdn_calls(int fd, int argc, char *argv[])
 		*dirpos = '\0';
 		dirpos++;
 	} else {
-		cw_cli(fd, "Invalid call reference\n");
+		cw_dynstr_printf(ds_p, "Invalid call reference\n");
 		return RESULT_SHOWUSAGE;
 	}
 
@@ -4826,12 +4809,12 @@ static int do_show_visdn_calls(int fd, int argc, char *argv[])
 				Q931_CALL_DIRECTION_OUTBOUND,
 				atoi(callid));
 	} else {
-		cw_cli(fd, "Invalid call reference\n");
+		cw_dynstr_printf(ds_p, "Invalid call reference\n");
 		return RESULT_SHOWUSAGE;
 	}
 
 	if (!call) {
-		cw_cli(fd, "Call '%s.%s' not found\n", callid, dirpos);
+		cw_dynstr_printf(ds_p, "Call '%s.%s' not found\n", callid, dirpos);
 		return RESULT_FAILURE;
 	}
 

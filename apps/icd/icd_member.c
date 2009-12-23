@@ -68,7 +68,7 @@ struct icd_member {
     icd_fieldset *params;
     icd_member_state state;
     icd_plugable_fn *(*get_plugable_fn) (icd_caller * caller);
-      icd_status(*dump_fn) (icd_member * member, int verbosity, int fd, void *extra);
+      icd_status(*dump_fn) (icd_member * member, int verbosity, struct cw_dynstr **ds_p, void *extra);
     void *dump_fn_extra;
     icd_listeners *listeners;
     icd_memory *memory;
@@ -366,12 +366,12 @@ icd_status icd_member__increment_answered(icd_member * that)
 }
 
 /* Prints the contents of the member object to the given file descriptor. */
-icd_status icd_member__dump(icd_member * that, int verbosity, int fd)
+icd_status icd_member__dump(icd_member * that, int verbosity, struct cw_dynstr **ds_p)
 {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
 
-    return that->dump_fn(that, verbosity, fd, that->dump_fn_extra);
+    return that->dump_fn(that, verbosity, ds_p, that->dump_fn_extra);
 }
 
 int icd_member__cmp_call_start_time_order(icd_member * arg1, icd_member * arg2)
@@ -624,7 +624,7 @@ char *icd_member__get_name(icd_member * that)
 
 /* Set the dump function for this list */
 icd_status icd__member__set_dump_func(icd_member * that, icd_status(*dump_fn) (icd_member * list, int verbosity,
-        int fd, void *extra), void *extra)
+        struct cw_dynstr **ds_p, void *extra), void *extra)
 {
     assert(that != NULL);
 
@@ -727,7 +727,7 @@ icd_status icd_member__remove_listener(icd_member * that, void *listener)
 /***** Predefined behaviours *****/
 
 /* Standard member list dump function */
-icd_status icd_member__standard_dump(icd_member * that, int verbosity, int fd, void *extra)
+icd_status icd_member__standard_dump(icd_member * that, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     /* TBD */
     return ICD_SUCCESS;

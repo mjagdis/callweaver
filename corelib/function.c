@@ -212,19 +212,19 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 }
 
 
-static void complete_show_functions(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_functions(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 2) {
 		if (!strncasecmp(argv[2], "like", lastarg_len))
-			cw_cli(fd, "like\n");
+			cw_dynstr_printf(ds_p, "like\n");
 		if (!strncasecmp(argv[2], "describing", lastarg_len))
-			cw_cli(fd, "describing\n");
+			cw_dynstr_printf(ds_p, "describing\n");
 	}
 }
 
 
 struct funcs_print_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -252,16 +252,16 @@ static int funcs_print(struct cw_object *obj, void *data)
 
 	if (printapp) {
 		args->matches++;
-		cw_cli(args->fd,"  %20s: %s\n", it->name, it->synopsis);
+		cw_dynstr_printf(args->ds_p,"  %20s: %s\n", it->name, it->synopsis);
 	}
 
 	return 0;
 }
 
-static int handle_show_functions(int fd, int argc, char *argv[])
+static int handle_show_functions(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct funcs_print_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.matches = 0,
 		.argc = argc,
 		.argv = argv,
@@ -272,15 +272,15 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 	else if ((argc > 3) && (!strcmp(argv[2], "describing")))
 		args.describing = 1;
 
-	cw_cli(fd, "    -= %s CallWeaver Functions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
+	cw_dynstr_printf(ds_p, "    -= %s CallWeaver Functions =-\n", (args.like || args.describing ? "Matching" : "Registered"));
 
 	cw_registry_iterate_ordered(&func_registry, funcs_print, &args);
 
-	cw_cli(fd, "    -= %d Functions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
+	cw_dynstr_printf(ds_p, "    -= %d Functions %s =-\n", args.matches, (args.like || args.describing ? "Matching" : "Registered"));
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_function(int fd, int argc, char *argv[])
+static int handle_show_function(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_func *acf;
 
@@ -288,11 +288,11 @@ static int handle_show_function(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 
 	if (!(acf = cw_find_function(cw_hash_string(argv[2]), argv[2]))) {
-		cw_cli(fd, "No function by that name registered.\n");
+		cw_dynstr_printf(ds_p, "No function by that name registered.\n");
 		return RESULT_FAILURE;
 	}
 
-	cw_cli(fd,
+	cw_dynstr_printf(ds_p,
              "\n  -= Info about function '%s' =- \n\n[Syntax]\n%s\n\n[Synopsis]\n%s\n\n[Description]\n%s\n",
              (acf->name)  ?  acf->name  :  "N/A",
              (acf->syntax)  ?  acf->syntax  :  "N/A",
@@ -303,7 +303,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 }
 
 struct complete_show_func_args {
-	int fd;
+	struct cw_dynstr **ds_p;
 	char *word;
 	int word_len;
 };
@@ -314,14 +314,14 @@ static int complete_show_func_one(struct cw_object *obj, void *data)
 	struct complete_show_func_args *args = data;
 
 	if (!strncasecmp(args->word, it->name, args->word_len))
-		cw_cli(args->fd, "%s\n", it->name);
+		cw_dynstr_printf(args->ds_p, "%s\n", it->name);
 
 	return 0;
 }
-static void complete_show_function(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_function(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_func_args args = {
-		.fd = fd,
+		.ds_p = ds_p,
 		.word = argv[lastarg],
 		.word_len = lastarg_len,
 	};

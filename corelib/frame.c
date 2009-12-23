@@ -499,7 +499,7 @@ char *cw_codec2str(int codec)
     return ret;
 }
 
-static int show_codecs(int fd, int argc, char *argv[])
+static int show_codecs(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int i, found=0;
     char hex[25];
@@ -508,18 +508,21 @@ static int show_codecs(int fd, int argc, char *argv[])
         return RESULT_SHOWUSAGE;
 
     if (!option_dontwarn)
-        cw_cli(fd, "Disclaimer: this command is for informational purposes only.\n"
-                 "\tIt does not indicate anything about your configuration.\n");
+        cw_dynstr_printf(ds_p,
+            "Disclaimer: this command is for informational purposes only.\n"
+            "\tIt does not indicate anything about your configuration.\n");
 
-    cw_cli(fd, "%11s %9s %10s   TYPE   %5s   %s\n","INT","BINARY","HEX","NAME","DESC");
-    cw_cli(fd, "--------------------------------------------------------------------------------\n");
+    cw_dynstr_tprintf(ds_p, 2,
+        cw_fmtval("%11s %9s %10s   TYPE   %5s   %s\n", "INT", "BINARY", "HEX", "NAME", "DESC"),
+        cw_fmtval("--------------------------------------------------------------------------------\n")
+    );
     if ((argc == 2)  ||  (!strcasecmp(argv[1], "audio")))
     {
         found = 1;
         for (i = 0;  i <= 12;  i++)
         {
             snprintf(hex,25,"(0x%x)", 1 << i);
-            cw_cli(fd, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n", 1 << i, i, hex, cw_getformatname(1 << i), cw_codec2str(1 << i));
+            cw_dynstr_printf(ds_p, "%11u (1 << %2d) %10s  audio   %5s   (%s)\n", 1 << i, i, hex, cw_getformatname(1 << i), cw_codec2str(1 << i));
         }
     }
 
@@ -529,7 +532,7 @@ static int show_codecs(int fd, int argc, char *argv[])
         for (i = 16;  i < 18;  i++)
         {
             snprintf(hex, 25, "(0x%x)", 1 << i);
-            cw_cli(fd, "%11u (1 << %2d) %10s  image   %5s   (%s)\n", 1 << i, i, hex,cw_getformatname(1 << i), cw_codec2str(1 << i));
+            cw_dynstr_printf(ds_p, "%11u (1 << %2d) %10s  image   %5s   (%s)\n", 1 << i, i, hex,cw_getformatname(1 << i), cw_codec2str(1 << i));
         }
     }
 
@@ -539,7 +542,7 @@ static int show_codecs(int fd, int argc, char *argv[])
         for (i = 18;  i < 22;  i++)
         {
             snprintf(hex, 25, "(0x%x)", 1 << i);
-            cw_cli(fd, "%11u (1 << %2d) %10s  video   %5s   (%s)\n", 1 << i, i, hex, cw_getformatname(1 << i), cw_codec2str(1 << i));
+            cw_dynstr_printf(ds_p, "%11u (1 << %2d) %10s  video   %5s   (%s)\n", 1 << i, i, hex, cw_getformatname(1 << i), cw_codec2str(1 << i));
         }
     }
 
@@ -553,7 +556,7 @@ static const char frame_show_codecs_usage[] =
     "Usage: show [audio|video|image] codecs\n"
     "       Displays codec mapping\n";
 
-static int show_codec_n(int fd, int argc, char *argv[])
+static int show_codec_n(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     int codec;
     int i;
@@ -570,11 +573,11 @@ static int show_codec_n(int fd, int argc, char *argv[])
         if (codec & (1 << i))
         {
             found = 1;
-            cw_cli(fd, "%11u (1 << %2d)  %s\n", 1 << i, i, cw_codec2str(1 << i));
+            cw_dynstr_printf(ds_p, "%11u (1 << %2d)  %s\n", 1 << i, i, cw_codec2str(1 << i));
         }
     }
     if (!found)
-        cw_cli(fd, "Codec %d not found\n", codec);
+        cw_dynstr_printf(ds_p, "Codec %d not found\n", codec);
 
     return RESULT_SUCCESS;
 }

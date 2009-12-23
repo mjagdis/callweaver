@@ -892,7 +892,7 @@ static void rebuild_matrix(void)
 }
 
 
-static void show_translation_generator(int fd, char *argv[], int lastarg, int lastarg_len)
+static void show_translation_generator(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *args[] = {
 		"recalc", "rel", "raw", "ns", "us", "ms"
@@ -901,11 +901,11 @@ static void show_translation_generator(int fd, char *argv[], int lastarg, int la
 
 	for (i = 0; i < arraysize(args); i++)
 		if (!strncmp(args[i], argv[lastarg], lastarg_len))
-			cw_cli(fd, "%s\n", args[i]);
+			cw_dynstr_printf(ds_p, "%s\n", args[i]);
 }
 
 
-static int show_translation(int fd, int argc, char *argv[])
+static int show_translation(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	static const char *scale[] = { "nano", "micro", "milli", "" };
 	struct trans_state *tr;
@@ -954,35 +954,35 @@ static int show_translation(int fd, int argc, char *argv[])
 	}
 
 	if (mult)
-		cw_cli(fd, "         Translation times between formats (time in %sseconds to translate 1s of audio)\n", scale[x]);
+		cw_dynstr_printf(ds_p, "         Translation times between formats (time in %sseconds to translate 1s of audio)\n", scale[x]);
 	else
-		cw_cli(fd, "         Relative translation times between formats\n");
+		cw_dynstr_printf(ds_p, "         Relative translation times between formats\n");
 
-	cw_cli(fd, "         Source Format (Rows) Destination Format(Columns)\n\n");
+	cw_dynstr_printf(ds_p, "         Source Format (Rows) Destination Format(Columns)\n\n");
 
-	cw_cli(fd, "         ");
+	cw_dynstr_printf(ds_p, "         ");
 	for (x = 0;  x <= MAX_FORMAT_SHOWN;  x++)
-		cw_cli(fd, " %8s", cw_getformatname(1 << x));
-	cw_cli(fd, "\n");
+		cw_dynstr_printf(ds_p, " %8s", cw_getformatname(1 << x));
+	cw_dynstr_printf(ds_p, "\n");
 
 	for (x = 0;  x <= MAX_FORMAT_SHOWN;  x++) {
-		cw_cli(fd, " %8s", cw_getformatname(1 << x));
+		cw_dynstr_printf(ds_p, " %8s", cw_getformatname(1 << x));
 
 		for (y = 0;  y <= MAX_FORMAT_SHOWN;  y++) {
 			if (tr->matrix[x][y].step) {
 				if (mult == 1) {
-					cw_cli(fd, " %8u", tr->matrix[x][y].cost);
+					cw_dynstr_printf(ds_p, " %8u", tr->matrix[x][y].cost);
 				} else {
 					if (mult)
 						cost = (tr->matrix[x][y].cost + (mult / 2)) / mult;
 					else
 						cost = (2 * tr->matrix[x][y].cost) / (tr->min_cost / 5);
-					cw_cli(fd, " %6u.%01u", cost / 10, cost % 10);
+					cw_dynstr_printf(ds_p, " %6u.%01u", cost / 10, cost % 10);
 				}
 			} else
-			    cw_cli(fd, "        -");
+			    cw_dynstr_printf(ds_p, "        -");
 		}
-		cw_cli(fd, "\n");
+		cw_dynstr_printf(ds_p, "\n");
 	}
 
 	cw_object_put(tr);

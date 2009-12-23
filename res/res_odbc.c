@@ -240,27 +240,27 @@ static int load_odbc_config(void)
 	return 0;
 }
 
-int odbc_dump_fd(int fd, odbc_obj *obj)
+int odbc_dump_fd(struct cw_dynstr **ds_p, odbc_obj *obj)
 {
 	/* make sure the connection is up before we lie to our master.*/
 	odbc_sanity_check(obj);
-	cw_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
+	cw_dynstr_printf(ds_p, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
 	return 0;
 }
 
-static int odbc_connect_usage(int fd)
+static int odbc_connect_usage(struct cw_dynstr **ds_p)
 {
-	cw_cli(fd, "usage odbc connect <DSN>\n");
+	cw_dynstr_printf(ds_p, "usage odbc connect <DSN>\n");
 	return 0;
 }
 
-static int odbc_disconnect_usage(int fd)
+static int odbc_disconnect_usage(struct cw_dynstr **ds_p)
 {
-	cw_cli(fd, "usage odbc disconnect <DSN>\n");
+	cw_dynstr_printf(ds_p, "usage odbc disconnect <DSN>\n");
 	return 0;
 }
 
-static int odbc_show_command(int fd, int argc, char **argv)
+static int odbc_show_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 	int x = 0;
@@ -271,23 +271,23 @@ static int odbc_show_command(int fd, int argc, char **argv)
 				if (!ODBC_REGISTRY[x].used)
 					break;
 				if (ODBC_REGISTRY[x].obj)
-					odbc_dump_fd(fd, ODBC_REGISTRY[x].obj);
+					odbc_dump_fd(ds_p, ODBC_REGISTRY[x].obj);
 			}
 		} else {
 			obj = odbc_read(ODBC_REGISTRY, argv[2]);
 			if (obj)
-				odbc_dump_fd(fd, obj);
+				odbc_dump_fd(ds_p, obj);
 		}
 	}
 	return 0;
 }
 
-static int odbc_disconnect_command(int fd, int argc, char **argv)
+static int odbc_disconnect_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 	if (!strcmp(argv[1], "disconnect")) {
 		if (!argv[2])
-			return odbc_disconnect_usage(fd);
+			return odbc_disconnect_usage(ds_p);
 
 		obj = odbc_read(ODBC_REGISTRY, argv[2]);
 		if (obj) {
@@ -297,15 +297,15 @@ static int odbc_disconnect_command(int fd, int argc, char **argv)
 	return 0;
 }
 
-static int odbc_connect_command(int fd, int argc, char **argv)
+static int odbc_connect_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 	if (!argv[1])
-		return odbc_connect_usage(fd);
+		return odbc_connect_usage(ds_p);
 
 	if (!strcmp(argv[1], "connect") || !strcmp(argv[1], "disconnect")) {
 		if (!argv[2])
-			return odbc_connect_usage(fd);
+			return odbc_connect_usage(ds_p);
 
 		obj = odbc_read(ODBC_REGISTRY, argv[2]);
 		if (obj) {

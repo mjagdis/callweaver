@@ -28,6 +28,8 @@
  
 #ifndef ICD_DISTRIBUTOR_PRIVATE_H
 #define ICD_DISTRIBUTOR_PRIVATE_H
+
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_plugable_fn.h"
 
 /*===== Private functions =====*/
@@ -51,7 +53,7 @@ struct icd_distributor {
     icd_member_list *agents;
     icd_plugable_fn *(*get_plugable_fn) (icd_caller * caller);
       icd_status(*link_fn) (icd_distributor *, void *extra);
-      icd_status(*dump_fn) (icd_distributor *, int verbosity, int fd, void *extra);
+      icd_status(*dump_fn) (icd_distributor *, int verbosity, struct cw_dynstr **ds_p, void *extra);
     void *(*run_fn) (void *that);
     void *link_fn_extra;
     void *dump_fn_extra;

@@ -12,6 +12,9 @@
  * at the top of the source tree.
  */
 
+#include <callweaver/dynstr.h>
+
+
 extern CW_API_PUBLIC char stunserver_host[MAXHOSTNAMELEN];
 extern CW_API_PUBLIC struct sockaddr_in stunserver_ip;
 extern CW_API_PUBLIC int stunserver_portno;
@@ -28,9 +31,9 @@ extern CW_API_PUBLIC int stun_remove_request(rfc3489_trans_id_t *st);
 
 extern CW_API_PUBLIC int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len, rfc3489_state_t *st);
 
-extern CW_API_PUBLIC int stun_do_debug(int fd, int argc, char *argv[]);
+extern CW_API_PUBLIC int stun_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
-extern CW_API_PUBLIC int stun_no_debug(int fd, int argc, char *argv[]);
+extern CW_API_PUBLIC int stun_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 int cw_stun_init(void);
 

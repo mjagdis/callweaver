@@ -282,7 +282,7 @@ static int osp_build(struct cw_config *cfg, char *cat)
 	return 0;
 }
 
-static int show_osp(int fd, int argc, char *argv[])
+static int show_osp(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct osp_provider *osp;
 	char *search = NULL;
@@ -307,7 +307,7 @@ static int show_osp(int fd, int argc, char *argv[])
 				tokenalgo = "Signed";
 				break;
 		}
-		cw_cli(fd, "OSP: %s %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal", tokenalgo);
+		cw_dynstr_printf(ds_p, "OSP: %s %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal", tokenalgo);
 	}
 
 	cw_mutex_lock(&osplock);
@@ -315,20 +315,22 @@ static int show_osp(int fd, int argc, char *argv[])
 	while(osp) {
 		if (!search || !strcasecmp(osp->name, search)) {
 			if (found)
-				cw_cli(fd, "\n");
-			cw_cli(fd, " == OSP Provider '%s' ==\n", osp->name);
-			cw_cli(fd, "Local Private Key: %s\n", osp->localpvtkey);
-			cw_cli(fd, "Local Certificate: %s\n", osp->localcert);
+				cw_dynstr_printf(ds_p, "\n");
+			cw_dynstr_tprintf(ds_p, 9,
+				cw_fmtval(" == OSP Provider '%s' ==\n", osp->name),
+				cw_fmtval("Local Private Key: %s\n", osp->localpvtkey),
+				cw_fmtval("Local Certificate: %s\n", osp->localcert),
+				cw_fmtval("Max Connections:   %d\n", osp->maxconnections),
+				cw_fmtval("Retry Delay:       %d seconds\n", osp->retrydelay),
+				cw_fmtval("Retry Limit:       %d\n", osp->retrylimit),
+				cw_fmtval("Timeout:           %d milliseconds\n", osp->timeout),
+				cw_fmtval("Source:            %s\n", (strlen(osp->source) ? osp->source : "<unspecified>")),
+				cw_fmtval("OSP Handle:        %d\n", osp->handle)
+			);
 			for (x=0;x<osp->cacount;x++)
-				cw_cli(fd, "CA Certificate %d:  %s\n", x + 1, osp->cacerts[x]);
+				cw_dynstr_printf(ds_p, "CA Certificate %d:  %s\n", x + 1, osp->cacerts[x]);
 			for (x=0;x<osp->spcount;x++)
-				cw_cli(fd, "Service Point %d:   %s\n", x + 1, osp->servicepoints[x]);
-			cw_cli(fd, "Max Connections:   %d\n", osp->maxconnections);
-			cw_cli(fd, "Retry Delay:       %d seconds\n", osp->retrydelay);
-			cw_cli(fd, "Retry Limit:       %d\n", osp->retrylimit);
-			cw_cli(fd, "Timeout:           %d milliseconds\n", osp->timeout);
-			cw_cli(fd, "Source:            %s\n", strlen(osp->source) ? osp->source : "<unspecified>");
-			cw_cli(fd, "OSP Handle:        %d\n", osp->handle);
+				cw_dynstr_printf(ds_p, "Service Point %d:   %s\n", x + 1, osp->servicepoints[x]);
 			found++;
 		}
 		osp = osp->next;
@@ -336,9 +338,9 @@ static int show_osp(int fd, int argc, char *argv[])
 	cw_mutex_unlock(&osplock);
 	if (!found) {
 		if (search) 
-			cw_cli(fd, "Unable to find OSP provider '%s'\n", search);
+			cw_dynstr_printf(ds_p, "Unable to find OSP provider '%s'\n", search);
 		else
-			cw_cli(fd, "No OSP providers configured\n");
+			cw_dynstr_printf(ds_p, "No OSP providers configured\n");
 	}
 	return RESULT_SUCCESS;
 }

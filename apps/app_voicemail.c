@@ -5587,7 +5587,7 @@ static const char show_voicemail_zones_help[] =
 "Usage: show voicemail zones\n"
 "       Lists zone message formats\n";
 
-static int handle_show_voicemail_users(int fd, int argc, char *argv[])
+static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_vm_user *vmu = users;
 	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
@@ -5597,7 +5597,7 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 
 	if (vmu) {
 		if (argc == 3)
-			cw_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+			cw_dynstr_printf(ds_p, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
 		else {
 			int count = 0;
 			while (vmu) {
@@ -5607,9 +5607,9 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 			}
 			if (count) {
 				vmu = users;
-				cw_cli(fd, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
+				cw_dynstr_printf(ds_p, output_format, "Context", "Mbox", "User", "Zone", "NewMsg");
 			} else {
-				cw_cli(fd, "No such voicemail context \"%s\"\n", argv[4]);
+				cw_dynstr_printf(ds_p, "No such voicemail context \"%s\"\n", argv[4]);
 				return RESULT_FAILURE;
 			}
 		}
@@ -5630,18 +5630,18 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 					closedir(vmdir);
 				}
 				snprintf(count,sizeof(count),"%d",vmcount);
-				cw_cli(fd, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
+				cw_dynstr_printf(ds_p, output_format, vmu->context, vmu->mailbox, vmu->fullname, vmu->zonetag, count);
 			}
 			vmu = vmu->next;
 		}
 	} else {
-		cw_cli(fd, "There are no voicemail users currently defined\n");
+		cw_dynstr_printf(ds_p, "There are no voicemail users currently defined\n");
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
+static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct vm_zone *zone = zones;
 	char *output_format = "%-15s %-20s %-45s\n";
@@ -5649,19 +5649,19 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 	if (argc != 3) return RESULT_SHOWUSAGE;
 
 	if (zone) {
-		cw_cli(fd, output_format, "Zone", "Timezone", "Message Format");
+		cw_dynstr_printf(ds_p, output_format, "Zone", "Timezone", "Message Format");
 		while (zone) {
-			cw_cli(fd, output_format, zone->name, zone->timezone, zone->msg_format);
+			cw_dynstr_printf(ds_p, output_format, zone->name, zone->timezone, zone->msg_format);
 			zone = zone->next;
 		}
 	} else {
-		cw_cli(fd, "There are no voicemail zones currently defined\n");
+		cw_dynstr_printf(ds_p, "There are no voicemail zones currently defined\n");
 		return RESULT_FAILURE;
 	}
 	return RESULT_SUCCESS;
 }
 
-static void complete_show_voicemail_users(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_voicemail_users(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_vm_user *vmu;
 	char *context = "";
@@ -5671,14 +5671,14 @@ static void complete_show_voicemail_users(int fd, char *argv[], int lastarg, int
 		return;
 
 	if (lastarg == 3) {
-		cw_cli(fd, "for\n");
+		cw_dynstr_printf(ds_p, "for\n");
 		return;
 	}
 
 	for (vmu = users; vmu; vmu = vmu->next) {
 		if (!strncasecmp(argv[lastarg], vmu->context, lastarg_len)) {
 			if (context && strcmp(context, vmu->context)) {
-				cw_cli(fd, "%s\n", vmu->context);
+				cw_dynstr_printf(ds_p, "%s\n", vmu->context);
 				context = vmu->context;
 			}
 		}

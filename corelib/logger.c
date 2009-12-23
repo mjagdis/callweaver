@@ -481,20 +481,20 @@ int reload_logger(int rotate)
 	return -1;
 }
 
-static int handle_logger_reload(int fd, int argc, char *argv[])
+static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if(reload_logger(0)) {
-		cw_cli(fd, "Failed to reload the logger\n");
+		cw_dynstr_printf(ds_p, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
 }
 
-static int handle_logger_rotate(int fd, int argc, char *argv[])
+static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	cw_log(CW_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
-		cw_cli(fd, "Failed to reload the logger and rotate log files\n");
+		cw_dynstr_printf(ds_p, "Failed to reload the logger and rotate log files\n");
 		return RESULT_FAILURE;
 	} else
 		return RESULT_SUCCESS;
@@ -502,39 +502,39 @@ static int handle_logger_rotate(int fd, int argc, char *argv[])
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
-static int handle_logger_show_channels(int fd, int argc, char *argv[])
+static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;
 
-	cw_cli(fd, FORMATL " %s\n" FORMATL " %s\n",
+	cw_dynstr_printf(ds_p, FORMATL " %s\n" FORMATL " %s\n",
 		"Channel", "Type", "Configuration\n",
 		"-------", "----", "-------------\n");
 
 	cw_mutex_lock(&loglock);
 
 	for (chan = logchannels; chan; chan = chan->next) {
-		cw_cli(fd, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"));
+		cw_dynstr_printf(ds_p, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"));
 		if (chan->sess->send_events & (1 << __CW_LOG_DEBUG)) 
-			cw_cli(fd, "Debug ");
+			cw_dynstr_printf(ds_p, "Debug ");
 		if (chan->sess->send_events & (1 << __CW_LOG_DTMF)) 
-			cw_cli(fd, "DTMF ");
+			cw_dynstr_printf(ds_p, "DTMF ");
 		if (chan->sess->send_events & (1 << __CW_LOG_VERBOSE)) 
-			cw_cli(fd, "Verbose ");
+			cw_dynstr_printf(ds_p, "Verbose ");
 		if (chan->sess->send_events & (1 << __CW_LOG_WARNING)) 
-			cw_cli(fd, "Warning ");
+			cw_dynstr_printf(ds_p, "Warning ");
 		if (chan->sess->send_events & (1 << __CW_LOG_NOTICE)) 
-			cw_cli(fd, "Notice ");
+			cw_dynstr_printf(ds_p, "Notice ");
 		if (chan->sess->send_events & (1 << __CW_LOG_ERROR)) 
-			cw_cli(fd, "Error ");
+			cw_dynstr_printf(ds_p, "Error ");
 		if (chan->sess->send_events & (1 << __CW_LOG_EVENT)) 
-			cw_cli(fd, "Event ");
-		cw_cli(fd, "\n");
+			cw_dynstr_printf(ds_p, "Event ");
+		cw_dynstr_printf(ds_p, "\n");
 	}
 
 	cw_mutex_unlock(&loglock);
 
-	cw_cli(fd, "\n");
+	cw_dynstr_printf(ds_p, "\n");
  		
 	return RESULT_SUCCESS;
 }

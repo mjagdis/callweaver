@@ -123,24 +123,24 @@ static const char reload_extensions_help[] =
 /*
  * REMOVE INCLUDE command stuff
  */
-static int handle_context_dont_include(int fd, int argc, char *argv[])
+static int handle_context_dont_include(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 
 	if (strcmp(argv[3], "in")) return RESULT_SHOWUSAGE;
 
 	if (!cw_context_remove_include(argv[4], argv[2], registrar)) {
-		cw_cli(fd, "We are not including '%s' in '%s' now\n",
+		cw_dynstr_printf(ds_p, "We are not including '%s' in '%s' now\n",
 			argv[2], argv[4]);
 		return RESULT_SUCCESS;
 	}
 
-	cw_cli(fd, "Failed to remove '%s' include from '%s' context\n",
+	cw_dynstr_printf(ds_p, "Failed to remove '%s' include from '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_FAILURE;
 }
 
-static void complete_context_dont_include(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_dont_include(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_include *i;
@@ -152,7 +152,7 @@ static void complete_context_dont_include(int fd, char *argv[], int lastarg, int
 				if (!cw_lock_context(c)) {
 					for (i = cw_walk_context_includes(c, NULL); i; i = cw_walk_context_includes(c, i)) {
 						if (!strncmp(argv[2], cw_get_include_name(i), lastarg_len))
-							cw_cli(fd, "%s\n", cw_get_include_name(i));
+							cw_dynstr_printf(ds_p, "%s\n", cw_get_include_name(i));
 					}
 
 					cw_unlock_context(c);
@@ -180,7 +180,7 @@ static void complete_context_dont_include(int fd, char *argv[], int lastarg, int
 							/* yes, it is, context is really included, so
 							 * complete "in" command
 							 */
-							cw_cli(fd, "in\n");
+							cw_dynstr_printf(ds_p, "in\n");
 							done = 1;
 							break;
 						}
@@ -211,7 +211,7 @@ static void complete_context_dont_include(int fd, char *argv[], int lastarg, int
 						if (!strcmp(argv[2], cw_get_include_name(i))) {
 							/* yes, it's included, is matching our word too? */
 							if (!strncmp(cw_get_context_name(c), argv[4], lastarg_len))
-								cw_cli(fd, "%s\n", cw_get_context_name(c));
+								cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 							break;
 						}
 					}	
@@ -228,7 +228,7 @@ static void complete_context_dont_include(int fd, char *argv[], int lastarg, int
 /*
  * REMOVE EXTENSION command stuff
  */
-static int handle_context_remove_extension(int fd, int argc, char *argv[])
+static int handle_context_remove_extension(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int removing_priority = 0;
 	char *exten, *context;
@@ -248,7 +248,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		if (strcmp("hint", c)) {
     		    while (*c != '\0') {
 			if (!isdigit(*c++)) {
-				cw_cli(fd, "Invalid priority '%s'\n", argv[3]);
+				cw_dynstr_printf(ds_p, "Invalid priority '%s'\n", argv[3]);
 				return RESULT_FAILURE;
 			}
 		    }
@@ -257,7 +257,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		    removing_priority = PRIORITY_HINT;
 
 		if (removing_priority == 0) {
-			cw_cli(fd, "If you want to remove whole extension, please " \
+			cw_dynstr_printf(ds_p, "If you want to remove whole extension, please " \
 				"omit priority argument\n");
 			return RESULT_FAILURE;
 		}
@@ -267,36 +267,36 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 	 * Format exten@context checking ...
 	 */
 	if (!(context = strchr(argv[2], (int)'@'))) {
-		cw_cli(fd, "First argument must be in exten@context format\n");
+		cw_dynstr_printf(ds_p, "First argument must be in exten@context format\n");
 		return RESULT_FAILURE;
 	}
 
 	*context++ = '\0';
 	exten = argv[2];
 	if ((!strlen(exten)) || (!(strlen(context)))) {
-		cw_cli(fd, "Missing extension or context name in second argument '%s@%s'\n",
+		cw_dynstr_printf(ds_p, "Missing extension or context name in second argument '%s@%s'\n",
 			exten == NULL ? "?" : exten, context == NULL ? "?" : context);
 		return RESULT_FAILURE;
 	}
 
 	if (!cw_context_remove_extension(context, exten, removing_priority, registrar)) {
 		if (!removing_priority)
-			cw_cli(fd, "Whole extension %s@%s removed\n",
+			cw_dynstr_printf(ds_p, "Whole extension %s@%s removed\n",
 				exten, context);
 		else
-			cw_cli(fd, "Extension %s@%s with priority %d removed\n",
+			cw_dynstr_printf(ds_p, "Extension %s@%s with priority %d removed\n",
 				exten, context, removing_priority);
 			
 		return RESULT_SUCCESS;
 	}
 
-	cw_cli(fd, "Failed to remove extension %s@%s\n", exten, context);
+	cw_dynstr_printf(ds_p, "Failed to remove extension %s@%s\n", exten, context);
 
 	return RESULT_FAILURE;
 }
 
 
-static void complete_context_remove_extension(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_remove_extension(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_exten *e;
@@ -334,7 +334,7 @@ static void complete_context_remove_extension(int fd, char *argv[], int lastarg,
 						if ((context && !strcmp(cw_get_extension_name(e), exten))
 						|| (!context && !strncmp(cw_get_extension_name(e), exten, exten_len))) {
 							if (exten)
-								cw_cli(fd, "%s@%s\n", cw_get_extension_name(e), cw_get_context_name(c));
+								cw_dynstr_printf(ds_p, "%s@%s\n", cw_get_extension_name(e), cw_get_context_name(c));
 						}
 					}
 				}
@@ -379,7 +379,7 @@ static void complete_context_remove_extension(int fd, char *argv[], int lastarg,
 							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
 								snprintf(buffer, 10, "%u", cw_get_extension_priority(priority));
 								if (!strncmp(argv[3], buffer, lastarg_len))
-									cw_cli(fd, "%s\n", buffer);
+									cw_dynstr_printf(ds_p, "%s\n", buffer);
 							}
 							break;
 						}
@@ -399,7 +399,7 @@ static void complete_context_remove_extension(int fd, char *argv[], int lastarg,
 /*
  * Include context ...
  */
-static int handle_context_add_include(int fd, int argc, char *argv[])
+static int handle_context_add_include(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 
@@ -409,35 +409,35 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 	if (cw_context_add_include(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				cw_cli(fd, "Out of memory for context addition\n"); break;
+				cw_dynstr_printf(ds_p, "Out of memory for context addition\n"); break;
 
 			case EBUSY:
-				cw_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+				cw_dynstr_printf(ds_p, "Failed to lock context(s) list, please try again later\n"); break;
 
 			case EEXIST:
-				cw_cli(fd, "Context '%s' already included in '%s' context\n",
+				cw_dynstr_printf(ds_p, "Context '%s' already included in '%s' context\n",
 					argv[1], argv[3]); break;
 
 			case ENOENT:
 			case EINVAL:
-				cw_cli(fd, "There is no existence of context '%s'\n",
+				cw_dynstr_printf(ds_p, "There is no existence of context '%s'\n",
 					errno == ENOENT ? argv[4] : argv[2]); break;
 
 			default:
-				cw_cli(fd, "Failed to include '%s' in '%s' context\n",
+				cw_dynstr_printf(ds_p, "Failed to include '%s' in '%s' context\n",
 					argv[1], argv[3]); break;
 		}
 		return RESULT_FAILURE;
 	}
 
 	/* show some info ... */
-	cw_cli(fd, "Context '%s' included in '%s' context\n",
+	cw_dynstr_printf(ds_p, "Context '%s' included in '%s' context\n",
 		argv[2], argv[3]);
 
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_add_include(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_include(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c, *c2;
 
@@ -445,7 +445,7 @@ static void complete_context_add_include(int fd, char *argv[], int lastarg, int 
 		if (!cw_lock_contexts()) {
 			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 				if (!strncmp(cw_get_context_name(c), argv[1], lastarg_len))
-					cw_cli(fd, "%s\n", cw_get_context_name(c));
+					cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 			}
 
 			cw_unlock_contexts();
@@ -459,7 +459,7 @@ static void complete_context_add_include(int fd, char *argv[], int lastarg, int 
 		if (!cw_lock_contexts()) {
 			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 				if (!strcmp(argv[1], cw_get_context_name(c))) {
-					cw_cli(fd, "in\n");
+					cw_dynstr_printf(ds_p, "in\n");
 					break;
 				}
 			}
@@ -479,7 +479,7 @@ static void complete_context_add_include(int fd, char *argv[], int lastarg, int 
 					for (c2 = cw_walk_contexts(NULL); c2; c2 = cw_walk_contexts(c2)) {
 						/* must be different contexts ... */
 						if (c2 != c && !strncmp(cw_get_context_name(c2), argv[3], lastarg_len))
-							cw_cli(fd, "%s\n", cw_get_context_name(c2));
+							cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c2));
 					}
 					break;
 				}
@@ -493,7 +493,7 @@ static void complete_context_add_include(int fd, char *argv[], int lastarg, int 
 /*
  * 'save dialplan' CLI command implementation functions ...
  */
-static int handle_save_dialplan(int fd, int argc, char *argv[])
+static int handle_save_dialplan(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char filename[256];
 	struct cw_context *c;
@@ -504,7 +504,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	FILE *output;
 
 	if (! (static_config && !write_protect_config)) {
-		cw_cli(fd,
+		cw_dynstr_printf(ds_p,
 			"I can't save dialplan now, see '%s' example file.\n",
 			config);
 		return RESULT_FAILURE;
@@ -513,7 +513,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
 
 	if (cw_mutex_lock(&save_dialplan_lock)) {
-		cw_cli(fd,
+		cw_dynstr_printf(ds_p,
 			"Failed to lock dialplan saving (another proccess saving?)\n");
 		return RESULT_FAILURE;
 	}
@@ -542,7 +542,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 	/* try to lock contexts list */
 	if (cw_lock_contexts()) {
-		cw_cli(fd, "Failed to lock contexts list\n");
+		cw_dynstr_printf(ds_p, "Failed to lock contexts list\n");
 		cw_mutex_unlock(&save_dialplan_lock);
 		cw_config_destroy(cfg);
 		return RESULT_FAILURE;
@@ -550,7 +550,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 
 	/* create new file ... */
 	if (!(output = fopen(filename, "wt"))) {
-		cw_cli(fd, "Failed to create file '%s'\n",
+		cw_dynstr_printf(ds_p, "Failed to create file '%s'\n",
 			filename);
 		cw_unlock_contexts();
 		cw_mutex_unlock(&save_dialplan_lock);
@@ -721,11 +721,11 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	fclose(output);
 
 	if (incomplete) {
-		cw_cli(fd, "Saved dialplan is incomplete\n");
+		cw_dynstr_printf(ds_p, "Saved dialplan is incomplete\n");
 		return RESULT_FAILURE;
 	}
 
-	cw_cli(fd, "Dialplan successfully saved into '%s'\n",
+	cw_dynstr_printf(ds_p, "Dialplan successfully saved into '%s'\n",
 		filename);
 	return RESULT_SUCCESS;
 }
@@ -733,7 +733,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 /*
  * ADD EXTENSION command stuff
  */
-static int handle_context_add_extension(int fd, int argc, char *argv[])
+static int handle_context_add_extension(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char *whole_exten;
 	char *exten, *prior;
@@ -760,7 +760,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 			iprior = PRIORITY_HINT;
 		} else {
 			if (sscanf(prior, "%d", &iprior) != 1) {
-				cw_cli(fd, "'%s' is not a valid priority\n", prior);
+				cw_dynstr_printf(ds_p, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
 		}
@@ -788,44 +788,44 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				cw_cli(fd, "Out of free memory\n"); break;
+				cw_dynstr_printf(ds_p, "Out of free memory\n"); break;
 
 			case EBUSY:
-				cw_cli(fd, "Failed to lock context(s) list, please try again later\n"); break;
+				cw_dynstr_printf(ds_p, "Failed to lock context(s) list, please try again later\n"); break;
 
 			case ENOENT:
-				cw_cli(fd, "No existence of '%s' context\n", argv[4]); break;
+				cw_dynstr_printf(ds_p, "No existence of '%s' context\n", argv[4]); break;
 
 			case EEXIST:
-				cw_cli(fd, "Extension %s@%s with priority %s already exists\n",
+				cw_dynstr_printf(ds_p, "Extension %s@%s with priority %s already exists\n",
 					exten, argv[4], prior); break;
 
 			default:
-				cw_cli(fd, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
+				cw_dynstr_printf(ds_p, "Failed to add '%s,%s,%s,%s' extension into '%s' context\n",
 					exten, prior, app, app_data, argv[4]); break;
 		}
 		return RESULT_FAILURE;
 	}
 
 	if (argc == 6) 
-		cw_cli(fd, "Extension %s@%s (%s) replace by '%s,%s,%s,%s'\n",
+		cw_dynstr_printf(ds_p, "Extension %s@%s (%s) replace by '%s,%s,%s,%s'\n",
 			exten, argv[4], prior, exten, prior, app, app_data);
 	else
-		cw_cli(fd, "Extension '%s,%s,%s,%s' added into '%s' context\n",
+		cw_dynstr_printf(ds_p, "Extension '%s,%s,%s,%s' added into '%s' context\n",
 			exten, prior, app, app_data, argv[4]);
 
 	return RESULT_SUCCESS;
 }
 
 /* add extension 6123,1,Dial,IAX/212.71.138.13/6123 into local */
-static void complete_context_add_extension(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_extension(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
 	/* complete 'into' word ... */
 	if (lastarg == 3) {
 		if (!strncmp(argv[3], "into", lastarg_len))
-			cw_cli(fd, "into\n");
+			cw_dynstr_printf(ds_p, "into\n");
 	}
 
 	/* complete context */
@@ -836,7 +836,7 @@ static void complete_context_add_extension(int fd, char *argv[], int lastarg, in
 			for (c = cw_walk_contexts(NULL); c; c = cw_walk_contexts(c)) {
 				/* matching context? */
 				if (!strncmp(cw_get_context_name(c), argv[4], lastarg_len))
-					cw_cli(fd, "%s\n", cw_get_context_name(c));
+					cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 			}
 
 			cw_unlock_contexts();
@@ -846,13 +846,13 @@ static void complete_context_add_extension(int fd, char *argv[], int lastarg, in
 
 	else if (lastarg == 5)
 		if (!strncmp(argv[5], "replace", lastarg_len))
-			cw_cli(fd, "replace\n");
+			cw_dynstr_printf(ds_p, "replace\n");
 }
 
 /*
  * IGNOREPAT CLI stuff
  */
-static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
+static int handle_context_add_ignorepat(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
@@ -860,41 +860,41 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 	if (cw_context_add_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case ENOMEM:
-				cw_cli(fd, "Out of free memory\n"); break;
+				cw_dynstr_printf(ds_p, "Out of free memory\n"); break;
 
 			case ENOENT:
-				cw_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+				cw_dynstr_printf(ds_p, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
 			case EEXIST:
-				cw_cli(fd, "Ignore pattern '%s' already included in '%s' context\n",
+				cw_dynstr_printf(ds_p, "Ignore pattern '%s' already included in '%s' context\n",
 					argv[2], argv[4]);
 				break;
 
 			case EBUSY:
-				cw_cli(fd, "Failed to lock context(s) list, please, try again later\n");
+				cw_dynstr_printf(ds_p, "Failed to lock context(s) list, please, try again later\n");
 				break;
 
 			default:
-				cw_cli(fd, "Failed to add ingore pattern '%s' into '%s' context\n",
+				cw_dynstr_printf(ds_p, "Failed to add ingore pattern '%s' into '%s' context\n",
 					argv[2], argv[4]);
 				break;
 		}
 		return RESULT_FAILURE;
 	}
 
-	cw_cli(fd, "Ignore pattern '%s' added into '%s' context\n",
+	cw_dynstr_printf(ds_p, "Ignore pattern '%s' added into '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_add_ignorepat(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_ignorepat(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
 	if (lastarg == 3) {
 		if (!strncmp(argv[3], "into", lastarg_len))
-			cw_cli(fd, "into\n");
+			cw_dynstr_printf(ds_p, "into\n");
 	}
 
 	else if (lastarg == 4) {
@@ -913,7 +913,7 @@ static void complete_context_add_ignorepat(int fd, char *argv[], int lastarg, in
 					}
 
 					if (serve_context)
-						cw_cli(fd, "%s\n", cw_get_context_name(c));
+						cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 				}
 			}
 
@@ -923,7 +923,7 @@ static void complete_context_add_ignorepat(int fd, char *argv[], int lastarg, in
 	}
 }
 
-static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
+static int handle_context_remove_ignorepat(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "from")) return RESULT_SHOWUSAGE;
@@ -931,40 +931,40 @@ static int handle_context_remove_ignorepat(int fd, int argc, char *argv[])
 	if (cw_context_remove_ignorepat(argv[4], argv[2], registrar)) {
 		switch (errno) {
 			case EBUSY:
-				cw_cli(fd, "Failed to lock context(s) list, please try again later\n");
+				cw_dynstr_printf(ds_p, "Failed to lock context(s) list, please try again later\n");
 				break;
 
 			case ENOENT:
-				cw_cli(fd, "There is no existence of '%s' context\n", argv[4]);
+				cw_dynstr_printf(ds_p, "There is no existence of '%s' context\n", argv[4]);
 				break;
 
 			case EINVAL:
-				cw_cli(fd, "There is no existence of '%s' ignore pattern in '%s' context\n",
+				cw_dynstr_printf(ds_p, "There is no existence of '%s' ignore pattern in '%s' context\n",
 					argv[2], argv[4]);
 				break;
 
 			default:
-				cw_cli(fd, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
+				cw_dynstr_printf(ds_p, "Failed to remove ignore pattern '%s' from '%s' context\n", argv[2], argv[4]);
 				break;
 		}
 		return RESULT_FAILURE;
 	}
 
-	cw_cli(fd, "Ignore pattern '%s' removed from '%s' context\n",
+	cw_dynstr_printf(ds_p, "Ignore pattern '%s' removed from '%s' context\n",
 		argv[2], argv[4]);
 	return RESULT_SUCCESS;
 }
 
 static int pbx_load_module(void);
 
-static int handle_reload_extensions(int fd, int argc, char *argv[])
+static int handle_reload_extensions(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc!=2) return RESULT_SHOWUSAGE;
 	pbx_load_module();
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_remove_ignorepat(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_remove_ignorepat(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
@@ -976,7 +976,7 @@ static void complete_context_remove_ignorepat(int fd, char *argv[], int lastarg,
 			
 					for (ip = cw_walk_context_ignorepats(c, NULL); ip; ip = cw_walk_context_ignorepats(c, ip)) {
 						if (!strncmp(cw_get_ignorepat_name(ip), argv[2], lastarg_len))
-							cw_cli(fd, "%s\n", cw_get_ignorepat_name(ip));
+							cw_dynstr_printf(ds_p, "%s\n", cw_get_ignorepat_name(ip));
 					}
 
 					cw_unlock_context(c);
@@ -990,7 +990,7 @@ static void complete_context_remove_ignorepat(int fd, char *argv[], int lastarg,
  
 	else if (lastarg == 3) {
 		if (!strncmp(argv[3], "from", lastarg_len))
-			cw_cli(fd, "from\n");
+			cw_dynstr_printf(ds_p, "from\n");
 	}
 
 	else if (lastarg == 4) {
@@ -1001,7 +1001,7 @@ static void complete_context_remove_ignorepat(int fd, char *argv[], int lastarg,
 
 					for (ip = cw_walk_context_ignorepats(c, NULL); ip; ip = cw_walk_context_ignorepats(c, ip)) {
 						if (!strcmp(cw_get_ignorepat_name(ip), argv[2]) && !strncmp(cw_get_context_name(c), argv[4], lastarg_len))
-							cw_cli(fd, "%s\n", cw_get_context_name(c));
+							cw_dynstr_printf(ds_p, "%s\n", cw_get_context_name(c));
 					}
 
 					cw_unlock_context(c);

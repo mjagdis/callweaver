@@ -446,21 +446,21 @@ int stun_handle_packet(int s,
 
 /* ************************************************************************* */
 
-int stun_do_debug(int fd, int argc, char *argv[])
+int stun_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 2)
         return RESULT_SHOWUSAGE;
     stundebug = 1;
-    cw_cli(fd, "STUN Debugging Enabled\n");
+    cw_dynstr_printf(ds_p, "STUN Debugging Enabled\n");
     return RESULT_SUCCESS;
 }
    
-int stun_no_debug(int fd, int argc, char *argv[])
+int stun_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     if (argc != 3)
         return RESULT_SHOWUSAGE;
     stundebug = 0;
-    cw_cli(fd, "STUN Debugging Disabled\n");
+    cw_dynstr_printf(ds_p, "STUN Debugging Disabled\n");
     return RESULT_SUCCESS;
 }
 

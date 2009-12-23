@@ -73,7 +73,7 @@ static time_t connect_time;
 
 static int parse_config(void);
 static int mysql_reconnect(const char *database);
-static int realtime_mysql_status(int fd, int argc, char **argv);
+static int realtime_mysql_status(struct cw_dynstr **ds_p, int argc, char **argv);
 
 static const char cli_realtime_mysql_status_usage[] =
 "Usage: realtime mysql status\n"
@@ -660,7 +660,7 @@ reconnect_tryagain:
 	}
 }
 
-static int realtime_mysql_status(int fd, int argc, char **argv)
+static int realtime_mysql_status(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	char status[256], status2[100] = "";
 	int ctime = time(NULL) - connect_time;
@@ -679,15 +679,15 @@ static int realtime_mysql_status(int fd, int argc, char **argv)
 		}
 
 		if (ctime > 31536000) {
-			cw_cli(fd, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 86400) {
-			cw_cli(fd, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 3600) {
-			cw_cli(fd, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
 		} else if (ctime > 60) {
-			cw_cli(fd, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
+			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
 		} else {
-			cw_cli(fd, "%s%s for %d seconds.\n", status, status2, ctime);
+			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, ctime);
 		}
 
 		return RESULT_SUCCESS;

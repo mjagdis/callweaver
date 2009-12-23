@@ -426,7 +426,7 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *res
 }
 
 
-static int muxmon_cli(int fd, int argc, char **argv) 
+static int muxmon_cli(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     char *op;
     char *chan_name = NULL;
@@ -439,7 +439,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
 
         if (!(chan = cw_get_channel_by_name_prefix_locked(chan_name, strlen(chan_name))))
         {
-            cw_cli(fd, "Invalid Channel!\n");
+            cw_dynstr_printf(ds_p, "Invalid Channel!\n");
             return -1;
         }
 	cw_channel_unlock(chan);
@@ -458,8 +458,7 @@ static int muxmon_cli(int fd, int argc, char **argv)
         return 0;
     }
 
-    cw_cli(fd, "Usage: muxmon <start|stop> <chan_name> <args>\n");
-    return -1;
+    return RESULT_SHOWUSAGE;
 }
 
 

@@ -529,7 +529,7 @@ static void crypto_load(int ifd, int ofd)
 	cw_mutex_unlock(&keylock);
 }
 
-static int show_keys(int fd, int argc, char *argv[])
+static int show_keys(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_key *key;
 	char sum[16 * 2 + 1];
@@ -537,10 +537,10 @@ static int show_keys(int fd, int argc, char *argv[])
 
 	cw_mutex_lock(&keylock);
 	key = keys;
-	cw_cli(fd, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
+	cw_dynstr_printf(ds_p, "%-18s %-8s %-16s %-33s\n", "Key Name", "Type", "Status", "Sum");
 	while(key) {
 		cw_hash_to_hex(sum, key->md_value, key->md_len);
-		cw_cli(fd, "%-18s %-8s %-16s %-33s\n", key->name, 
+		cw_dynstr_printf(ds_p, "%-18s %-8s %-16s %-33s\n", key->name,
 			(key->ktype & 0xf) == CW_KEY_PUBLIC ? "PUBLIC" : "PRIVATE",
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
 				
@@ -548,11 +548,11 @@ static int show_keys(int fd, int argc, char *argv[])
 		count_keys++;
 	}
 	cw_mutex_unlock(&keylock);
-	cw_cli(fd, "%d known RSA keys.\n", count_keys);
+	cw_dynstr_printf(ds_p, "%d known RSA keys.\n", count_keys);
 	return RESULT_SUCCESS;
 }
 
-static int init_keys(int fd, int argc, char *argv[])
+static int init_keys(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_key *key;
 	int ign;
@@ -565,7 +565,7 @@ static int init_keys(int fd, int argc, char *argv[])
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
 			kn = key->fn + strlen(cw_config_CW_KEY_DIR) + 1;
 			cw_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *)cw_config_CW_KEY_DIR, tmp, fd, fd, &ign);
+			try_load_key((char *)cw_config_CW_KEY_DIR, tmp, -1, -1, &ign);
 		}
 		key = key->next;
 	}

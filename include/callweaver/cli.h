@@ -32,10 +32,8 @@ extern "C" {
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
+#include "callweaver/dynstr.h"
 
-
-extern CW_API_PUBLIC void cw_cli(int fd, char *fmt, ...)
-	__attribute__ ((format (printf, 2, 3)));
 
 #define RESULT_SUCCESS		0
 #define RESULT_SHOWUSAGE	1
@@ -55,13 +53,13 @@ struct cw_clicmd {
 	/*! Null terminated list of the words of the command */
 	char *cmda[CW_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(int fd, int argc, char *argv[]);
+	int (*handler)(struct cw_dynstr **ds_p, int argc, char *argv[]);
 	/*! Summary of the command (< 60 characters) */
 	const char *summary;
 	/*! Detailed usage information */
 	const char *usage;
 	/*! Generate a list of possible completions for a given word */
-	void (*generator)(int fd, char *argv[], int lastarg, int lastarg_len);
+	void (*generator)(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len);
 };
 
 
@@ -105,13 +103,13 @@ extern CW_API_PUBLIC struct cw_registry clicmd_registry;
  * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
-extern CW_API_PUBLIC int cw_cli_command(int fd, char *s);
+extern CW_API_PUBLIC void cw_cli_command(struct cw_dynstr **ds_p, char *s);
 
 /*! \brief Readline madness 
  * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
-extern void cw_cli_generator(int fd, char *text);
+extern void cw_cli_generator(struct cw_dynstr **ds_p, char *text);
 
 extern void cw_cli_init(void);
 

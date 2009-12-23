@@ -61,22 +61,22 @@ static char show_icd_help[] =
 */
 
 static void_hash_table *COMMAND_HASH;
-static icd_status icd_command_show_queue(int fd, int argc, char **argv);
-static icd_status icd_command_show_agent(int fd, int argc, char **argv);
-static icd_status icd_command_show_customer(int fd, int argc, char **argv);
-static icd_status icd_command_dump_queue(int fd, int argc, char **argv);
-static icd_status icd_command_dump_distributor(int fd, int argc, char **argv);
-static icd_status icd_command_dump_agent(int fd, int argc, char **argv);
-static icd_status icd_command_dump_customer(int fd, int argc, char **argv);
-static icd_status icd_command_load_queues(int fd, int argc, char **argv);
-static icd_status icd_command_load_agents(int fd, int argc, char **argv);
-static icd_status icd_command_load_conferences(int fd, int argc, char **argv);
-static icd_status icd_command_load_app_icd(int fd, int argc, char **argv);
+static icd_status icd_command_show_queue(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_show_agent(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_show_customer(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_dump_queue(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_dump_distributor(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_dump_agent(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_load_queues(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_load_agents(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_load_conferences(struct cw_dynstr **ds_p, int argc, char **argv);
+static icd_status icd_command_load_app_icd(struct cw_dynstr **ds_p, int argc, char **argv);
 
 typedef struct icd_command_node icd_command_node;
 
 struct icd_command_node {
-    int (*func) (int, int, char **);
+    int (*func) (struct cw_dynstr **, int, char **);
     char name[ICD_STRING_LEN];
     char short_help[ICD_STRING_LEN];
     char syntax_help[ICD_STRING_LEN];
@@ -142,7 +142,7 @@ void create_command_hash(void)
 
 }
 
-static icd_command_node *create_command_node(int (*func) (int, int, char **), char *name, char *short_help,
+static icd_command_node *create_command_node(int (*func) (struct cw_dynstr **, int, char **), char *name, char *short_help,
     char *syntax_help, char *long_help)
 {
     icd_command_node *new;
@@ -164,18 +164,18 @@ static void destroy_command_node(icd_command_node ** node)
     ICD_FREE((*node));
 }
 
-static int cli_line(int fd, char *c, int y)
+static int cli_line(struct cw_dynstr **ds_p, char *c, int y)
 {
     int x = 0;
 
     for (x = 0; x < y; x++)
-        cw_cli(fd, "%s", c);
-    cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "%s", c);
+    cw_dynstr_printf(ds_p, "\n");
     /* BCA - What should this return? */
     return ICD_SUCCESS;
 }
 
-int icd_command_register(char *name, int (*func) (int, int, char **), char *short_help, char *syntax_help,
+int icd_command_register(char *name, int (*func) (struct cw_dynstr **, int, char **), char *short_help, char *syntax_help,
     char *long_help)
 {
     icd_command_node *insert = NULL;
@@ -215,7 +215,7 @@ void destroy_command_hash(void)
     vh_destroy(&COMMAND_HASH);
 }
 
-int icd_command_cli(int fd, int argc, char **argv)
+int icd_command_cli(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     int (*func) (int, int, char **);
     char **newargv;
@@ -241,64 +241,63 @@ int icd_command_cli(int fd, int argc, char **argv)
         }
 
         newargc = argc - 1;
-        func(fd, newargc, newargv);
+        func(ds_p, newargc, newargv);
         y = 0;
         for (x = 1; x < argc; x++) {
             free(newargv[y++]);
         }
         free(newargv);
     } else
-        cw_cli(fd, "Mega Error %d\n", argc);
+        cw_dynstr_printf(ds_p, "Mega Error %d\n", argc);
 
     return ICD_SUCCESS;
 }
 
-static int icd_command_short_help(int fd, icd_command_node * node)
+static int icd_command_short_help(struct cw_dynstr **ds_p, icd_command_node * node)
 {
-    cw_cli(fd, "'%s'", node->short_help);
+    cw_dynstr_printf(ds_p, "'%s'", node->short_help);
 
     return ICD_SUCCESS;
 }
 
-static int icd_command_syntax_help(int fd, icd_command_node * node)
+static int icd_command_syntax_help(struct cw_dynstr **ds_p, icd_command_node * node)
 {
-    cw_cli(fd, "Usage: %s %s", node->name, node->syntax_help);
+    cw_dynstr_printf(ds_p, "Usage: %s %s", node->name, node->syntax_help);
 
     return ICD_SUCCESS;
 }
 
-static int icd_command_long_help(int fd, icd_command_node * node)
+static int icd_command_long_help(struct cw_dynstr **ds_p, icd_command_node * node)
 {
-    cw_cli(fd, "%s", node->long_help);
+    cw_dynstr_printf(ds_p, "%s", node->long_help);
 
     return ICD_SUCCESS;
 }
 
 /* all our commands */
-int icd_command_list(int fd, int argc, char **argv)
+int icd_command_list(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_command_node *fetch;
     vh_keylist *keys;
 
     if (argc < 2) {
-        cw_cli(fd, "\n\n");
-        cw_cli(fd, "Available Commands\n");
-        cli_line(fd, "=", 80);
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n\nAvailable Commands\n");
+        cli_line(ds_p, "=", 80);
+        cw_dynstr_printf(ds_p, "\n");
 
         for (keys = vh_keys((COMMAND_HASH)); keys; keys = keys->next) {
 
             fetch = (icd_command_node *) vh_read(COMMAND_HASH, keys->name);
             if (fetch && strcmp(fetch->short_help, "")) {
-                cw_cli(fd, "%s: ", fetch->name);
-                icd_command_short_help(fd, fetch);
-                cw_cli(fd, "\n");
+                cw_dynstr_printf(ds_p, "%s: ", fetch->name);
+                icd_command_short_help(ds_p, fetch);
+                cw_dynstr_printf(ds_p, "\n");
             }
         }
 
-        cw_cli(fd, "\n");
-        cli_line(fd, "=", 80);
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n");
+        cli_line(ds_p, "=", 80);
+        cw_dynstr_printf(ds_p, "\n");
 
         return ICD_SUCCESS;
     }
@@ -307,52 +306,49 @@ int icd_command_list(int fd, int argc, char **argv)
     fetch = (icd_command_node *) vh_read(COMMAND_HASH, argv[1]);
     if (fetch) {
 
-        cw_cli(fd, "\n\n");
-        cw_cli(fd, "Help with '%s'\n", fetch->name);
-        cli_line(fd, "=", 80);
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n\nHelp with '%s'\n", fetch->name);
+        cli_line(ds_p, "=", 80);
+        cw_dynstr_printf(ds_p, "\n");
 
-        cw_cli(fd, "%s: ", fetch->name);
-        icd_command_short_help(fd, fetch);
-        cw_cli(fd, "\n");
-        icd_command_syntax_help(fd, fetch);
-        cw_cli(fd, "\n");
-        cw_cli(fd, "\n");
-        icd_command_long_help(fd, fetch);
-        cw_cli(fd, "\n");
-        cw_cli(fd, "\n");
-        cli_line(fd, "=", 80);
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "%s: ", fetch->name);
+        icd_command_short_help(ds_p, fetch);
+        cw_dynstr_printf(ds_p, "\n");
+        icd_command_syntax_help(ds_p, fetch);
+        cw_dynstr_printf(ds_p, "\n\n");
+        icd_command_long_help(ds_p, fetch);
+        cw_dynstr_printf(ds_p, "\n\n");
+        cli_line(ds_p, "=", 80);
+        cw_dynstr_printf(ds_p, "\n");
 
     }
 
     return ICD_SUCCESS;
 }
 
-int icd_command_help(int fd, int argc, char **argv)
+int icd_command_help(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    icd_command_list(fd, argc, argv);
-    cw_cli(fd, "\nUsage 'icd <command> <arg1> .. <argn>\n");
+    icd_command_list(ds_p, argc, argv);
+    cw_dynstr_printf(ds_p, "\nUsage 'icd <command> <arg1> .. <argn>\n");
 
     /* BCA - What should this return? */
     return ICD_SUCCESS;
 }
 
-int icd_command_bad(int fd, int argc, char **argv)
+int icd_command_bad(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     int x;
 
     for (x = 0; x < argc; x++)
-        cw_cli(fd, "%d=%s\n", x, argv[x]);
+        cw_dynstr_printf(ds_p, "%d=%s\n", x, argv[x]);
 
-    cw_cli(fd, "\n\nInvalid Command\n");
-    icd_command_help(fd, argc, argv);
+    cw_dynstr_printf(ds_p, "\n\nInvalid Command\n");
+    icd_command_help(ds_p, argc, argv);
 
     /* BCA - What should this return? */
     return ICD_SUCCESS;
 }
 
-int icd_command_verbose(int fd, int argc, char **argv)
+int icd_command_verbose(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 
     if (argc == 2) {
@@ -362,16 +358,16 @@ int icd_command_verbose(int fd, int argc, char **argv)
         }
         icd_verbose = atoi(argv[1]);
         if (icd_verbose > 0 && icd_verbose < 10)
-            cw_cli(fd, "ICD Verbosity[%d] set \n", icd_verbose);
+            cw_dynstr_printf(ds_p, "ICD Verbosity[%d] set \n", icd_verbose);
         else
-            cw_cli(fd, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
+            cw_dynstr_printf(ds_p, "ICD Verbosity[%d] range is 1-9 not [%s] \n", icd_verbose, argv[1]);
     } else
-        cw_cli(fd, "ICD Verbosity[%d] range is 1-9 \n", icd_verbose);
+        cw_dynstr_printf(ds_p, "ICD Verbosity[%d] range is 1-9 \n", icd_verbose);
 
     return ICD_SUCCESS;
 }
 
-int icd_command_debug(int fd, int argc, char **argv)
+int icd_command_debug(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 
     if (argc == 2) {
@@ -380,35 +376,35 @@ int icd_command_debug(int fd, int argc, char **argv)
         else if (!strcmp(argv[1], "off"))
             icd_debug = 0;
         else
-            cw_cli(fd, "ICD debug[%d] must be either [on] or [off] not[%s]\n", icd_debug, argv[1]);
+            cw_dynstr_printf(ds_p, "ICD debug[%d] must be either [on] or [off] not[%s]\n", icd_debug, argv[1]);
     } else
-        cw_cli(fd, "ICD debug[%d] must be either [on] or [off] \n", icd_debug);
+        cw_dynstr_printf(ds_p, "ICD debug[%d] must be either [on] or [off] \n", icd_debug);
 
     return ICD_SUCCESS;
 }
 
-int icd_command_show(int fd, int argc, char **argv)
+int icd_command_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     static char *help[2] = { "help", "show" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "q") || !strcmp(argv[1], "queue") || !strcmp(argv[1], "queues")) {
-            icd_command_show_queue(fd, argc, argv);
+            icd_command_show_queue(ds_p, argc, argv);
         }
 
         if (!strcmp(argv[1], "a") || !strcmp(argv[1], "agent") || !strcmp(argv[1], "agents")) {
-            icd_command_show_agent(fd, argc, argv);
+            icd_command_show_agent(ds_p, argc, argv);
         }
 	if (!strcmp(argv[1], "c") || !strcmp(argv[1], "customer") || !strcmp(argv[1], "customers")) {
-            icd_command_show_customer(fd, argc, argv);
+            icd_command_show_customer(ds_p, argc, argv);
         }
     } else
-        icd_command_help(fd, 2, help);
+        icd_command_help(ds_p, 2, help);
 
     return ICD_SUCCESS;
 }
 
-icd_status icd_command_show_queue(int fd, int argc, char **argv)
+icd_status icd_command_show_queue(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 //QUEUE UNATTENDED CALLS        ASSIGNED/THIS QUEUE/OTHER QUEUE
 #define FMT_QUEUE_HEADING "%-18s %-8s %-14s %-15s %-10s %-18s\n"
@@ -422,16 +418,16 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
     icd_member *member;
     icd_caller *caller = NULL;
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, FMT_QUEUE_HEADING, "QUEUE", "AGENTS", "LOGIN AGENTS", "PENDING AGENTS", "CUSTOMERS", "PENDING CUSTOMERS");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, FMT_QUEUE_HEADING, "QUEUE", "AGENTS", "LOGIN AGENTS", "PENDING AGENTS", "CUSTOMERS", "PENDING CUSTOMERS");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
         if (argc == 2 || (!strcmp(curr_key, argv[2]))) {
             queue = (icd_queue *) icd_fieldset__get_value(queues, curr_key);
-            icd_queue__show(queue, verbosity, fd);
+            icd_queue__show(queue, verbosity, ds_p);
             for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
 	    icd_member_list__lock(icd_queue__get_agents(queue));
             list_iter = icd_queue__get_agent_iterator(queue);
@@ -444,10 +440,10 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
 	    }
 	    icd_member_list__unlock(icd_queue__get_agents(queue));
             destroy_icd_list_iterator(&list_iter);
-	    cw_cli(fd, "AGENTS STATES:");
+	    cw_dynstr_printf(ds_p, "AGENTS STATES:");
 	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
                 if(state_count[state] > 0)
-                    cw_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+                    cw_dynstr_printf(ds_p, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
             }
             
 	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
@@ -462,12 +458,12 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
 	    }
 	    icd_member_list__unlock(icd_queue__get_customers(queue));
             destroy_icd_list_iterator(&list_iter);
-	    cw_cli(fd, "\nCUSTOMERS STATES:");
+	    cw_dynstr_printf(ds_p, "\nCUSTOMERS STATES:");
 	    for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
                 if(state_count[state] > 0)
-                    cw_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+                    cw_dynstr_printf(ds_p, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
             }
-	    cw_cli(fd, "\n");
+	    cw_dynstr_printf(ds_p, "\n");
 	    
             if (argc != 2)
                 break;
@@ -475,15 +471,15 @@ icd_status icd_command_show_queue(int fd, int argc, char **argv)
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
 /* Create a cli ui display of the agent */
-icd_status icd_command_show_agent(int fd, int argc, char **argv)
+icd_status icd_command_show_agent(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 #define FMT_AGENT_HEADING "%-10s %-5s %-15s %-25s %-20s %20s %-10s  %-5s\n"
 #define FMT_AGENT_DATA1   "%-10s %-5d %-15s %-25s %-20s %-20s "
@@ -502,10 +498,9 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
     int state;
     char buf[256];
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n" FMT_AGENT_HEADING, "GROUP", "ID", "NAME", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
     
     for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
         
@@ -541,7 +536,7 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
             destroy_icd_list_iterator(&list_iter);
             icd_list__unlock((icd_list *) (icd_caller__get_associations(caller)));
         }
-	cw_cli(fd, FMT_AGENT_DATA1, (char *) icd_caller__get_param(caller, "group"),
+	cw_dynstr_printf(ds_p, FMT_AGENT_DATA1, (char *) icd_caller__get_param(caller, "group"),
             icd_caller__get_id(caller), icd_caller__get_name(caller), icd_caller__get_state_string(caller)+17,
             icd_caller__get_channel(caller) ? icd_caller__get_channel(caller)->name : "(None)", buf);
 	    
@@ -552,7 +547,7 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
 		if(member){
 	          queue = icd_member__get_queue(member);
 		  if(queue){
-                      cw_cli(fd, "%s, ", icd_queue__get_name(queue));
+                      cw_dynstr_printf(ds_p, "%s, ", icd_queue__get_name(queue));
 		  }
                 }
         }
@@ -560,26 +555,26 @@ icd_status icd_command_show_agent(int fd, int argc, char **argv)
         icd_list__unlock((icd_list *) (icd_caller__get_memberships(caller)));
         
 
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n");
     }
 
     destroy_icd_fieldset_iterator(&iter);
-    cw_cli(fd, "AGENTS IN STATE:" );
+    cw_dynstr_printf(ds_p, "AGENTS IN STATE:" );
     for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
           if(state_count[state] > 0)
-                cw_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+                cw_dynstr_printf(ds_p, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
     }
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 
 }
 
 /* Create a cli ui display of the agent */
-icd_status icd_command_show_customer(int fd, int argc, char **argv)
+icd_status icd_command_show_customer(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 #define FMT_CUSTOMER_HEADING "%-10s %-5s %-20s %-25s %-20s %20s %-10s  %-5s\n"
 #define FMT_CUSTOMER_DATA1   "%-10s %-5d %-20s %-25s %-20s %-20s "
@@ -598,10 +593,9 @@ icd_status icd_command_show_customer(int fd, int argc, char **argv)
     int state;
     char buf[256];
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, FMT_CUSTOMER_HEADING, "GROUP", "ID", "CALLER ID", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n" FMT_CUSTOMER_HEADING, "GROUP", "ID", "CALLER ID", "STATE", "CHANNEL", "TALKING", "QUEUE", "LISTEN CODE");
     
     for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state_count[state++] = 0);
     
@@ -638,7 +632,7 @@ icd_status icd_command_show_customer(int fd, int argc, char **argv)
             destroy_icd_list_iterator(&list_iter);
             icd_list__unlock((icd_list *) (icd_caller__get_associations(caller)));
         }
-	cw_cli(fd, FMT_CUSTOMER_DATA1, (char *) icd_caller__get_param(caller, "group"),
+	cw_dynstr_printf(ds_p, FMT_CUSTOMER_DATA1, (char *) icd_caller__get_param(caller, "group"),
             icd_caller__get_id(caller), icd_caller__get_caller_id(caller), icd_caller__get_state_string(caller)+17,
             icd_caller__get_channel(caller) ? icd_caller__get_channel(caller)->name : "(None)", buf);
 	    
@@ -649,7 +643,7 @@ icd_status icd_command_show_customer(int fd, int argc, char **argv)
 		if(member){
 	          queue = icd_member__get_queue(member);
 		  if(queue){
-                      cw_cli(fd, "%s, ", icd_queue__get_name(queue));
+                      cw_dynstr_printf(ds_p, "%s, ", icd_queue__get_name(queue));
 		  }
                 }
         }
@@ -657,71 +651,71 @@ icd_status icd_command_show_customer(int fd, int argc, char **argv)
         icd_list__unlock((icd_list *) (icd_caller__get_memberships(caller)));
         
 
-        cw_cli(fd, "\n");
+        cw_dynstr_printf(ds_p, "\n");
     }
 
     cw_mutex_unlock(&customers_lock);
     destroy_icd_fieldset_iterator(&iter);
-    cw_cli(fd, "CUSTOMERS IN STATE:" );
+    cw_dynstr_printf(ds_p, "CUSTOMERS IN STATE:" );
     for(state = ICD_CALLER_STATE_CREATED; state <= ICD_CALLER_STATE_CONFERENCED; state++ ){
           if(state_count[state] > 0)
-                  cw_cli(fd, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
+                  cw_dynstr_printf(ds_p, " %s = %d,", icd_caller_state_strings[state] + 17, state_count[state]);
     }
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 
 }
 
-int icd_command_dump(int fd, int argc, char **argv)
+int icd_command_dump(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     static char *help[2] = { "help", "dump" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "q") || !strcmp(argv[1], "queue") || !strcmp(argv[1], "queues")) {
-            icd_command_dump_queue(fd, argc, argv);
+            icd_command_dump_queue(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "d") || !strcmp(argv[1], "dist") || !strcmp(argv[1], "distributors")) {
-            icd_command_dump_distributor(fd, argc, argv);
+            icd_command_dump_distributor(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "caller") || !strcmp(argv[1], "callers")) {
-            icd_command_dump_customer(fd, argc, argv);
-            icd_command_dump_agent(fd, argc, argv);
+            icd_command_dump_customer(ds_p, argc, argv);
+            icd_command_dump_agent(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "a") || !strcmp(argv[1], "agent") || !strcmp(argv[1], "agents")) {
-            icd_command_dump_agent(fd, argc, argv);
+            icd_command_dump_agent(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "c") || !strcmp(argv[1], "customer") || !strcmp(argv[1], "customers")) {
-            icd_command_dump_customer(fd, argc, argv);
+            icd_command_dump_customer(ds_p, argc, argv);
         }
     } else
-        icd_command_help(fd, 2, help);
+        icd_command_help(ds_p, 2, help);
 
     /* BCA - What should this return? */
     return ICD_SUCCESS;
 }
 
-static icd_status icd_command_dump_queue(int fd, int argc, char **argv)
+static icd_status icd_command_dump_queue(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_fieldset_iterator *iter;
     char *curr_key;
     icd_queue *queue;
     icd_distributor *dist;
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "Queue Dump \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "Queue Dump \n");
 
     iter = icd_fieldset__get_key_iterator(queues);
     while (icd_fieldset_iterator__has_more(iter)) {
         curr_key = icd_fieldset_iterator__next(iter);
         if (argc == 2 || (!strcmp(curr_key, argv[2]))) {
-            cw_cli(fd, "\nFound %s\n", curr_key);
+            cw_dynstr_printf(ds_p, "\nFound %s\n", curr_key);
             queue = (icd_queue *) icd_fieldset__get_value(queues, curr_key);
-            icd_queue__dump(queue, verbosity, fd);
+            icd_queue__dump(queue, verbosity, ds_p);
             dist = (icd_distributor *) icd_queue__get_distributor(queue);
             /*
                if (dist)
@@ -733,31 +727,31 @@ static icd_status icd_command_dump_queue(int fd, int argc, char **argv)
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-static icd_status icd_command_dump_distributor(int fd, int argc, char **argv)
+static icd_status icd_command_dump_distributor(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 /*
     icd_distributor *dist;
 
-     cw_cli(fd,"\n");
-     cli_line(fd,"=",80);
-     cw_cli(fd,"\n");
+     cw_dynstr_printf(ds_p,"\n");
+     cli_line(ds_p,"=",80);
+     cw_dynstr_printf(ds_p,"\n");
 
  
-     cw_cli(fd,"\n");
-     cli_line(fd,"=",80);
-     cw_cli(fd,"\n");
+     cw_dynstr_printf(ds_p,"\n");
+     cli_line(ds_p,"=",80);
+     cw_dynstr_printf(ds_p,"\n");
 */
     return ICD_SUCCESS;
 }
 
-static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
+static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_fieldset_iterator *fs_iter;
     char *curr_key;
@@ -768,10 +762,9 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
     icd_member *member;
     icd_caller *caller;
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "Customer Dump \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nCustomer Dump \n");
 
     fs_iter = icd_fieldset__get_key_iterator(queues);
     if (fs_iter == NULL) {
@@ -779,7 +772,7 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
     }
     while (icd_fieldset_iterator__has_more(fs_iter)) {
         curr_key = icd_fieldset_iterator__next(fs_iter);
-        cw_cli(fd, "\nCustomers in Queue %s\n", curr_key);
+        cw_dynstr_printf(ds_p, "\nCustomers in Queue %s\n", curr_key);
         queue = icd_fieldset__get_value(queues, curr_key);
         customers = (icd_member_list *) icd_queue__get_customers(queue);
 
@@ -791,36 +784,35 @@ static icd_status icd_command_dump_customer(int fd, int argc, char **argv)
                     caller = (icd_caller *) icd_member__get_caller(member);
                     if (caller) {
                         //caller->dump_fn_extra
-                        icd_caller__dump(caller, verbosity, fd);
+                        icd_caller__dump(caller, verbosity, ds_p);
                     }
                     destroy_icd_list_iterator(&iter);
                 }
             }
         } else {
-            icd_member_list__dump(customers, verbosity, fd);
+            icd_member_list__dump(customers, verbosity, ds_p);
         }
 
     }
     destroy_icd_fieldset_iterator(&fs_iter);
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-static icd_status icd_command_dump_agent(int fd, int argc, char **argv)
+static icd_status icd_command_dump_agent(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_fieldset_iterator *iter;
     char *curr_key;
     icd_agent *agent = NULL;
     icd_caller *caller = NULL;
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "Agent Dump \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nAgent Dump \n");
 
     iter = icd_fieldset__get_key_iterator(agents);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -830,138 +822,133 @@ static icd_status icd_command_dump_agent(int fd, int argc, char **argv)
 	if(argc >=3)
 	  if(strcmp(argv[2],icd_caller__get_caller_id(caller)))
 	     continue; 	
-        icd_caller__dump(caller, verbosity, fd);
+        icd_caller__dump(caller, verbosity, ds_p);
     }
     destroy_icd_fieldset_iterator(&iter);
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
 /*
-static icd_status icd_command_dump__agent(int fd, int argc, char **argv) {
+static icd_status icd_command_dump__agent(struct dynstr **ds_p, int argc, char **argv) {
 
     icd_queue *queue;
     icd_caller *caller;
 
-     cw_cli(fd,"\n");
-     cli_line(fd,"=",80);
-     cw_cli(fd,"\n");
-     cw_cli(fd,"Agent Dump \n",);
+     cw_dynstr_printf(ds_p,"\n");
+     cli_line(ds_p,"=",80);
+     cw_dynstr_printf(ds_p,"\nAgent Dump \n",);
 
      iter = icd_fieldset__get_key_iterator(agents);
      while (icd_fieldset_iterator__has_more(iter)) {
        curr_key = icd_fieldset_iterator__next(iter);
-       cw_cli(fd,"\nFound %s\n",curr_key);
+       cw_dynstr_printf(ds_p,"\nFound %s\n",curr_key);
        agent = icd_fieldset__get_value(agents, curr_key) ;
      }
      destroy_icd_fieldset_iterator(&iter);
 
-     cw_cli(fd,"\n");
-     cli_line(fd,"=",80);
-     cw_cli(fd,"\n");
+     cw_dynstr_printf(ds_p,"\n");
+     cli_line(ds_p,"=",80);
+     cw_dynstr_printf(ds_p,"\n");
 
     return ICD_SUCCESS;
 }
 */
-int icd_command_load(int fd, int argc, char **argv)
+int icd_command_load(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     static char *help[2] = { "help", "load" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "i") || !strcmp(argv[1], "icd")) {
-            icd_command_load_app_icd(fd, argc, argv);
+            icd_command_load_app_icd(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "q") || !strcmp(argv[1], "queue") || !strcmp(argv[1], "queues")) {
-            icd_command_load_queues(fd, argc, argv);
+            icd_command_load_queues(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "a") || !strcmp(argv[1], "agent") || !strcmp(argv[1], "agents")) {
-            icd_command_load_agents(fd, argc, argv);
+            icd_command_load_agents(ds_p, argc, argv);
         }
         if (!strcmp(argv[1], "c") || !strcmp(argv[1], "conference") || !strcmp(argv[1], "conferences")) {
-            icd_command_load_conferences(fd, argc, argv);
+            icd_command_load_conferences(ds_p, argc, argv);
         }
     } else
-        icd_command_help(fd, 2, help);
+        icd_command_help(ds_p, 2, help);
 
     return ICD_SUCCESS;
 }
 
-icd_status icd_command_load_app_icd(int fd, int argc, char **argv)
+icd_status icd_command_load_app_icd(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "APP_ICD Reload \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nAPP_ICD Reload \n");
 
     reload_app_icd(APP_ICD);    /*implemenation in app_icd.c */
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-icd_status icd_command_load_conferences(int fd, int argc, char **argv)
+icd_status icd_command_load_conferences(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "Conferences Reload \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nConferences Reload \n");
 
     reload_app_icd(ICD_CONFERENCE);     /*implemenation in app_icd.c */
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-icd_status icd_command_load_agents(int fd, int argc, char **argv)
+icd_status icd_command_load_agents(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "Agents Reload \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nAgents Reload \n");
 
     reload_app_icd(ICD_AGENT);  /*implemenation in app_icd.c */
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-icd_status icd_command_load_queues(int fd, int argc, char **argv)
+icd_status icd_command_load_queues(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
-    cw_cli(fd, "Queue Reload \n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\nQueue Reload \n");
 
     reload_app_icd(ICD_QUEUE);  /*implemenation in app_icd.c */
 
-    cw_cli(fd, "\n");
-    cli_line(fd, "=", 80);
-    cw_cli(fd, "\n");
+    cw_dynstr_printf(ds_p, "\n");
+    cli_line(ds_p, "=", 80);
+    cw_dynstr_printf(ds_p, "\n");
 
     return ICD_SUCCESS;
 }
 
-int icd_command_ack (int fd, int argc, char **argv)
+int icd_command_ack (struct cw_dynstr **ds_p, int argc, char **argv)
 {
   char * agent_id;
   icd_agent *agent = NULL;
 
   if(argc != 2) {
-     	cw_cli(fd, "icd ack: Bad number of parameters\n");
+        cw_dynstr_printf(ds_p, "icd ack: Bad number of parameters\n");
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "Ack"),
@@ -973,7 +960,7 @@ int icd_command_ack (int fd, int argc, char **argv)
   agent_id = argv[1];   	   
   agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
   if (!agent) {
-        cw_cli(fd, "icd ack failed. Agent [%s] could not be found.\n", agent_id);        
+        cw_dynstr_printf(ds_p, "icd ack failed. Agent [%s] could not be found.\n", agent_id);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Ack"),
@@ -994,7 +981,7 @@ int icd_command_ack (int fd, int argc, char **argv)
          cw_msg_tuple("CallerID", "%s", agent_id),
          cw_msg_tuple("State", "%s", icd_caller__get_state_string((icd_caller *)agent))
      );
-     cw_cli(fd, "icd ack for agent[%s] - OK\n", agent_id);
+     cw_dynstr_printf(ds_p, "icd ack for agent[%s] - OK\n", agent_id);
      return 0;
   }
   cw_log(CW_LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
@@ -1009,13 +996,13 @@ int icd_command_ack (int fd, int argc, char **argv)
   return -1;
 }
 
-int icd_command_hang_up (int fd, int argc, char **argv)
+int icd_command_hang_up (struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_caller *agent = NULL;
     char *agent_id;
     
     if (argc != 2) {
-        cw_cli(fd, "Function Hang up failed- bad number of parameters [%d]\n", argc);
+        cw_dynstr_printf(ds_p, "Function Hang up failed- bad number of parameters [%d]\n", argc);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "Hangup"),
@@ -1027,7 +1014,7 @@ int icd_command_hang_up (int fd, int argc, char **argv)
     agent_id = argv[1];   
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);
     if (!agent) {
-        cw_cli(fd, "Function Hang up failed. Agent '%s' could not be found.\n", agent_id);        
+        cw_dynstr_printf(ds_p, "Function Hang up failed. Agent '%s' could not be found.\n", agent_id);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Hangup"),
@@ -1039,7 +1026,7 @@ int icd_command_hang_up (int fd, int argc, char **argv)
     }		    
     if(icd_caller__get_state(agent) != ICD_CALLER_STATE_BRIDGED &&
        icd_caller__get_state(agent) != ICD_CALLER_STATE_CONFERENCED){
-       cw_cli(fd, "Function Hang up failed. Agent '%s' in state [%s].\n", agent_id,
+       cw_dynstr_printf(ds_p, "Function Hang up failed. Agent '%s' in state [%s].\n", agent_id,
 		    icd_caller__get_state_string(agent));        
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             5,
@@ -1052,7 +1039,7 @@ int icd_command_hang_up (int fd, int argc, char **argv)
 		return -1;
     }    
     if(icd_caller__set_state(agent, ICD_CALLER_STATE_CALL_END)!=ICD_SUCCESS){    	     
-       cw_cli(fd, "Function Hang up failed. Agent [%s] can not change state to CALL_END\n", agent_id);
+       cw_dynstr_printf(ds_p, "Function Hang up failed. Agent [%s] can not change state to CALL_END\n", agent_id);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
            5,
            cw_msg_tuple("Command", "%s", "Hangup"),
@@ -1125,7 +1112,7 @@ static void *icd_command_login_thread(void *arg) {
     return NULL;
 }
 
-int icd_command_login (int fd, int argc, char **argv)
+int icd_command_login (struct cw_dynstr **ds_p, int argc, char **argv)
 {
     pthread_t tid;
     icd_caller *agent = NULL;
@@ -1218,7 +1205,7 @@ int icd_command_login (int fd, int argc, char **argv)
     return 0;
 }
 
-int icd_command_logout (int fd, int argc, char **argv)
+int icd_command_logout (struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_caller *agent = NULL;
     char *agent_id;
@@ -1307,12 +1294,12 @@ int icd_command_logout (int fd, int argc, char **argv)
     return ICD_EGENERAL;
 }
 
-int icd_command_hangup_channel (int fd, int argc, char **argv)
+int icd_command_hangup_channel (struct cw_dynstr **ds_p, int argc, char **argv)
 {
    struct cw_channel *chan;
 
    if (argc != 2) {
-       cw_cli(fd, "Function Hang up channel failed - bad number of parameters [%d]\n", argc);
+       cw_dynstr_printf(ds_p, "Function Hang up channel failed - bad number of parameters [%d]\n", argc);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
            3,
            cw_msg_tuple("Command", "%s", "HangupChannel"),
@@ -1325,7 +1312,7 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
    if ((chan = cw_get_channel_by_name_locked(argv[1]))) {
        cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
        cw_channel_unlock(chan);
-       cw_cli(fd, "Function Hang Up succeed - channel[%s]\n", argv[1]);
+       cw_dynstr_printf(ds_p, "Function Hang Up succeed - channel[%s]\n", argv[1]);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
           3,
           cw_msg_tuple("Command", "%s", "HangupChannel"),
@@ -1336,7 +1323,7 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
        return 0;
    }
 
-   cw_cli(fd, "Function Hang up channel failed - channel not found [%s]\n", argv[1]);
+   cw_dynstr_printf(ds_p, "Function Hang up channel failed - channel not found [%s]\n", argv[1]);
    cw_manager_event(EVENT_FLAG_USER, "icd_command",
        4,
        cw_msg_tuple("Command", "%s", "HangupChannel"),
@@ -1349,7 +1336,7 @@ int icd_command_hangup_channel (int fd, int argc, char **argv)
 
 
 
-int icd_command_playback_channel (int fd, int argc, char **argv)
+int icd_command_playback_channel (struct cw_dynstr **ds_p, int argc, char **argv)
 {
    icd_agent * agent; 
    char * agent_id;
@@ -1361,7 +1348,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
 
 
    if (argc != 3){
-       cw_cli(fd, "Function Playback_chan (play_dtmf) failed - bad number of parameters [%d]\n", argc);
+       cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - bad number of parameters [%d]\n", argc);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "PlaybackChannel"),
@@ -1378,7 +1365,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
     key = argv[2];
 
    if (agent == NULL) {
-       cw_cli(fd, "Function Playback_chan (play_dtmf) failed - agent not found [%s]\n", agent_id);
+       cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - agent not found [%s]\n", agent_id);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
            cw_msg_tuple("Command", "%s", "PlaybackChannel"),
@@ -1447,7 +1434,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
         conf = ((icd_caller *)agent)->conference;
 
         if (!conf) {
-            cw_cli(fd, "Function Playback_chan (play_dtmf) failed - agent conference not found [%s]\n", agent_id);
+            cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - agent conference not found [%s]\n", agent_id);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "PlaybackChannel"),
@@ -1470,7 +1457,7 @@ int icd_command_playback_channel (int fd, int argc, char **argv)
     	    data += res;
         }
 
-    cw_cli(fd, "Function Playback succeed - agent[%s]\n", agent_id);
+    cw_dynstr_printf(ds_p, "Function Playback succeed - agent[%s]\n", agent_id);
     cw_manager_event(EVENT_FLAG_USER, "icd_command",
         3,
         cw_msg_tuple("Command", "%s", "PlaybackChannel (play_dtmf)"),
@@ -1493,7 +1480,7 @@ argv[3] = if start - directory & file name. %D -day, %M - minute, %S - second. T
 argv[3] = /tmp/%D/%m/  fliename is: /tmp/29/59/callweaver123123423423454.WAV	                 
 */
 
-int icd_command_record(int fd, int argc, char **argv)
+int icd_command_record(struct cw_dynstr **ds_p, int argc, char **argv)
 {
   icd_caller * customer;
   char rec_directory_buf[200];
@@ -1509,7 +1496,7 @@ int icd_command_record(int fd, int argc, char **argv)
   int record_start = -1;
 
   if (argc != 3  && argc != 4 ) {
-       cw_cli(fd, "Function record bad no of parameters [%d]\n", argc);
+       cw_dynstr_printf(ds_p, "Function record bad no of parameters [%d]\n", argc);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Record"),
@@ -1524,7 +1511,7 @@ int icd_command_record(int fd, int argc, char **argv)
    if (!strcasecmp(argv[1],"stop"))
         record_start = 0;
    if (record_start == -1) {
-       cw_cli(fd, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
+       cw_dynstr_printf(ds_p, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Record"),
@@ -1546,7 +1533,7 @@ int icd_command_record(int fd, int argc, char **argv)
    cw_mutex_unlock(&customers_lock);
 
    if (customer == NULL) {
-            cw_cli(fd, "Record FAILURE! Customer [%s] not found\n", customer_source);
+            cw_dynstr_printf(ds_p, "Record FAILURE! Customer [%s] not found\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
@@ -1558,7 +1545,7 @@ int icd_command_record(int fd, int argc, char **argv)
    }
    chan = icd_caller__get_channel(customer);
    if (chan == NULL) {
-            cw_cli(fd, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
+            cw_dynstr_printf(ds_p, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
@@ -1569,7 +1556,7 @@ int icd_command_record(int fd, int argc, char **argv)
 	        return 1;
    }
    if (chan->name == NULL) {
-            cw_cli(fd,  "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
+            cw_dynstr_printf(ds_p,  "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
@@ -1594,8 +1581,7 @@ int icd_command_record(int fd, int argc, char **argv)
             cw_msg_tuple("Event", "%s", "RecordStop"),
             cw_msg_tuple("CallerID", "%s", customer_source)
         );
-        fd = fileno(stderr);
-        cw_cli_command(fd, buf);
+        cw_cli_command(ds_p, buf);
         return 0;
    }
    if(chan->spies != NULL){
@@ -1633,8 +1619,7 @@ int icd_command_record(int fd, int argc, char **argv)
    strncpy(buf + strlen(buf),  rec_format_buf, sizeof(buf) - strlen(buf)-1);
  
 //   muxmon <start|stop> <chan_name> <args>cw_cli_command(fd, command);fd can be like fileno(stderr)
-   fd = fileno(stderr);
-   cw_cli_command(fd, buf);
+   cw_cli_command(ds_p, buf);
    cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
    cw_manager_event(EVENT_FLAG_USER, "icd_command",
         5,
@@ -1661,7 +1646,7 @@ int icd_command_record(int fd, int argc, char **argv)
  	515	argv[3] = nothing or R to remove from queue, if argv[2]=all remove from all queues 
  	516	*/ 
  
-int icd_command_join_queue (int fd, int argc, char **argv) 
+int icd_command_join_queue (struct cw_dynstr **ds_p, int argc, char **argv) 
 { 
 	    icd_caller *agent = NULL; 
 	    char *agent_id; 
@@ -1671,7 +1656,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    icd_member *member; 
 	 
 	    if ((argc != 3) && (argc !=4)) { 
-       		cw_cli(fd, "icd queue FAILURE! bad parameters\n");
+            cw_dynstr_printf(ds_p, "icd queue FAILURE! bad parameters\n");
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 3,
                 cw_msg_tuple("Command", "%s", "Queue"),
@@ -1684,7 +1669,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    queuename = argv[2]; 
 	    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
 	    if (agent == NULL) { 
-            cw_cli(fd, "icd queue FAILURE! Agent [%s] not found\n", agent_id);
+            cw_dynstr_printf(ds_p, "icd queue FAILURE! Agent [%s] not found\n", agent_id);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Queue"),
@@ -1702,7 +1687,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	    if(!remove || strcasecmp(queuename,"all")){          
 	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename); 
 	      if (queue == NULL) { 
-            	cw_cli(fd,"icd queue FAILURE! Queue not found[%s], Agent [%s]\n", queuename, agent_id);
+                cw_dynstr_printf(ds_p,"icd queue FAILURE! Queue not found[%s], Agent [%s]\n", queuename, agent_id);
                 cw_manager_event(EVENT_FLAG_USER, "icd_command",
                     5,
                     cw_msg_tuple("Command", "%s", "Queue"),
@@ -1724,7 +1709,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	                	icd_queue__agent_distribute(queue, member); 
 	           	}
 		   }		   		 
-                  cw_cli(fd,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
+                  cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
                    cw_manager_event(EVENT_FLAG_USER, "icd_command",
                        5,
                        cw_msg_tuple("Command", "%s", "Queue"),
@@ -1744,9 +1729,9 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 	                if(icd_caller__get_active_member(agent) == member){ 
 	                     icd_caller__set_active_member (agent, NULL); 
 	                }   
-	           icd_caller__remove_from_queue(agent, queue); 
-            	   cw_cli(fd,"icd queue OK! Agent[%s] removed from queue[%s]\n", agent_id, queuename);
-                       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                    icd_caller__remove_from_queue(agent, queue); 
+                    cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] removed from queue[%s]\n", agent_id, queuename);
+                    cw_manager_event(EVENT_FLAG_USER, "icd_command",
                        5,
                        cw_msg_tuple("Command", "%s", "Queue"),
                        cw_msg_tuple("SubCommand", "%s", "Remove"),
@@ -1758,15 +1743,15 @@ int icd_command_join_queue (int fd, int argc, char **argv)
  	      } 
 	      else {
                icd_caller__set_active_member (agent, NULL); 
-	       icd_caller__remove_from_all_queues(agent); 
-      	       cw_cli(fd,"icd queue OK! Agent[%s] removed from all queues\n", agent_id);
-                cw_manager_event(EVENT_FLAG_USER, "icd_command",
+               icd_caller__remove_from_all_queues(agent); 
+               cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] removed from all queues\n", agent_id);
+               cw_manager_event(EVENT_FLAG_USER, "icd_command",
                     4,
                     cw_msg_tuple("Command", "%s", "Queue"),
                     cw_msg_tuple("SubCommand", "%s", "RemoveAll"),
                     cw_msg_tuple("Result", "%s", "OK"),
                     cw_msg_tuple("CallerID", "%s", agent_id)
-                );
+               );
 	    }
             icd_list__unlock((icd_list *) (agent->memberships));
 	}        
@@ -1775,7 +1760,7 @@ int icd_command_join_queue (int fd, int argc, char **argv)
 } 
 
 
-int icd_command_control_playback(int fd, int argc, char **argv) {
+int icd_command_control_playback(struct cw_dynstr **ds_p, int argc, char **argv) {
 
     icd_agent * agent;
     icd_caller * associated_caller;
@@ -1787,7 +1772,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     int i;
 
     if (argc < 3){
-        cw_cli(fd, "Function control_playback failed - bad number of parameters [%d]\n", argc);
+        cw_dynstr_printf(ds_p, "Function control_playback failed - bad number of parameters [%d]\n", argc);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "control_playback"),
@@ -1810,7 +1795,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     }
 
     if (agent == NULL) {
-        cw_cli(fd, "Function control_playback failed - agent not found [%s]\n", agent_id);
+        cw_dynstr_printf(ds_p, "Function control_playback failed - agent not found [%s]\n", agent_id);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "control_playback"),
@@ -1824,7 +1809,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     conf = ((icd_caller *)agent)->conference;
 
     if (!conf) {
-        cw_cli(fd, "Function control_playback failed - agent conference not found [%s]\n", agent_id);
+        cw_dynstr_printf(ds_p, "Function control_playback failed - agent conference not found [%s]\n", agent_id);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "control_playback"),
@@ -1838,12 +1823,12 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
     associated_caller = (icd_caller *) icd_list__peek((icd_list *) ((icd_caller*)agent)->associations);
     
     if (!associated_caller){
-        cw_cli(fd, "Associated caller not found for agent [%s]\n", agent_id);
+        cw_dynstr_printf(ds_p, "Associated caller not found for agent [%s]\n", agent_id);
         return -1;
     }
 
     if (!associated_caller->chan){
-        cw_cli(fd, "Associated caller channel not found for agent [%s]\n", agent_id);
+        cw_dynstr_printf(ds_p, "Associated caller channel not found for agent [%s]\n", agent_id);
         return -1;
     }
 
@@ -1859,7 +1844,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
         cw_fr_free(f);
     }
 
-    cw_cli(fd, "Function control_playback succeed - agent[%s]\n", agent_id);
+    cw_dynstr_printf(ds_p, "Function control_playback succeed - agent[%s]\n", agent_id);
     cw_manager_event(EVENT_FLAG_USER, "icd_command",
         3,
         cw_msg_tuple("Command", "%s", "control_playback"),
@@ -1871,7 +1856,7 @@ int icd_command_control_playback(int fd, int argc, char **argv) {
 }
 
 
-int icd_command_transfer (int fd, int argc, char **argv)
+int icd_command_transfer (struct cw_dynstr **ds_p, int argc, char **argv)
 {
   icd_caller *customer;
   struct cw_channel *chan = NULL;
@@ -1879,7 +1864,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
   char *pria = "1", *exten, *context;
 
   if (argc != 3) {
-       cw_cli(fd, "Transfer FAILURE! bad parameters\n");
+       cw_dynstr_printf(ds_p, "Transfer FAILURE! bad parameters\n");
        cw_manager_event(EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1893,7 +1878,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
    customer = (icd_caller *) icd_fieldset__get_value(customers, customer_source);
    cw_mutex_unlock(&customers_lock);
    if (customer == NULL) {
-            cw_cli(fd,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
+            cw_dynstr_printf(ds_p,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1908,7 +1893,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
 		*context = 0;
 		context++;
 		if(!(context && exten)) {
-			cw_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
+			cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1925,7 +1910,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
 			pria = "1";
 	}
 	else {		
-		cw_cli(fd,"Transfer failure, customer[%s] : no context\n", customer_source);
+		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1937,7 +1922,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
 	}
 	chan = icd_caller__get_channel(customer);
     if(!chan){
-		cw_cli(fd,"Transfer failure, customer[%s] : no channel\n", customer_source);
+		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no channel\n", customer_source);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1950,7 +1935,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
         );
     }	 	
     if(!cw_findlabel_extension(chan, context, exten, pria, NULL)){
-		cw_cli(fd,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
+		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1964,7 +1949,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
         return 1;
     }	 	
 	if(cw_goto_if_exists(chan, context, exten, pria)){
-		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
+		cw_dynstr_printf(ds_p,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
@@ -1978,7 +1963,7 @@ int icd_command_transfer (int fd, int argc, char **argv)
 	    return 1;	   
 	};
  	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
-		cw_cli(fd,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
+		cw_dynstr_printf(ds_p,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
             8,
             cw_msg_tuple("Command", "%s", "Transfer"),

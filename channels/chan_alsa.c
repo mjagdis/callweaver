@@ -2882,14 +2882,14 @@ static struct cw_channel *alsa_request(const char *type, int format, void *data,
 	return tmp;
 }
 
-static int console_autoanswer(int fd, int argc, char *argv[])
+static int console_autoanswer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;;
 	if ((argc != 1) && (argc != 2))
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&alsalock);
 	if (argc == 1) {
-		cw_cli(fd, "Auto answer is %s.\n", autoanswer ? "on" : "off");
+		cw_dynstr_printf(ds_p, "Auto answer is %s.\n", autoanswer ? "on" : "off");
 	} else {
 		if (!strcasecmp(argv[1], "on"))
 			autoanswer = -1;
@@ -2902,13 +2902,13 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return res;
 }
 
-static void autoanswer_complete(int fd, char *argv[], int lastarg, int lastarg_len)
+static void autoanswer_complete(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (!strncasecmp(argv[lastarg], "on", lastarg_len))
-		cw_cli(fd, "on\n");
+		cw_dynstr_printf(ds_p, "on\n");
 
 	if (!strncasecmp(argv[lastarg], "off", lastarg_len))
-		cw_cli(fd, "off\n");
+		cw_dynstr_printf(ds_p, "off\n");
 }
 
 static const char autoanswer_usage[] =
@@ -2917,14 +2917,14 @@ static const char autoanswer_usage[] =
 "       argument, displays the current on/off status of autoanswer.\n"
 "       The default value of autoanswer is in 'alsa.conf'.\n";
 
-static int console_answer(int fd, int argc, char *argv[])
+static int console_answer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
-		cw_cli(fd, "No one is calling us\n");
+		cw_dynstr_printf(ds_p, "No one is calling us\n");
 		res = RESULT_FAILURE;
 	} else {
 		hookstate = 1;
@@ -2947,7 +2947,7 @@ static const char sendtext_usage[] =
 "Usage: send text <message>\n"
 "       Sends a text message for display on the remote terminal.\n";
 
-static int console_sendtext(int fd, int argc, char *argv[])
+static int console_sendtext(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int tmparg = 2;
 	int res = RESULT_SUCCESS;
@@ -2955,7 +2955,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
-		cw_cli(fd, "No one is calling us\n");
+		cw_dynstr_printf(ds_p, "No one is calling us\n");
 		res = RESULT_FAILURE;
 	} else {
 		struct cw_frame f = { CW_FRAME_TEXT, 0 };
@@ -2988,7 +2988,7 @@ static const char answer_usage[] =
 "Usage: answer\n"
 "       Answers an incoming call on the console (ALSA) channel.\n";
 
-static int console_hangup(int fd, int argc, char *argv[])
+static int console_hangup(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
 	if (argc != 1)
@@ -2996,7 +2996,7 @@ static int console_hangup(int fd, int argc, char *argv[])
 	cursound = -1;
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner && !hookstate) {
-		cw_cli(fd, "No call to hangup up\n");
+		cw_dynstr_printf(ds_p, "No call to hangup up\n");
 		res = RESULT_FAILURE;
 	} else {
 		hookstate = 0;
@@ -3015,7 +3015,7 @@ static const char hangup_usage[] =
 "       Hangs up any call currently placed on the console.\n";
 
 
-static int console_dial(int fd, int argc, char *argv[])
+static int console_dial(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char tmp[256], *tmp2;
 	char *mye, *myc;
@@ -3038,7 +3038,7 @@ static int console_dial(int fd, int argc, char *argv[])
 				cw_channel_unlock(alsa.owner);
 			}
 		} else {
-			cw_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
+			cw_dynstr_printf(ds_p, "You're already in a call.  You can use this only to dial digits until you hangup\n");
 			res = RESULT_FAILURE;
 		}
 	} else {
@@ -3061,7 +3061,7 @@ static int console_dial(int fd, int argc, char *argv[])
 			hookstate = 1;
 			alsa_new(&alsa, CW_STATE_RINGING);
 		} else
-			cw_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
+			cw_dynstr_printf(ds_p, "No such extension '%s' in context '%s'\n", mye, myc);
 	}
 	cw_mutex_unlock(&alsalock);
 	return res;

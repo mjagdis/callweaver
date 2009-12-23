@@ -203,7 +203,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
 static int connect_woomera(int *new_socket, woomera_profile *profile, int flags);
 static int init_woomera(void);
 static struct cw_channel *woomera_new(const char *type, int format, void *data, int *cause);
-static int woomera_cli(int fd, int argc, char *argv[]);
+static int woomera_cli(struct cw_dynstr **ds_p, int argc, char *argv[]);
 static void tech_destroy(private_object *tech_pvt);
 static struct cw_channel *woomera_new(const char *type, int format, void *data, int *cause);
 static int tech_create_read_socket(private_object *tech_pvt);
@@ -1859,28 +1859,28 @@ static enum cw_bridge_result tech_bridge(struct cw_channel *chan_a, struct cw_ch
 }
 
 
-static int woomera_cli(int fd, int argc, char *argv[]) 
+static int woomera_cli(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	if (argc > 1) {
 		if (!strcmp(argv[1], "debug")) {
 			if (argc > 2) {
 				globals.debug = atoi(argv[2]);
 			}
-			cw_cli(fd, "OK debug=%d\n", globals.debug);
+			cw_dynstr_printf(ds_p, "OK debug=%d\n", globals.debug);
 		} else if (!strcmp(argv[1], "panic")) {
 			if (argc > 2) {
 				globals.panic = atoi(argv[2]);
 			}
-			cw_cli(fd, "OK panic=%d\n", globals.panic);
+			cw_dynstr_printf(ds_p, "OK panic=%d\n", globals.panic);
 		} else if (!strcmp(argv[1], "threads")) {
-			cw_cli(fd, "chan_woomera is using %s threads!\n", globals.more_threads ? "more" : "less");
+			cw_dynstr_printf(ds_p, "chan_woomera is using %s threads!\n", globals.more_threads ? "more" : "less");
 		
 		} else if (!strcmp(argv[1], "abort")) {
 			global_set_flag(TFLAG_ABORT);
 		}
 
 	} else {
-		cw_cli(fd, "Usage: woomera <debug> <level>\n");
+		cw_dynstr_printf(ds_p, "Usage: woomera <debug> <level>\n");
 	}
 	return 0;
 }

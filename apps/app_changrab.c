@@ -159,17 +159,15 @@ static void cw_bridge_call_thread_launch(struct cw_channel *chan, struct cw_chan
 }
 
 
-#define CGUSAGE "Usage: changrab [-[bB]] <channel> <exten>@<context> [pri]\n"
-static int changrab_cli(int fd, int argc, char *argv[]) {
+static int changrab_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	char *chan_name_1, *chan_name_2 = NULL, *context,*exten,*flags=NULL;
 	char *pria = NULL;
 	struct cw_channel *chan, *xferchan_1, *xferchan_2;
 	int x=1;
 
-	if(argc < 3) {
-		cw_cli(fd,CGUSAGE);
-		return -1;
-	}
+	if(argc < 3)
+		return RESULT_SHOWUSAGE;
+
 	chan_name_1 = argv[x++];
 	if(chan_name_1[0] == '-') {
 		flags = cw_strdupa(chan_name_1);
@@ -191,10 +189,10 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 			cw_object_put(xferchan_1);
 			return 0;
 		}
-		if(argc < 4) {
-			cw_cli(fd,CGUSAGE);
-			return -1;
-		}
+
+		if(argc < 4)
+			return RESULT_SHOWUSAGE;
+
 		chan_name_1 = argv[x++];
 	}
 
@@ -202,10 +200,8 @@ static int changrab_cli(int fd, int argc, char *argv[]) {
 	if((context = strchr(exten,'@'))) {
 		*context = 0;
 		context++;
-		if(!(context && exten)) {
-			cw_cli(fd,CGUSAGE);
-			return -1;
-		}
+		if(!(context && exten))
+			return RESULT_SHOWUSAGE;
 		if((pria = strchr(context,':'))) {
 			*pria = '\0';
 			pria++;
@@ -320,8 +316,6 @@ struct fast_originate_helper {
 
 
 
-#define USAGE "Usage: originate <channel> <exten>@<context> [pri] [callerid] [timeout]\n"
-
 static void *originate(void *arg) {
 	struct fast_originate_helper *in = arg;
 	int reason=0;
@@ -350,17 +344,16 @@ static void *originate(void *arg) {
 }
 
 
-static int originate_cli(int fd, int argc, char *argv[]) {
+static int originate_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	pthread_t tid;
 	char *chan_name_1,*context,*exten,*tech,*data,*callerid;
 	int pri=0,to=60000;
 	struct fast_originate_helper *in;
 	char *num = NULL;
 
-	if(argc < 3) {
-		cw_cli(fd,USAGE);
-		return -1;
-	}
+	if(argc < 3)
+		return RESULT_SHOWUSAGE;
+
 	chan_name_1 = argv[1];
 
 	exten = cw_strdupa(argv[2]);
@@ -368,10 +361,8 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 		*context = 0;
 		context++;
 	}
-	if(! (context && exten)) {
-		cw_cli(fd,CGUSAGE);
-        return -1;
-	}
+	if(! (context && exten))
+		return RESULT_SHOWUSAGE;
 
 
 	pri = argv[3] ? atoi(argv[3]) : 1;
@@ -383,13 +374,12 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 		*data = '\0';
 		data++;
 	}
-	if(!(tech && data)) {
-		cw_cli(fd,USAGE);
-        return -1;
-	}
+	if(!(tech && data))
+		return RESULT_SHOWUSAGE;
+
 	in = malloc(sizeof(struct fast_originate_helper));
 	if(!in) {
-		cw_cli(fd,"Out of memory\n");
+		cw_dynstr_printf(ds_p,"Out of memory\n");
 		return -1;
 	}
 	memset(in,0,sizeof(struct fast_originate_helper));
@@ -412,7 +402,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 	strncpy(in->exten,exten,sizeof(in->exten));
 	in->priority = pri;
 
-	cw_cli(fd,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
+	cw_dynstr_printf(ds_p,"Originating Call %s/%s %s %s %d\n",in->tech,in->data,in->context,in->exten,in->priority);
 
 	cw_pthread_create(&tid, &global_attr_rr_detached, originate, in);
 	return 0;
@@ -420,7 +410,7 @@ static int originate_cli(int fd, int argc, char *argv[]) {
 
 
 
-static void complete_exten_at_context(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_exten_at_context(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_exten *e;
@@ -463,7 +453,7 @@ static void complete_exten_at_context(int fd, char *argv[], int lastarg, int las
 							 * exten@context.
 							 */
 							if (exten)
-								cw_cli(fd, "%s@%s\n", cw_get_extension_name(e), cw_get_context_name(c));
+								cw_dynstr_printf(ds_p, "%s@%s\n", cw_get_extension_name(e), cw_get_context_name(c));
 						}
 					}
 				}
@@ -500,7 +490,7 @@ static void complete_exten_at_context(int fd, char *argv[], int lastarg, int las
 							for (priority = cw_walk_extension_priorities(e, NULL); priority; priority = cw_walk_extension_priorities(e, priority)) {
 								snprintf(buffer, sizeof(buffer), "%u", cw_get_extension_priority(priority));
 								if (!strncmp(argv[3], buffer, lastarg_len))
-									cw_cli(fd, "%s\n", buffer);
+									cw_dynstr_printf(ds_p, "%s\n", buffer);
 							}
 						}
 					}
@@ -516,19 +506,19 @@ static void complete_exten_at_context(int fd, char *argv[], int lastarg, int las
 }
 
 
-static void complete_cg(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_cg(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 
 	if (lastarg == 1)
-		cw_complete_channel(fd, argv[lastarg], lastarg_len);
+		cw_complete_channel(ds_p, argv[lastarg], lastarg_len);
 	else if (lastarg >= 2)
-		complete_exten_at_context(fd, argv, lastarg, lastarg_len);
+		complete_exten_at_context(ds_p, argv, lastarg, lastarg_len);
 }
 
-static void complete_org(int fd, char *argv[], int lastarg, int lastarg_len)
+static void complete_org(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg >= 2)
-		complete_exten_at_context(fd, argv, lastarg, lastarg_len);
+		complete_exten_at_context(ds_p, argv, lastarg, lastarg_len);
 }
 
 
@@ -537,14 +527,14 @@ static struct cw_clicmd cli_changrab = {
 	.handler = changrab_cli,
 	.generator = complete_cg,
 	.summary = "ChanGrab",
-	.usage = "ChanGrab\n",
+	.usage = "changrab [-[bB]] <channel> <exten>@<context> [pri]",
 };
 static struct cw_clicmd cli_originate = {
 	.cmda = { "originate", NULL },
 	.handler = originate_cli,
 	.generator = complete_org,
 	.summary = "Originate",
-	.usage = "Originate\n",
+	.usage = "originate <channel> <exten>@<context> [pri] [callerid] [timeout]",
 };
 
 static int unload_module(void)

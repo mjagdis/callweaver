@@ -38,6 +38,7 @@
 #ifndef ICD_LISTENERS_H
 #define ICD_LISTENERS_H
 
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 #ifdef __cplusplus
@@ -72,7 +73,7 @@ extern "C" {
     int icd_listeners__notify(icd_listeners * that, icd_event * event);
 
 /* Print the contents of the listener collection. */
-    icd_status icd_listeners__dump(icd_listeners * that, int fd);
+    icd_status icd_listeners__dump(icd_listeners * that, struct cw_dynstr **ds_p);
 
 #ifdef __cplusplus
 }
