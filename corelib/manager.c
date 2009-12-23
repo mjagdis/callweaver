@@ -53,6 +53,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/pbx.h"
 #include "callweaver/acl.h"
+#include "callweaver/dynstr.h"
 #include "callweaver/utils.h"
 
 
@@ -1598,7 +1599,7 @@ static void *manager_session_ami_read(void *data)
 
 int manager_session_ami(struct mansession *sess, const struct manager_event *event)
 {
-	return cw_write_all(sess->fd, event->data, event->len);
+	return cw_write_all(sess->fd, event->data->data, event->data->used);
 }
 
 
@@ -1817,49 +1818,32 @@ static void manager_event_free(struct cw_object *obj)
 	struct manager_event *it = container_of(obj, struct manager_event, obj);
 
 	cw_object_destroy(it);
+	if (it->data)
+		cw_dynstr_free(it->data);
 	free(it);
 }
 
 static int make_event(struct manager_event_args *args)
 {
-	struct manager_event *event;
-	va_list aq;
-	char *s;
-	int alloc = 256;
-	int used, n;
+	if ((args->me = malloc(sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1)))) {
+		cw_object_init(args->me, NULL, 1);
+		args->me->obj.release = manager_event_free;
+		args->me->data = NULL;
 
-	if ((args->me = malloc(sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1) + alloc))) {
-again:
-		args->me->data = (typeof (args->me->data))&args->me->map[(args->count << 1) + 1];
-
-		/* FIXME: only ancient libcs have *printf functions that return -1 if the
-		 * buffer isn't big enough. If we can even compile with such a beast at
-		 * all we should have a compile time check for this.
-		 */
-
-		va_copy(aq, args->ap);
-		used = vsnprintf(args->me->data, alloc, args->fmt, aq);
-		va_end(aq);
-		if (used < 0)
-			used = alloc + 255;
-
-		if (used < alloc) {
-			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
+		if (!cw_dynstr_vprintf(&args->me->data, args->fmt, args->ap)) {
 			args->me->count = args->count;
-			args->me->len = used;
-			args->me->obj.release = manager_event_free;
-			cw_object_init(args->me, NULL, 1);
+			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
 			return 0;
 
 		}
 
-		alloc = used + 1;
-		if ((event = realloc(args->me, sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1) + alloc))) {
-			args->me = event;
-			goto again;
-		}
+		/* Out of memory to expand the dynstr but we can't log it here because
+		 * logging it just generates another event that will ultimately come
+		 * here and find it's out of memory and will log the fact causing another
+		 * event to be generated that will...
+		 */
 
-		free(args->me);
+		cw_object_put(args->me);
 		args->me = NULL;
 	}
 

@@ -145,11 +145,11 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 	/* The first key-value pair will always be "Event: Log" so we can ignore that here */
 	for (i = 1; i < event->count; i++) {
 		if (event->map[(i << 1) + 1] - event->map[(i << 1) + 0] - 2 != sizeof("Message") - 1
-		|| memcmp(event->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
+		|| memcmp(event->data->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
 			for (j = 0; j < arraysize(keys); j++) {
 				if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 == keys[j].l
-				&& !strncmp(event->data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
-					iov[keys[j].i_iov].iov_base = event->data + event->map[(i << 1) + 1];
+				&& !strncmp(event->data->data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
+					iov[keys[j].i_iov].iov_base = event->data->data + event->map[(i << 1) + 1];
 					iov[keys[j].i_iov].iov_len = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2;
 					break;
 				}
@@ -163,7 +163,7 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 				level = atol(iov[1].iov_base);
 			}
 
-			p = event->data + event->map[(i << 1) + 1] + 2;
+			p = event->data->data + event->map[(i << 1) + 1] + 2;
 			j = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2 - (sizeof("--END MESSAGE--\r\n") - 1);
 			while (j > 0) {
 				n = strcspn(p, "\r\n");

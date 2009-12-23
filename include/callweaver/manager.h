@@ -35,6 +35,7 @@
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
+#include "callweaver/dynstr.h"
 #include "callweaver/logger.h"
 #include "callweaver/preprocessor.h"
 #include "callweaver/connection.h"
@@ -63,8 +64,7 @@
 
 struct manager_event {
 	struct cw_object obj;
-	char *data;			/*!< The AMI formatted event data */
-	int len;			/*!< The total length of the formatted message */
+	struct cw_dynstr *data;		/*!< The AMI formatted event data */
 	size_t count;			/*!< The number of key/value pairs in this event */
 	int map[0];			/*!< Offset to the start of key and value strings relative to data */
 };
