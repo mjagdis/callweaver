@@ -3699,8 +3699,8 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 			cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
 			cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
 				2,
-				cw_me_field("Alarm",   "%s", alarm2str(res)),
-				cw_me_field("Channel", "%d", p->channel)
+				cw_msg_tuple("Alarm",   "%s", alarm2str(res)),
+				cw_msg_tuple("Channel", "%d", p->channel)
 			);
 			/* fall through intentionally */
 		case DAHDI_EVENT_ONHOOK:
@@ -4016,7 +4016,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 			cw_log(CW_LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 			cw_manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
 				1,
-				cw_me_field("Channel", "%d", p->channel)
+				cw_msg_tuple("Channel", "%d", p->channel)
 			);
 			break;
 		case DAHDI_EVENT_WINKFLASH:
@@ -5729,8 +5729,8 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
 					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 						2,
-						cw_me_field("Channel", "DAHDI/%d", p->channel),
-						cw_me_field("Status",  "%s",       "enabled")
+						cw_msg_tuple("Channel", "DAHDI/%d", p->channel),
+						cw_msg_tuple("Status",  "%s",       "enabled")
 					);
 				}
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
@@ -5744,8 +5744,8 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
 					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
 						2,
-						cw_me_field("Channel", "DAHDI/%d", p->channel),
-						cw_me_field("Status",  "%s",       "disabled")
+						cw_msg_tuple("Channel", "DAHDI/%d", p->channel),
+						cw_msg_tuple("Status",  "%s",       "disabled")
 					);
 				}
 				res = tone_zone_play_tone(p->subs[index].dfd, DAHDI_TONE_DIALRECALL);
@@ -6203,8 +6203,8 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
 		cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
 			2,
-			cw_me_field("Alarm",   "%s", alarm2str(res)),
-			cw_me_field("Channel", "%d", i->channel)
+			cw_msg_tuple("Alarm",   "%s", alarm2str(res)),
+			cw_msg_tuple("Channel", "%d", i->channel)
 		);
 		/* fall thru intentionally */
 	case DAHDI_EVENT_ONHOOK:

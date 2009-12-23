@@ -97,7 +97,7 @@ struct message {
 
 struct manager_listener_pvt {
 	struct cw_object obj;
-	int (*handler)(struct mansession *, const struct manager_event *);
+	int (*handler)(struct mansession *, const struct cw_manager_message *);
 	int readperm, writeperm, send_events;
 	char banner[0];
 };
@@ -228,7 +228,7 @@ int manager_str_to_eventmask(char *instr)
 }
 
 
-static void append_event(struct mansession *sess, struct manager_event *event)
+static void append_msg(struct mansession *sess, struct cw_manager_message *msg)
 {
 	int q_w_next;
 
@@ -241,7 +241,7 @@ static void append_event(struct mansession *sess, struct manager_event *event)
 		if (++sess->q_count > sess->q_max)
 			sess->q_max = sess->q_count;
 
-		sess->q[sess->q_w] = cw_object_dup(event);
+		sess->q[sess->q_w] = cw_object_dup(msg);
 
 		if (sess->q_w == sess->q_r)
 			pthread_cond_signal(&sess->activity);
@@ -1179,12 +1179,12 @@ static void *fast_originate(void *data)
 
 	cw_manager_event(EVENT_FLAG_CALL, (res ? "OriginateFailure" : "OriginateSuccess"),
 		6,
-		cw_me_field("ActionID", "%s",    in->actionid),
-		cw_me_field("Channel",  "%s/%s", in->tech, in->data),
-		cw_me_field("Context",  "%s",    in->context),
-		cw_me_field("Exten",    "%s",    in->exten),
-		cw_me_field("Reason",   "%d",    reason),
-		cw_me_field("Uniqueid", "%s",    (chan ? chan->uniqueid : "<null>"))
+		cw_msg_tuple("ActionID", "%s",    in->actionid),
+		cw_msg_tuple("Channel",  "%s/%s", in->tech, in->data),
+		cw_msg_tuple("Context",  "%s",    in->context),
+		cw_msg_tuple("Exten",    "%s",    in->exten),
+		cw_msg_tuple("Reason",   "%d",    reason),
+		cw_msg_tuple("Uniqueid", "%s",    (chan ? chan->uniqueid : "<null>"))
 	);
 
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */
@@ -1597,7 +1597,7 @@ static void *manager_session_ami_read(void *data)
 }
 
 
-int manager_session_ami(struct mansession *sess, const struct manager_event *event)
+int manager_session_ami(struct mansession *sess, const struct cw_manager_message *event)
 {
 	return cw_write_all(sess->fd, event->data->data, event->data->used);
 }
@@ -1661,7 +1661,7 @@ static void *manager_session(void *data)
 	}
 
 	for (;;) {
-		struct manager_event *event = NULL;
+		struct cw_manager_message *event = NULL;
 
 		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
 		pthread_mutex_lock(&sess->lock);
@@ -1726,7 +1726,7 @@ static void *manager_session(void *data)
 }
 
 
-struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
 	char buf[1];
 	struct mansession *sess;
@@ -1803,19 +1803,9 @@ void manager_session_end(struct mansession *sess)
 }
 
 
-struct manager_event_args {
-	int ret;
-	int category;
-	size_t count;
-	struct manager_event *me;
-	int *map;
-	const char *fmt;
-	va_list ap;
-};
-
-static void manager_event_free(struct cw_object *obj)
+static void manager_msg_free(struct cw_object *obj)
 {
-	struct manager_event *it = container_of(obj, struct manager_event, obj);
+	struct cw_manager_message *it = container_of(obj, struct cw_manager_message, obj);
 
 	cw_object_destroy(it);
 	if (it->data)
@@ -1823,52 +1813,59 @@ static void manager_event_free(struct cw_object *obj)
 	free(it);
 }
 
-static int make_event(struct manager_event_args *args)
+static struct cw_manager_message *make_msg(size_t count, int map[], const char *fmt, va_list ap)
 {
-	if ((args->me = malloc(sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1)))) {
-		cw_object_init(args->me, NULL, 1);
-		args->me->obj.release = manager_event_free;
-		args->me->data = NULL;
+	struct cw_manager_message *msg;
 
-		if (!cw_dynstr_vprintf(&args->me->data, args->fmt, args->ap)) {
-			args->me->count = args->count;
-			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
-			return 0;
+	if ((msg = malloc(sizeof(struct cw_manager_message) + sizeof(msg->map[0]) * ((count << 1) + 1)))) {
+		cw_object_init(msg, NULL, 1);
+		msg->obj.release = manager_msg_free;
+		msg->data = NULL;
 
+		if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
+			msg->count = count;
+			memcpy(msg->map, map, ((count << 1) + 1) * sizeof(msg->map[0]));
+		} else {
+			/* Out of memory to expand the dynstr but we can't log it here because
+			 * logging it just generates another event that will ultimately come
+			 * here and find it's out of memory and will log the fact causing another
+			 * event to be generated that will...
+			 */
+			cw_object_put(msg);
+			msg = NULL;
 		}
-
-		/* Out of memory to expand the dynstr but we can't log it here because
-		 * logging it just generates another event that will ultimately come
-		 * here and find it's out of memory and will log the fact causing another
-		 * event to be generated that will...
-		 */
-
-		cw_object_put(args->me);
-		args->me = NULL;
 	}
 
-	return -1;
+	return msg;
 }
+
+struct manager_event_args {
+	int category;
+	size_t count;
+	struct cw_manager_message *msg;
+	int *map;
+	const char *fmt;
+	va_list ap;
+};
 
 static int manager_event_print(struct cw_object *obj, void *data)
 {
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct manager_event_args *args = data;
 
-	if (!args->ret && (it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
-		if (args->me || !(args->ret = make_event(args)))
-			append_event(it, args->me);
+	if ((it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
+		if (args->msg || (args->msg = make_msg(args->count, args->map, args->fmt, args->ap)))
+			append_msg(it, args->msg);
 	}
 
-	return args->ret;
+	return 0;
 }
 
 void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
 {
 	struct manager_event_args args = {
-		.ret = 0,
 		.count = count,
-		.me = NULL,
+		.msg = NULL,
 		.category = category,
 		.map = map,
 		.fmt = fmt,
@@ -1880,8 +1877,8 @@ void cw_manager_event_func(int category, size_t count, int map[], const char *fm
 
 	va_end(args.ap);
 
-	if (args.me)
-		cw_object_put(args.me);
+	if (args.msg)
+		cw_object_put(args.msg);
 }
 
 static int manager_state_cb(char *context, char *exten, int state, void *data)
@@ -1889,9 +1886,9 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 	/* Notify managers of change */
 	cw_manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
 		3,
-		cw_me_field("Exten",   "%s", exten),
-		cw_me_field("Context", "%s", context),
-		cw_me_field("Status",  "%d", state)
+		cw_msg_tuple("Exten",   "%s", exten),
+		cw_msg_tuple("Context", "%s", context),
+		cw_msg_tuple("Status",  "%d", state)
 	);
 	return 0;
 }
@@ -2068,7 +2065,7 @@ static void listener_pvt_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(char *spec, int (* const handler)(struct mansession *, const struct manager_event *), int readperm, int writeperm, int send_events)
+static void manager_listen(char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
 {
 	cw_address_t addr;
 	struct cw_connection *listener;

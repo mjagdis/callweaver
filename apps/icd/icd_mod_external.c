@@ -125,17 +125,17 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
             }
             cw_manager_event(EVENT_FLAG_USER, "icd_add_to_queue",
                 11,
-                cw_me_field("Module",         "%s", icd_module_strings[icd_event__get_module_id(event)]),
-                cw_me_field("ICD_ID",         "%d", icd_caller__get_id(caller)),
-                cw_me_field("ICD_CallerID",   "%s", icd_caller__get_caller_id(caller)),
-                cw_me_field("ICD_CallerName", "%s", icd_caller__get_name(caller)),
-                cw_me_field("CallerID",       "%s", (chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" :"nochan")),
-                cw_me_field("CallerIDName",   "%s", (chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan")),
-                cw_me_field("UniqueID",       "%s", (chan ? chan->uniqueid : "nochan")),
-                cw_me_field("ChannelName",    "%s", (chan ? chan->name : "nochan")),
-                cw_me_field("Queue",          "%s", (queue ? icd_queue__get_name(queue) : "unknown")),
-                cw_me_field("Position",       "%d", call_pos),
-                cw_me_field("Count",          "%d", call_cnt)
+                cw_msg_tuple("Module",         "%s", icd_module_strings[icd_event__get_module_id(event)]),
+                cw_msg_tuple("ICD_ID",         "%d", icd_caller__get_id(caller)),
+                cw_msg_tuple("ICD_CallerID",   "%s", icd_caller__get_caller_id(caller)),
+                cw_msg_tuple("ICD_CallerName", "%s", icd_caller__get_name(caller)),
+                cw_msg_tuple("CallerID",       "%s", (chan ? chan->cid.cid_num ? chan->cid.cid_num : "unknown" :"nochan")),
+                cw_msg_tuple("CallerIDName",   "%s", (chan ? chan->cid.cid_name ? chan->cid.cid_name : "unknown" : "nochan")),
+                cw_msg_tuple("UniqueID",       "%s", (chan ? chan->uniqueid : "nochan")),
+                cw_msg_tuple("ChannelName",    "%s", (chan ? chan->name : "nochan")),
+                cw_msg_tuple("Queue",          "%s", (queue ? icd_queue__get_name(queue) : "unknown")),
+                cw_msg_tuple("Position",       "%d", call_pos),
+                cw_msg_tuple("Count",          "%d", call_cnt)
             );
 
             break;
@@ -148,11 +148,11 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
             /*
                cw_manager_event(EVENT_FLAG_USER, "icd_addtodistributor",
                    5,
-                   cw_me_field("Channel",  "%s", chan->name),
-                   cw_me_field("CallerID", "%s", (chan->cid.cid_num ? chan->cid.cid_num : "unknown")),
-                   cw_me_field("Dist",     "%s", icd_queue__get_name(queue)),
-                   cw_me_field("Position", "%d", call_pos),
-                   cw_me_field("Count",    "%d", call_cnt)
+                   cw_msg_tuple("Channel",  "%s", chan->name),
+                   cw_msg_tuple("CallerID", "%s", (chan->cid.cid_num ? chan->cid.cid_num : "unknown")),
+                   cw_msg_tuple("Dist",     "%s", icd_queue__get_name(queue)),
+                   cw_msg_tuple("Position", "%d", call_pos),
+                   cw_msg_tuple("Count",    "%d", call_cnt)
                );
              */
 
@@ -165,13 +165,13 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
         chan = (cw_channel *) icd_caller__get_channel(caller);
         cw_manager_event(EVENT_FLAG_USER, "icd_channelup",
             7,
-            cw_me_field("ICD_ID",         "%d", icd_caller__get_id(caller)),
-            cw_me_field("ICD_CallerID",   "%s", icd_caller__get_caller_id(caller)),
-            cw_me_field("ICD_CallerName", "%s", icd_caller__get_name(caller)),
-            cw_me_field("CallerID",       "%s", (chan ? (chan->cid.cid_num ? chan->cid.cid_num : "unknown") : "nochan")),
-            cw_me_field("CallerIDName",   "%s", (chan ? (chan->cid.cid_name ? chan->cid.cid_name : "unknown") : "nochan")),
-            cw_me_field("UniqueID",       "%s", (chan ? chan->uniqueid : "nochan")),
-            cw_me_field("ChannelName",    "%s", (chan ? chan->name : "nochan"))
+            cw_msg_tuple("ICD_ID",         "%d", icd_caller__get_id(caller)),
+            cw_msg_tuple("ICD_CallerID",   "%s", icd_caller__get_caller_id(caller)),
+            cw_msg_tuple("ICD_CallerName", "%s", icd_caller__get_name(caller)),
+            cw_msg_tuple("CallerID",       "%s", (chan ? (chan->cid.cid_num ? chan->cid.cid_num : "unknown") : "nochan")),
+            cw_msg_tuple("CallerIDName",   "%s", (chan ? (chan->cid.cid_name ? chan->cid.cid_name : "unknown") : "nochan")),
+            cw_msg_tuple("UniqueID",       "%s", (chan ? chan->uniqueid : "nochan")),
+            cw_msg_tuple("ChannelName",    "%s", (chan ? chan->name : "nochan"))
         );
 
         cw_verbose(VERBOSE_PREFIX_2 "FAT_AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",
@@ -225,11 +225,11 @@ cw_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
             }
             cw_manager_event(EVENT_FLAG_USER, "icd_addtoqueue",
                 5,
-                cw_me_field("Channel",  "%s", (chan ? chan->name : "unknown")),
-                cw_me_field("CallerID", "%s", icd_caller__get_caller_id(caller)),
-                cw_me_field("Queue",    "%s", (queue ? icd_queue__get_name(queue) : "unknown")),
-                cw_me_field("Position", "%d", call_pos),
-                cw_me_field("Count",    "%d", call_cnt)
+                cw_msg_tuple("Channel",  "%s", (chan ? chan->name : "unknown")),
+                cw_msg_tuple("CallerID", "%s", icd_caller__get_caller_id(caller)),
+                cw_msg_tuple("Queue",    "%s", (queue ? icd_queue__get_name(queue) : "unknown")),
+                cw_msg_tuple("Position", "%d", call_pos),
+                cw_msg_tuple("Count",    "%d", call_cnt)
             );
             break;
         case ICD_DISTRIBUTOR_LIST:
@@ -238,11 +238,11 @@ cw_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
                queue = (icd_queue *)icd_event__get_source(event);
                cw_manager_event(EVENT_FLAG_USER, "icd_addtodistributor",
                    5,
-                   cw_me_field("Channel",  "%s", chan->name),
-                   cw_me_field("CallerID", "%s", (chan->cid.cid_num ? chan->cid.cid_num : "unknown")),
-                   cw_me_field("Dist",     "%s", icd_queue__get_name(queue)),
-                   cw_me_field("Position", "%d", call_pos),
-                   cw_me_field("Count",    "%d", call_cnt)
+                   cw_msg_tuple("Channel",  "%s", chan->name),
+                   cw_msg_tuple("CallerID", "%s", (chan->cid.cid_num ? chan->cid.cid_num : "unknown")),
+                   cw_msg_tuple("Dist",     "%s", icd_queue__get_name(queue)),
+                   cw_msg_tuple("Position", "%d", call_pos),
+                   cw_msg_tuple("Count",    "%d", call_cnt)
                 );
              */
 
@@ -260,10 +260,10 @@ cw_verbose(VERBOSE_PREFIX_2 "AUTODIALER: %s \n",icd_event__get_message(event));
         chan = (cw_channel *) icd_caller__get_channel(caller);
         cw_manager_event(EVENT_FLAG_USER, "icd_channelup",
             4,
-            cw_me_field("Id", "%d", icd_caller__get_id(caller)),
-            cw_me_field("Channel", "%s", chan->name),
-            cw_me_field("Uniqueid", "%s", chan->uniqueid),
-            cw_me_field("Callerid", "%s", icd_caller__get_caller_id(caller))
+            cw_msg_tuple("Id", "%d", icd_caller__get_id(caller)),
+            cw_msg_tuple("Channel", "%s", chan->name),
+            cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
+            cw_msg_tuple("Callerid", "%s", icd_caller__get_caller_id(caller))
         );
 
         cw_verbose(VERBOSE_PREFIX_2 "AUTODIALER ICD_EVENT_CHANNEL_UP:ID[%d] [%s] msg[%s] \n",

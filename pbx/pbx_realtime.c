@@ -208,13 +208,13 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 			    );
 			cw_manager_event(EVENT_FLAG_CALL, "Newexten",
 				7,
-				cw_me_field("Channel",     "%s\r\n", chan->name),
-				cw_me_field("Context",     "%s\r\n", chan->context),
-				cw_me_field("Extension",   "%s\r\n", chan->exten),
-				cw_me_field("Priority",    "%d\r\n", chan->priority),
-				cw_me_field("Application", "%s\r\n", app),
-				cw_me_field("AppData",     "%s\r\n", appdata),
-				cw_me_field("Uniqueid",    "%s\r\n", chan->uniqueid)
+				cw_msg_tuple("Channel",     "%s\r\n", chan->name),
+				cw_msg_tuple("Context",     "%s\r\n", chan->context),
+				cw_msg_tuple("Extension",   "%s\r\n", chan->exten),
+				cw_msg_tuple("Priority",    "%d\r\n", chan->priority),
+				cw_msg_tuple("Application", "%s\r\n", app),
+				cw_msg_tuple("AppData",     "%s\r\n", appdata),
+				cw_msg_tuple("Uniqueid",    "%s\r\n", chan->uniqueid)
 			);
 			res = cw_function_exec_str(chan, cw_hash_string(app), app, appdata, NULL, 0);
 		}

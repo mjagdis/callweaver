@@ -5559,8 +5559,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             cw_manager_event(EVENT_FLAG_CALL, "Unhold",
                 2,
-                cw_me_field("Channel",  "%s", p->owner->name),
-                cw_me_field("Uniqueid", "%s", p->owner->uniqueid)
+                cw_msg_tuple("Channel",  "%s", p->owner->name),
+                cw_msg_tuple("Uniqueid", "%s", p->owner->uniqueid)
             );
         }
         cw_clear_flag(p, SIP_CALL_ONHOLD);
@@ -5574,8 +5574,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         {
             cw_manager_event(EVENT_FLAG_CALL, "Hold",
                 2,
-                cw_me_field("Channel",  "%s", p->owner->name),
-                cw_me_field("Uniqueid", "%s", p->owner->uniqueid)
+                cw_msg_tuple("Channel",  "%s", p->owner->name),
+                cw_msg_tuple("Uniqueid", "%s", p->owner->uniqueid)
             );
         }
         cw_set_flag(p, SIP_CALL_ONHOLD);
@@ -7711,10 +7711,10 @@ static int sip_reg_timeout(void *data)
 
         cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
 		4,
-		cw_me_field("Channel",  "%s", "SIP"),
-		cw_me_field("Username", "%s", r->username),
-		cw_me_field("Domain",   "%s", r->hostname),
-		cw_me_field("Status",   "%s", regstate2str(r->regstate))
+		cw_msg_tuple("Channel",  "%s", "SIP"),
+		cw_msg_tuple("Username", "%s", r->username),
+		cw_msg_tuple("Domain",   "%s", r->hostname),
+		cw_msg_tuple("Status",   "%s", regstate2str(r->regstate))
 	);
 
 	if (r->regstate != REG_STATE_FAILED) {
@@ -8164,9 +8164,9 @@ static int expire_register(void *data)
     
     cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 	3,
-	cw_me_field("Peer",       "SIP/%s", peer->name),
-	cw_me_field("PeerStatus", "%s",     "Unregistered"),
-	cw_me_field("Cause",      "%s",     "Expired")
+	cw_msg_tuple("Peer",       "SIP/%s", peer->name),
+	cw_msg_tuple("PeerStatus", "%s",     "Unregistered"),
+	cw_msg_tuple("Cause",      "%s",     "Expired")
     );
     register_peer_exten(peer, 0);
     peer->expire = -1;
@@ -8408,8 +8408,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
             cw_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
             cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
                 2,
-                cw_me_field("Peer",       "SIP/%s", p->name),
-                cw_me_field("PeerStatus", "%s",     "Unregistered")
+                cw_msg_tuple("Peer",       "SIP/%s", p->name),
+                cw_msg_tuple("PeerStatus", "%s",     "Unregistered")
             );
         return PARSE_REGISTER_UPDATE;
     }
@@ -8497,8 +8497,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         cw_db_put("SIP/Registry", p->name, data);
     cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
         2,
-        cw_me_field("Peer",       "SIP/%s", p->name),
-        cw_me_field("PeerStatus", "%s",     "Registered")
+        cw_msg_tuple("Peer",       "SIP/%s", p->name),
+        cw_msg_tuple("PeerStatus", "%s",     "Registered")
     );
     if (inaddrcmp(&p->addr, &oldsin))
     {
@@ -9075,8 +9075,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
                 transmit_response_with_date(p, "200 OK", req);
                 cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
                         2,
-                        cw_me_field("Peer",       "SIP/%s", peer->name),
-                        cw_me_field("PeerStatus", "%s",     "Registered")
+                        cw_msg_tuple("Peer",       "SIP/%s", peer->name),
+                        cw_msg_tuple("PeerStatus", "%s",     "Registered")
                 );
                 peer->lastmsgssent = -1;
                 res = 0;
@@ -12868,10 +12868,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         r->regstate = REG_STATE_REGISTERED;
         cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
               4,
-              cw_me_field("Channel",  "%s", "SIP"),
-              cw_me_field("Username", "%s", r->username),
-              cw_me_field("Domain",   "%s", r->hostname),
-              cw_me_field("Status",   "%s", regstate2str(r->regstate))
+              cw_msg_tuple("Channel",  "%s", "SIP"),
+              cw_msg_tuple("Username", "%s", r->username),
+              cw_msg_tuple("Domain",   "%s", r->hostname),
+              cw_msg_tuple("Status",   "%s", regstate2str(r->regstate))
         );
         r->regattempts = 0;
         cw_log(CW_LOG_DEBUG, "Registration successful\n");
@@ -13011,9 +13011,9 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
             if (option_verbose > 3) {
                 cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
                     3,
-                    cw_me_field("Peer",       "SIP/%s", peer->name),
-                    cw_me_field("PeerStatus", "%s",     (newstate == 2 ? "Lagged" : "Reachable")),
-                    cw_me_field("Time",       "%d",     pingtime)
+                    cw_msg_tuple("Peer",       "SIP/%s", peer->name),
+                    cw_msg_tuple("PeerStatus", "%s",     (newstate == 2 ? "Lagged" : "Reachable")),
+                    cw_msg_tuple("Time",       "%d",     pingtime)
                 );
 	    }
         }
@@ -15197,9 +15197,9 @@ static int sip_poke_noanswer(void *data)
 		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->timer_t1);
         cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
                 3,
-                cw_me_field("Peer",       "SIP/%s", peer->name),
-                cw_me_field("PeerStatus", "%s",     "Unreachable"),
-                cw_me_field("Time",       "%d",     -1)
+                cw_msg_tuple("Peer",       "SIP/%s", peer->name),
+                cw_msg_tuple("PeerStatus", "%s",     "Unreachable"),
+                cw_msg_tuple("Time",       "%d",     -1)
         );
         peer->timer_t1 = -1;
         cw_device_state_changed("SIP/%s", peer->name);

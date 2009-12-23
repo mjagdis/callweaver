@@ -98,7 +98,7 @@ static char *levels[] = {
 };
 
 
-static int logger_manager_session(struct mansession *sess, const struct manager_event *event)
+static int logger_manager_session(struct mansession *sess, const struct cw_manager_message *event)
 {
 	static const int priorities[] = {
 		[CW_EVENT_NUM_ERROR]	= LOG_ERR,
@@ -664,14 +664,14 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	if (logchannels) {
 		cw_manager_event(1 << level, "Log",
 			8,
-			cw_me_field("Timestamp", "%lu.%09lu", now.tv_sec, now.tv_nsec),
-			cw_me_field("Date",      "%s",      date),
-			cw_me_field("Level",     "%d %s",   level, levels[level]),
-			cw_me_field("Thread ID", TIDFMT,    GETTID()),
-			cw_me_field("File",      "%s",      file),
-			cw_me_field("Line",      "%d",      line),
-			cw_me_field("Function",  "%s",      function),
-			cw_me_field("Message",   "\r\n%s\r\n--END MESSAGE--",  msg)
+			cw_msg_tuple("Timestamp", "%lu.%09lu", now.tv_sec, now.tv_nsec),
+			cw_msg_tuple("Date",      "%s",      date),
+			cw_msg_tuple("Level",     "%d %s",   level, levels[level]),
+			cw_msg_tuple("Thread ID", TIDFMT,    GETTID()),
+			cw_msg_tuple("File",      "%s",      file),
+			cw_msg_tuple("Line",      "%d",      line),
+			cw_msg_tuple("Function",  "%s",      function),
+			cw_msg_tuple("Message",   "\r\n%s\r\n--END MESSAGE--",  msg)
 		);
 	} else {
 		/* 

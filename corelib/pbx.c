@@ -1304,13 +1304,13 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
             pbx_substitute_variables(c, &c->vars, e->data, passdata, sizeof(passdata));
             cw_manager_event(EVENT_FLAG_CALL, "Newexten",
                 7,
-                cw_me_field("Channel",     "%s", c->name),
-                cw_me_field("Context",     "%s", c->context),
-                cw_me_field("Extension",   "%s", c->exten),
-                cw_me_field("Priority",    "%d", c->priority),
-                cw_me_field("Application", "%s", e->app),
-                cw_me_field("AppData",     "%s", passdata),
-                cw_me_field("Uniqueid",    "%s", c->uniqueid)
+                cw_msg_tuple("Channel",     "%s", c->name),
+                cw_msg_tuple("Context",     "%s", c->context),
+                cw_msg_tuple("Extension",   "%s", c->exten),
+                cw_msg_tuple("Priority",    "%d", c->priority),
+                cw_msg_tuple("Application", "%s", e->app),
+                cw_msg_tuple("AppData",     "%s", passdata),
+                cw_msg_tuple("Uniqueid",    "%s", c->uniqueid)
             );
             res = cw_function_exec_str(c, e->apphash, e->app, passdata, NULL, 0);
 	    break;

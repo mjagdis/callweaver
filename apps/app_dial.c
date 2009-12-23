@@ -267,12 +267,12 @@ static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 {
 	cw_manager_event(EVENT_FLAG_CALL, "Dial",
 		6,
-		cw_me_field("Source",       "%s", src->name),
-		cw_me_field("Destination",  "%s", dst->name),
-		cw_me_field("CallerID",     "%s", (src->cid.cid_num ? src->cid.cid_num : "<unknown>")),
-		cw_me_field("CallerIDName", "%s", (src->cid.cid_name ? src->cid.cid_name : "<unknown>")),
-		cw_me_field("SrcUniqueID",  "%s", src->uniqueid),
-		cw_me_field("DestUniqueID", "%s", dst->uniqueid)
+		cw_msg_tuple("Source",       "%s", src->name),
+		cw_msg_tuple("Destination",  "%s", dst->name),
+		cw_msg_tuple("CallerID",     "%s", (src->cid.cid_num ? src->cid.cid_num : "<unknown>")),
+		cw_msg_tuple("CallerIDName", "%s", (src->cid.cid_name ? src->cid.cid_name : "<unknown>")),
+		cw_msg_tuple("SrcUniqueID",  "%s", src->uniqueid),
+		cw_msg_tuple("DestUniqueID", "%s", dst->uniqueid)
 	);
 }
 

@@ -332,13 +332,13 @@ static void *originate(void *arg) {
 
 	cw_manager_event(EVENT_FLAG_CALL, "Originate",
 			7,
-			cw_me_field("ChannelRequested", "%s/%s", in->tech, in->data),
-			cw_me_field("Context",          "%s", in->context),
-			cw_me_field("Extension",        "%s", in->exten),
-			cw_me_field("Priority",         "%d", in->priority),
-			cw_me_field("Result",           "%d", res),
-			cw_me_field("Reason",           "%d", reason),
-			cw_me_field("Reason-txt",       "%s", cw_control2str(reason))
+			cw_msg_tuple("ChannelRequested", "%s/%s", in->tech, in->data),
+			cw_msg_tuple("Context",          "%s", in->context),
+			cw_msg_tuple("Extension",        "%s", in->exten),
+			cw_msg_tuple("Priority",         "%d", in->priority),
+			cw_msg_tuple("Result",           "%d", res),
+			cw_msg_tuple("Reason",           "%d", reason),
+			cw_msg_tuple("Reason-txt",       "%s", cw_control2str(reason))
 	);
 
 	/* Locked by cw_pbx_outgoing_exten or cw_pbx_outgoing_app */

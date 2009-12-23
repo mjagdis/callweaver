@@ -208,7 +208,7 @@ static void launch_cli_thread(char *cli_command);
 #define jabber_message_node_printf(id, sub, fmt, ...) jabber_message_node_new(id, sub, fmt "Epoch: %ld\n\n", ##__VA_ARGS__, time(NULL))
 
 
-int jabber_manager_session(struct mansession *sess, const struct manager_event *event)
+int jabber_manager_session(struct mansession *sess, const struct cw_manager_message *event)
 {
 	struct jabber_message_node *node;
 

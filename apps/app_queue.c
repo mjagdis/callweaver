@@ -508,14 +508,14 @@ static void *changethread(void *data)
                     {
                         cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
                             8,
-                            cw_me_field("Queue",      "%s",  q->name),
-                            cw_me_field("Location",   "%s",  cur->interface),
-                            cw_me_field("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
-                            cw_me_field("Penalty",    "%d",  cur->penalty),
-                            cw_me_field("CallsTaken", "%d",  cur->calls),
-                            cw_me_field("LastCall",   "%ld", cur->lastcall),
-                            cw_me_field("Status",     "%d",  cur->status),
-                            cw_me_field("Paused",     "%d",  cur->paused)
+                            cw_msg_tuple("Queue",      "%s",  q->name),
+                            cw_msg_tuple("Location",   "%s",  cur->interface),
+                            cw_msg_tuple("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
+                            cw_msg_tuple("Penalty",    "%d",  cur->penalty),
+                            cw_msg_tuple("CallsTaken", "%d",  cur->calls),
+                            cw_msg_tuple("LastCall",   "%ld", cur->lastcall),
+                            cw_msg_tuple("Status",     "%d",  cur->status),
+                            cw_msg_tuple("Paused",     "%d",  cur->paused)
                         );
                     }
                 }
@@ -1112,12 +1112,12 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
         res = 0;
         cw_manager_event(EVENT_FLAG_CALL, "Join",
             6,
-            cw_me_field("Channel",      "%s", qe->chan->name),
-            cw_me_field("CallerID",     "%s", (qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown")),
-            cw_me_field("CallerIDName", "%s", (qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown")),
-            cw_me_field("Queue",        "%s", q->name),
-            cw_me_field("Position",     "%d", qe->pos),
-            cw_me_field("Count",        "%d", q->count)
+            cw_msg_tuple("Channel",      "%s", qe->chan->name),
+            cw_msg_tuple("CallerID",     "%s", (qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown")),
+            cw_msg_tuple("CallerIDName", "%s", (qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown")),
+            cw_msg_tuple("Queue",        "%s", q->name),
+            cw_msg_tuple("Position",     "%d", qe->pos),
+            cw_msg_tuple("Count",        "%d", q->count)
         );
 #if 0
         cw_log(CW_LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
@@ -1402,9 +1402,9 @@ static void leave_queue(struct queue_ent *qe)
             /* Take us out of the queue */
             cw_manager_event(EVENT_FLAG_CALL, "Leave",
                 3,
-                cw_me_field("Channel", "%s", qe->chan->name),
-                cw_me_field("Queue",   "%s", q->name),
-                cw_me_field("Count",   "%d", q->count)
+                cw_msg_tuple("Channel", "%s", qe->chan->name),
+                cw_msg_tuple("Queue",   "%s", q->name),
+                cw_msg_tuple("Count",   "%d", q->count)
             );
 #if 0
             cw_log(CW_LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
@@ -1464,14 +1464,14 @@ static int update_status(struct cw_call_queue *q, struct member *member, int sta
             {
                 cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
                     8,
-                    cw_me_field("Queue",      "%s",  q->name),
-                    cw_me_field("Location",   "%s",  cur->interface),
-                    cw_me_field("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
-                    cw_me_field("Penalty",    "%d",  cur->penalty),
-                    cw_me_field("CallsTaken", "%d",  cur->calls),
-                    cw_me_field("LastCall",   "%ld", cur->lastcall),
-                    cw_me_field("Status",     "%d",  cur->status),
-                    cw_me_field("Paused",     "%d",  cur->paused)
+                    cw_msg_tuple("Queue",      "%s",  q->name),
+                    cw_msg_tuple("Location",   "%s",  cur->interface),
+                    cw_msg_tuple("Membership", "%s",  (cur->dynamic ? "dynamic" : "static")),
+                    cw_msg_tuple("Penalty",    "%d",  cur->penalty),
+                    cw_msg_tuple("CallsTaken", "%d",  cur->calls),
+                    cw_msg_tuple("LastCall",   "%ld", cur->lastcall),
+                    cw_msg_tuple("Status",     "%d",  cur->status),
+                    cw_msg_tuple("Paused",     "%d",  cur->paused)
 		);
             }
             break;
@@ -1643,13 +1643,13 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
         {
             cw_manager_event(EVENT_FLAG_AGENT, "AgentCalled",
                 7,
-                cw_me_field("AgentCalled",    "%s", tmp->interface),
-                cw_me_field("ChannelCalling", "%s", qe->chan->name),
-                cw_me_field("CallerID",       "%s", (tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown")),
-                cw_me_field("CallerIDName",   "%s", (tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown")),
-                cw_me_field("Context",        "%s", qe->chan->context),
-                cw_me_field("Extension",      "%s", qe->chan->exten),
-                cw_me_field("Priority",       "%d", qe->chan->priority)
+                cw_msg_tuple("AgentCalled",    "%s", tmp->interface),
+                cw_msg_tuple("ChannelCalling", "%s", qe->chan->name),
+                cw_msg_tuple("CallerID",       "%s", (tmp->chan->cid.cid_num ? tmp->chan->cid.cid_num : "unknown")),
+                cw_msg_tuple("CallerIDName",   "%s", (tmp->chan->cid.cid_name ? tmp->chan->cid.cid_name : "unknown")),
+                cw_msg_tuple("Context",        "%s", qe->chan->context),
+                cw_msg_tuple("Extension",      "%s", qe->chan->exten),
+                cw_msg_tuple("Priority",       "%d", qe->chan->priority)
             );
         }
         if (option_verbose > 2)
@@ -2560,10 +2560,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                 {
                     cw_manager_event(EVENT_FLAG_AGENT, "AgentDump",
                         4,
-                        cw_me_field("Queue",    "%s", queuename),
-                        cw_me_field("Uniqueid", "%s", qe->chan->uniqueid),
-                        cw_me_field("Channel",  "%s", peer->name),
-                        cw_me_field("Member",   "%s", member->interface)
+                        cw_msg_tuple("Queue",    "%s", queuename),
+                        cw_msg_tuple("Uniqueid", "%s", qe->chan->uniqueid),
+                        cw_msg_tuple("Channel",  "%s", peer->name),
+                        cw_msg_tuple("Member",   "%s", member->interface)
                     );
                 }
                 cw_hangup(peer);
@@ -2640,11 +2640,11 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         if (qe->parent->eventwhencalled)
             cw_manager_event(EVENT_FLAG_AGENT, "AgentConnect",
                 5,
-                cw_me_field("Queue",    "%s", queuename),
-                cw_me_field("Uniqueid", "%s", qe->chan->uniqueid),
-                cw_me_field("Channel",  "%s", peer->name),
-                cw_me_field("Member",   "%s", member->interface),
-                cw_me_field("Holdtime", "%ld", (long)time(NULL) - qe->start)
+                cw_msg_tuple("Queue",    "%s", queuename),
+                cw_msg_tuple("Uniqueid", "%s", qe->chan->uniqueid),
+                cw_msg_tuple("Channel",  "%s", peer->name),
+                cw_msg_tuple("Member",   "%s", member->interface),
+                cw_msg_tuple("Holdtime", "%ld", (long)time(NULL) - qe->start)
             );
         cw_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
         cw_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
@@ -2664,13 +2664,13 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             {
                 cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
                     7,
-                    cw_me_field("Queue",    "%s",  queuename),
-                    cw_me_field("Uniqueid", "%s",  qe->chan->uniqueid),
-                    cw_me_field("Channel",  "%s",  peer->name),
-                    cw_me_field("Member",   "%s",  member->interface),
-                    cw_me_field("HoldTime", "%ld", (long)(callstart - qe->start)),
-                    cw_me_field("TalkTime", "%ld", (long)(time(NULL) - callstart)),
-                    cw_me_field("Reason",   "%s",  "caller")
+                    cw_msg_tuple("Queue",    "%s",  queuename),
+                    cw_msg_tuple("Uniqueid", "%s",  qe->chan->uniqueid),
+                    cw_msg_tuple("Channel",  "%s",  peer->name),
+                    cw_msg_tuple("Member",   "%s",  member->interface),
+                    cw_msg_tuple("HoldTime", "%ld", (long)(callstart - qe->start)),
+                    cw_msg_tuple("TalkTime", "%ld", (long)(time(NULL) - callstart)),
+                    cw_msg_tuple("Reason",   "%s",  "caller")
                 );
             }
         }
@@ -2681,12 +2681,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             {
                 cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
                     6,
-                    cw_me_field("Queue",    "%s",  queuename),
-                    cw_me_field("Uniqueid", "%s",  qe->chan->uniqueid),
-                    cw_me_field("Channel",  "%s",  peer->name),
-                    cw_me_field("HoldTime", "%ld", (long)(callstart - qe->start)),
-                    cw_me_field("TalkTime", "%ld", (long)(time(NULL) - callstart)),
-                    cw_me_field("Reason",   "%s",  "agent")
+                    cw_msg_tuple("Queue",    "%s",  queuename),
+                    cw_msg_tuple("Uniqueid", "%s",  qe->chan->uniqueid),
+                    cw_msg_tuple("Channel",  "%s",  peer->name),
+                    cw_msg_tuple("HoldTime", "%ld", (long)(callstart - qe->start)),
+                    cw_msg_tuple("TalkTime", "%ld", (long)(time(NULL) - callstart)),
+                    cw_msg_tuple("Reason",   "%s",  "agent")
                 );
             }
         }
@@ -2805,8 +2805,8 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
                 }
                 cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
                     2,
-                    cw_me_field("Queue",    "%s", q->name),
-                    cw_me_field("Location", "%s", last_member->interface)
+                    cw_msg_tuple("Queue",    "%s", q->name),
+                    cw_msg_tuple("Location", "%s", last_member->interface)
                 );
                 if (added != NULL)
                     *added = last_member->added;
@@ -2845,14 +2845,14 @@ static int update_queue_member(char *queuename, char *interface, int penalty, in
 				last_member->paused = paused;
 				cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
 					8,
-					cw_me_field("Queue",      "%s",  q->name),
-					cw_me_field("Location",   "%s",  last_member->interface),
-					cw_me_field("Membership", "%s",  (last_member->dynamic ? "dynamic" : "static")),
-					cw_me_field("Penalty",    "%d",  last_member->penalty),
-					cw_me_field("CallsTaken", "%d",  last_member->calls),
-					cw_me_field("LastCall",   "%ld", last_member->lastcall),
-					cw_me_field("Status",     "%d",  last_member->status),
-					cw_me_field("Paused",     "%d",  last_member->paused)
+					cw_msg_tuple("Queue",      "%s",  q->name),
+					cw_msg_tuple("Location",   "%s",  last_member->interface),
+					cw_msg_tuple("Membership", "%s",  (last_member->dynamic ? "dynamic" : "static")),
+					cw_msg_tuple("Penalty",    "%d",  last_member->penalty),
+					cw_msg_tuple("CallsTaken", "%d",  last_member->calls),
+					cw_msg_tuple("LastCall",   "%ld", last_member->lastcall),
+					cw_msg_tuple("Status",     "%d",  last_member->status),
+					cw_msg_tuple("Paused",     "%d",  last_member->paused)
 				);
 
 				if (dump)
@@ -2894,14 +2894,14 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
                     q->members = new_member;
                     cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
                         8,
-                        cw_me_field("Queue",      "%s",  q->name),
-                        cw_me_field("Location",   "%s", new_member->interface),
-                        cw_me_field("Membership", "%s", (new_member->dynamic ? "dynamic" : "static")),
-                        cw_me_field("Penalty",    "%d", new_member->penalty),
-                        cw_me_field("CallsTaken", "%d", new_member->calls),
-                        cw_me_field("LastCall",   "%ld", new_member->lastcall),
-                        cw_me_field("Status",     "%d", new_member->status),
-                        cw_me_field("Paused",     "%d", new_member->paused)
+                        cw_msg_tuple("Queue",      "%s",  q->name),
+                        cw_msg_tuple("Location",   "%s", new_member->interface),
+                        cw_msg_tuple("Membership", "%s", (new_member->dynamic ? "dynamic" : "static")),
+                        cw_msg_tuple("Penalty",    "%d", new_member->penalty),
+                        cw_msg_tuple("CallsTaken", "%d", new_member->calls),
+                        cw_msg_tuple("LastCall",   "%ld", new_member->lastcall),
+                        cw_msg_tuple("Status",     "%d", new_member->status),
+                        cw_msg_tuple("Paused",     "%d", new_member->paused)
                     );
 
                     if (dump)
@@ -2958,9 +2958,9 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 
                 cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
                     3,
-                    cw_me_field("Queue",    "%s", q->name),
-                    cw_me_field("Location", "%s", mem->interface),
-                    cw_me_field("Paused",   "%d", paused)
+                    cw_msg_tuple("Queue",    "%s", q->name),
+                    cw_msg_tuple("Location", "%s", mem->interface),
+                    cw_msg_tuple("Paused",   "%d", paused)
                 );
             }
         }

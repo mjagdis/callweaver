@@ -206,15 +206,15 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
         cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
         cw_manager_event(EVENT_FLAG_CALL, "FaxSent",
 		9,
-		cw_me_field("Channel",          "%s", chan->name),
-		cw_me_field("Exten",            "%s", chan->exten),
-		cw_me_field("CallerID",         "%s", (chan->cid.cid_num ? chan->cid.cid_num : "")),
-		cw_me_field("RemoteStationID",  "%s", rx_ident),
-		cw_me_field("LocalStationID",   "%s", tx_ident),
-		cw_me_field("PagesTransferred", "%i", t.pages_rx),
-		cw_me_field("Resolution",       "%i", t.y_resolution),
-		cw_me_field("TransferRate",     "%i", t.bit_rate),
-		cw_me_field("FileName",         "%s", s->rx_file)
+		cw_msg_tuple("Channel",          "%s", chan->name),
+		cw_msg_tuple("Exten",            "%s", chan->exten),
+		cw_msg_tuple("CallerID",         "%s", (chan->cid.cid_num ? chan->cid.cid_num : "")),
+		cw_msg_tuple("RemoteStationID",  "%s", rx_ident),
+		cw_msg_tuple("LocalStationID",   "%s", tx_ident),
+		cw_msg_tuple("PagesTransferred", "%i", t.pages_rx),
+		cw_msg_tuple("Resolution",       "%i", t.y_resolution),
+		cw_msg_tuple("TransferRate",     "%i", t.bit_rate),
+		cw_msg_tuple("FileName",         "%s", s->rx_file)
 	);
     }
     else

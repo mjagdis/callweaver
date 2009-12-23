@@ -3258,10 +3258,10 @@ static int notify_new_message(struct cw_channel *chan, struct cw_vm_user *vmu, i
 
 	cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
 		4,
-		cw_me_field("Mailbox", "%s@%s", vmu->mailbox, vmu->context),
-		cw_me_field("Waiting", "%d",    cw_app_has_voicemail(ext_context, NULL)),
-		cw_me_field("New",     "%d",    newmsgs),
-		cw_me_field("Old",     "%d",    oldmsgs)
+		cw_msg_tuple("Mailbox", "%s@%s", vmu->mailbox, vmu->context),
+		cw_msg_tuple("Waiting", "%d",    cw_app_has_voicemail(ext_context, NULL)),
+		cw_msg_tuple("New",     "%d",    newmsgs),
+		cw_msg_tuple("Old",     "%d",    oldmsgs)
 	);
 
 	run_externnotify(vmu->context, vmu->mailbox);
@@ -3475,8 +3475,8 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 				/* Leave voicemail for someone */
 				cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
 					2,
-					cw_me_field("Mailbox", "%s", ext_context),
-					cw_me_field("Waiting", "%d", has_voicemail(ext_context, NULL))
+					cw_msg_tuple("Mailbox", "%s", ext_context),
+					cw_msg_tuple("Waiting", "%d", has_voicemail(ext_context, NULL))
 				);
 				run_externnotify(vmtmp->context, vmtmp->mailbox);
 	
@@ -5398,8 +5398,8 @@ out:
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
 			2,
-			cw_me_field("Mailbox", "%s", ext_context),
-			cw_me_field("Waiting", "%d", has_voicemail(ext_context, NULL))
+			cw_msg_tuple("Mailbox", "%s", ext_context),
+			cw_msg_tuple("Waiting", "%d", has_voicemail(ext_context, NULL))
 		);
 		run_externnotify(vmu->context, vmu->mailbox);
 	}

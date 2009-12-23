@@ -783,11 +783,11 @@ static int agent_hangup(struct cw_channel *ast)
 				cw_log(CW_LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
 				cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 					5,
-					cw_me_field("Agent",     "%s",  p->agent),
-					cw_me_field("Loginchan", "%s",  p->loginchan),
-					cw_me_field("Logintime", "%ld", logintime),
-					cw_me_field("Reason",    "%s",  "Autologoff"),
-					cw_me_field("Uniqueid",  "%s",  ast->uniqueid)
+					cw_msg_tuple("Agent",     "%s",  p->agent),
+					cw_msg_tuple("Loginchan", "%s",  p->loginchan),
+					cw_msg_tuple("Logintime", "%ld", logintime),
+					cw_msg_tuple("Reason",    "%s",  "Autologoff"),
+					cw_msg_tuple("Uniqueid",  "%s",  ast->uniqueid)
 				);
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				cw_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
@@ -1497,9 +1497,9 @@ static int agent_logoff(char *agent, int soft)
 			
 			cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 				3,
-				cw_me_field("Agent",     "%s", p->agent),
-				cw_me_field("Loginchan", "%s", p->loginchan),
-				cw_me_field("Logintime", "%ld", logintime)
+				cw_msg_tuple("Agent",     "%s", p->agent),
+				cw_msg_tuple("Loginchan", "%s", p->loginchan),
+				cw_msg_tuple("Logintime", "%ld", logintime)
 			);
 			cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			set_agentbycallerid(p->logincallerid, NULL);
@@ -1927,9 +1927,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 								time(&p->loginstart);
 							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
 								3,
-								cw_me_field("Agent",     "%s", p->agent),
-								cw_me_field("Loginchan", "%s", p->loginchan),
-								cw_me_field("Uniqueid",  "%s", chan->uniqueid)
+								cw_msg_tuple("Agent",     "%s", p->agent),
+								cw_msg_tuple("Loginchan", "%s", p->loginchan),
+								cw_msg_tuple("Uniqueid",  "%s", chan->uniqueid)
 							);
 							cw_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 							if (option_verbose > 1)
@@ -1940,10 +1940,10 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 							p->loginstart = 0;
 							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 								4,
-								cw_me_field("Agent",     "%s",  p->agent),
-								cw_me_field("Loginchan", "%s",  last_loginchan),
-								cw_me_field("Logintime", "%ld", logintime),
-								cw_me_field("Uniqueid",  "%s",  chan->uniqueid)
+								cw_msg_tuple("Agent",     "%s",  p->agent),
+								cw_msg_tuple("Loginchan", "%s",  last_loginchan),
+								cw_msg_tuple("Logintime", "%ld", logintime),
+								cw_msg_tuple("Uniqueid",  "%s",  chan->uniqueid)
 							);
 							cw_queue_log("NONE", chan->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|", last_loginchan, logintime);
 							if (option_verbose > 1)
@@ -1967,9 +1967,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 							time(&p->loginstart);
 						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogin",
 							3,
-							cw_me_field("Agent",    "%s", p->agent),
-							cw_me_field("Channel",  "%s", chan->name),
-							cw_me_field("Uniqueid", "%s", chan->uniqueid)
+							cw_msg_tuple("Agent",    "%s", p->agent),
+							cw_msg_tuple("Channel",  "%s", chan->name),
+							cw_msg_tuple("Uniqueid", "%s", chan->uniqueid)
 						);
 						if (update_cdr && chan->cdr)
 							snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
@@ -2045,9 +2045,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 						cw_mutex_unlock(&p->lock);
 						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
 							3,
-							cw_me_field("Agent",     "%s",  p->agent),
-							cw_me_field("Logintime", "%ld", logintime),
-							cw_me_field("Uniqueid",  "%s",  chan->uniqueid)
+							cw_msg_tuple("Agent",     "%s",  p->agent),
+							cw_msg_tuple("Logintime", "%ld", logintime),
+							cw_msg_tuple("Uniqueid",  "%s",  chan->uniqueid)
 						);
 						cw_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, logintime);
 						if (option_verbose > 1)
@@ -2216,8 +2216,8 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 			time(&p->loginstart);
 		cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
 			2,
-			cw_me_field("Agent",     "%s", p->agent),
-			cw_me_field("Loginchan", "%s", p->loginchan)
+			cw_msg_tuple("Agent",     "%s", p->agent),
+			cw_msg_tuple("Loginchan", "%s", p->loginchan)
 		);
 		cw_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGIN", "%s", p->loginchan);
 		if (option_verbose > 1)

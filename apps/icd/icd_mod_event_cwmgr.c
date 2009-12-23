@@ -102,25 +102,25 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
 	           confnr = conf->ztc.confno;            
             cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
                 10,
-                cw_me_field("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
-                cw_me_field("ICD_ID", "%d", icd_caller__get_id(caller)),
-                cw_me_field("ICD_CallerID", "%s", icd_caller__get_caller_id(caller)),
-                cw_me_field("ICD_CallerName", "%s", icd_caller__get_name(caller)),
-                cw_me_field("CallerID", "%s", (chan ? (chan->cid.cid_num ? chan->cid.cid_num : "unknown") : "nochan")),
-                cw_me_field("CallerIDName", "%s", (chan ? (chan->cid.cid_name ? chan->cid.cid_name : "unknown") : "nochan")),
-                cw_me_field("UniqueID", "%s", (chan ? chan->uniqueid : "nochan")),
-                cw_me_field("ChannelName", "%s", (chan ? chan->name : "nochan")),
-                cw_me_field("ConferenceNumber", "%d", confnr),
-                cw_me_field("Message", "%s", smsg)
+                cw_msg_tuple("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
+                cw_msg_tuple("ICD_ID", "%d", icd_caller__get_id(caller)),
+                cw_msg_tuple("ICD_CallerID", "%s", icd_caller__get_caller_id(caller)),
+                cw_msg_tuple("ICD_CallerName", "%s", icd_caller__get_name(caller)),
+                cw_msg_tuple("CallerID", "%s", (chan ? (chan->cid.cid_num ? chan->cid.cid_num : "unknown") : "nochan")),
+                cw_msg_tuple("CallerIDName", "%s", (chan ? (chan->cid.cid_name ? chan->cid.cid_name : "unknown") : "nochan")),
+                cw_msg_tuple("UniqueID", "%s", (chan ? chan->uniqueid : "nochan")),
+                cw_msg_tuple("ChannelName", "%s", (chan ? chan->name : "nochan")),
+                cw_msg_tuple("ConferenceNumber", "%d", confnr),
+                cw_msg_tuple("Message", "%s", smsg)
             );
             break;
         default:
             if (smsg)
                 cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
                     3,
-                    cw_me_field("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
-                    cw_me_field("Source", "%s", (icd_event__get_name(event) ? icd_event__get_name(event) : "unknown")),
-                    cw_me_field("Message", "%s", smsg)
+                    cw_msg_tuple("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
+                    cw_msg_tuple("Source", "%s", (icd_event__get_name(event) ? icd_event__get_name(event) : "unknown")),
+                    cw_msg_tuple("Message", "%s", smsg)
                 );
             break;
         }

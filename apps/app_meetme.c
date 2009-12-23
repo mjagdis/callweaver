@@ -1128,10 +1128,10 @@ dahdiretry:
 
     cw_manager_event(EVENT_FLAG_CALL, "MeetmeJoin",
 		  4,
-                  cw_me_field("Channel",  "%s", chan->name),
-                  cw_me_field("Uniqueid", "%s", chan->uniqueid),
-                  cw_me_field("Meetme",   "%s", conf->confno),
-                  cw_me_field("Usernum",  "%d", user->user_no)
+                  cw_msg_tuple("Channel",  "%s", chan->name),
+                  cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
+                  cw_msg_tuple("Meetme",   "%s", conf->confno),
+                  cw_msg_tuple("Usernum",  "%d", user->user_no)
     );
 
     if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
@@ -1403,10 +1403,10 @@ dahdiretry:
                             user->talking = 1;
                             cw_manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
 					  4,
-                                          cw_me_field("Channel",  "%s\r\n", chan->name),
-                                          cw_me_field("Uniqueid", "%s\r\n", chan->uniqueid),
-                                          cw_me_field("Meetme",   "%s\r\n", conf->confno),
-                                          cw_me_field("Usernum",  "%d\r\n", user->user_no)
+                                          cw_msg_tuple("Channel",  "%s\r\n", chan->name),
+                                          cw_msg_tuple("Uniqueid", "%s\r\n", chan->uniqueid),
+                                          cw_msg_tuple("Meetme",   "%s\r\n", conf->confno),
+                                          cw_msg_tuple("Usernum",  "%d\r\n", user->user_no)
 			    );
                         }
                         if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK)
@@ -1414,10 +1414,10 @@ dahdiretry:
                             user->talking = 0;
                             cw_manager_event(EVENT_FLAG_CALL, "MeetmeStopTalking",
 					  4,
-                                          cw_me_field("Channel",  "%s\r\n", chan->name),
-                                          cw_me_field("Uniqueid", "%s\r\n", chan->uniqueid),
-                                          cw_me_field("Meetme",   "%s\r\n", conf->confno),
-                                          cw_me_field("Usernum",  "%d\r\n", user->user_no)
+                                          cw_msg_tuple("Channel",  "%s\r\n", chan->name),
+                                          cw_msg_tuple("Uniqueid", "%s\r\n", chan->uniqueid),
+                                          cw_msg_tuple("Meetme",   "%s\r\n", conf->confno),
+                                          cw_msg_tuple("Usernum",  "%d\r\n", user->user_no)
 			    );
                         }
                     }
@@ -1735,10 +1735,10 @@ outrun:
     { /* Only cleanup users who really joined! */
         cw_manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
 		4,
-                      cw_me_field("Channel", "%s", chan->name),
-                      cw_me_field("Uniqueid", "%s", chan->uniqueid),
-                      cw_me_field("Meetme", "%s", conf->confno),
-                      cw_me_field("Usernum", "%d", user->user_no)
+                      cw_msg_tuple("Channel", "%s", chan->name),
+                      cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
+                      cw_msg_tuple("Meetme", "%s", conf->confno),
+                      cw_msg_tuple("Usernum", "%d", user->user_no)
 	);
         conf->users--;
         if (confflags & CONFFLAG_MARKEDUSER)

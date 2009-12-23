@@ -278,7 +278,7 @@ static void add_member( struct cw_conference *conf, struct cw_conf_member *membe
 
 	cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Join",
 		1,
-		cw_me_field("Channel", "%s", member->channel_name)
+		cw_msg_tuple("Channel", "%s", member->channel_name)
 	);
 
     return ;
@@ -326,7 +326,7 @@ static int remove_member(struct cw_conference* conf, struct cw_conf_member* memb
 
 	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Leave",
 		1,
-		cw_me_field("Channel", "%s", member->channel_name)
+		cw_msg_tuple("Channel", "%s", member->channel_name)
 	    );
 
 	    // delete the member
@@ -577,8 +577,8 @@ static struct cw_conference* create_conf( char* name, struct cw_conf_member* mem
 	cw_log( CW_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
 	cw_manager_event( EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfCreate",
 	    2,
-	    cw_me_field("Channel", "%s", member->channel_name),
-	    cw_me_field("ConfNo", "%s", name)
+	    cw_msg_tuple("Channel", "%s", member->channel_name),
+	    cw_msg_tuple("ConfNo", "%s", name)
 	);
     }
     else
@@ -643,7 +643,7 @@ void remove_conf( struct cw_conference *conf )
 	    cw_log( CW_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
 	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfRemove",
 		1,
-		cw_me_field("ConfNo", "%s", conf_current->name)
+		cw_msg_tuple("ConfNo", "%s", conf_current->name)
 	    );
 	    cw_mutex_unlock( &conf_current->lock ) ;
 
@@ -889,8 +889,8 @@ static int conference_set_pin(struct cw_conf_member *member, char *pin) {
 
     cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"SetPIN",
 	2,
-	cw_me_field("Channel", "%s", member->channel_name),
-	cw_me_field("PIN", "%s", member->conf->pin)
+	cw_msg_tuple("Channel", "%s", member->channel_name),
+	cw_msg_tuple("PIN", "%s", member->conf->pin)
     );
 
     return 1;

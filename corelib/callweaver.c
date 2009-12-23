@@ -565,8 +565,8 @@ static void quit_handler(void *data)
 
 	cw_manager_event(EVENT_FLAG_SYSTEM, "Shutdown",
 		2,
-		cw_me_field("Shutdown", "%s", (cw_active_channels() ? "Uncleanly" : "Cleanly")),
-		cw_me_field("Restart", "%s", (local_restart ? "True" : "False"))
+		cw_msg_tuple("Shutdown", "%s", (cw_active_channels() ? "Uncleanly" : "Cleanly")),
+		cw_msg_tuple("Restart", "%s", (local_restart ? "True" : "False"))
 	);
 
 	if (!pthread_equal(lthread, CW_PTHREADT_NULL)) {

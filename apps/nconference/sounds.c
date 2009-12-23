@@ -74,8 +74,8 @@ int conf_play_soundqueue( struct cw_conf_member *member )
 
 	cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Sound",
 		2,
-		cw_me_field("Channel", "%s", member->channel_name),
-		cw_me_field("Sound", "%s", toplay->name)
+		cw_msg_tuple("Channel", "%s", member->channel_name),
+		cw_msg_tuple("Sound", "%s", toplay->name)
 	);
 
 	res = conf_play_soundfile( member, toplay->name );

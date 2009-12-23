@@ -1424,10 +1424,10 @@ int cw_hangup(struct cw_channel *chan)
 
 	cw_manager_event(EVENT_FLAG_CALL, "Hangup",
 		4,
-		cw_me_field("Channel",   "%s", chan->name),
-		cw_me_field("Uniqueid",  "%s", chan->uniqueid),
-		cw_me_field("Cause",     "%d", chan->hangupcause),
-		cw_me_field("Cause-txt", "%s", cw_cause2str(chan->hangupcause))
+		cw_msg_tuple("Channel",   "%s", chan->name),
+		cw_msg_tuple("Uniqueid",  "%s", chan->uniqueid),
+		cw_msg_tuple("Cause",     "%d", chan->hangupcause),
+		cw_msg_tuple("Cause-txt", "%s", cw_cause2str(chan->hangupcause))
 	);
 
 	cw_channel_free(chan);
@@ -2526,13 +2526,13 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 				if (c->_state == CW_STATE_DOWN) {
 					cw_manager_event(EVENT_FLAG_CALL, "Newchannel",
 						7,
-						cw_me_field("Channel",      "%s", c->name),
-						cw_me_field("State",        "%s", cw_state2str(c->_state)),
-						cw_me_field("CallerID",     "%s", (c->cid.cid_num ? c->cid.cid_num : "<unknown>")),
-						cw_me_field("CallerIDName", "%s", (c->cid.cid_name ? c->cid.cid_name : "<unknown>")),
-						cw_me_field("Uniqueid",     "%s", c->uniqueid),
-						cw_me_field("Type",         "%s", type),
-						cw_me_field("Dialstring",   "%s", (char *)data)
+						cw_msg_tuple("Channel",      "%s", c->name),
+						cw_msg_tuple("State",        "%s", cw_state2str(c->_state)),
+						cw_msg_tuple("CallerID",     "%s", (c->cid.cid_num ? c->cid.cid_num : "<unknown>")),
+						cw_msg_tuple("CallerIDName", "%s", (c->cid.cid_name ? c->cid.cid_name : "<unknown>")),
+						cw_msg_tuple("Uniqueid",     "%s", c->uniqueid),
+						cw_msg_tuple("Type",         "%s", type),
+						cw_msg_tuple("Dialstring",   "%s", (char *)data)
 					);
 				}
 			}
@@ -2801,9 +2801,9 @@ void cw_change_name(struct cw_channel *chan, const char *fmt, ...)
 
 	cw_manager_event(EVENT_FLAG_CALL, "Rename",
 		3,
-		cw_me_field("Oldname",  "%s", oldname),
-		cw_me_field("Newname",  "%s", chan->name),
-		cw_me_field("Uniqueid", "%s", chan->uniqueid)
+		cw_msg_tuple("Oldname",  "%s", oldname),
+		cw_msg_tuple("Newname",  "%s", chan->name),
+		cw_msg_tuple("Uniqueid", "%s", chan->uniqueid)
 	);
 }
 
@@ -3046,10 +3046,10 @@ int cw_do_masquerade(struct cw_channel *original)
 		cw_channel_free(clone);
 		cw_manager_event(EVENT_FLAG_CALL, "Hangup",
 			4,
-			cw_me_field("Channel",   "%s", clone->name),
-			cw_me_field("Uniqueid",  "%s", clone->uniqueid),
-			cw_me_field("Cause",     "%d", clone->hangupcause),
-			cw_me_field("Cause-txt", "%s", cw_cause2str(clone->hangupcause))
+			cw_msg_tuple("Channel",   "%s", clone->name),
+			cw_msg_tuple("Uniqueid",  "%s", clone->uniqueid),
+			cw_msg_tuple("Cause",     "%d", clone->hangupcause),
+			cw_msg_tuple("Cause-txt", "%s", cw_cause2str(clone->hangupcause))
 		);
 	} else {
 		struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
@@ -3096,11 +3096,11 @@ void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *
 		cw_cdr_setcid(chan->cdr, chan);
 	cw_manager_event(EVENT_FLAG_CALL, "Newcallerid",
 		5,
-		cw_me_field("Channel",         "%s",      chan->name),
-		cw_me_field("CallerID",        "%s",      (chan->cid.cid_num ? chan->cid.cid_num : "<Unknown>")),
-		cw_me_field("CallerIDName",    "%s",      (chan->cid.cid_name ? chan->cid.cid_name : "<Unknown>")),
-		cw_me_field("Uniqueid",        "%s",      chan->uniqueid),
-		cw_me_field("CID-CallingPres", "%d (%s)", chan->cid.cid_pres, cw_describe_caller_presentation(chan->cid.cid_pres))
+		cw_msg_tuple("Channel",         "%s",      chan->name),
+		cw_msg_tuple("CallerID",        "%s",      (chan->cid.cid_num ? chan->cid.cid_num : "<Unknown>")),
+		cw_msg_tuple("CallerIDName",    "%s",      (chan->cid.cid_name ? chan->cid.cid_name : "<Unknown>")),
+		cw_msg_tuple("Uniqueid",        "%s",      chan->uniqueid),
+		cw_msg_tuple("CID-CallingPres", "%d (%s)", chan->cid.cid_pres, cw_describe_caller_presentation(chan->cid.cid_pres))
 	);
 }
 
@@ -3115,11 +3115,11 @@ int cw_setstate(struct cw_channel *chan, int state)
 	cw_device_state_changed_literal(chan->name);
 	cw_manager_event(EVENT_FLAG_CALL, (oldstate == CW_STATE_DOWN ? "Newchannel" : "Newstate"),
 		5,
-		cw_me_field("Channel",      "%s", chan->name),
-		cw_me_field("State",        "%s", cw_state2str(chan->_state)),
-		cw_me_field("CallerID",     "%s", (chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")),
-		cw_me_field("CallerIDName", "%s", (chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")),
-		cw_me_field("Uniqueid",     "%s", chan->uniqueid)
+		cw_msg_tuple("Channel",      "%s", chan->name),
+		cw_msg_tuple("State",        "%s", cw_state2str(chan->_state)),
+		cw_msg_tuple("CallerID",     "%s", (chan->cid.cid_num ? chan->cid.cid_num : "<unknown>")),
+		cw_msg_tuple("CallerIDName", "%s", (chan->cid.cid_name ? chan->cid.cid_name : "<unknown>")),
+		cw_msg_tuple("Uniqueid",     "%s", chan->uniqueid)
 	);
 
 	return 0;
@@ -3439,12 +3439,12 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 
 	cw_manager_event(EVENT_FLAG_CALL, "Link",
 		6,
-		cw_me_field("Channel1",  "%s", c0->name),
-		cw_me_field("Channel2",  "%s", c1->name),
-		cw_me_field("Uniqueid1", "%s", c0->uniqueid),
-		cw_me_field("Uniqueid2", "%s", c1->uniqueid),
-		cw_me_field("CallerID1", "%s", c0->cid.cid_num),
-		cw_me_field("CallerID2", "%s", c1->cid.cid_num)
+		cw_msg_tuple("Channel1",  "%s", c0->name),
+		cw_msg_tuple("Channel2",  "%s", c1->name),
+		cw_msg_tuple("Uniqueid1", "%s", c0->uniqueid),
+		cw_msg_tuple("Uniqueid2", "%s", c1->uniqueid),
+		cw_msg_tuple("CallerID1", "%s", c0->cid.cid_num),
+		cw_msg_tuple("CallerID2", "%s", c1->cid.cid_num)
 	);
 
 	o0nativeformats = c0->nativeformats;
@@ -3564,12 +3564,12 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 
 	cw_manager_event(EVENT_FLAG_CALL, "Unlink",
 		6,
-		cw_me_field("Channel1",  "%s", c0->name),
-		cw_me_field("Channel2",  "%s", c1->name),
-		cw_me_field("Uniqueid1", "%s", c0->uniqueid),
-		cw_me_field("Uniqueid2", "%s", c1->uniqueid),
-		cw_me_field("CallerID1", "%s", c0->cid.cid_num),
-		cw_me_field("CallerID2", "%s", c1->cid.cid_num)
+		cw_msg_tuple("Channel1",  "%s", c0->name),
+		cw_msg_tuple("Channel2",  "%s", c1->name),
+		cw_msg_tuple("Uniqueid1", "%s", c0->uniqueid),
+		cw_msg_tuple("Uniqueid2", "%s", c1->uniqueid),
+		cw_msg_tuple("CallerID1", "%s", c0->cid.cid_num),
+		cw_msg_tuple("CallerID2", "%s", c1->cid.cid_num)
 	);
 	cw_log(CW_LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 

@@ -40,8 +40,8 @@ void send_state_change_notifications( struct cw_conf_member* member )
 
     cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"State",
 	2,
-	cw_me_field("Channel", "%s", member->chan->name),
-	cw_me_field("State", "%s", ( ( member->is_speaking == 1 ) ? "speaking" : "silent" ))
+	cw_msg_tuple("Channel", "%s", member->chan->name),
+	cw_msg_tuple("State", "%s", ( ( member->is_speaking == 1 ) ? "speaking" : "silent" ))
     );
 
     if ( member->is_speaking == 0 ) 
@@ -101,8 +101,8 @@ static int process_incoming(struct cw_conf_member *member, struct cw_frame *f)
 	    // send the DTMF event to the MGR interface..
 	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"DTMF",
 		2,
-		cw_me_field("Channel", "%s", member->channel_name),
-		cw_me_field("Key", "%c", res)
+		cw_msg_tuple("Channel", "%s", member->channel_name),
+		cw_msg_tuple("Key", "%c", res)
 	    );
 	    parse_dtmf_option( member, res);
 	}
@@ -162,8 +162,8 @@ static int process_incoming(struct cw_conf_member *member, struct cw_frame *f)
 	// send the DTMF event to the MGR interface..
 	cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"DTMF",
 		2,
-		cw_me_field("Channel", "%s", member->channel_name),
-		cw_me_field("Key", "%c", f->subclass)
+		cw_msg_tuple("Channel", "%s", member->channel_name),
+		cw_msg_tuple("Key", "%c", f->subclass)
 	);
 
 	parse_dtmf_option( member, f->subclass);

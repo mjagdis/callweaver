@@ -62,7 +62,7 @@
  */
 
 
-struct manager_event {
+struct cw_manager_message {
 	struct cw_object obj;
 	struct cw_dynstr *data;		/*!< The AMI formatted event data */
 	size_t count;			/*!< The number of key/value pairs in this event */
@@ -84,10 +84,10 @@ struct mansession {
 	pthread_cond_t activity;
 	pthread_cond_t ack;
 	struct message *m;
-	int (*handler)(struct mansession *, const struct manager_event *);
+	int (*handler)(struct mansession *, const struct cw_manager_message *);
 	struct cw_object *pvt_obj;
 	unsigned int q_size, q_r, q_w, q_count, q_max, q_overflow;
-	struct manager_event **q;
+	struct cw_manager_message **q;
 	pthread_t reader_tid;
 	pthread_t writer_tid;
 	cw_address_t addr;
@@ -160,11 +160,11 @@ extern CW_API_PUBLIC void astman_send_response(struct mansession *s, struct mess
 extern CW_API_PUBLIC void astman_send_error(struct mansession *s, struct message *m, const char *error);
 extern CW_API_PUBLIC void astman_send_ack(struct mansession *s, struct message *m, const char *msg);
 
-extern CW_API_PUBLIC int manager_session_ami(struct mansession *sess, const struct manager_event *event);
-
-extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct manager_event *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
+extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
 extern CW_API_PUBLIC void manager_session_shutdown(struct mansession *sess);
 extern CW_API_PUBLIC void manager_session_end(struct mansession *sess);
+
+extern int manager_session_ami(struct mansession *sess, const struct cw_manager_message *event);
 
 /*! Reload manager configuration */
 extern int manager_reload(void);
@@ -175,34 +175,34 @@ extern int init_manager(void);
 
 /* If you are looking at this trying to fix a weird compile error
  * check the count is a constant integer corresponding to the
- * number of cw_me_field() arguments, that there are _only_
- * cw_me_field() arguments after the count (there can be no
- * expressions wrapping cw_me_fields to select one or the other
+ * number of cw_msg_tuple() arguments, that there are _only_
+ * cw_msg_tuple() arguments after the count (there can be no
+ * expressions wrapping cw_msg_tuple to select one or the other
  * for instance) and that you are not missing a comma after a
- * cw_me_field().
+ * cw_msg_tuple().
  * In particular note:
  *
  *    this is legal
  *        if (...)
  *            cw_manager_event(...,
- *                cw_me_field(...),
+ *                cw_msg_tuple(...),
  *                ...
  *            );
  *        else
  *            cw_manager_event(...,
- *                cw_me_field(...),
+ *                cw_msg_tuple(...),
  *                ...
  *            );
  *
  *    but this is not
  *        cw_manager_event(...,
- *            (... ? cw_me_field(...) : cw_me_field(...)),
+ *            (... ? cw_msg_tuple(...) : cw_msg_tuple(...)),
  *            ...
  *        );
  *
  *    although this is
  *        cw_manager_event(...,
- *            cw_me_field(..., (... ? a : b)),
+ *            cw_msg_tuple(..., (... ? a : b)),
  *            ...
  *        );
  */
@@ -212,7 +212,7 @@ extern int init_manager(void);
  * expansion. They will be optimized out.
  * Note that we only get _almost_ there. Specifically there is no way to
  * stop the preprocessor eating line breaks so you way get told arg 3
- * doesn't match the format string, but not which cw_me_field in the
+ * doesn't match the format string, but not which cw_msg_tuple in the
  * manager_event is talking about. If you can't spot it try compiling
  * with CW_DEBUG_MAN_EVENT defined. This breaks expansion completely
  * so you get accurate line numbers for errors and warnings but then
@@ -224,15 +224,15 @@ static __inline__ void cw_manager_event(int category, const char *event, size_t 
 static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
 {
 }
-static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
+static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1,2), format (printf, 2,3)));
-static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
+static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
 {
 	return NULL;
 }
 
 #ifndef CW_DEBUG_MAN_EVENT
-#  define CW_ME_DEBRACKET_cw_me_field(key, fmt, ...)	key, fmt, ## __VA_ARGS__
+#  define CW_ME_DEBRACKET_cw_msg_tuple(key, fmt, ...)	key, fmt, ## __VA_ARGS__
 #  define CW_ME_DO(op, ...)				op(__VA_ARGS__)
 #  define CW_ME_FMT(n, a)				CW_ME_DO(CW_ME_FMT_I, n, CW_CPP_CAT(CW_ME_DEBRACKET_, a))
 #  define CW_ME_FMT_I(n, key, fmt, ...)			"%s: %n" fmt "\r\n%n"
