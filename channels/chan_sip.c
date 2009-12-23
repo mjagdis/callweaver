@@ -17503,25 +17503,6 @@ static int unload_module(void)
 
     cw_manager_action_unregister_multiple(manager_actions, arraysize(manager_actions));
 
-    if (!cw_mutex_lock(&iflock))
-    {
-        /* Hangup all interfaces if they have an owner */
-        p = iflist;
-        while (p)
-        {
-            if (p->owner)
-                cw_softhangup(p->owner, CW_SOFTHANGUP_APPUNLOAD);
-            p = p->next;
-        }
-        iflist = NULL;
-        cw_mutex_unlock(&iflock);
-    }
-    else
-    {
-        cw_log(CW_LOG_WARNING, "Unable to lock the interface list\n");
-        return -1;
-    }
-
     if (!cw_mutex_lock(&monlock))
     {
         if (monitor_thread && !pthread_equal(monitor_thread, CW_PTHREADT_STOP))
