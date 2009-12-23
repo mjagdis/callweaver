@@ -297,7 +297,7 @@ static void history_calc_maxbuf(jitterbuf *jb)
 static void history_get(jitterbuf *jb) 
 {
 	long max, min, jitter;
-	int index;
+	int i;
 	int count;
 
 	if (!jb->hist_maxbuf_valid) 
@@ -306,29 +306,29 @@ static void history_get(jitterbuf *jb)
 	/* count is how many items in history we're examining */
 	count = (jb->hist_ptr < JB_HISTORY_SZ) ? jb->hist_ptr : JB_HISTORY_SZ;
 
-	/* index is the "n"ths highest/lowest that we'll look for */
-	index = count * JB_HISTORY_DROPPCT / 100;
+	/* i is the "n"ths highest/lowest that we'll look for */
+	i = count * JB_HISTORY_DROPPCT / 100;
 
-	/* sanity checks for index */
-	if (index > (JB_HISTORY_MAXBUF_SZ - 1)) 
-		index = JB_HISTORY_MAXBUF_SZ - 1;
+	/* sanity checks for i */
+	if (i > (JB_HISTORY_MAXBUF_SZ - 1))
+		i = JB_HISTORY_MAXBUF_SZ - 1;
 
 
-	if (index < 0) {
+	if (i < 0) {
 		jb->info.min = 0;
 		jb->info.jitter = 0;
 		return;
 	}
 
-	max = jb->hist_maxbuf[index];
-	min = jb->hist_minbuf[index];
+	max = jb->hist_maxbuf[i];
+	min = jb->hist_minbuf[i];
 
 	jitter = max - min;
 
 	/* these debug stmts compare the difference between looking at the absolute jitter, and the
 	 * values we get by throwing away the outliers */
 	/*
-	fprintf(stderr, "[%d] min=%d, max=%d, jitter=%d\n", index, min, max, jitter);
+	fprintf(stderr, "[%d] min=%d, max=%d, jitter=%d\n", i, min, max, jitter);
 	fprintf(stderr, "[%d] min=%d, max=%d, jitter=%d\n", 0, jb->hist_minbuf[0], jb->hist_maxbuf[0], jb->hist_maxbuf[0]-jb->hist_minbuf[0]);
 	*/
 

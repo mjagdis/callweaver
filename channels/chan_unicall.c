@@ -136,9 +136,6 @@ static int min_unused = 2;
 static char idleext[CW_MAX_EXTENSION];
 static char idledial[CW_MAX_EXTENSION];
 
-static int usecnt = 0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 /* Protect the interface list (of unicall_pvt's) */
 CW_MUTEX_DEFINE_STATIC(iflock);
 
@@ -157,7 +154,7 @@ static pthread_t monitor_thread = CW_PTHREADT_NULL;
 #define MASK_INUSE              (1 << 1)        /* Channel currently in use */
 
 static struct cw_channel *unicall_request(const char *type, int format, void *data, int *cause);
-static int unicall_call(struct cw_channel *c, char *dest);
+static int unicall_call(struct cw_channel *c, const char *dest);
 static int unicall_hangup(struct cw_channel *c);
 static int unicall_answer(struct cw_channel *c);
 static struct cw_frame *unicall_read(struct cw_channel *c);
@@ -982,7 +979,7 @@ static void unicall_disable_ec(unicall_pvt_t *p)
     p->echocanon = FALSE;
 }
 
-static int unicall_call(struct cw_channel *cw, char *rdest)
+static int unicall_call(struct cw_channel *cw, const char *rdest)
 {
     unicall_pvt_t *p = cw->tech_pvt;
     uc_callparms_t *callparms;
@@ -1459,11 +1456,6 @@ static int unicall_hangup(struct cw_channel *cw)
     /*endif*/
     cw->tech_pvt = NULL;
     cw_setstate(cw, CW_STATE_DOWN);
-    cw_mutex_lock(&usecnt_lock);
-    if (--usecnt < 0) 
-        cw_log(CW_LOG_WARNING, "Usecnt < 0???\n");
-    /*endif*/
-    cw_mutex_unlock(&usecnt_lock);
     if (option_verbose > 2) 
         cw_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", cw->name);
     /*endif*/
@@ -2647,9 +2639,6 @@ static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx,
     /*endif*/
     i->subs[index].owner = tmp;
     cw_setstate(tmp, state);
-    cw_mutex_lock(&usecnt_lock);
-    usecnt++;
-    cw_mutex_unlock(&usecnt_lock);
     strncpy(tmp->context, i->context, sizeof(tmp->context) - 1);
     /* Copy call forward info */
     strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));

@@ -115,6 +115,14 @@ struct stackelement {
 static struct stackelement  include_stack[MAX_INCLUDE_DEPTH];
 static int include_stack_index = 0;
 
+#ifndef YY_NO_INPUT
+#  ifdef __cplusplus
+    static int yyinput (yyscan_t yyscanner) __attribute__(( unused ));
+#  else
+    static int input  (yyscan_t yyscanner) __attribute__(( unused ));
+#  endif
+#endif
+
 /*
  * if we use the @n feature of bison, we must supply the start/end
  * location of tokens in the structure pointed by yylloc.

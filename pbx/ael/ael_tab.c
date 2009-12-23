@@ -195,7 +195,7 @@
 
 #include "ael_structs.h"
 
-static pval * linku1(pval *head, pval *tail);
+static struct pval * linku1(struct pval *head, struct pval *tail);
 
 void reset_parencount(yyscan_t yyscanner);
 void reset_semicount(yyscan_t yyscanner);
@@ -268,19 +268,19 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio, char const *s);
 int ael_yylex (YYSTYPE * yylval_param, YYLTYPE * yylloc_param , void * yyscanner);
 
 /* create a new object with start-end marker */
-static pval *npval(pvaltype type, int first_line, int last_line,
+static struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column);
 
 /* create a new object with start-end marker, simplified interface.
  * Must be declared here because YYLTYPE is not known before
  */
-static pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
+static struct pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last);
 
 /* another frontend for npval, this time for a string */
-static pval *nword(char *string, YYLTYPE *pos);
+static struct pval *nword(char *string, YYLTYPE *pos);
 
 /* update end position of an object, return the object */
-static pval *update_last(pval *, YYLTYPE *);
+static struct pval *update_last(struct pval *, YYLTYPE *);
 
 
 /* Line 216 of yacc.c.  */
@@ -2547,7 +2547,7 @@ yyreduce:
     {
 		char *bufx;
 		int tot=0;
-		pval *pptr;
+		struct pval *pptr;
 		(yyval.pval) = npval2(PV_VARDEC, &(yylsp[(1) - (5)]), &(yylsp[(5) - (5)]));
 		(yyval.pval)->u2.val=(yyvsp[(4) - (5)].str);
 		/* rebuild the original string-- this is not an app call, it's an unwrapped vardec, with a func call on the LHS */
@@ -3135,7 +3135,7 @@ yyreturn:
 #line 610 "ael/ael.y"
 
 
-static char *token_equivs1[] =
+static const char *token_equivs1[] =
 {
 	"AMPER",
 	"AT",
@@ -3175,7 +3175,7 @@ static char *token_equivs1[] =
 	"SEMI",
 };
 
-static char *token_equivs2[] =
+static const char *token_equivs2[] =
 {
 	"&",
 	"@",
@@ -3221,7 +3221,8 @@ static char *ael_token_subst(char *mess)
 	/* calc a length, malloc, fill, and return; yyerror had better free it! */
 	int len=0,i;
 	char *p;
-	char *res, *s,*t;
+	char *res, *s;
+	const char *t;
 	int token_equivs_entries = sizeof(token_equivs1)/sizeof(char*);
 
 	for (p=mess; *p; p++) {
@@ -3274,7 +3275,7 @@ void yyerror(YYLTYPE *locp, struct parse_io *parseio,  char const *s)
 static struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column)
 {
-	pval *z = calloc(1, sizeof(struct pval));
+	struct pval *z = calloc(1, sizeof(struct pval));
 	z->type = type;
 	z->startline = first_line;
 	z->endline = last_line;
@@ -3290,7 +3291,7 @@ static struct pval *npval2(pvaltype type, YYLTYPE *first, YYLTYPE *last)
 			first->first_column, last->last_column);
 }
 
-static struct pval *update_last(pval *obj, YYLTYPE *last)
+static struct pval *update_last(struct pval *obj, YYLTYPE *last)
 {
 	obj->endline = last->last_line;
 	obj->endcol = last->last_column;
@@ -3298,16 +3299,16 @@ static struct pval *update_last(pval *obj, YYLTYPE *last)
 }
 
 /* frontend for npval to create a PV_WORD string from the given token */
-static pval *nword(char *string, YYLTYPE *pos)
+static struct pval *nword(char *string, YYLTYPE *pos)
 {
-	pval *p = npval2(PV_WORD, pos, pos);
+	struct pval *p = npval2(PV_WORD, pos, pos);
 	if (p)
 		p->u1.str = string;
 	return p;
 }
 
 /* append second element to the list in the first one */
-static pval * linku1(pval *head, pval *tail)
+static struct pval * linku1(struct pval *head, struct pval *tail)
 {
 	if (!head)
 		return tail;

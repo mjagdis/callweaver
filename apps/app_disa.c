@@ -93,7 +93,7 @@ static const char disa_descrip[] =
 	"exists in the context, it will be used.\n";
 
 
-static void play_dialtone(struct cw_channel *chan, char *mailbox)
+static void play_dialtone(struct cw_channel *chan, const char *mailbox)
 {
 	const struct tone_zone_sound *ts = NULL;
 
@@ -109,6 +109,19 @@ static void play_dialtone(struct cw_channel *chan, char *mailbox)
 
 static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char ourcidname[256];
+	char ourcidnum[256];
+	char inbuf[128];
+	char exten[CW_MAX_EXTENSION];
+	char acctcode[20] = "";
+	struct timeval lastdigittime;
+	time_t rstart;
+	struct localuser *u;
+	const char *ourcontext;
+	const char *ourcallerid;
+	const char *mailbox;
+	struct cw_frame *f;
+	FILE *fp;
 	int i;
 	int j;
 	int k;
@@ -116,20 +129,7 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int did_ignore;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
-	struct localuser *u;
-	char exten[CW_MAX_EXTENSION];
-	char acctcode[20] = "";
-	char *ourcontext;
-	char *ourcallerid;
-	char ourcidname[256];
-	char ourcidnum[256];
-	char *mailbox;
-	struct cw_frame *f;
-	struct timeval lastdigittime;
 	int res;
-	time_t rstart;
-	FILE *fp;
-	char inbuf[128];
 
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(disa_syntax);

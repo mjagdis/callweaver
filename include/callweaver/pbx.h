@@ -232,7 +232,7 @@ extern CW_API_PUBLIC int cw_add_extension2(struct cw_context *con,
  * \param exten which extension to get state
  * Returns extension state !! = CW_EXTENSION_???
  */
-extern CW_API_PUBLIC int cw_extension_state(struct cw_channel *c, char *context, char *exten);
+extern CW_API_PUBLIC int cw_extension_state(struct cw_channel *c, const char *context, const char *exten);
 
 /*! Return string of the state of an extension */
 /*!

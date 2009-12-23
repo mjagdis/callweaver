@@ -129,7 +129,7 @@ static int cw_serialize_showchan(struct cw_channel *c, char *buf, size_t size)
 
 static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	static char *line = "================================================================================";
+	static const char line[] = "================================================================================";
 	char vars[1024];
 	char info[1024];
 	struct localuser *u;

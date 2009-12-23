@@ -238,17 +238,17 @@ int cw_device_state_changed(const char *fmt, ...)
 /*--- do_devstate_changes: Go through the dev state change queue and update changes in the dev state thread */
 static void *do_devstate_changes(void *data)
 {
-	struct state_change *cur=NULL;
+	struct state_change *sc = NULL;
 
 	CW_LIST_LOCK(&state_changes);
 	for(;;) {
 		/* the list lock will _always_ be held at this point in the loop */
-		cur = CW_LIST_REMOVE_HEAD(&state_changes, list);
-		if (cur) {
+		sc = CW_LIST_REMOVE_HEAD(&state_changes, list);
+		if (sc) {
 			/* we got an entry, so unlock the list while we process it */
 			CW_LIST_UNLOCK(&state_changes);
-			do_state_change(cur->device);
-			free(cur);
+			do_state_change(sc->device);
+			free(sc);
 			CW_LIST_LOCK(&state_changes);
 		} else {
 			/* there was no entry, so atomically unlock the list and wait for

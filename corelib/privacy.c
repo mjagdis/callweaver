@@ -49,7 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 int cw_privacy_check(char *dest, char *cid)
 {
 	char tmp[256] = "";
-	char *trimcid = "";
+	const char *trimcid = "";
 	char *n, *l;
 	int res;
 	char key[256], result[256];
@@ -85,7 +85,7 @@ int cw_privacy_reset(char *dest)
 int cw_privacy_set(char *dest, char *cid, int status)
 {
 	char tmp[256] = "";
-	char *trimcid = "";
+	const char *trimcid = "";
 	char *n, *l;
 	int res;
 	char key[256];

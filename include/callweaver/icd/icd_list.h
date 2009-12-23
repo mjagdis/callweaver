@@ -127,16 +127,16 @@ extern "C" {
 
 /* Uses key_fn (see icd_list__set_key_check_func) to find the first payload
    in the list that matches the key value. */
-    void *icd_list__find(icd_list * that, void *key);
+    void *icd_list__find(icd_list * that, const void *key);
 
 /* Returns the position in the list of a particular payload, -1 if not found */
-    int icd_list__position(icd_list * that, void *target);
+    int icd_list__position(icd_list * that, const void *target);
 
 /* Uses key_fn to find a node to remove based on its key value. */
-    icd_status icd_list__remove(icd_list * that, void *key);
+    icd_status icd_list__remove(icd_list * that, const void *key);
 
 /* Removes a node based on its payload. */
-    icd_status icd_list__remove_by_element(icd_list * that, void *payload);
+    icd_status icd_list__remove_by_element(icd_list * that, const void *payload);
 
 /* Print out a copy of the list */
     icd_status icd_list__dump(icd_list * that, int verbosity, struct cw_dynstr **ds_p);
@@ -149,7 +149,7 @@ extern "C" {
 /***** Getters and Setters *****/
 
 /* Sets the name of the list */
-    icd_status icd_list__set_name(icd_list * that, char *name);
+    icd_status icd_list__set_name(icd_list * that, const char *name);
 
 /* Gets the name of the list */
     char *icd_list__get_name(icd_list * that);
@@ -170,7 +170,7 @@ extern "C" {
 
 /* Allows you to provide a function that can check a key value against a
    payload in the list, returning non-zero on a match. */
-    icd_status icd_list__set_key_check_func(icd_list * that, int (*key_fn) (void *key, void *payload));
+    icd_status icd_list__set_key_check_func(icd_list * that, int (*key_fn) (const void *key, void *payload));
 
 /* Allows you to provide a function which gets called when a node is added to
  * the list. The extra parameter will be passed into the function on each call.
@@ -255,7 +255,7 @@ extern "C" {
 
 /***** Key functions *****/
 
-    int icd_list__by_name(void *key, void *list);
+    int icd_list__by_name(const void *key, void *list);
 
 #ifdef __cplusplus
 }

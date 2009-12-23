@@ -599,15 +599,15 @@ static int moh4_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return 0;
 }
 
-static struct mohclass *get_mohbyname(char *name)
+static struct mohclass *get_mohbyname(const char *name)
 {
 	struct mohclass *moh;
-	moh = mohclasses;
-	while (moh) {
+
+	for (moh = mohclasses; moh; moh = moh->next) {
 		if (!strcasecmp(name, moh->name))
 			return moh;
-		moh = moh->next;
 	}
+
 	return NULL;
 }
 
@@ -875,7 +875,7 @@ static void local_cw_moh_cleanup(struct cw_channel *chan)
 	}
 }
 
-static int local_cw_moh_start(struct cw_channel *chan, char *class)
+static int local_cw_moh_start(struct cw_channel *chan, const char *class)
 {
 	struct mohclass *mohclass;
 

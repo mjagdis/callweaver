@@ -40,7 +40,7 @@
        \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
 
 */
-extern CW_API_PUBLIC int cw_get_enum(struct cw_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
+extern CW_API_PUBLIC int cw_get_enum(struct cw_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, const char *suffix, const char *options);
 
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel

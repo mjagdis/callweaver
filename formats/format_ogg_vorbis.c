@@ -285,9 +285,9 @@ static void *ogg_vorbis_rewrite(FILE *fp, const char *comment)
         }
 
         vorbis_comment_init(&tmp->vc);
-        vorbis_comment_add_tag(&tmp->vc, "ENCODER", "CallWeaver");
+        vorbis_comment_add_tag(&tmp->vc, (char *)"ENCODER", (char *)"CallWeaver");
         if (comment)
-            vorbis_comment_add_tag(&tmp->vc, "COMMENT", (char *) comment);
+            vorbis_comment_add_tag(&tmp->vc, (char *)"COMMENT", (char *)comment);
 
         vorbis_analysis_init(&tmp->vd, &tmp->vi);
         vorbis_block_init(&tmp->vd, &tmp->vb);

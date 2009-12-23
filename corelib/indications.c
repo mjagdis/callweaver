@@ -243,7 +243,7 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
 	char *data = cw_strdupa(playlst);
 	struct playtones_def d = { vol, -1, 0, 1, NULL};
 	char *stringp = NULL;
-	char *separator;
+	const char *separator;
 
 	if (!playtones.is_initialized)
 		cw_object_init_obj(&playtones.obj, CW_OBJECT_CURRENT_MODULE, 0);
@@ -265,28 +265,28 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
 	s = strsep(&stringp,separator);
 	while (s  &&  *s)
     {
-		int freq1, freq2, time, modulate=0, moddepth=90, midinote=0;
+		int freq1, freq2, t, modulate=0, moddepth=90, midinote=0;
 
 		if (s[0] == '!')
 			s++;
 		else if (d.reppos == -1)
 			d.reppos = d.nitems;
 		
-        if (sscanf(s, "%d+%d/%d", &freq1, &freq2, &time) == 3)
+        if (sscanf(s, "%d+%d/%d", &freq1, &freq2, &t) == 3)
         {
 			/* f1+f2/time format */
 		}
         else if (sscanf(s, "%d+%d", &freq1, &freq2) == 2)
         {
 			/* f1+f2 format */
-			time = 0;
+			t = 0;
 		}
-        else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &time) == 3)
+        else if (sscanf(s, "%d*%d/%d", &freq1, &freq2, &t) == 3)
         {
 			/* f1*f2/time format */
 			modulate = 1;
 		}
-        else if (sscanf(s, "%d*%d@%d/%d", &freq1, &freq2, &moddepth, &time) == 4)
+        else if (sscanf(s, "%d*%d@%d/%d", &freq1, &freq2, &moddepth, &t) == 4)
         {
 			/* f1*f2@md/time format */
 			modulate = 1;
@@ -294,16 +294,16 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
         else if (sscanf(s, "%d*%d", &freq1, &freq2) == 2)
         {
 			/* f1*f2 format */
-			time = 0;
+			t = 0;
 			modulate = 1;
 		}
         else if (sscanf(s, "%d*%d@%d", &freq1, &freq2, &moddepth) == 3)
         {
 			/* f1*f2@md format */
-			time = 0;
+			t = 0;
 			modulate = 1;
 		}
-        else if (sscanf(s, "%d/%d", &freq1, &time) == 2)
+        else if (sscanf(s, "%d/%d", &freq1, &t) == 2)
         {
 			/* f1/time format */
 			freq2 = 0;
@@ -312,9 +312,9 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
         {
 			/* f1 format */
 			freq2 = 0;
-			time = 0;
+			t = 0;
 		}
-        else if (sscanf(s, "M%d+M%d/%d", &freq1, &freq2, &time) == 3)
+        else if (sscanf(s, "M%d+M%d/%d", &freq1, &freq2, &t) == 3)
         {
 			/* Mf1+Mf2/time format */
 			midinote = 1;
@@ -322,10 +322,10 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
         else if (sscanf(s, "M%d+M%d", &freq1, &freq2) == 2)
         {
 			/* Mf1+Mf2 format */
-			time = 0;
+			t = 0;
 			midinote = 1;
 		}
-        else if (sscanf(s, "M%d*M%d/%d", &freq1, &freq2, &time) == 3)
+        else if (sscanf(s, "M%d*M%d/%d", &freq1, &freq2, &t) == 3)
         {
 			/* Mf1*Mf2/time format */
 			modulate = 1;
@@ -334,11 +334,11 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
         else if (sscanf(s, "M%d*M%d", &freq1, &freq2) == 2)
         {
 			/* Mf1*Mf2 format */
-			time = 0;
+			t = 0;
 			modulate = 1;
 			midinote = 1;
 		}
-        else if (sscanf(s, "M%d/%d", &freq1, &time) == 2)
+        else if (sscanf(s, "M%d/%d", &freq1, &t) == 2)
         {
 			/* Mf1/time format */
 			freq2 = -1;
@@ -348,7 +348,7 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
         {
 			/* Mf1 format */
 			freq2 = -1;
-			time = 0;
+			t = 0;
 			midinote = 1;
 		}
         else
@@ -378,7 +378,7 @@ int cw_playtones_start(struct cw_channel *chan, int vol, const char *playlst, in
 		}
 		d.items[d.nitems].freq1    = freq1;
 		d.items[d.nitems].freq2    = freq2;
-		d.items[d.nitems].duration = time;
+		d.items[d.nitems].duration = t;
 		d.items[d.nitems].modulate = modulate;
 		d.items[d.nitems].modulation_depth = moddepth;
 		d.nitems++;

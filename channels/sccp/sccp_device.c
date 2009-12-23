@@ -358,7 +358,7 @@ void sccp_dev_clearprompt(sccp_device_t * d, uint8_t line, uint32_t callid) {
 
 
 
-void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, char * msg, int timeout) {
+void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, const char * msg, int timeout) {
 	sccp_moo_t * r;
 
 	if (!d || !d->session)
@@ -442,7 +442,7 @@ void sccp_dev_cleardisplayprinotify(sccp_device_t * d) {
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Clear the display priority notify message\n", d->id);
 }
 
-void sccp_dev_displayprinotify(sccp_device_t * d, char * msg, uint32_t priority, uint32_t timeout) {
+void sccp_dev_displayprinotify(sccp_device_t * d, const char * msg, uint32_t priority, uint32_t timeout) {
 	sccp_moo_t * r;
 
 	if (!d || !d->session)

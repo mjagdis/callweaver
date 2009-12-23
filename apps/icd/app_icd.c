@@ -164,13 +164,13 @@ static struct cw_clicmd icd_command_cli_struct = {
 
 
 /*** For the ICD Module Initialization ***/
-static char *default_icd_config = "icd_config/icd.conf";
-static char *default_queue_config = "icd_config/icd_queues.conf";
-static char *default_agent_config = "icd_config/icd_agents.conf";
-static char *default_conference_config = "icd_config/icd_conference.conf";
+static const char default_icd_config[] = "icd_config/icd.conf";
+static const char default_queue_config[] = "icd_config/icd_queues.conf";
+static const char default_agent_config[] = "icd_config/icd_agents.conf";
+static const char default_conference_config[] = "icd_config/icd_conference.conf";
 
  CW_MUTEX_DEFINE_STATIC(icdlock);
-static int run_conference(cw_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode);
+static int run_conference(cw_channel * chan, icd_customer * customer, icd_conference * conf, const char *spymode);
 
 /* Maximum string length for a list of queues */
 static const int queue_entry_len = 512;
@@ -180,7 +180,7 @@ static const int queue_entry_len = 512;
 /* Coming Soon - static icd_fieldset *channels; */
 
 /* login and password dialog */
-icd_agent *app_icd__dtmf_login(struct cw_channel *chan, char *login, char *pass, int tries);
+icd_agent *app_icd__dtmf_login(struct cw_channel *chan, const char *login, const char *pass, int tries);
 
 
 /* Listener on all agents maintained by the agent registry */
@@ -193,7 +193,7 @@ static int clear_queue_from_registry(void *listener, icd_event * event, void *ex
 static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_fieldset * map);
 
 /* Associates queues with an agent. */
-static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_fieldset * map);
+static icd_status app_icd__store_queue_list(const char *queues, char *agentname, icd_fieldset * map);
 
 /* internal reload routines */
 static icd_status reload_icd(void);
@@ -395,14 +395,11 @@ static int unload_module(void)
 /* CallWeaver.org calls this when we are reloaded. All reinitialization is here. */
 static int reload_module(void)
 {
-    icd_status result;
-
     cw_verbose(VERBOSE_PREFIX_2 "APP ICD: reload request from callweaver cli \n");
     /* the ICD way */
     reload_app_icd(APP_ICD);
 
-    return result;
-
+    return 0;
 }
 
 
@@ -462,7 +459,7 @@ icd_status reload_app_icd(icd_module module)
 
 icd_status reload_icd(void)
 {
-    char *icd_config_name;
+    const char *icd_config_name;
     icd_status result = ICD_SUCCESS;
 
     icd_config_name = default_icd_config;
@@ -474,7 +471,7 @@ icd_status reload_icd(void)
 
 icd_status reload_conferences(void)
 {
-    char *conference_config_name;
+    const char *conference_config_name;
     icd_status result;
 
     conference_config_name = default_conference_config;
@@ -485,7 +482,7 @@ icd_status reload_conferences(void)
 
 icd_status reload_queues(icd_fieldset * outstanding_members)
 {
-    char *queue_config_name;
+    const char *queue_config_name;
     icd_status result;
 
     queue_config_name = default_queue_config;
@@ -496,7 +493,7 @@ icd_status reload_queues(icd_fieldset * outstanding_members)
 
 icd_status reload_agents(icd_fieldset * outstanding_members)
 {
-    char *agent_config_name;
+    const char *agent_config_name;
     icd_status result;
 
     agent_config_name = default_agent_config;
@@ -508,11 +505,11 @@ icd_status reload_agents(icd_fieldset * outstanding_members)
 icd_status autologin(void)
 {
     icd_fieldset_iterator *iter;
-    char *curr_key;
+    const char *curr_key;
     icd_agent *agent;
-    char *fld_autologin;
-    char *fld_chanstring;
-    char *fld_noauth;
+    const char *fld_autologin;
+    const char *fld_chanstring;
+    const char *fld_noauth;
 
     iter = icd_fieldset__get_key_iterator(agents);
     while (icd_fieldset_iterator__has_more(iter)) {
@@ -566,12 +563,12 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
     char custname[256];
     icd_config *config;
     struct localuser *u;
-    icd_queue *queue;
-    char *queuename;
-    char *conference_name;
-    char *identifier;
+    icd_queue *queue = NULL;
+    const char *queuename;
+    const char *conference_name;
+    const char *identifier;
     icd_conference *conf;
-    char *spymode, *nohangup, *pin, *key;
+    const char *spymode, *nohangup, *pin, *key;
     icd_caller *conf_owner = NULL;
     char input[80];
     vh_keylist *keys;
@@ -590,7 +587,7 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
     if (chan->_state != CW_STATE_UP) {
         res = cw_answer(chan);
     }
-    
+
     oldrformat = chan->readformat;
     oldwformat = chan->writeformat;
     
@@ -850,7 +847,7 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
 {
     struct localuser *u;
     icd_customer *customer;
-    icd_queue *queue;
+    icd_queue *queue = NULL;
     icd_config *config;
     char buf[256];
     char buf2[256];
@@ -860,7 +857,6 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
     char *extension = NULL;
     char *prioritystring = NULL;
     char *context = NULL;
-    char *customerinputfile = NULL;
     int res = 0;
     int tries = 0;
     int authenticated = 0;
@@ -917,7 +913,6 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
     /* Three tries at logging in and authenticating */
     tries = 0;
     authenticated = 0;
-    customerinputfile = "customer-user";
     tries = 0;
 
     priority = 1;
@@ -1041,22 +1036,22 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
 /* this is where the agent logs in */
 int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+    char agentbuf[256];
     struct localuser *u;
     icd_agent *agent = NULL;
     icd_queue *queue;
     icd_config *config;
-    char *agentname;
-    char *dynamicstring;
-    char *loginstring;
-    char *queuename;
+    const char *agentname;
+    const char *dynamicstring;
+    const char *loginstring;
+    const char *queuename;
     char *queuelist;
     char *queuesleft;
-    char *currqueue;
-    char *hookinfo;
-    char *noauth;
-    char *identifier;
-    char *passwd;
-    char agentbuf[256];
+    const char *currqueue;
+    const char *hookinfo;
+    const char *noauth;
+    const char *identifier;
+    const char *passwd;
     int res = 0;
     int dynamic = 0, oldrformat = 0, oldwformat = 0;
 
@@ -1132,7 +1127,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
         /* Install arghash into caller who destroys it in destroy_icd_caller.
            TBD - (Note that this breaks our malloc rules. It needs fixing) */
         if (agentname != NULL) {
-            icd_config__set_raw(config, "name", agentname);
+            icd_config__set_raw(config, "name", (char *)agentname);
         }
         icd_config__set_raw(config, "params", arghash);
         /* TBD channel registry
@@ -1153,7 +1148,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
         destroy_icd_config(&config);
         if (agent != NULL) {
             icd_fieldset__set_value(agents, agentname, agent);
-            icd_agent__add_listener(agent, agents, clear_agent_from_registry, agentname);
+            icd_agent__add_listener(agent, agents, clear_agent_from_registry, (void *)agentname);
             cw_log(CW_LOG_NOTICE, "Agent [%s] dynamically generated and added to registry.\n", agentname);
         }
     }
@@ -1367,17 +1362,17 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
     icd_queue *queue;
     char buf[256];
     char buf2[256];
-    char *queuename;
-    char *agentname;
-    char *password;
-    char *extension;
-    char *prioritystring;
-    char *context;
-    char *dynamic;
-    char *noauth;
-    char *channel;
-    char *acknowledge_callstring;
-    char *agentinputfile;
+    const char *queuename;
+    const char *agentname;
+    const char *password;
+    const char *extension;
+    const char *prioritystring;
+    const char *context;
+    const char *dynamic;
+    const char *noauth;
+    const char *channel;
+    const char *acknowledge_callstring;
+    const char *agentinputfile;
     char *queuelist;
     char *queuesleft;
     char *currqueue;
@@ -1710,8 +1705,8 @@ int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *r
 {
     struct localuser *u;
     icd_agent *agent = NULL;
-    char *agentname;
-    char *loginstring;
+    const char *agentname;
+    const char *loginstring;
 
     void_hash_table *arghash = vh_init("args");
 
@@ -1769,7 +1764,7 @@ int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *r
     return -1;
 }
 
-icd_status app_icd__read_conference_config(char *conference_config_name)
+icd_status app_icd__read_conference_config(const char *conference_config_name)
 {
     struct cw_config *astcfg;
     struct cw_variable *varlist;
@@ -1818,7 +1813,7 @@ icd_status app_icd__read_conference_config(char *conference_config_name)
  * \param icd_config_name the name of the configuration file for icd
  * \return ICD_SUCCESS if the file was processed, ICD_ENOTFOUND if the file is not available
  */
-icd_status app_icd__read_icd_config(char *icd_config_name)
+icd_status app_icd__read_icd_config(const char *icd_config_name)
 {
     struct cw_config *astcfg;
     struct cw_variable *varlist;
@@ -1920,7 +1915,7 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
  * Reads each entry out of the queue config file and creates a queue object
  * for each one. It also stores queue memberships that need to be created in
  * the outstanding_members map.
- * \param queues Queue registry
+ * \param queuereg Queue registry
  * \param queue_config_name the name of the configuration file for queues
  * \param outstanding_members Empty map to be populated with queue/agent memberships
  * \return ICD_SUCCESS if the file was processed, ICD_ENOTFOUND if the file is not available
@@ -1938,13 +1933,13 @@ icd_status app_icd__read_icd_config(char *icd_config_name)
  *         eliminated and we have our clean malloc rules again.
  * \sa app_icd__read_agents_config
  */
-icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_name,
+icd_status app_icd__read_queue_config(icd_fieldset * queuereg, const char *queue_config_name,
                                       icd_fieldset * outstanding_members)
 {
     struct cw_config *astcfg;
     struct cw_variable *varlist;
     char *entry;
-    icd_queue *queue;
+    icd_queue *queue = NULL;
     icd_config *config;
     icd_config *general_config;
     void_hash_table *params;
@@ -1954,7 +1949,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
     icd_config_iterator *iter;
     char *curr_key;
 
-    assert(queues != NULL);
+    assert(queuereg != NULL);
     assert(queue_config_name != NULL);
     assert(outstanding_members != NULL);
 
@@ -1966,7 +1961,7 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
 
     cw_verbose(VERBOSE_PREFIX_3 "Creating General Queue Configurations\n");
     general_config = create_icd_config(app_icd_config_registry, "queue.general");
-    icd_config__set_raw(general_config, "name", "queue.general");
+    icd_config__set_raw(general_config, "name", (char *)"queue.general");
     /* For each key/value pair in the [general] */
     varlist = cw_variable_browse(astcfg, "general");
     while (varlist) {
@@ -2028,12 +2023,12 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
             }
 
             icd_config__set_raw(config, "params", params);
-            if (icd_fieldset__get_value(queues, entry) == NULL) {
+            if (icd_fieldset__get_value(queuereg, entry) == NULL) {
                 /* All is ready, let's create the new queue */
                 queue = create_icd_queue(entry, config);
                 if (queue) {
-                    icd_fieldset__set_value(queues, entry, queue);
-                    icd_queue__add_listener(queue, queues, clear_queue_from_registry, entry);
+                    icd_fieldset__set_value(queuereg, entry, queue);
+                    icd_queue__add_listener(queue, queuereg, clear_queue_from_registry, entry);
                     icd_queue__start_distributing(queue);       /* start the queue's distributor thread */
                 }
                 cw_verbose(VERBOSE_PREFIX_2 "Create Queue [%s] %s\n", entry, queue ? "success" : "failure");
@@ -2062,18 +2057,18 @@ icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_
  * with the outstanding_members map.
  * \param agents Agent registry
  * \param agent_config_name the name of the configuration file for agents
- * \param queues Queue registry
+ * \param queuereg Queue registry
  * \param outstanding_members Map filled with queue/agent memberships
  * \return ICD_SUCCESS if the file was processed, ICD_ENOTFOUND if the file is not available
  * \sa app_icd__read_queue_config
  */
-icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config_name, icd_fieldset * queues,
+icd_status app_icd__read_agents_config(icd_fieldset * agentreg, const char *agent_config_name, icd_fieldset * queuereg,
                                        icd_fieldset * outstanding_members)
 {
     struct cw_config *astcfg;
     struct cw_variable *varlist;
     char *entry;
-    icd_agent *agent;
+    icd_agent *agent = NULL;
     icd_config *config;
     icd_config *general_config;
     void_hash_table *params;
@@ -2086,9 +2081,9 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     char *curr_key;
     int is_new_agent = 0;
 
-    assert(agents != NULL);
+    assert(agentreg != NULL);
     assert(agent_config_name != NULL);
-    assert(queues != NULL);
+    assert(queuereg != NULL);
     assert(outstanding_members != NULL);
 
     astcfg = cw_config_load(agent_config_name);
@@ -2098,7 +2093,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
     }
     cw_verbose(VERBOSE_PREFIX_3 "Creating General Agent Configurations\n");
     general_config = create_icd_config(app_icd_config_registry, "agent.general");
-    icd_config__set_raw(general_config, "name", "agent.general");
+    icd_config__set_raw(general_config, "name", (char *)"agent.general");
     /* For each key/value pair in the [general] */
     varlist = cw_variable_browse(astcfg, "general");
     while (varlist) {
@@ -2158,10 +2153,10 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
 
             fieldval = icd_config__get_value(config, "agent_id");
             if (fieldval) {
-                if (icd_fieldset__get_value(agents, fieldval) == NULL)
+                if (icd_fieldset__get_value(agentreg, fieldval) == NULL)
                     is_new_agent = 1;
             } else {
-                if (icd_fieldset__get_value(agents, entry) == NULL)
+                if (icd_fieldset__get_value(agentreg, entry) == NULL)
                     is_new_agent = 1;
             }
 
@@ -2185,14 +2180,14 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                 if (agent) {
                     fieldval = icd_config__get_value(config, "agent_id");
                     if (fieldval){
-                        icd_fieldset__set_value(agents, fieldval, agent);
+                        icd_fieldset__set_value(agentreg, fieldval, agent);
                         icd_caller__set_caller_id((icd_caller *) agent, fieldval);
                     }    
                     else {
-                        icd_fieldset__set_value(agents, entry, agent);
+                        icd_fieldset__set_value(agentreg, entry, agent);
                         icd_caller__set_caller_id((icd_caller *) agent, entry);
                     }    
-                    icd_agent__add_listener(agent, agents, clear_agent_from_registry, entry);
+                    icd_agent__add_listener(agent, agentreg, clear_agent_from_registry, entry);
                 }
 
                 cw_verbose(VERBOSE_PREFIX_3 "Create Agent [%s] %s\n", entry, agent ? "success" : "failure");
@@ -2206,7 +2201,7 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
                         /* This has been normalized to use only a '|' or ',' to separate queue names */
                         currqueue = strsep(&queuesleft, "|,");
                         if (currqueue != NULL && strlen(currqueue) > 0) {
-                            queue = icd_fieldset__get_value(queues, currqueue);
+                            queue = icd_fieldset__get_value(queuereg, currqueue);
                             if (queue != NULL) {
                                 icd_caller__add_to_queue((icd_caller *) agent, queue);
                             } else {
@@ -2237,14 +2232,14 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config
 /* Listener that responds to an agent being cleared by removing it from the registry */
 static int clear_agent_from_registry(void *listener, icd_event * event, void *extra)
 {
-    icd_fieldset *agents = listener;
+    icd_fieldset *agentreg = listener;
     char *agentname = extra;
 
-    assert(agents != NULL);
+    assert(agentreg != NULL);
     assert(agentname != NULL);
 
     if (icd_event__get_event_id(event) == ICD_EVENT_CLEAR) {
-        icd_fieldset__remove_key(agents, agentname);
+        icd_fieldset__remove_key(agentreg, agentname);
         cw_verbose(VERBOSE_PREFIX_2 "Listener on agent registry detected agent [%s] being cleared\n", agentname);
     }
     return 0;
@@ -2252,14 +2247,14 @@ static int clear_agent_from_registry(void *listener, icd_event * event, void *ex
 
 static int clear_queue_from_registry(void *listener, icd_event * event, void *extra)
 {
-    icd_fieldset *queues = listener;
+    icd_fieldset *queuereg = listener;
     char *queuename = extra;
 
-    assert(queues != NULL);
+    assert(queuereg != NULL);
     assert(queuename != NULL);
 
     if (icd_event__get_event_id(event) == ICD_EVENT_CLEAR) {
-        icd_fieldset__remove_key(queues, queuename);
+        icd_fieldset__remove_key(queuereg, queuename);
         cw_verbose(VERBOSE_PREFIX_2 "Listener on queue registry detected queue [%s] being cleared\n", queuename);
     }
     return 0;
@@ -2272,15 +2267,15 @@ static int clear_queue_from_registry(void *listener, icd_event * event, void *ex
  * the queuename to the list of queues that the agent is a member for. This
  * list of queues is itself a string with the queue names separated by a
  * "," symbol.
- * \param agents a string listing the agents for this queue, spearated by ",", ";", "|", or spaces
+ * \param agentspec a string listing the agents for this queue, spearated by ",", ";", "|", or spaces
  * \param queuename the name of the queue the agents belong to
  * \param map place where the associations are kept
  * \return success or an ICD error status code
  * \warning Currently, spaces are not allowed in agent names because they are used
- *         to separate tokens in the agents parameter. This may change, so try to
+ *         to separate tokens in the agentspec parameter. This may change, so try to
  *         always use commas to separate agent names instead.
  */
-static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_fieldset * map)
+static icd_status app_icd__store_agent_list(char *agentspec, char *queuename, icd_fieldset * map)
 {
     char *agentslist;
     char *agentsleft;
@@ -2291,7 +2286,7 @@ static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_f
 
     required_len = strlen(queuename) + 1;
     /* strsep is destructive. Protect the string in case it is useful */
-    agentslist = strdup(agents);
+    agentslist = strdup(agentspec);
     agentsleft = agentslist;
     while (agentsleft != NULL) {
         /* Should we allow spaces in agent names or use as separators? */
@@ -2329,15 +2324,15 @@ static icd_status app_icd__store_agent_list(char *agents, char *queuename, icd_f
  * the queue to the list of queues that the agent is a member for. This
  * list of queues is itself a string with the queue names separated by a
  * "," symbol.
- * \param queues a string listing the queues for this agent, spearated by ",", ";", "|", or spaces
+ * \param queuespec a string listing the queues for this agent, spearated by ",", ";", "|", or spaces
  * \param agentname the name of the agent that belongs to the queue
  * \param map place where the associations are kept
  * \return success or an ICD error status code
  * \warning Currently, spaces are not allowed in queue names because they are used
- *         to separate tokens in the queues parameter. This may change, so try to
+ *         to separate tokens in the queuespec parameter. This may change, so try to
  *         always use commas to separate queue names instead.
  */
-static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_fieldset * map)
+static icd_status app_icd__store_queue_list(const char *queuespec, char *agentname, icd_fieldset * map)
 {
     char *queueslist;
     char *queuesleft;
@@ -2354,7 +2349,7 @@ static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_f
         memset(currqueuelist, 0, queue_entry_len);
     }
     /* strsep is destructive. Protect the string in case it is useful */
-    queueslist = strdup(queues);
+    queueslist = strdup(queuespec);
     queuesleft = queueslist;
     while (queuesleft != NULL) {
         /* Should we allow spaces in queue names or use as separators? */
@@ -2378,7 +2373,7 @@ static icd_status app_icd__store_queue_list(char *queues, char *agentname, icd_f
     return ICD_SUCCESS;
 }
 
-static int run_conference(cw_channel * chan, icd_customer * customer, icd_conference * conf, char *spymode)
+static int run_conference(cw_channel * chan, icd_customer * customer, icd_conference * conf, const char *spymode)
 {
     int num;
 
@@ -2399,14 +2394,14 @@ static int run_conference(cw_channel * chan, icd_customer * customer, icd_confer
     return num;
 }
 
-icd_agent *app_icd__dtmf_login(struct cw_channel *chan, char *login, char *pass, int tries)
+icd_agent *app_icd__dtmf_login(struct cw_channel *chan, const char *login, const char *pass, int tries)
 {
     /* Give $tries chances to log in */
-    int try = 0, res = 0;
     char agentbuf[256], passbuf[256];
     icd_agent *agent = NULL;
-    char *agentname = login;
-    char *agentpass = pass;
+    const char *agentname = login;
+    const char *agentpass = pass;
+    int try = 0, res = 0;
 
     for (try = 0; try < tries; try++) {
         agent = NULL;
@@ -2445,9 +2440,9 @@ icd_agent *app_icd__dtmf_login(struct cw_channel *chan, char *login, char *pass,
     return agent;
 }
 
-int icd_instr(char *bigstr, char *smallstr, char delimit)
+int icd_instr(const char *bigstr, const char *smallstr, char delimit)
 {
-    char *val = bigstr, *next;
+    const char *val = bigstr, *next;
     int cmp_str_len;
 
     do {

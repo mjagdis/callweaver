@@ -104,7 +104,7 @@ int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, si
 	return res;
 }
 
-int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout)
+int cw_app_getdata(struct cw_channel *c, const char *prompt, char *s, int maxlen, int timeout)
 {
 	int res,to,fto;
 	/* XXX Merge with full version? XXX */
@@ -127,7 +127,7 @@ int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int 
 } 
 
 
-int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
+int cw_app_getdata_full(struct cw_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd)
 {
 	int res,to,fto;
 	if (prompt) {
@@ -262,7 +262,7 @@ int cw_dtmf_stream(struct cw_channel *chan,struct cw_channel *peer,char *digits,
 
 int cw_control_streamfile(struct cw_channel *chan, const char *file,
 			   const char *fwd, const char *rev,
-			   const char *stop, const char *pause,
+			   const char *stop, const char *pausestream,
 			   const char *restart, int skipms) 
 {
 	long elapsed = 0, last_elapsed = 0;
@@ -273,8 +273,8 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 
 	if (stop)
 		blen += strlen(stop);
-	if (pause)
-		blen += strlen(pause);
+	if (pausestream)
+		blen += strlen(pausestream);
 	if (restart)
 		blen += strlen(restart);
 
@@ -283,8 +283,8 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 		breaks[0] = '\0';
 		if (stop)
 			strcat(breaks, stop);
-		if (pause)
-			strcat(breaks, pause);
+		if (pausestream)
+			strcat(breaks, pausestream);
 		if (restart)
 			strcat(breaks, restart);
 	}
@@ -335,7 +335,7 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 			continue;
 		}
 
-		if (pause != NULL && strchr(pause, res)) {
+		if (pausestream != NULL && strchr(pausestream, res)) {
 			elapsed = cw_tvdiff_ms(cw_tvnow(), started) + last_elapsed;
 			for(;;) {
 				if (chan)
@@ -343,10 +343,10 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 				res = cw_waitfordigit(chan, 1000);
 				if (res == 0)
 					continue;
-				else if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
+				else if (res == -1 || strchr(pausestream, res) || (stop && strchr(stop, res)))
 					break;
 			}
-			if (res == *pause) {
+			if (res == *pausestream) {
 				res = 0;
 				continue;
 			}

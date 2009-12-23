@@ -954,8 +954,8 @@ const char * skinny_tone2str(uint8_t tone) {
 	}
 }
 
-const char * skinny_alarm2str(uint8_t alarm) {
-	switch(alarm) {
+const char * skinny_alarm2str(uint8_t alarmno) {
+	switch(alarmno) {
 	case SKINNY_ALARM_CRITICAL:
 		return "Critical";
 	case SKINNY_ALARM_WARNING:

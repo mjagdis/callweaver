@@ -161,7 +161,7 @@ static int stub_adsi_available(struct cw_channel *chan)
 	return -1;
 }
 
-static int stub_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2)
+static int stub_adsi_display(unsigned char *buf, int page, int line, int just, int wrap, const char *col1, const char *col2)
 {
 	cw_log(CW_LOG_NOTICE, "res_adsi not loaded!\n");
 	return -1;
@@ -173,7 +173,7 @@ static int stub_adsi_set_line(unsigned char *buf, int page, int line)
 	return -1;
 }
 
-static int stub_adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data)
+static int stub_adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
 {
 	cw_log(CW_LOG_NOTICE, "res_adsi not loaded!\n");
 	return -1;
@@ -191,7 +191,7 @@ static int stub_adsi_input_control(unsigned char *buf, int page, int line, int d
 	return -1;
 }
 
-static int stub_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
+static int stub_adsi_input_format(unsigned char *buf, int num, int dir, int wrap, const char *format1, const char *format2)
 {
 	cw_log(CW_LOG_NOTICE, "res_adsi not loaded!\n");
 	return -1;
@@ -268,13 +268,13 @@ int (*adsi_voice_mode)(unsigned char *buf, int when) =
 int (*adsi_available)(struct cw_channel *chan) =
 	stub_adsi_available;
 
-int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2) =
+int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, const char *col1, const char *col2) =
 	stub_adsi_display;
 
 int (*adsi_set_line)(unsigned char *buf, int page, int line) =
 	stub_adsi_set_line;
 
-int (*adsi_load_soft_key)(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data) =
+int (*adsi_load_soft_key)(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data) =
 	stub_adsi_load_soft_key;
 
 int (*adsi_set_keys)(unsigned char *buf, unsigned char *keys) =
@@ -283,5 +283,5 @@ int (*adsi_set_keys)(unsigned char *buf, unsigned char *keys) =
 int (*adsi_input_control)(unsigned char *buf, int page, int line, int display, int format, int just) =
 	stub_adsi_input_control;
 
-int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2) =
+int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, const char *format1, const char *format2) =
 	stub_adsi_input_format;

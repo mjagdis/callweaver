@@ -57,7 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 CW_MUTEX_DEFINE_STATIC(dblock);
 
-static char *create_odb_sql = 
+static const char *create_odb_sql =
 "create table odb (\n"
 "						 family varchar(255),\n"
 "						 keys varchar(255) not null,\n"
@@ -70,10 +70,10 @@ static char *create_odb_sql =
 static int loaded = 0;
 
 static struct {
-	char *dbdir;
-	char *dbfile;
-	char *dbname;
-	char *tablename;
+	const char *dbdir;
+	const char *dbfile;
+	const char *dbname;
+	const char *tablename;
 } globals;
 
 struct cw_db_data {
@@ -83,9 +83,9 @@ struct cw_db_data {
 };
 
 static int dbinit(void);
-static void sqlite_pick_path(char *dbname, char *buf, size_t size);
-static sqlite3 *sqlite_open_db(char *filename);
-static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create_sql);
+static void sqlite_pick_path(const char *dbname, char *buf, size_t size);
+static sqlite3 *sqlite_open_db(const char *filename);
+static void sqlite_check_table_exists(const char *dbfile, const char *test_sql, const char *create_sql);
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int tree_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames);
@@ -127,7 +127,7 @@ static int dbinit(void)
 }
 
 
-static void sqlite_pick_path(char *dbname, char *buf, size_t size) 
+static void sqlite_pick_path(const char *dbname, char *buf, size_t size)
 {
 
 	memset(buf, 0, size);
@@ -138,7 +138,7 @@ static void sqlite_pick_path(char *dbname, char *buf, size_t size)
 	}
 }
 
-static sqlite3 *sqlite_open_db(char *filename) 
+static sqlite3 *sqlite_open_db(const char *filename)
 {
 	sqlite3 *db;
 	char path[1024];
@@ -153,7 +153,7 @@ static sqlite3 *sqlite_open_db(char *filename)
 }
 
 
-static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create_sql) 
+static void sqlite_check_table_exists(const char *dbfile, const char *test_sql, const char *create_sql)
 {
 	sqlite3 *db;
 	char *errmsg;
@@ -192,7 +192,7 @@ static void sqlite_check_table_exists(char *dbfile, char *test_sql, char *create
 
 }
 
-int cw_db_put(const char *family, const char *keys, char *value)
+int cw_db_put(const char *family, const char *keys, const char *value)
 {
 	char *sql;
 	char *zErr = 0;
@@ -319,8 +319,8 @@ static int cw_db_del_main(const char *family, const char *keys, int like, const 
 	char *zErr = 0;
 	int res = 0;
 	sqlite3 *db;
-	char *op = "=";
-	char *pct = "";
+	const char *op = "=";
+	const char *pct = "";
 	int retry=0;
 
 	sanity_check();

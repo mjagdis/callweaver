@@ -108,7 +108,7 @@ static const char queueagentcount_func_desc[] = "";
 static struct strategy
 {
     int strategy;
-    char *name;
+    const char *name;
 } strategies[] =
 {
     { QUEUE_STRATEGY_RINGALL, "ringall" },
@@ -241,7 +241,7 @@ enum queue_result
 const struct
 {
     enum queue_result id;
-    char *text;
+    const char *text;
 }
 queue_results[] =
 {
@@ -385,7 +385,7 @@ static void set_queue_result(struct cw_channel *chan, enum queue_result res)
     }
 }
 
-static char *int2strat(int strategy)
+static const char *int2strat(int strategy)
 {
     int x;
 
@@ -1037,7 +1037,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
     int res = -1;
     int pos = 0;
     int inserted = 0;
-    enum queue_member_status stat;
+    enum queue_member_status status;
 
     /*! \note Load from realtime before taking the global qlock, to avoid blocking all
        queue operations while waiting for the DB.
@@ -1073,10 +1073,10 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
     }
 
     /* This is our one */
-    stat = get_member_status(q);
-    if (!q->joinempty  &&  (stat == QUEUE_NO_MEMBERS))
+    status = get_member_status(q);
+    if (!q->joinempty  &&  (status == QUEUE_NO_MEMBERS))
         *reason = QUEUE_JOINEMPTY;
-    else if ((q->joinempty == QUEUE_EMPTY_STRICT)  &&  (stat == QUEUE_NO_REACHABLE_MEMBERS))
+    else if ((q->joinempty == QUEUE_EMPTY_STRICT)  &&  (status == QUEUE_NO_REACHABLE_MEMBERS))
         *reason = QUEUE_JOINUNAVAIL;
     else if (q->maxlen  &&  (q->count >= q->maxlen))
         *reason = QUEUE_FULL;
@@ -1535,10 +1535,11 @@ static int compare_weight(struct cw_call_queue *rq, struct member *member)
 
 static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
 {
+    char tech[256];
+    const char *location;
+    char *p;
     int res;
     int status;
-    char tech[256];
-    char *location;
 
     if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime))
     {
@@ -1571,13 +1572,14 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     }
 
     cw_copy_string(tech, tmp->interface, sizeof(tech));
-    if ((location = strchr(tech, '/')))
-        *location++ = '\0';
-    else
+    if ((p = strchr(tech, '/'))) {
+        *p = '\0';
+	location = p + 1;
+    } else
         location = "";
 
     /* Request the peer */
-    tmp->chan = cw_request(tech, qe->chan->nativeformats, location, &status);
+    tmp->chan = cw_request(tech, qe->chan->nativeformats, (void *)location, &status);
     if (!tmp->chan)
     {           /* If we can't, just go on to the next call */
 #if 0
@@ -1912,7 +1914,8 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                 {
                     char tmpchan[256]="";
                     char *stuff;
-                    char *tech;
+                    const char *tech;
+
                     cw_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
                     if ((stuff = strchr(tmpchan, '/')))
                     {
@@ -2202,7 +2205,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
     /* This is the holding pen for callers 2 through maxlen */
     for (;;)
     {
-        enum queue_member_status stat;
+        enum queue_member_status status;
 
         if (is_our_turn(qe))
             break;
@@ -2215,10 +2218,10 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
             break;
         }
 
-        stat = get_member_status(qe->parent);
+        status = get_member_status(qe->parent);
 
         /* leave the queue if no agents, if enabled */
-        if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS))
+        if (qe->parent->leavewhenempty && (status == QUEUE_NO_MEMBERS))
         {
             *reason = QUEUE_LEAVEEMPTY;
             cw_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
@@ -2227,7 +2230,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
         }
 
         /* leave the queue if no reachable agents, if enabled */
-        if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
+        if ((qe->parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS))
         {
             *reason = QUEUE_LEAVEUNAVAIL;
             cw_queue_log(qe->parent->name, qe->chan->uniqueid, "NONE", "EXITWITHKEY", "empty|%d", qe->pos);
@@ -3356,7 +3359,7 @@ check_turns:
                 /* they may dial a digit from the queue context; */
                 /* or, they may timeout. */
 
-                enum queue_member_status stat;
+                enum queue_member_status status;
 
                 /* Leave if we have exceeded our queuetimeout */
                 if (qe.expire && (time(NULL) > qe.expire))
@@ -3409,10 +3412,10 @@ check_turns:
                     break;
                 }
 
-                stat = get_member_status(qe.parent);
+                status = get_member_status(qe.parent);
 
                 /* leave the queue if no agents, if enabled */
-                if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS))
+                if (qe.parent->leavewhenempty && (status == QUEUE_NO_MEMBERS))
                 {
                     record_abandoned(&qe);
                     reason = QUEUE_LEAVEEMPTY;
@@ -3421,7 +3424,7 @@ check_turns:
                 }
 
                 /* leave the queue if no reachable agents, if enabled */
-                if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
+                if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (status == QUEUE_NO_REACHABLE_MEMBERS))
                 {
                     record_abandoned(&qe);
                     reason = QUEUE_LEAVEUNAVAIL;
@@ -3720,7 +3723,7 @@ static int __queues_show(int manager, struct cw_dynstr **ds_p, int argc, char **
     char *max;
     size_t max_left;
     float sl = 0;
-    char *term = manager ? "\r\n" : "\n";
+    const char *term = manager ? "\r\n" : "\n";
 
     time(&now);
     if ((!queue_show && argc != 2) || (queue_show && argc != 3))
@@ -3842,11 +3845,11 @@ static void complete_queue(struct cw_dynstr **ds_p, char *argv[], int lastarg, i
 */
 static struct cw_manager_message *manager_queues_show(struct mansession *sess, const struct message *req)
 {
-	static char *a[] = { "show", "queues" };
+	static const char *a[] = { "show", "queues" };
 	struct cw_manager_message *msg;
 
 	if ((msg = cw_manager_response("Follows", NULL))) {
-		__queues_show(1, &msg->data, 2, a, 0);
+		__queues_show(1, &msg->data, 2, (char **)a, 0);
 		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
 	}
 

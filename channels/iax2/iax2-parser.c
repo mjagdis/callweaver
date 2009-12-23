@@ -197,9 +197,9 @@ static void dump_prov(char *output, int maxlen, void *value, int len)
 
 static struct iax2_ie {
 	int ie;
-	char *name;
+	const char *name;
 	void (*dump)(char *output, int maxlen, void *value, int len);
-} ies[] = {
+} ietab[] = {
 	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
 	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER", dump_string },
 	{ IAX_IE_CALLING_ANI, "ANI", dump_string },
@@ -252,7 +252,7 @@ static struct iax2_ie {
 	{ IAX_IE_RR_OOO, "RR_OUTOFORDER", dump_int },
 };
 
-static struct iax2_ie prov_ies[] = {
+static struct iax2_ie prov_ietab[] = {
 	{ PROV_IE_USEDHCP, "USEDHCP" },
 	{ PROV_IE_IPADDR, "IPADDR", dump_ipaddr },
 	{ PROV_IE_SUBNET, "SUBNET", dump_ipaddr },
@@ -275,9 +275,9 @@ static struct iax2_ie prov_ies[] = {
 const char *iax_ie2str(int ie)
 {
 	int x;
-	for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-		if (ies[x].ie == ie)
-			return ies[x].name;
+	for (x=0;x<(int)sizeof(ietab) / (int)sizeof(ietab[0]); x++) {
+		if (ietab[x].ie == ie)
+			return ietab[x].name;
 	}
 	return "Unknown IE";
 }
@@ -306,11 +306,11 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(prov_ies) / (int)sizeof(prov_ies[0]); x++) {
-			if (prov_ies[x].ie == ie) {
-				if (prov_ies[x].dump) {
-					prov_ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
+		for (x=0;x<(int)sizeof(prov_ietab) / (int)sizeof(prov_ietab[0]); x++) {
+			if (prov_ietab[x].ie == ie) {
+				if (prov_ietab[x].dump) {
+					prov_ietab[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ietab[x].name, interp);
 					cw_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				} else {
@@ -318,7 +318,7 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ies[x].name, interp);
+					snprintf(tmp, (int)sizeof(tmp), "       %-15.15s : %s\n", prov_ietab[x].name, interp);
 					cw_copy_string(output, tmp, maxlen);
 					maxlen -= strlen(output); output += strlen(output);
 				}
@@ -354,18 +354,18 @@ static void dump_ies(unsigned char *iedata, int len)
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-			if (ies[x].ie == ie) {
-				if (ies[x].dump) {
-					ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
+		for (x=0;x<(int)sizeof(ietab) / (int)sizeof(ietab[0]); x++) {
+			if (ietab[x].ie == ie) {
+				if (ietab[x].dump) {
+					ietab[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ietab[x].name, interp);
 					outputf(tmp);
 				} else {
 					if (ielen)
 						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ies[x].name, interp);
+					snprintf(tmp, (int)sizeof(tmp), "   %-15.15s : %s\n", ietab[x].name, interp);
 					outputf(tmp);
 				}
 				found++;
@@ -383,7 +383,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
-	const char *frames[] = {
+	const char *frametypes[] = {
 		"(0?)",
 		"DTMF   ",
 		"VOICE  ",
@@ -450,7 +450,7 @@ void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, st
 	char subclass2[20];
 	const char *class;
 	const char *subclass;
-	char *dir;
+	const char *dir;
 	char tmp[512];
 	char iabuf[INET_ADDRSTRLEN];
 
@@ -482,11 +482,11 @@ void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, st
 		/* Don't mess with mini-frames */
 		return;
 	}
-	if (fh->type >= (int)sizeof(frames)/(int)sizeof(frames[0])) {
+	if (fh->type >= (int)sizeof(frametypes)/(int)sizeof(frametypes[0])) {
 		snprintf(class2, sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
-		class = frames[(int)fh->type];
+		class = frametypes[(int)fh->type];
 	}
 	if (fh->type == IAX_FRAME_DTMF) {
 		sprintf(subclass2, "%c", fh->csub);
@@ -524,7 +524,7 @@ void iax_showframe(struct iax_frame *f, struct cw_iax2_full_hdr *fhi, int rx, st
 		dump_ies(fh->iedata, datalen);
 }
 
-int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, void *data, int datalen)
+int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, const void *data, int datalen)
 {
 	char tmp[256];
 	if (datalen > ((int)sizeof(ied->buf) - ied->pos)) {
@@ -558,7 +558,7 @@ int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned shor
 	return iax_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, char *str)
+int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, const char *str)
 {
 	return iax_ie_append_raw(ied, ie, str, strlen(str));
 }

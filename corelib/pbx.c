@@ -554,7 +554,6 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
             for (eroot = tmp->root;  eroot;  eroot = eroot->next)
             {
                 int match = 0;
-                int res = 0;
 
                 /* Match extension */
                 match = cw_extension_pattern_match(exten, eroot->exten);
@@ -1155,7 +1154,8 @@ int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, 
 
             *cp2 = '\0';
             if ((args = strchr(vars, '(')) && (p = strrchr(args, ')'))) {
-                int offset = 0, length = count;
+                int offset = 0;
+                length = count;
                 *(args++) = '\0';
                 *p = '\0';
                 if (p[1] == ':')
@@ -1490,7 +1490,7 @@ const char *cw_extension_state2str(int extension_state)
 }
 
 /*! \brief  cw_extension_state: Check extension state for an extension by using hint */
-int cw_extension_state(struct cw_channel *c, char *context, char *exten)
+int cw_extension_state(struct cw_channel *c, const char *context, const char *exten)
 {
     struct cw_exten *e;
 
@@ -3321,7 +3321,7 @@ static void get_timerange(struct cw_timing *i, char *times)
     return;
 }
 
-static char *days[] =
+static const char *days[] =
 {
     "sun",
     "mon",
@@ -3443,7 +3443,7 @@ static unsigned int get_day(char *day)
     return mask;
 }
 
-static char *months[] =
+static const char *months[] =
 {
     "jan",
     "feb",
@@ -4546,14 +4546,14 @@ int cw_pbx_outgoing_cdr_failed(void)
     return 0;  /* success */
 }
 
-int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **channel)
+int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int is_sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **channel)
 {
     struct cw_channel *chan;
     struct async_stat *as;
     int res = -1, cdr_res = -1;
     struct outgoing_helper oh;
 
-    if (sync)
+    if (is_sync)
     {
         oh.context = context;
         oh.exten = exten;
@@ -4593,7 +4593,7 @@ int cw_pbx_outgoing_exten(const char *type, int format, void *data, int timeout,
                 if (option_verbose > 3)
                     cw_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
 
-                if (sync > 1)
+                if (is_sync > 1)
                 {
                     if (channel)
                         cw_channel_unlock(chan);
@@ -4735,7 +4735,7 @@ static void *cw_pbx_run_app(void *data)
     return NULL;
 }
 
-int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel)
+int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int is_sync, const char *cid_num, const char *cid_name, struct cw_registry *vars, struct cw_channel **locked_channel)
 {
     struct cw_channel *chan;
     struct async_stat *as;
@@ -4750,7 +4750,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
         *locked_channel = NULL;
     if (cw_strlen_zero(app))
         return -1;
-    if (sync)
+    if (is_sync)
     {
         chan = __cw_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
         if (chan)
@@ -4787,7 +4787,7 @@ int cw_pbx_outgoing_app(const char *type, int format, void *data, int timeout, c
                     if (appdata)
                         cw_copy_string(tmp->data, appdata, sizeof(tmp->data));
                     tmp->chan = cw_object_dup(chan);
-                    if (sync > 1)
+                    if (is_sync > 1)
                     {
                         if (locked_channel)
                             cw_channel_unlock(chan);

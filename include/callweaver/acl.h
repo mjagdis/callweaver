@@ -39,7 +39,7 @@ extern "C" {
 struct cw_ha;
 
 extern CW_API_PUBLIC void cw_free_ha(struct cw_ha *ha);
-extern CW_API_PUBLIC struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path);
+extern CW_API_PUBLIC struct cw_ha *cw_append_ha(const char *sense, const char *stuff, struct cw_ha *path);
 extern CW_API_PUBLIC int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin);
 extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
 #define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)

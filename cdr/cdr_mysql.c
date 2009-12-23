@@ -50,7 +50,7 @@
 
 static const char desc[] = "MySQL CDR Backend";
 static const char name[] = "mysql";
-static char *config = "cdr_mysql.conf";
+static const char config[] = "cdr_mysql.conf";
 static char *dbserver = NULL, *dbname = NULL, *dbuser = NULL, *password = NULL, *dbsock = NULL, *dbtable = NULL;
 static int dbserver_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbtable_alloc = 0;
 static int dbport = 0;
@@ -73,7 +73,7 @@ static int handle_cdr_mysql_status(struct cw_dynstr **ds_p, int argc, char *argv
 {
 	if (connected) {
 		char status[256], status2[100] = "";
-		int ctime = time(NULL) - connect_time;
+		int interval = time(NULL) - connect_time;
 		if (dbport)
 			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbserver, dbport);
 		else if (dbsock)
@@ -85,16 +85,16 @@ static int handle_cdr_mysql_status(struct cw_dynstr **ds_p, int argc, char *argv
 			snprintf(status2, 99, " with username %s", dbuser);
 		if (dbtable && *dbtable)
 			snprintf(status2, 99, " using table %s", dbtable);
-		if (ctime > 31536000) {
-			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 31536000, (ctime % 31536000) / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 86400) {
-			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 86400, (ctime % 86400) / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 3600) {
-			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, ctime / 3600, (ctime % 3600) / 60, ctime % 60);
-		} else if (ctime > 60) {
-			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, ctime / 60, ctime % 60);
+		if (interval > 31536000) {
+			cw_dynstr_printf(ds_p, "%s%s for %d years, %d days, %d hours, %d minutes, %d seconds.\n", status, status2, interval / 31536000, (interval % 31536000) / 86400, (interval % 86400) / 3600, (interval % 3600) / 60, interval % 60);
+		} else if (interval > 86400) {
+			cw_dynstr_printf(ds_p, "%s%s for %d days, %d hours, %d minutes, %d seconds.\n", status, status2, interval / 86400, (interval % 86400) / 3600, (interval % 3600) / 60, interval % 60);
+		} else if (interval > 3600) {
+			cw_dynstr_printf(ds_p, "%s%s for %d hours, %d minutes, %d seconds.\n", status, status2, interval / 3600, (interval % 3600) / 60, interval % 60);
+		} else if (interval > 60) {
+			cw_dynstr_printf(ds_p, "%s%s for %d minutes, %d seconds.\n", status, status2, interval / 60, interval % 60);
 		} else {
-			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, ctime);
+			cw_dynstr_printf(ds_p, "%s%s for %d seconds.\n", status, status2, interval);
 		}
 		if (records == totalrecords)
 			cw_dynstr_printf(ds_p, "  Wrote %d records since last restart.\n", totalrecords);
@@ -296,7 +296,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res;
 	struct cw_config *cfg;
 	struct cw_variable *var;
 	const char *tmp;
@@ -304,129 +303,77 @@ static int load_module(void)
 	cfg = cw_config_load(config);
 	if (!cfg) {
 		cw_log(CW_LOG_WARNING, "Unable to load config for mysql CDR's: %s\n", config);
-		return -1;
+		goto error;
 	}
 	
 	var = cw_variable_browse(cfg, "global");
 	if (!var) {
 		/* nothing configured */
-		return -1;
+		goto error_release_cfg;
 	}
 
-	tmp = cw_variable_retrieve(cfg, "global", "hostname");
-	if (tmp) {
-		dbserver = malloc(strlen(tmp) + 1);
-		if (dbserver != NULL) {
-			dbserver_alloc = 1;
-			strcpy(dbserver, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "hostname"))) {
 		cw_log(CW_LOG_WARNING, "MySQL server hostname not specified.  Assuming localhost\n");
-		dbserver = "localhost";
+		tmp = "localhost";
 	}
+	if (!(dbserver = strdup(tmp)))
+		goto error_no_mem_for_dbserver;
 
-	tmp = cw_variable_retrieve(cfg, "global", "dbname");
-	if (tmp) {
-		dbname = malloc(strlen(tmp) + 1);
-		if (dbname != NULL) {
-			dbname_alloc = 1;
-			strcpy(dbname, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "dbname"))) {
 		cw_log(CW_LOG_WARNING, "MySQL database not specified.  Assuming callweavercdrdb\n");
-		dbname = "callweavercdrdb";
+		tmp = "callweavercdrdb";
 	}
+	if (!(dbname = strdup(tmp)))
+		goto error_no_mem_for_dbname;
 
-	tmp = cw_variable_retrieve(cfg, "global", "user");
-	if (tmp) {
-		dbuser = malloc(strlen(tmp) + 1);
-		if (dbuser != NULL) {
-			dbuser_alloc = 1;
-			strcpy(dbuser, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "user"))) {
 		cw_log(CW_LOG_WARNING, "MySQL database user not specified.  Assuming root\n");
-		dbuser = "root";
+		tmp = "root";
 	}
+	if (!(dbuser = strdup(tmp)))
+		goto error_no_mem_for_dbuser;
 
-	tmp = cw_variable_retrieve(cfg, "global", "sock");
-	if (tmp) {
-		dbsock = malloc(strlen(tmp) + 1);
-		if (dbsock != NULL) {
-			dbsock_alloc = 1;
-			strcpy(dbsock, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "sock"))) {
 		cw_log(CW_LOG_WARNING, "MySQL database sock file not specified.  Using default\n");
-		dbsock = NULL;
-	}
+		tmp = NULL;
+	} else if (!(dbsock = strdup(tmp)))
+		goto error_no_mem_for_dbsock;
 
-	tmp = cw_variable_retrieve(cfg, "global", "table");
-	if (tmp) {
-		dbtable = malloc(strlen(tmp) + 1);
-		if (dbtable != NULL) {
-			dbtable_alloc = 1;
-			strcpy(dbtable, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "table"))) {
 		cw_log(CW_LOG_NOTICE, "MySQL database table not specified.  Assuming \"cdr\"\n");
-		dbtable = "cdr";
+		tmp = "cdr";
 	}
+	if (!(dbtable = strdup(tmp)))
+		goto error_no_mem_for_dbtable;
 
-	tmp = cw_variable_retrieve(cfg, "global", "password");
-	if (tmp) {
-		password = malloc(strlen(tmp) + 1);
-		if (password != NULL) {
-			password_alloc = 1;
-			strcpy(password, tmp);
-		} else {
-			cw_log(CW_LOG_ERROR, "Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "password"))) {
 		cw_log(CW_LOG_WARNING, "MySQL database password not specified.  Assuming blank\n");
-		password = "";
+		tmp = "";
 	}
+	if (!(password = strdup(tmp)))
+		goto error_no_mem_for_password;
 
-	tmp = cw_variable_retrieve(cfg, "global", "port");
-	if (tmp) {
+	if ((tmp = cw_variable_retrieve(cfg, "global", "port"))) {
 		if (sscanf(tmp, "%d", &dbport) < 1) {
 			cw_log(CW_LOG_WARNING, "Invalid MySQL port number.  Using default\n");
 			dbport = 0;
 		}
 	}
 
-	tmp = cw_variable_retrieve(cfg, "global", "timeout");
-	if (tmp) {
-		if (sscanf(tmp,"%d", &timeout) < 1) {
+	if ((tmp = cw_variable_retrieve(cfg, "global", "timeout"))) {
+		if (sscanf(tmp, "%d", &timeout) < 1) {
 			cw_log(CW_LOG_WARNING, "Invalid MySQL timeout number.  Using default\n");
 			timeout = 0;
 		}
 	}
 	
-	tmp = cw_variable_retrieve(cfg, "global", "userfield");
-	if (tmp) {
+	if (!(tmp = cw_variable_retrieve(cfg, "global", "userfield"))) {
 		if (sscanf(tmp, "%d", &userfield) < 1) {
 			cw_log(CW_LOG_WARNING, "Invalid MySQL configurtation file\n");
 			userfield = 0;
 		}
 	}
-	
+
 	cw_config_destroy(cfg);
 
 	cw_log(CW_LOG_DEBUG, "cdr_mysql: got hostname of %s\n", dbserver);
@@ -456,9 +403,26 @@ static int load_module(void)
 	}
 
 	cw_cdrbe_register(&cdrbe);
-	res = cw_cli_register(&cdr_mysql_status_cli);
+	cw_cli_register(&cdr_mysql_status_cli);
 
-	return res;
+	return 0;
+
+error_no_mem_for_password:
+	free(dbtable);
+error_no_mem_for_dbtable:
+	free(dbsock);
+error_no_mem_for_dbsock:
+	free(dbuser);
+error_no_mem_for_dbuser:
+	free(dbname);
+error_no_mem_for_dbname:
+	free(dbserver);
+error_no_mem_for_dbserver:
+	cw_log(CW_LOG_ERROR, "Out of memory!\n");
+error_release_cfg:
+	cw_config_destroy(cfg);
+error:
+	return -1;
 }
 
 

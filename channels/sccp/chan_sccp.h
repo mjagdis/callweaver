@@ -430,9 +430,6 @@ struct sccp_global_vars {
 	cw_mutex_t				channels_lock;
 	cw_mutex_t				socket_lock;
 	int 					descriptor;
-	/* Keep track of when we're in use. */
-	int						usecnt;
-	cw_mutex_t				usecnt_lock;
 
 	char					servername[StationMaxDisplayNotifySize];
 	struct sockaddr_in		bindaddr;

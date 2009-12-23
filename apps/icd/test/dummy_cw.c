@@ -221,7 +221,7 @@ int cw_softhangup(struct cw_channel *chan, int cause) {
     return 0;
 }
 
-int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout) {
+int cw_app_getdata(struct cw_channel *c, const char *prompt, char *s, int maxlen, int timeout) {
     return 0;
 }
 

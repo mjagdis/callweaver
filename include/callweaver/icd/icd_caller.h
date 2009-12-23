@@ -174,10 +174,10 @@ extern "C" {
     int icd_caller__get_id(icd_caller * that);
 
 /* Set the name string to identify this caller. */
-    icd_status icd_caller__set_name(icd_caller * that, char *name);
+    icd_status icd_caller__set_name(icd_caller * that, const char *name);
 
 /* Get the name string being used to identify this caller. */
-    char *icd_caller__get_name(icd_caller * that);
+    const char *icd_caller__get_name(icd_caller * that);
 
 /* Set the call count caller. */
     icd_status icd_caller__set_callcount(icd_caller * that, int callcount);
@@ -192,7 +192,7 @@ extern "C" {
     icd_distributor *icd_caller__get_distributor(icd_caller * that);
 
 /* Set the music on hold for that caller call */
-    icd_status icd_caller__set_moh(icd_caller * that, char *moh);
+    icd_status icd_caller__set_moh(icd_caller * that, const char *moh);
 
 /* set bridge technology */
     icd_status icd_caller__set_bridge_technology(icd_caller * that, icd_bridge_technology tech);
@@ -221,13 +221,13 @@ extern "C" {
     icd_status icd_caller__set_channel_string(icd_caller * that, char *channel);
 
 /* Get the channel string for that caller call */
-    char *icd_caller__get_channel_string(icd_caller * that);
+    const char *icd_caller__get_channel_string(icd_caller * that);
 
 /* Set the caller id for that caller call */
     icd_status icd_caller__set_caller_id(icd_caller * that, char *caller_id);
 
 /* Get the caller id for that caller call */
-    char *icd_caller__get_caller_id(icd_caller * that);
+    const char *icd_caller__get_caller_id(icd_caller * that);
 
 /* Set the state for that caller call */
     icd_status icd_caller__set_state(icd_caller * that, icd_caller_state state);
@@ -236,7 +236,7 @@ extern "C" {
     icd_caller_state icd_caller__get_state(icd_caller * that);
 
 /* Get the state string for that caller call */
-    char *icd_caller__get_state_string(icd_caller * that);
+    const char *icd_caller__get_state_string(icd_caller * that);
 
 /* Set the owner for that caller call */
     icd_status icd_caller__set_owner(icd_caller * that, void *owner);
@@ -363,7 +363,7 @@ extern "C" {
 
 /* Set the dump function for this caller */
     icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller * caller, int verbosity,
-            struct cw_dynstr **ds_p, void *extra), void *extra);
+            struct cw_dynstr **ds_p, const void *extra), const void *extra);
 
 /***** Locking *****/
 
@@ -440,7 +440,7 @@ extern "C" {
     int icd_caller__standard_state_suspend(icd_event * event, void *extra);
 
 /* Standard behaviours called from inside the caller state action functions */
-    icd_status icd_caller__play_sound_file(icd_caller *caller, char *file);
+    icd_status icd_caller__play_sound_file(icd_caller *caller, const char *file);
 
 /* Default behaviours for moh (why are these static?) */
     icd_status icd_caller__standard_start_waiting(icd_caller * caller);
@@ -485,13 +485,13 @@ extern "C" {
     void icd_caller__dump_debug(icd_caller * that);
     icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate);
     icd_caller *icd_caller__clone_if_necessary(icd_caller * that);
-    void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, char *indent);
+    void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, const char *indent);
     void icd_caller__invalidate(icd_caller * that);
     icd_status icd_caller__fail_bridging(icd_caller * bridger);
     void icd_caller__loop(icd_caller * that, int do_spawn);
-    void *icd_caller__get_param(icd_caller * that, char *param);
-    icd_status icd_caller__set_param(icd_caller * that, char *param, void *value);
-    icd_status icd_caller__set_param_string(icd_caller * that, char *param, void *value);
+    const void *icd_caller__get_param(icd_caller * that, const char *param);
+    icd_status icd_caller__set_param(icd_caller * that, const char *param, void *value);
+    icd_status icd_caller__set_param_string(icd_caller * that, const char *param, const void *value);
     icd_status icd_caller__return_to_distributors(icd_caller * caller);
     icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_state state);
     void icd_caller__start_waiting(icd_caller * that);
@@ -518,7 +518,7 @@ extern "C" {
     icd_status icd_caller__join_group_by_name(icd_caller * caller, char *name);
     icd_status icd_caller__leave_group_by_name(icd_caller * caller, char *name);
     void icd_caller__group_chanup(icd_caller_group * group);
-    int icd_caller__del_param(icd_caller * that, char *param);
+    int icd_caller__del_param(icd_caller * that, const char *param);
 
 #ifdef __cplusplus
 }

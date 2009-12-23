@@ -273,7 +273,7 @@ static struct cw_frame *lintodviadpcm_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct cw_frame *dviadpcmtolin_sample(int *index)
+static struct cw_frame *dviadpcmtolin_sample(int *i)
 {
     static struct cw_frame f;
   

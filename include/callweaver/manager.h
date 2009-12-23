@@ -72,7 +72,6 @@ struct cw_manager_message {
 
 struct message {
 	char *actionid;
-	char *action;
 	int hdrcount;
 	struct {
 		char *key;

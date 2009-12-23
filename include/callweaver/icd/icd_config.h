@@ -53,22 +53,22 @@ extern "C" {
 
 /***** Init - Destroyer for icd_config *****/
 
-    icd_config *create_icd_config(icd_config_registry * registry, char *name);
+    icd_config *create_icd_config(icd_config_registry * registry, const char *name);
     icd_status destroy_icd_config(icd_config ** configp);
-    icd_status init_icd_config(icd_config * that, icd_config_registry * registry, char *name);
+    icd_status init_icd_config(icd_config * that, icd_config_registry * registry, const char *name);
     icd_status icd_config__clear(icd_config * that);
 
-    void *icd_config__get_value(icd_config * that, char *key);
-    icd_status icd_config__set_value(icd_config * that, char *key, char *setting);
-    icd_status icd_config__set_raw(icd_config * that, char *key, void *data);
-    icd_status icd_config__set_if_new(icd_config * that, char *key, char *setting);
+    void *icd_config__get_value(icd_config * that, const char *key);
+    icd_status icd_config__set_value(icd_config * that, const char *key, char *setting);
+    icd_status icd_config__set_raw(icd_config * that, const char *key, void *data);
+    icd_status icd_config__set_if_new(icd_config * that, const char *key, char *setting);
     icd_status icd_config__parse(icd_config * that, char *line, char delim);
-    void *icd_config__get_param(icd_config * that, char *name);
-    char *icd_config__get_strdup(icd_config * that, char *key, char *default_str);
+    void *icd_config__get_param(icd_config * that, const char *name);
+    char *icd_config__get_strdup(icd_config * that, const char *key, const char *default_str);
     icd_status icd_config__strncpy(icd_config * that, char *key, char *target, int maxchars);
-    int icd_config__get_int_value(icd_config * that, char *key, int default_int);
-    void *icd_config__get_any_value(icd_config * that, char *key, void *default_any);
-    icd_config *icd_config__get_subset(icd_config * that, char *begin_key);
+    int icd_config__get_int_value(icd_config * that, const char *key, int default_int);
+    void *icd_config__get_any_value(icd_config * that, const char *key, void *default_any);
+    icd_config *icd_config__get_subset(icd_config * that, const char *begin_key);
     icd_config_registry *icd_config__get_registry(icd_config * that, char *key);
 
     icd_config_iterator *icd_config__get_key_iterator(icd_config * that);
@@ -78,14 +78,13 @@ extern "C" {
 
 /***** Init - Destroyer for icd_config_registry *****/
 
-    icd_config_registry *create_icd_config_registry(char *name);
+    icd_config_registry *create_icd_config_registry(const char *name);
     icd_status destroy_icd_config_registry(icd_config_registry ** regp);
-    icd_status init_icd_config_registry(icd_config_registry * that, char *name);
+    icd_status init_icd_config_registry(icd_config_registry * that, const char *name);
     icd_status icd_config_registry__clear(icd_config_registry * that);
 
-    icd_status icd_config_registry__register(icd_config_registry * that, char *key);
-    icd_status icd_config_registry__register_ptr(icd_config_registry * that, char *key, char *keysetting,
-        void *value);
+    icd_status icd_config_registry__register(icd_config_registry * that, const char *key);
+    icd_status icd_config_registry__register_ptr(icd_config_registry * that, const char *key, const char *keysetting, void *value);
 
     icd_status icd_config_registry__set_validate(icd_config_registry * that, int validate);
     int icd_config_registry__get_validate(icd_config_registry * that);

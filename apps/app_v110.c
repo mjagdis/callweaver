@@ -713,8 +713,8 @@ int loginpty(char *source)
 	char *name;
 	int flags;
 	sigset_t set;
-	char *logincmdtext[] = { "/usr/bin/sudo", "/bin/login", "-h", NULL, NULL};
-	char **logincmd = logincmdtext;
+	const char *logincmdtext[] = { "/usr/bin/sudo", "/bin/login", "-h", NULL, NULL};
+	const char **logincmd = logincmdtext;
 
 	if (master < 0) {
 		cw_log(CW_LOG_NOTICE, "Failed to allocate pty: %s\n", strerror(errno));
@@ -796,7 +796,7 @@ int loginpty(char *source)
 	if (!getuid())
 		logincmd++;
 
-	execv(logincmd[0], logincmd);
+	execv(logincmd[0], (char * const *)logincmd);
 
 	exit(1);
 }

@@ -47,8 +47,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static struct {
 	int val;
-	char *name;
-	char *description;
+	const char *name;
+	const char *description;
 } pres_types[] = {
 	{  CW_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", "Presentation Allowed, Not Screened"},
 	{  CW_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", "Presentation Allowed, Passed Screen"},
@@ -145,7 +145,7 @@ int cw_callerid_split(const char *buf, char *name, int namelen, char *num, int n
 {
 	char *tmp;
 	char *l = NULL;
-    char *n = NULL;
+	char *n = NULL;
     
 	tmp = cw_strdupa(buf);
 	cw_callerid_parse(tmp, &n, &l);

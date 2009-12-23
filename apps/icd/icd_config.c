@@ -78,8 +78,8 @@ struct icd_config {
 };
 
 typedef struct icd_config_registry_node {
-    char *key;
-    char *key_setting;
+    const char *key;
+    const char *key_setting;
     void *value;
     icd_memory *memory;
     icd_config_regnode_type type;
@@ -96,19 +96,19 @@ struct icd_config_registry {
 
 icd_config_registry *app_icd_config_registry;
 
-static char *novalue = "novalue";
+static const char novalue[] = "novalue";
 
 /* Private functions */
 
 icd_status load_default_registry_entries(icd_config_registry * that);
-char *icd_config__create_child_key(char *key, char *setting);
+char *icd_config__create_child_key(const char *key, const char *setting);
 icd_status icd_config__key_value_add(icd_config * that, char *str);
 char *icd_config__trim_spaces(char *str);
 
 /***** Init - Destroyer for icd_config *****/
 
 /* Create a configuration set. */
-icd_config *create_icd_config(icd_config_registry * registry, char *name)
+icd_config *create_icd_config(icd_config_registry * registry, const char *name)
 {
     icd_config *config;
     icd_status result;
@@ -152,7 +152,7 @@ icd_status destroy_icd_config(icd_config ** configp)
 }
 
 /* Initialize an already created configuration set. */
-icd_status init_icd_config(icd_config * that, icd_config_registry * registry, char *name)
+icd_status init_icd_config(icd_config * that, icd_config_registry * registry, const char *name)
 {
     assert(that != NULL);
     strncpy(that->name, name, sizeof(that->name));
@@ -188,7 +188,7 @@ icd_status icd_config__clear(icd_config * that)
 
 /* Gets a value from the config. Note that this value is already
    translated if it was set with icd_config__set_value() */
-void *icd_config__get_value(icd_config * that, char *key)
+void *icd_config__get_value(icd_config * that, const char *key)
 {
 
     assert(that != NULL);
@@ -199,7 +199,7 @@ void *icd_config__get_value(icd_config * that, char *key)
 }
 
 /* Sets a value in the config, using the registry to decide how to do it. */
-icd_status icd_config__set_value(icd_config * that, char *key, char *setting)
+icd_status icd_config__set_value(icd_config * that, const char *key, char *setting)
 {
     icd_config_registry_node *regnode;
     icd_config_registry_node *child_regnode;
@@ -248,7 +248,7 @@ icd_status icd_config__set_value(icd_config * that, char *key, char *setting)
 }
 
 /* Sets a void pointer directly in the config, without translation. */
-icd_status icd_config__set_raw(icd_config * that, char *key, void *data)
+icd_status icd_config__set_raw(icd_config * that, const char *key, void *data)
 {
     icd_config_registry_node *regnode;
 
@@ -273,9 +273,9 @@ icd_status icd_config__set_raw(icd_config * that, char *key, void *data)
 }
 
 /* Sets a value for a key only if it is not already set. */
-icd_status icd_config__set_if_new(icd_config * that, char *key, char *setting)
+icd_status icd_config__set_if_new(icd_config * that, const char *key, char *setting)
 {
-    void *value;
+    const void *value;
 
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -290,7 +290,7 @@ icd_status icd_config__set_if_new(icd_config * that, char *key, char *setting)
 /* Gets a string value out of the config set, duplicating it.
    If it isn't in the set, a default string is duplicated instead.
    Remember to free it! */
-char *icd_config__get_strdup(icd_config * that, char *key, char *default_str)
+char *icd_config__get_strdup(icd_config * that, const char *key, const char *default_str)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -311,7 +311,7 @@ icd_status icd_config__strncpy(icd_config * that, char *key, char *target, int m
 
 /* Returns an integer value from the config set, or a default value if
    key isn't found in the set. */
-int icd_config__get_int_value(icd_config * that, char *key, int default_int)
+int icd_config__get_int_value(icd_config * that, const char *key, int default_int)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -322,7 +322,7 @@ int icd_config__get_int_value(icd_config * that, char *key, int default_int)
 
 /* Gets a void pointer value from the config set, or a default if the key
    isn't found in the set. */
-void *icd_config__get_any_value(icd_config * that, char *key, void *default_any)
+void *icd_config__get_any_value(icd_config * that, const char *key, void *default_any)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -333,7 +333,7 @@ void *icd_config__get_any_value(icd_config * that, char *key, void *default_any)
 
 /* Gets a subset of all the keys out of a config set, creating a
    new set in the process with the begin_key prefix stripped off. */
-icd_config *icd_config__get_subset(icd_config * that, char *begin_key)
+icd_config *icd_config__get_subset(icd_config * that, const char *begin_key)
 {
     icd_config *subset;
     icd_config_iterator *iter;
@@ -416,7 +416,7 @@ icd_status destroy_icd_config_iterator(icd_config_iterator ** iterp)
 /***** Init - Destroyer for icd_config_registry *****/
 
 /* Create a configuration options registry */
-icd_config_registry *create_icd_config_registry(char *name)
+icd_config_registry *create_icd_config_registry(const char *name)
 {
     icd_config_registry *registry;
     icd_status result;
@@ -460,7 +460,7 @@ icd_status destroy_icd_config_registry(icd_config_registry ** regp)
 }
 
 /* Initialize a previously created configuration registry */
-icd_status init_icd_config_registry(icd_config_registry * that, char *name)
+icd_status init_icd_config_registry(icd_config_registry * that, const char *name)
 {
     assert(that != NULL);
 
@@ -494,7 +494,7 @@ icd_status icd_config_registry__clear(icd_config_registry * that)
 }
 
 /* Register a key that just passes along its value, whatever that is set to. */
-icd_status icd_config_registry__register(icd_config_registry * that, char *key)
+icd_status icd_config_registry__register(icd_config_registry * that, const char *key)
 {
     icd_config_registry_node *node;
 
@@ -525,7 +525,7 @@ icd_status icd_config_registry__register(icd_config_registry * that, char *key)
 }
 
 /* Register a key, a value for that key, and the pointer that combination should return. */
-icd_status icd_config_registry__register_ptr(icd_config_registry * that, char *key, char *keysetting, void *value)
+icd_status icd_config_registry__register_ptr(icd_config_registry * that, const char *key, const char *keysetting, void *value)
 {
     icd_config_registry_node *parent_node;
     icd_config_registry_node *child_node;
@@ -754,7 +754,7 @@ icd_status icd_config__key_value_add(icd_config * that, char *str)
         return icd_config__set_value(that, icd_config__trim_spaces(str), icd_config__trim_spaces(val_ptr));
     }
     /* Store key with "novalue" value */
-    return icd_config__set_value(that, icd_config__trim_spaces(str), novalue);
+    return icd_config__set_value(that, icd_config__trim_spaces(str), (char *)novalue);
 }
 
 /* In-place editing to remove spaces from either end of string.  */
@@ -783,24 +783,32 @@ char *icd_config__trim_spaces(char *str)
 }
 
 /* malloc's a child key for finding a registry node */
-char *icd_config__create_child_key(char *key, char *setting)
+char *icd_config__create_child_key(const char *key, const char *setting)
 {
     char *buf;
-    int keylen;
+    int keylen, vallen;
 
     assert(key != NULL);
     assert(setting != NULL);
 
-    keylen = strlen(key) + strlen(setting) + 2;
-    buf = (char *) ICD_STD_MALLOC(keylen);
+    keylen = strlen(key);
+    vallen = strlen(setting);
+    while (*setting == ' ' || *setting == '\t')
+        setting++, vallen--;
+    while (vallen && (setting[vallen - 1] == ' ' || setting[vallen - 1] == '\t'))
+        vallen--;
+
+    buf = (char *) ICD_STD_MALLOC(keylen + vallen + 2);
     /* We need a child node for the value, create the key */
-    strcpy(buf, key);
-    strcat(buf, "=");
-    strcat(buf, icd_config__trim_spaces(setting));
+    memcpy(buf, key, keylen);
+    buf[keylen] = '=';
+    memcpy(buf + keylen + 1, setting, vallen);
+    buf[keylen + 1 + vallen] = '\0';
+
     return buf;
 }
 
-void *icd_config__get_param(icd_config * that, char *name)
+void *icd_config__get_param(icd_config * that, const char *name)
 {
     void_hash_table *hash = icd_config__get_value(that, "params");
 

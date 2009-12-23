@@ -47,13 +47,13 @@ struct icd_conference
 int icd_conference__set_global_usage(int value);
 int icd_conference__get_global_usage(void);
 icd_status icd_conference__clear(icd_caller * that);
-icd_conference *icd_conference__new(char *name);
+icd_conference *icd_conference__new(const char *name);
 int icd_conference__usecount(icd_conference * conf);
 icd_status icd_conference__associate(icd_caller * that, icd_conference * conf, int owner);
 icd_status icd_conference__join(icd_caller * that);
 icd_status icd_conference__register(char *name, icd_conference * conf);
 icd_status icd_conference__deregister(char *name);
-icd_conference *icd_conference__locate(char *name);
+icd_conference *icd_conference__locate(const char *name);
 vh_keylist *icd_conference__list(void);
 void icd_conference__init_registry(void);
 void icd_conference__destroy_registry(void);

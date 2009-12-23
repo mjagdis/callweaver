@@ -194,7 +194,7 @@ static int say_date(struct cw_channel *chan, time_t t, const char *ints, const c
 }
 
 /* oclock = heure */
-static int say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct cw_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *tz)
 {
     struct tm tm;
     int res = 0;
@@ -203,7 +203,7 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
     char sndfile[256];
     char nextmsg[256];
 
-    cw_localtime(&time, &tm, timezone);
+    cw_localtime(&t, &tm, tz);
 
     for (offset = 0;  format[offset] != '\0';  offset++)
     {
@@ -332,23 +332,23 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
             time_t beg_today;
 
             gettimeofday(&now, NULL);
-            cw_localtime(&now.tv_sec, &tmnow, timezone);
+            cw_localtime(&now.tv_sec, &tmnow, tz);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
             /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-            if (beg_today < time)
+            if (beg_today < t)
             {
                 /* Today */
                 res = wait_file(chan, ints, "digits/today", lang);
             }
-            else if (beg_today - 86400 < time)
+            else if (beg_today - 86400 < t)
             {
                 /* Yesterday */
                 res = wait_file(chan, ints, "digits/yesterday", lang);
             }
             else
             {
-                res = cw_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+                res = cw_say_date_with_format(chan, t, ints, lang, "AdBY", tz);
             }
         }
             break;
@@ -360,32 +360,32 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
             time_t beg_today;
 
             gettimeofday(&now,NULL);
-            cw_localtime(&now.tv_sec,&tmnow,timezone);
+            cw_localtime(&now.tv_sec,&tmnow,tz);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
             /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-            if (beg_today < time)
+            if (beg_today < t)
             {
                 /* Today */
             }
-            else if ((beg_today - 86400) < time)
+            else if ((beg_today - 86400) < t)
             {
                 /* Yesterday */
                 res = wait_file(chan,ints, "digits/yesterday",lang);
             }
-            else if (beg_today - 86400 * 6 < time)
+            else if (beg_today - 86400 * 6 < t)
             {
                 /* Within the last week */
-                res = cw_say_date_with_format(chan, time, ints, lang, "A", timezone);
+                res = cw_say_date_with_format(chan, t, ints, lang, "A", tz);
             }
             else
             {
-                res = cw_say_date_with_format(chan, time, ints, lang, "AdBY", timezone);
+                res = cw_say_date_with_format(chan, t, ints, lang, "AdBY", tz);
             }
         }
             break;
         case 'R':
-            res = cw_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+            res = cw_say_date_with_format(chan, t, ints, lang, "HM", tz);
             break;
         case 'S':
             /* Seconds */
@@ -394,7 +394,7 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
                 res = wait_file(chan,ints, "digits/second",lang);
             break;
         case 'T':
-            res = cw_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+            res = cw_say_date_with_format(chan, t, ints, lang, "HMS", tz);
             break;
         case ' ':
         case '	':

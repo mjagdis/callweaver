@@ -95,13 +95,13 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *str
  *
  * \return hash_value
  */
-static inline __attribute__ ((pure)) unsigned int cw_hash_addr(const struct sockaddr_in *sin)
+static inline __attribute__ ((pure)) unsigned int cw_hash_addr(const struct sockaddr_in *sain)
 {
 	unsigned int hash;
 
 	hash = 0;
-	if (sin)
-		hash = sin->sin_addr.s_addr + (sin->sin_port << 16);
+	if (sain)
+		hash = sain->sin_addr.s_addr + (sain->sin_port << 16);
 
 	return hash;
 }

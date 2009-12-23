@@ -142,8 +142,7 @@ void create_command_hash(void)
 
 }
 
-static icd_command_node *create_command_node(int (*func) (struct cw_dynstr **, int, char **), char *name, char *short_help,
-    char *syntax_help, char *long_help)
+static icd_command_node *create_command_node(int (*func) (struct cw_dynstr **, int, char **), const char *name, const char *short_help, const char *syntax_help, const char *long_help)
 {
     icd_command_node *new;
 
@@ -164,7 +163,7 @@ static void destroy_command_node(icd_command_node ** node)
     ICD_FREE((*node));
 }
 
-static int cli_line(struct cw_dynstr **ds_p, char *c, int y)
+static int cli_line(struct cw_dynstr **ds_p, const char *c, int y)
 {
     int x = 0;
 
@@ -175,8 +174,7 @@ static int cli_line(struct cw_dynstr **ds_p, char *c, int y)
     return ICD_SUCCESS;
 }
 
-int icd_command_register(char *name, int (*func) (struct cw_dynstr **, int, char **), char *short_help, char *syntax_help,
-    char *long_help)
+int icd_command_register(const char *name, int (*func) (struct cw_dynstr **, int, char **), const char *short_help, const char *syntax_help, const char *long_help)
 {
     icd_command_node *insert = NULL;
 
@@ -190,7 +188,7 @@ int icd_command_register(char *name, int (*func) (struct cw_dynstr **, int, char
     return ICD_EGENERAL;
 }
 
-void *icd_command_pointer(char *name)
+void *icd_command_pointer(const char *name)
 {
     icd_command_node *fetch = NULL;
 
@@ -217,7 +215,7 @@ void destroy_command_hash(void)
 
 int icd_command_cli(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    int (*func) (int, int, char **);
+    int (*func) (struct cw_dynstr **, int, char **);
     char **newargv;
     int newargc;
     int x = 0, y = 0;
@@ -385,7 +383,7 @@ int icd_command_debug(struct cw_dynstr **ds_p, int argc, char **argv)
 
 int icd_command_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    static char *help[2] = { "help", "show" };
+    static const char *help[2] = { "help", "show" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "q") || !strcmp(argv[1], "queue") || !strcmp(argv[1], "queues")) {
@@ -399,7 +397,7 @@ int icd_command_show(struct cw_dynstr **ds_p, int argc, char **argv)
             icd_command_show_customer(ds_p, argc, argv);
         }
     } else
-        icd_command_help(ds_p, 2, help);
+        icd_command_help(ds_p, 2, (char **)help);
 
     return ICD_SUCCESS;
 }
@@ -672,7 +670,7 @@ icd_status icd_command_show_customer(struct cw_dynstr **ds_p, int argc, char **a
 
 int icd_command_dump(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    static char *help[2] = { "help", "dump" };
+    static const char *help[2] = { "help", "dump" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "q") || !strcmp(argv[1], "queue") || !strcmp(argv[1], "queues")) {
@@ -692,7 +690,7 @@ int icd_command_dump(struct cw_dynstr **ds_p, int argc, char **argv)
             icd_command_dump_customer(ds_p, argc, argv);
         }
     } else
-        icd_command_help(ds_p, 2, help);
+        icd_command_help(ds_p, 2, (char **)help);
 
     /* BCA - What should this return? */
     return ICD_SUCCESS;
@@ -756,7 +754,7 @@ static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, c
     icd_fieldset_iterator *fs_iter;
     char *curr_key;
     icd_queue *queue;
-    icd_member_list *customers;
+    icd_member_list *custlist;
 
     icd_list_iterator *iter;
     icd_member *member;
@@ -774,10 +772,10 @@ static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, c
         curr_key = icd_fieldset_iterator__next(fs_iter);
         cw_dynstr_printf(ds_p, "\nCustomers in Queue %s\n", curr_key);
         queue = icd_fieldset__get_value(queues, curr_key);
-        customers = (icd_member_list *) icd_queue__get_customers(queue);
+        custlist = (icd_member_list *) icd_queue__get_customers(queue);
 
         if (verbosity > 1) {
-            iter = icd_list__get_iterator((icd_list *) (customers));
+            iter = icd_list__get_iterator((icd_list *) (custlist));
             if (iter != NULL) {
                 while (icd_list_iterator__has_more(iter)) {
                     member = (icd_member *) icd_list_iterator__next(iter);
@@ -790,7 +788,7 @@ static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, c
                 }
             }
         } else {
-            icd_member_list__dump(customers, verbosity, ds_p);
+            icd_member_list__dump(custlist, verbosity, ds_p);
         }
 
     }
@@ -860,7 +858,7 @@ static icd_status icd_command_dump__agent(struct dynstr **ds_p, int argc, char *
 */
 int icd_command_load(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    static char *help[2] = { "help", "load" };
+    static const char *help[2] = { "help", "load" };
 
     if (argc >= 2) {
         if (!strcmp(argv[1], "i") || !strcmp(argv[1], "icd")) {
@@ -876,7 +874,7 @@ int icd_command_load(struct cw_dynstr **ds_p, int argc, char **argv)
             icd_command_load_conferences(ds_p, argc, argv);
         }
     } else
-        icd_command_help(ds_p, 2, help);
+        icd_command_help(ds_p, 2, (char **)help);
 
     return ICD_SUCCESS;
 }
@@ -1060,14 +1058,15 @@ int icd_command_hang_up (struct cw_dynstr **ds_p, int argc, char **argv)
     return 0;
 }
 
-static void *icd_command_login_thread(void *arg) {
+static void *icd_command_login_thread(void *arg)
+{
+    char buf[200];
     icd_caller *agent = arg;
     struct cw_channel *chan;
-    char *channelstring;
-    char *agent_id;
+    const char *channelstring;
+    const char *agent_id;
+    const char *passwd;
     int res;
-    char buf[200];
-    char *passwd;
 	
 	channelstring = icd_caller__get_channel_string(agent);
 	agent_id = icd_caller__get_caller_id(agent);
@@ -1208,9 +1207,9 @@ int icd_command_login (struct cw_dynstr **ds_p, int argc, char **argv)
 int icd_command_logout (struct cw_dynstr **ds_p, int argc, char **argv)
 {
     icd_caller *agent = NULL;
-    char *agent_id;
-    char *passwd_to_check;
-    char *passwd; 
+    const char *agent_id;
+    const char *passwd_to_check;
+    const char *passwd;
 
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */
@@ -1651,7 +1650,7 @@ int icd_command_join_queue (struct cw_dynstr **ds_p, int argc, char **argv)
 	    icd_caller *agent = NULL; 
 	    char *agent_id; 
 	    char *queuename; 
-	    int remove=0; 
+	    int remove_agent=0; 
 	    icd_queue *queue; 
 	    icd_member *member; 
 	 
@@ -1678,15 +1677,15 @@ int icd_command_join_queue (struct cw_dynstr **ds_p, int argc, char **argv)
                 cw_msg_tuple("CallerID", "%s", agent_id)
             );
 	        return 1;
-	    } 
-	    if (argc==4) 
-	      if(!strcasecmp(argv[3],"R")) { 
-	        remove = 1; 
-	    } 
-	    queue = NULL;  
-	    if(!remove || strcasecmp(queuename,"all")){          
-	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename); 
-	      if (queue == NULL) { 
+	    }
+	    if (argc==4)
+	      if(!strcasecmp(argv[3],"R")) {
+	        remove_agent = 1;
+	    }
+	    queue = NULL;
+	    if(!remove_agent || strcasecmp(queuename,"all")){
+	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
+	      if (queue == NULL) {
                 cw_dynstr_printf(ds_p,"icd queue FAILURE! Queue not found[%s], Agent [%s]\n", queuename, agent_id);
                 cw_manager_event(EVENT_FLAG_USER, "icd_command",
                     5,
@@ -1697,31 +1696,31 @@ int icd_command_join_queue (struct cw_dynstr **ds_p, int argc, char **argv)
                     cw_msg_tuple("Queue", "%s", queuename)
                 );
 	        	return 1;
-	      } 
-	    }  	 
-	    cw_log(CW_LOG_NOTICE, "Agent [%s] will %s the queue [%s]\n", agent_id, remove?"leave":"join", queuename); 
-            if(!remove){ 
+	      }
+	    }
+	    cw_log(CW_LOG_NOTICE, "Agent [%s] will %s the queue [%s]\n", agent_id, remove_agent?"leave":"join", queuename);
+            if(!remove_agent){
               icd_list__lock((icd_list *) (agent->memberships));
  	        if(icd_caller__add_to_queue(agent, queue) == ICD_SUCCESS){
-		   if(icd_caller__get_state(agent) ==  ICD_CALLER_STATE_READY){ 
-	           	member = icd_member_list__get_for_queue(agent->memberships, queue); 
-	           	if(member){ 
-	                	icd_queue__agent_distribute(queue, member); 
-	           	}
-		   }		   		 
-                  cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
-                   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                if(icd_caller__get_state(agent) ==  ICD_CALLER_STATE_READY){
+                    member = icd_member_list__get_for_queue(agent->memberships, queue);
+                    if(member){
+                        icd_queue__agent_distribute(queue, member);
+                    }
+                }
+                cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
+                cw_manager_event(EVENT_FLAG_USER, "icd_command",
                        5,
                        cw_msg_tuple("Command", "%s", "Queue"),
                        cw_msg_tuple("SubCommand", "%s", "Add"),
                        cw_msg_tuple("Result", "%s", "OK"),
                        cw_msg_tuple("CallerID", "%s", agent_id),
                        cw_msg_tuple("Queue", "%s", queuename)
-                    );
-		  }
-                icd_list__unlock((icd_list *) (agent->memberships));
-	    }
-	    else { 
+                );
+            }
+            icd_list__unlock((icd_list *) (agent->memberships));
+        }
+        else { 
               icd_list__lock((icd_list *) (agent->memberships));
 	      if(queue){ 
 	       if(agent->memberships) 
@@ -1861,7 +1860,7 @@ int icd_command_transfer (struct cw_dynstr **ds_p, int argc, char **argv)
   icd_caller *customer;
   struct cw_channel *chan = NULL;
   char *customer_source;
-  char *pria = "1", *exten, *context;
+  char *pria = (char *)"1", *exten, *context;
 
   if (argc != 3) {
        cw_dynstr_printf(ds_p, "Transfer FAILURE! bad parameters\n");
@@ -1907,7 +1906,7 @@ int icd_command_transfer (struct cw_dynstr **ds_p, int argc, char **argv)
 			*pria = '\0';
 			pria++;
 		} else
-			pria = "1";
+			pria = (char *)"1";
 	}
 	else {		
 		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
@@ -1989,7 +1988,7 @@ int icd_command_transfer (struct cw_dynstr **ds_p, int argc, char **argv)
     return 0;
 }
 
-void icd_manager_send_message( char *format, ...)
+void icd_manager_send_message( const char *format, ...)
 {
    va_list args;
    char message[1024];

@@ -267,7 +267,7 @@ static struct cw_frame *lintoulaw_frameout(void *pvt)
 /*!
  * \brief ulawtolin_sample
  */
-static struct cw_frame *ulawtolin_sample(int *index)
+static struct cw_frame *ulawtolin_sample(int *i)
 {
     static struct cw_frame f;
   

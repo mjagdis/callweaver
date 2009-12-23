@@ -90,11 +90,9 @@ static char outdevname[50] = ALSA_OUTDEV;
 static struct timeval lasttime;
 #endif
 
-static int usecnt;
 static int silencesuppression = 0;
 static int silencethreshold = 1000;
 
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 CW_MUTEX_DEFINE_STATIC(alsalock);
 
 static const char type[] = "Console";
@@ -2230,7 +2228,7 @@ static int alsa_text(struct cw_channel *c, const char *text);
 static int alsa_hangup(struct cw_channel *c);
 static int alsa_answer(struct cw_channel *c);
 static struct cw_frame *alsa_read(struct cw_channel *chan);
-static int alsa_call(struct cw_channel *c, char *dest);
+static int alsa_call(struct cw_channel *c, const char *dest);
 static int alsa_write(struct cw_channel *chan, struct cw_frame *f);
 static int alsa_indicate(struct cw_channel *chan, int cond);
 static int alsa_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
@@ -2579,7 +2577,7 @@ static void grab_owner(void)
 	}
 }
 
-static int alsa_call(struct cw_channel *c, char *dest)
+static int alsa_call(struct cw_channel *c, const char *dest)
 {
 	int res = 3;
 	struct cw_frame f = { CW_FRAME_CONTROL };
@@ -2639,9 +2637,6 @@ static int alsa_hangup(struct cw_channel *c)
 	c->tech_pvt = NULL;
 	alsa.owner = NULL;
 	cw_verbose( " << Hangup on console >> \n");
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	cw_mutex_unlock(&usecnt_lock);
 	if (hookstate) {
 		if (autoanswer) {
 			hookstate = 0;
@@ -2845,9 +2840,6 @@ static struct cw_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 			cw_copy_string(tmp->language, language, sizeof(tmp->language));
 		p->owner = tmp;
 		cw_setstate(tmp, state);
-		cw_mutex_lock(&usecnt_lock);
-		usecnt++;
-		cw_mutex_unlock(&usecnt_lock);
 		if (state != CW_STATE_DOWN) {
 			if (cw_pbx_start(tmp)) {
 				cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -2859,12 +2851,12 @@ static struct cw_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	return tmp;
 }
 
-static struct cw_channel *alsa_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *alsa_request(const char *drvtype, int fmt, void *data, int *cause)
 {
-	int oldformat = format;
+	int oldformat = fmt;
 	struct cw_channel *tmp=NULL;
-	format &= CW_FORMAT_SLINEAR;
-	if (!format) {
+	fmt &= CW_FORMAT_SLINEAR;
+	if (!fmt) {
 		cw_log(CW_LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
 		return NULL;
 	}

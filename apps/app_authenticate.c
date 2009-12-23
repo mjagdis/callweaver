@@ -74,7 +74,7 @@ static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int retries, trylimit=3, nolimit=0;
 	struct localuser *u;
 	char passwd[256];
-	char *prompt;
+	const char *prompt;
 	int debug=0;
 	int i;
 

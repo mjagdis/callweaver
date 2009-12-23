@@ -70,12 +70,12 @@ struct icd_caller_list {
 
 static const int skipconst = 1;
 
-static int icd_caller_list__identify_name(void *key, void *payload);
+static int icd_caller_list__identify_name(const void *key, void *payload);
 
 /***** Init - Destroyer *****/
 
 /* Constructor for a caller list. */
-icd_caller_list *create_icd_caller_list(char *name, icd_config * data)
+icd_caller_list *create_icd_caller_list(const char *name, icd_config * data)
 {
     icd_caller_list *list;
     icd_status result;
@@ -136,7 +136,7 @@ icd_status destroy_icd_caller_list(icd_caller_list ** listp)
 }
 
 /* Initialize previously created caller list */
-icd_status init_icd_caller_list(icd_caller_list * that, char *name, icd_config * data)
+icd_status init_icd_caller_list(icd_caller_list * that, const char *name, icd_config * data)
 {
     icd_status retval;
     icd_list_node *(*ins_fn) (icd_list * that, void *new_elem, void *extra);
@@ -469,10 +469,10 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct
 
 /*===== Private API Implementations =====*/
 
-static int icd_caller_list__identify_name(void *key, void *payload)
+static int icd_caller_list__identify_name(const void *key, void *payload)
 {
     icd_caller *caller;
-    char *name;
+    const char *name;
 
     caller = (icd_caller *) payload;
     name = icd_caller__get_name(caller);

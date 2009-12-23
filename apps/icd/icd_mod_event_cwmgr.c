@@ -35,7 +35,7 @@
 
 /* Private implemenations */
 static int module_id = 0;
-static char *module_name = "event_cwmgr";
+static const char module_name[] = "event_cwmgr";
 
 static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, void *extra);
 
@@ -70,7 +70,7 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
     struct cw_channel *chan = NULL;
 
     icd_event *event = icd_event__get_extra(factory_event);
-    int module_id = icd_event__get_module_id(event);
+    int event_module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
     int confnr = 0;
     icd_conference * conf;
@@ -90,7 +90,7 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
       event_mask[icd_event__get_event_id(event)]
       );
     */
-    if (module_mask[module_id] && event_mask[event_id]) {
+    if (module_mask[event_module_id] && event_mask[event_id]) {
         /* filter based on icd.conf events */
         smsg = icd_event__get_message(event);
         switch (event_id) {

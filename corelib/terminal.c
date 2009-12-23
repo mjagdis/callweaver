@@ -43,7 +43,7 @@ static char *terminal_type;
 static char *sgr, *setaf, *setab;
 
 static struct {
-	char *on, *off;
+	const char *on, *off;
 } level_attr[] = {
 	[__CW_LOG_DEBUG] = { NULL, NULL },
 	[__CW_LOG_EVENT] = { NULL, NULL },
@@ -54,17 +54,17 @@ static struct {
 	[__CW_LOG_DTMF] = { NULL, NULL },
 };
 
-static char *col_defaults;
+static const char *col_defaults;
 static int col_defaults_len;
-static char *attr_end;
+static const char *attr_end;
 static int attr_end_len;
 
 
-static void highlight(char **start, char **end, char *spec)
+static void highlight(const char **start, const char **end, const char *spec)
 {
 	static struct {
 		int len;
-		char *name;
+		const char *name;
 	} colours[] = {
 		[0] = { 5, "black" },
 		[1] = { 3, "red" },
@@ -77,7 +77,7 @@ static void highlight(char **start, char **end, char *spec)
 	};
 	static struct {
 		int len;
-		char *name;
+		const char *name;
 	} attributes[] = {
 		[0] = { 8, "standout" },
 		[1] = { 9, "underline" },
@@ -90,7 +90,8 @@ static void highlight(char **start, char **end, char *spec)
 		[8] = { 10, "altcharset" },
 	};
 	int attr[sizeof(attributes) / sizeof(attributes[0])];
-	char *p, *attr_p, *fg_p, *bg_p;
+	const char *p, *attr_p, *fg_p, *bg_p;
+	char *tmp;
 	int fg, bg, have_attr, l, i;
 
 	fg = bg = -1;
@@ -153,9 +154,10 @@ static void highlight(char **start, char **end, char *spec)
 		fg_p = col_defaults;
 	}
 
-	if (l && (*end = malloc(l + 1))) {
-		strcpy(*end, attr_p);
-		strcat(*end, fg_p);
+	if (l && (tmp = malloc(l + 1))) {
+		strcpy(tmp, attr_p);
+		strcat(tmp, fg_p);
+		*end = tmp;
 
 		attr_p = fg_p = bg_p = "";
 		l = 0;
@@ -163,31 +165,29 @@ static void highlight(char **start, char **end, char *spec)
 		if (sgr && have_attr) {
 			p = tparm(sgr, attr[0], attr[1], attr[2], attr[3], attr[4], attr[5], attr[6], attr[7], attr[8]);
 			i = strlen(p);
-			attr_p = alloca(i + 1);
-			strcpy(attr_p, p);
+			attr_p = strcpy(alloca(i + 1), p);
 			l += i;
 		}
 
 		if (setaf && fg != -1) {
 			p = tparm(setaf, fg);
 			i = strlen(p);
-			fg_p = alloca(i + 1);
-			strcpy(fg_p, p);
+			fg_p = strcpy(alloca(i + 1), p);
 			l += i;
 		}
 
 		if (setab && bg != -1) {
 			p = tparm(setaf, bg);
 			i = strlen(p);
-			bg_p = alloca(i + 1);
-			strcpy(bg_p, p);
+			bg_p = strcpy(alloca(i + 1), p);
 			l += i;
 		}
 
-		if (l && (*start = malloc(l + 1))) {
-			strcpy(*start, attr_p);
-			strcat(*start, fg_p);
-			strcat(*start, bg_p);
+		if (l && (tmp = malloc(l + 1))) {
+			strcpy(tmp, attr_p);
+			strcat(tmp, fg_p);
+			strcat(tmp, bg_p);
+			*start = tmp;
 		}
 	}
 }

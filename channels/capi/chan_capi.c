@@ -109,8 +109,6 @@ static char commandtdesc[] = "CAPI command interface.\n"
 static char commandapp[] = "capiCommand";
 static char commandsynopsis[] = "Execute special CAPI commands";
 
-static int usecnt;
-
 /*
  * LOCKING RULES
  * =============
@@ -128,8 +126,7 @@ static int usecnt;
  *
  * 3. cc_mutex_lock(&iflock);
  * 4. cc_mutex_lock(&messagenumber_lock);
- * 5. cc_mutex_lock(&usecnt_lock);
- * 6. cc_mutex_lock(&capi_put_lock);
+ * 5. cc_mutex_lock(&capi_put_lock);
  *
  *
  *  ** the PBX will call the callback functions with 
@@ -140,7 +137,6 @@ static int usecnt;
  */
 
 CW_MUTEX_DEFINE_STATIC(messagenumber_lock);
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 CW_MUTEX_DEFINE_STATIC(iflock);
 CW_MUTEX_DEFINE_STATIC(capi_put_lock);
 CW_MUTEX_DEFINE_STATIC(verbose_lock);
@@ -1271,10 +1267,6 @@ static int pbx_capi_hangup(struct cw_channel *c)
 	CC_CHANNEL_PVT(c) = NULL;
 	cw_setstate(c, CW_STATE_DOWN);
 
-	cc_mutex_lock(&usecnt_lock);
-	usecnt--;
-	cc_mutex_unlock(&usecnt_lock);
-	
 	return 0;
 }
 
@@ -1357,7 +1349,7 @@ static void parse_dialstring(char *buffer, char **interface, char **dest, char *
 /*
  * PBX tells us to make a call
  */
-static int pbx_capi_call(struct cw_channel *c, char *idest)
+static int pbx_capi_call(struct cw_channel *c, const char *idest)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	char *dest, *interface, *param, *ocid;
@@ -2139,10 +2131,7 @@ static struct cw_channel *capi_new(struct capi_pvt *i, int state)
 	cc_copy_string(tmp->language, i->language, sizeof(tmp->language));
 #endif
 	i->owner = tmp;
-	cc_mutex_lock(&usecnt_lock);
-	usecnt++;
-	cc_mutex_unlock(&usecnt_lock);
-	
+
 	cw_setstate(tmp, state);
 
 	return tmp;

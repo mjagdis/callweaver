@@ -41,10 +41,10 @@ struct cw_format {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	/* Name of format */
-	char *name;
+	const char *name;
 	/* Extensions (separated by | if more than one) 
 	   this format can read.  First is assumed for writing (e.g. .mp3) */
-	char *exts;
+	const char *exts;
 	/* Format of frames it uses/provides (one only) */
 	int format;
 	/* Open an input stream, and start playback */
@@ -182,13 +182,13 @@ extern CW_API_PUBLIC int cw_waitstream_exten(struct cw_channel *c, const char *c
  * \param c channel to waitstram on
  * \param breakon string of DTMF digits to break upon
  * \param forward DTMF digit to fast forward upon
- * \param rewind DTMF digit to rewind upon
+ * \param backward DTMF digit to rewind upon
  * \param ms How many miliseconds to skip forward/back
  * Begins playback of a stream...
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-extern CW_API_PUBLIC int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
+extern CW_API_PUBLIC int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *backward, int ms);
 
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */

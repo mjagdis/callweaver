@@ -91,12 +91,10 @@ static int utf8decode (unsigned char **pp)
 
 /* check for any queued messages in specific queue (queue="" means any queue) */
 /* returns 0 if nothing queued, 1 if queued and outgoing set up OK, 2 of outgoing exists */
-static char txqcheck (char *dir, char *queue, char subaddress, char *channel, char *callerid, int wait, int delay, int retries, int concurrent)
+static char txqcheck (const char *dir, const char *queue, char subaddress, const char *channel, const char *callerid, int wait, int delay, int retries, int concurrent)
 {
-   char ogname[100],
-     temp[100],
-     dirname[100],
-    *p=NULL;
+   char ogname[100], temp[100], dirname[100];
+   const char *p = NULL;
    FILE *f;
    DIR *d;
    int ql = strlen (queue), qfl = ql;
@@ -186,12 +184,11 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
 }
 
 /* Process received queue entries and run through a process, setting environment variables */
-static void rxqcheck (char *dir, char *queue, char *process)
+static void rxqcheck (const char *dir, const char *queue, const char *process)
 {
    char *p;
    void *pp = &p;
-   char dirname[100],
-     temp[100];
+   char dirname[100], temp[481];
    DIR *d;
    int ql = strlen (queue);
    struct dirent *fn;
@@ -314,12 +311,10 @@ static void rxqcheck (char *dir, char *queue, char *process)
          fclose (f);
          /* set up user data variables */
          {
-            char temp[481];
-            int n,
-              p;
-            for (n = 0, p = 0; p < udl; p++)
+            int n, m;
+            for (n = 0, m = 0; m < udl; m++)
             {
-               unsigned short v = ud[p];
+               unsigned short v = ud[m];
                if (v)
                {
                   if (v < 0x80)
@@ -338,9 +333,9 @@ static void rxqcheck (char *dir, char *queue, char *process)
             }
             temp[n] = 0;
             setenv ("ud", temp, 1);
-            for (n = 0, p = 0; p < udl; p++)
+            for (n = 0, m = 0; m < udl; m++)
             {
-               unsigned short v = ud[p];
+               unsigned short v = ud[m];
                if (v < ' ' || v == '\\')
                {
                   temp[n++] = '\\';
@@ -375,19 +370,19 @@ static void rxqcheck (char *dir, char *queue, char *process)
             }
             temp[n] = 0;
             setenv ("ude", temp, 1);
-            for (p = 0; p < udl && ud[p] < 0x100; p++);
-            if (p == udl)
+            for (m = 0; m < udl && ud[m] < 0x100; m++);
+            if (m == udl)
             {
-               for (n = 0, p = 0; p < udl; p++)
+               for (n = 0, m = 0; m < udl; m++)
                {
-                  sprintf (temp + n, "%02X", ud[p]);
+                  sprintf (temp + n, "%02X", ud[m]);
                   n += 2;
                }
                setenv ("ud8", temp, 1);
             }
-            for (n = 0, p = 0; p < udl; p++)
+            for (n = 0, m = 0; m < udl; m++)
             {
-               sprintf (temp + n, "%04X", ud[p]);
+               sprintf (temp + n, "%04X", ud[m]);
                n += 4;
             }
             setenv ("ud16", temp, 1);
@@ -429,19 +424,21 @@ main (int argc, const char *argv[])
    unsigned short ud[160];
    unsigned char *uds = 0,
       *udh = 0;
-   char *da = 0,
-      *oa = 0,
-      *queue = "",
+   char
       *udfile = 0,
       *process = 0,
-      *spooldir = SPOOLDIR,
-      *motxchannel = "Local/1709400X",
       *motxcallerid = 0,
       *mttxchannel = 0,
-      *mttxcallerid = "080058752X0",
-      *defaultsubaddress = "9",
       subaddress = 0,
       *scts = 0;
+   const char
+      *da = 0,
+      *oa = 0,
+      *queue = "",
+      *spooldir = SPOOLDIR,
+      *motxchannel = "Local/1709400X",
+      *mttxcallerid = "080058752X0",
+      *defaultsubaddress = "9";
    poptContext optCon;          /* context for parsing command-line options */
    const struct poptOption optionsTable[] = {
       {"queue", 'q', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &queue, 0, "Queue [inc sub address]", "number[-X]"},
@@ -671,9 +668,8 @@ main (int argc, const char *argv[])
 
    if (oa || da)
    {                            /* send message */
-      char temp[100],
-        queuename[100],
-       *dir = (mo ? rx ? "sms/morx" : "sms/motx" : rx ? "sms/mtrx" : "sms/mttx");
+      char temp[100], queuename[100];
+      const char *dir = (mo ? rx ? "sms/morx" : "sms/motx" : rx ? "sms/mtrx" : "sms/mttx");
       FILE *f;
       snprintf (temp, sizeof(temp), "sms/.smsq-%d", getpid ());
       mkdir ("sms", 0777);      /* ensure directory exists */

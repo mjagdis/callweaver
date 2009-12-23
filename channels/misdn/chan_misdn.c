@@ -286,15 +286,11 @@ static const char misdn_type[] = "mISDN";
 
 static int tracing = 0 ;
 
-static int usecnt=0;
-
 static char **misdn_key_vector=NULL;
 static int misdn_key_vector_size=0;
 
 /* Only alaw and mulaw is allowed for now */
 static int prefformat =  CW_FORMAT_ALAW ; /*  CW_FORMAT_SLINEAR ;  CW_FORMAT_ULAW | */
-
-static cw_mutex_t usecnt_lock; 
 
 static int *misdn_debug;
 static int *misdn_debug_only;
@@ -1819,7 +1815,7 @@ static int read_config(struct chan_list *ch, int orig) {
 /*** CW Indications Start ***/
 /*****************************/
 
-static int misdn_call(struct cw_channel *cw, char *dest)
+static int misdn_call(struct cw_channel *cw, const char *dest)
 {
 	int port=0;
 	int r;

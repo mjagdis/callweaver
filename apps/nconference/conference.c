@@ -46,8 +46,8 @@ void init_conference( void )
    *********************************************************************************************/
 
 int add_command_to_queue ( 
-	struct cw_conference *conf, struct cw_conf_member *member ,
-	int command, int param_number, char *param_text 
+	struct cw_conference *conf, struct cw_conf_member *member,
+	int command, int param_number, const char *param_text
 	) 
 {
 

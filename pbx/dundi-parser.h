@@ -22,8 +22,8 @@ struct dundi_ies {
 	int eid_direct[DUNDI_MAX_STACK + 1];
 	dundi_eid *reqeid;
 	int eidcount;
-	char *called_context;
-	char *called_number;
+	const char *called_context;
+	const char *called_number;
 	struct dundi_answer *answers[DUNDI_MAX_ANSWERS + 1];
 	struct dundi_hint *hint;
 	int anscount;
@@ -63,23 +63,23 @@ extern void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *s
 
 extern const char *dundi_ie2str(int ie);
 
-extern int dundi_ie_append_raw(struct dundi_ie_data *ied, unsigned char ie, void *data, int datalen);
-extern int dundi_ie_append_addr(struct dundi_ie_data *ied, unsigned char ie, struct sockaddr_in *sin);
+extern int dundi_ie_append_raw(struct dundi_ie_data *ied, unsigned char ie, const void *data, int datalen);
+extern int dundi_ie_append_addr(struct dundi_ie_data *ied, unsigned char ie, const struct sockaddr_in *sin);
 extern int dundi_ie_append_int(struct dundi_ie_data *ied, unsigned char ie, unsigned int value);
 extern int dundi_ie_append_short(struct dundi_ie_data *ied, unsigned char ie, unsigned short value);
-extern int dundi_ie_append_str(struct dundi_ie_data *ied, unsigned char ie, char *str);
-extern int dundi_ie_append_eid(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid);
-extern int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned char cause, char *desc);
-extern int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned short flags, char *data);
-extern int dundi_ie_append_answer(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid, unsigned char protocol, unsigned short flags, unsigned short weight, char *desc);
+extern int dundi_ie_append_str(struct dundi_ie_data *ied, unsigned char ie, const char *str);
+extern int dundi_ie_append_eid(struct dundi_ie_data *ied, unsigned char ie, const dundi_eid *eid);
+extern int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned char cause, const char *desc);
+extern int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned short flags, const char *data);
+extern int dundi_ie_append_answer(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid, unsigned char protocol, unsigned short flags, unsigned short weight, const char *desc);
 extern int dundi_ie_append_encdata(struct dundi_ie_data *ied, unsigned char ie, unsigned char *iv, void *data, int datalen);
 extern int dundi_ie_append_byte(struct dundi_ie_data *ied, unsigned char ie, unsigned char dat);
 extern int dundi_ie_append(struct dundi_ie_data *ied, unsigned char ie);
 extern int dundi_parse_ies(struct dundi_ies *ies, unsigned char *data, int datalen);
 extern char *dundi_eid_to_str(char *s, int maxlen, dundi_eid *eid);
 extern char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid);
-extern int dundi_str_to_eid(dundi_eid *eid, char *s);
-extern int dundi_str_short_to_eid(dundi_eid *eid, char *s);
+extern int dundi_str_to_eid(dundi_eid *eid, const char *s);
+extern int dundi_str_short_to_eid(dundi_eid *eid, const char *s);
 extern int dundi_eid_zero(dundi_eid *eid);
 extern int dundi_eid_cmp(dundi_eid *eid1, dundi_eid *eid2);
 extern char *dundi_flags2str(char *s, int maxlen, int flags);

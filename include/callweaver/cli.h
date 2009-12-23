@@ -51,7 +51,7 @@ struct cw_clicmd {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	/*! Null terminated list of the words of the command */
-	char *cmda[CW_MAX_CMD_LEN];
+	const char *cmda[CW_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
 	int (*handler)(struct cw_dynstr **ds_p, int argc, char *argv[]);
 	/*! Summary of the command (< 60 characters) */
@@ -100,16 +100,20 @@ extern CW_API_PUBLIC struct cw_registry clicmd_registry;
 
 
 /*! \brief Interprets a command 
- * Interpret a command s, sending output to fd
+ *
+ * Interpret the given command
+ *
  * Returns 0 on succes, -1 on failure 
  */
-extern CW_API_PUBLIC void cw_cli_command(struct cw_dynstr **ds_p, char *s);
+extern CW_API_PUBLIC void cw_cli_command(struct cw_dynstr **ds_p, char *cmd);
 
 /*! \brief Readline madness 
- * Useful for readline, that's about it
+ *
+ * Generate possible completions for the given command
+ *
  * Returns 0 on success, -1 on failure
  */
-extern void cw_cli_generator(struct cw_dynstr **ds_p, char *text);
+extern void cw_cli_generator(struct cw_dynstr **ds_p, char *cmd);
 
 extern void cw_cli_init(void);
 

@@ -361,7 +361,7 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 }
 
 /*--- cw_get_enum: ENUM lookup */
-int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options)
+int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, const char *suffix, const char *options)
 {
 	struct enum_context context;
 	char tmp[259 + 512];
@@ -602,7 +602,7 @@ int cw_get_txt(struct cw_channel *chan, const char *number, char *dst, int dstle
 }
 
 /*--- enum_newtoplev: Add enum tree to linked list ---*/
-static struct enum_search *enum_newtoplev(char *s)
+static struct enum_search *enum_newtoplev(const char *s)
 {
 	struct enum_search *tmp;
 

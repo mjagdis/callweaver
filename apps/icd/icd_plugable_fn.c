@@ -41,7 +41,7 @@
 
 static int PLUGABLE_FN_ID_POOL = 1;
 
-icd_status init_icd_plugable_fns(icd_plugable_fn * that, char *name, icd_config * data)
+icd_status init_icd_plugable_fns(icd_plugable_fn * that, const char *name, icd_config * data)
 {
     char buf[80];
 
@@ -202,7 +202,7 @@ void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config *
     }
 
 }
-icd_plugable_fn *create_icd_plugable_fns(icd_config * data, char *name)
+icd_plugable_fn *create_icd_plugable_fns(icd_config * data, const char *name)
 {
     icd_plugable_fn *plugable_fns;
     icd_status result;
@@ -256,7 +256,7 @@ char *icd_plugable__get_name(icd_plugable_fn * that)
     assert(that != NULL);
 
     if (that->name == NULL) {
-        return "";
+        return (char *)"";
     }
     return that->name;
 }

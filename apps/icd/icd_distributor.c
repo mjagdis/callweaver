@@ -455,7 +455,7 @@ icd_status icd_distributor__stop_distributing(icd_distributor *that) {
 
 /* Sets the agent list to use in this distributor. */
 icd_status icd_distributor__set_agent_list(icd_distributor *that, icd_member_list* agents) {
-    icd_status result;
+    icd_status result = ICD_SUCCESS;
 
     assert(that != NULL);
     assert(agents != NULL);
@@ -482,7 +482,7 @@ icd_member_list *icd_distributor__get_agent_list(icd_distributor *that) {
 
 /* Sets the customer list to use in this distributor. */
 icd_status icd_distributor__set_customer_list(icd_distributor *that, icd_member_list *customers) {
-    icd_status result;
+    icd_status result = ICD_SUCCESS;
 
     assert(that != NULL);
     assert(customers != NULL);
@@ -522,7 +522,7 @@ char *icd_distributor__get_name(icd_distributor *that) {
     assert(that != NULL);
 
     if (that->name == NULL) {
-        return "";
+        return (char *)"";
     }
     return that->name;
 }
@@ -897,7 +897,7 @@ icd_status icd_distributor__link_callers_via_ringall(icd_distributor *dist, void
 
 /* Standard dump function for distributor */
 icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, struct cw_dynstr **ds_p, void *extra) {
-    static char *indent = "    ";
+    static const char *indent = "    ";
     vh_keylist *keys;
     assert(dist != NULL);
 
@@ -1055,7 +1055,7 @@ icd_status icd_distributor__correct_list_config(icd_config *data) {
 
     list_sizep = icd_config__get_value(data, "size");
     if (list_sizep == NULL) {
-        icd_config__set_value(data, "size", "200");
+        icd_config__set_value(data, "size", (char *)"200");
     }
     return ICD_SUCCESS;
 }

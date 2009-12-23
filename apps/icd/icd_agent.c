@@ -454,16 +454,16 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
  */
 int icd_agent__standard_state_suspend(icd_event * event, void *extra)
 {
+    cw_channel *chan;
     icd_caller *that;
-    char *action;
-    char *entertain;
-    char *wakeup;
-    char *wait;
+    const char *action;
+    const char *entertain;
+    const char *wakeup;
+    const char *wait;
+    const char *pos = NULL;
     int waittime;
-    char res;
-    char *pos = NULL;
     int cleanup_required = 0;
-    cw_channel * chan;
+    char res;
     
     assert(event != NULL);
     that = icd_event__get_source(event);

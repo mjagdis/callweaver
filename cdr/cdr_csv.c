@@ -66,8 +66,8 @@ static FILE *csvmaster_fd;
 static char csvacct_path[CW_CONFIG_MAX_PATH];
 static int csvacct_offset;
 
-static char *buf;
-static size_t bufsize;
+static char *gbuf;
+static size_t gbufsize;
 #define atleast(n)	((n + 255) / 256)
 
 
@@ -75,9 +75,9 @@ static int expand(size_t n)
 {
 	char *nbuf;
 
-	if ((nbuf = realloc(buf, bufsize + n))) {
-		buf = nbuf;
-		bufsize += n;
+	if ((nbuf = realloc(gbuf, gbufsize + n))) {
+		gbuf = nbuf;
+		gbufsize += n;
 		return 0;
 	}
 
@@ -156,31 +156,31 @@ static char *build_csv_record(size_t *pos, const struct cw_cdr *cdr)
 {
 	*pos = 0;
 
-	if (!append_string(pos, buf, bufsize, cdr->accountcode)
-	&& !append_string(pos, buf, bufsize, cdr->src)
-	&& !append_string(pos, buf, bufsize, cdr->dst)
-	&& !append_string(pos, buf, bufsize, cdr->dcontext)
-	&& !append_string(pos, buf, bufsize, cdr->clid)
-	&& !append_string(pos, buf, bufsize, cdr->channel)
-	&& !append_string(pos, buf, bufsize, cdr->dstchannel)
-	&& !append_string(pos, buf, bufsize, cdr->lastapp)
-	&& !append_string(pos, buf, bufsize, cdr->lastdata)
-	&& !append_date(pos, buf, bufsize, cdr->start)
-	&& !append_date(pos, buf, bufsize, cdr->answer)
-	&& !append_date(pos, buf, bufsize, cdr->end)
-	&& !append_times(pos, buf, bufsize, cdr)
-	&& !append_string(pos, buf, bufsize, cw_cdr_disp2str(cdr->disposition))
-	&& !append_string(pos, buf, bufsize, cw_cdr_flags2str(cdr->amaflags))
+	if (!append_string(pos, gbuf, gbufsize, cdr->accountcode)
+	&& !append_string(pos, gbuf, gbufsize, cdr->src)
+	&& !append_string(pos, gbuf, gbufsize, cdr->dst)
+	&& !append_string(pos, gbuf, gbufsize, cdr->dcontext)
+	&& !append_string(pos, gbuf, gbufsize, cdr->clid)
+	&& !append_string(pos, gbuf, gbufsize, cdr->channel)
+	&& !append_string(pos, gbuf, gbufsize, cdr->dstchannel)
+	&& !append_string(pos, gbuf, gbufsize, cdr->lastapp)
+	&& !append_string(pos, gbuf, gbufsize, cdr->lastdata)
+	&& !append_date(pos, gbuf, gbufsize, cdr->start)
+	&& !append_date(pos, gbuf, gbufsize, cdr->answer)
+	&& !append_date(pos, gbuf, gbufsize, cdr->end)
+	&& !append_times(pos, gbuf, gbufsize, cdr)
+	&& !append_string(pos, gbuf, gbufsize, cw_cdr_disp2str(cdr->disposition))
+	&& !append_string(pos, gbuf, gbufsize, cw_cdr_flags2str(cdr->amaflags))
 #ifdef CSV_LOGUNIQUEID
-	&& !append_string(pos, buf, bufsize, cdr->uniqueid)
+	&& !append_string(pos, gbuf, gbufsize, cdr->uniqueid)
 #endif
 #ifdef CSV_LOGUSERFIELD
-	&& !append_string(pos, buf, bufsize, cdr->userfield)
+	&& !append_string(pos, gbuf, gbufsize, cdr->userfield)
 #endif
 	) {
 		/* Trim off trailing comma */
-		buf[*pos - 1] = '\n';
-		return buf;
+		gbuf[*pos - 1] = '\n';
+		return gbuf;
 	}
 
 	return NULL;
@@ -295,11 +295,11 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(buf = malloc(1024))) {
+	if (!(gbuf = malloc(1024))) {
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		return -1;
 	}
-	bufsize = 1024;
+	gbufsize = 1024;
 
 	snprintf(csvmaster_path, sizeof(csvmaster_path), "%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 	csvacct_offset = snprintf(csvacct_path, sizeof(csvacct_path), "%s/%s/", cw_config_CW_LOG_DIR, CSV_LOG_DIR);

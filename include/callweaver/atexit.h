@@ -32,7 +32,7 @@ struct cw_atexit {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	void (*function)(void);
-	char *name;
+	const char *name;
 };
 
 
@@ -40,27 +40,27 @@ extern CW_API_PUBLIC struct cw_registry atexit_registry;
 
 
 #define cw_atexit_register(ptr) ({ \
-	const typeof(ptr) __ptr = (ptr); \
+	const typeof(ptr) __atptr = (ptr); \
 	/* We know 0 refs means not initialized because we know how objs work \
 	 * internally and we know that registration only happens while the \
 	 * module lock is held. \
 	 */ \
-	if (!cw_object_refs(__ptr)) { \
-		cw_object_init_obj(&__ptr->obj, NULL, 0); \
+	if (!cw_object_refs(__atptr)) { \
+		cw_object_init_obj(&__atptr->obj, NULL, 0); \
 		/* atexits don't pin the module when registered, but they do pin it \
 		 * just before being run or unregistered so the normal puts only \
 		 * release the module once we're done. \
 		 */ \
-		__ptr->obj.module = get_modinfo()->self; \
+		__atptr->obj.module = get_modinfo()->self; \
 	} \
-	__ptr->reg_entry = cw_registry_add(&atexit_registry, 0, &__ptr->obj); \
+	__atptr->reg_entry = cw_registry_add(&atexit_registry, 0, &__atptr->obj); \
 	0; \
 })
 #define cw_atexit_unregister(ptr) ({ \
-	const typeof(ptr) __ptr = (ptr); \
-	if (__ptr->reg_entry) { \
-		cw_object_get(__ptr->obj.module); \
-		cw_registry_del(&atexit_registry, __ptr->reg_entry); \
+	const typeof(ptr) __atptr = (ptr); \
+	if (__atptr->reg_entry) { \
+		cw_object_get(__atptr->obj.module); \
+		cw_registry_del(&atexit_registry, __atptr->reg_entry); \
 	} \
 	0; \
 })

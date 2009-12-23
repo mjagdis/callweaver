@@ -131,7 +131,7 @@ struct cw_trans_pvt
 };
 
 
-struct cw_frame *cw_translate_linear_sample(int *index)
+struct cw_frame *cw_translate_linear_sample(int *i)
 {
 	/* Sample signed 16-bit audio data. 500ms of speech at 8kHz */
 	static int16_t data[] = {
@@ -416,10 +416,10 @@ struct cw_frame *cw_translate_linear_sample(int *index)
 	f.datalen = 160 * sizeof(data[0]);
 	/* Assume 8000 Hz */
 	f.samples = 160;
-	f.data = &data[*index];
-	*index += 160;
-	if (*index >= arraysize(data) - 160)
-		*index = 0;
+	f.data = &data[*i];
+	*i += 160;
+	if (*i >= arraysize(data) - 160)
+		*i = 0;
 	return &f;
 }
 

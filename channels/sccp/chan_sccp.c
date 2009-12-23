@@ -1285,7 +1285,6 @@ static int load_module(void) {
 	cw_mutex_init(&GLOB(devices_lock));
 	cw_mutex_init(&GLOB(lines_lock));
 	cw_mutex_init(&GLOB(channels_lock));
-	cw_mutex_init(&GLOB(usecnt_lock));
 
 	/* GLOB() is a macro for sccp_globals-> */
 

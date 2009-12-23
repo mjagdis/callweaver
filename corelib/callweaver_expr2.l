@@ -79,7 +79,7 @@ struct val {
 
 struct parse_io
 {
-	char *string;
+	const char *string;
 	struct val *val;
 	yyscan_t scanner;
 };
@@ -87,7 +87,15 @@ struct parse_io
 void cw_yyset_column(int column_no, yyscan_t yyscanner);
 int cw_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
-static char *expr2_token_subst(char *mess);
+static char *expr2_token_subst(const char *mess);
+
+#ifndef YY_NO_INPUT
+#  ifdef __cplusplus
+    static int yyinput (yyscan_t yyscanner) __attribute__ (( unused ));
+#  else
+    static int input  (yyscan_t yyscanner) __attribute__ (( unused ));
+#  endif
+#endif
 %}
 
 %option prefix="cw_yy"
@@ -211,7 +219,7 @@ static char *expr2_token_subst(char *mess);
 int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int cw_expr(char *expr, char *buf, int length)
+int cw_expr(const char *expr, char *buf, int length)
 {
 	struct parse_io io;
 	int return_value = 0;
@@ -255,10 +263,10 @@ int cw_expr(char *expr, char *buf, int length)
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;
-extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(char *message);
+extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(const char *message);
 extern CW_API_PUBLIC void  cw_expr_clear_extra_error_info(void);
 
-void  cw_expr_register_extra_error_info(char *message)
+void  cw_expr_register_extra_error_info(const char *message)
 {
        extra_error_message_supplied=1;
        strcpy(extra_error_message, message);
@@ -270,7 +278,7 @@ void  cw_expr_clear_extra_error_info(void)
        extra_error_message[0] = 0;
 }
 
-static char *expr2_token_equivs1[] = 
+static const char *expr2_token_equivs1[] =
 {
 	"TOKEN",
 	"TOK_COND",
@@ -295,7 +303,7 @@ static char *expr2_token_equivs1[] =
 	"TOK_LP"
 };
 
-static char *expr2_token_equivs2[] = 
+static const char *expr2_token_equivs2[] =
 {
 	"<token>",
 	"?",
@@ -321,12 +329,12 @@ static char *expr2_token_equivs2[] =
 };
 
 
-static char *expr2_token_subst(char *mess)
+static char *expr2_token_subst(const char *mess)
 {
 	/* calc a length, malloc, fill, and return; yyerror had better free it! */
 	int len=0,i;
-	char *p;
-	char *res, *s,*t;
+	const char *t, *p;
+	char *res, *s;
 	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
 
 	for (p=mess; *p; p++) {
@@ -340,7 +348,7 @@ static char *expr2_token_subst(char *mess)
 		}
 		len++;
 	}
-	res = (char*)malloc(len+1);
+	res = malloc(len+1);
 	res[0] = 0;
 	s = res;
 	for (p=mess; *p;) {

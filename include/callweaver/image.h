@@ -33,19 +33,19 @@ struct cw_imager {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	/*! Name */
-	char *name;						
+	const char *name;
 	/*! Description */
-	char *desc;						
+	const char *desc;
 	/*! Extension(s) (separated by ',' ) */
-	char *exts;						
+	const char *exts;
 	/*! Image format */
-	int format;						
+	int format;
 	/*! Read an image from a file descriptor */
-	struct cw_frame *(*read_image)(int fd, int len);	
+	struct cw_frame *(*read_image)(int fd, int len);
 	/*! Identify if this is that type of file */
-	int (*identify)(int fd);				
+	int (*identify)(int fd);
 	/*! Returns length written */
-	int (*write_image)(int fd, struct cw_frame *frame); 	
+	int (*write_image)(int fd, struct cw_frame *frame);
 };
 
 

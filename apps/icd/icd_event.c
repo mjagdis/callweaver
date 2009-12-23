@@ -107,7 +107,7 @@ static icd_module module_id = ICD_EVENT;
 struct icd_event_factory {
     char name[ICD_STRING_LEN];
     icd_listeners *listeners;
-    char **event_strings;
+    const char **event_strings;
     icd_memory *memory;
     int allocated;
 };
@@ -115,7 +115,7 @@ struct icd_event_factory {
 struct icd_event {
     icd_event_factory *factory;
     void *src;
-    char *src_name;
+    const char *src_name;
     int mod_id;
     int event_id;
     char msg[1024];
@@ -128,7 +128,7 @@ struct icd_event {
 int *icd_event_modules[ICD_MAX_MODULES];
 
 /* The standard set of module strings. */
-char *icd_module_strings[ICD_MAX_MODULES] = {
+const char *icd_module_strings[ICD_MAX_MODULES] = {
     "APP_ICD", "ICD_Queue", "ICD_Distributor", "ICD_Distributor_List",
     "ICD_Caller", "ICD_Caller_List", "ICD_Agent", "ICD_Customer",
     "ICD_Member", "ICD_Member_List", "ICD_Bridge", "ICD_Conference", "ICD_Listeners",
@@ -138,7 +138,7 @@ char *icd_module_strings[ICD_MAX_MODULES] = {
 };
 
 /* The standard set of event strings. NULL marks the end */
-char *icd_event_strings[ICD_MAX_EVENTS] = {
+const char *icd_event_strings[ICD_MAX_EVENTS] = {
     "Test", "Create", "Initialize", "Clear", "Destroy", "Push", "Pop", "Fire",
     "Pushback", "StateChange", "Add", "Remove", "Ready", "ChannelUp",
     "GetChannels", "GotChannels", "Distribute", "Distributed",
@@ -152,10 +152,10 @@ icd_event_factory global_event_factory = { "global", NULL, icd_event_strings, 0 
 icd_event_factory *event_factory = &global_event_factory;
 
 /* Sets the strings that represent each event */
-icd_status icd_event_factory__set_event_strings(icd_event_factory * that, char **strs);
+icd_status icd_event_factory__set_event_strings(icd_event_factory * that, const char **strs);
 
 /* Gets the set of strings that represent the events */
-char **icd_event_factory__get_event_strings(icd_event_factory * that);
+const char **icd_event_factory__get_event_strings(icd_event_factory * that);
 
 /*===== Public APIs =====*/
 
@@ -228,7 +228,7 @@ icd_status icd_event_factory__clear(icd_event_factory * that)
 }
 
 /***** Actions *****/
-int icd_event_factory__add_module(char *name)
+int icd_event_factory__add_module(const char *name)
 {
     int x;
 
@@ -244,7 +244,7 @@ int icd_event_factory__add_module(char *name)
     return 0;
 }
 
-int icd_event_factory__add_event(char *name)
+int icd_event_factory__add_event(const char *name)
 {
     int x;
 
@@ -261,7 +261,7 @@ int icd_event_factory__add_event(char *name)
 }
 
 /* Create a new event from this factory. */
-icd_event *icd_event_factory__make(icd_event_factory * that, void *src, char *src_name, int mod_id, int event_id,
+icd_event *icd_event_factory__make(icd_event_factory * that, void *src, const char *src_name, int mod_id, int event_id,
     char *msg, icd_listeners * targets, void *extra)
 {
     icd_event *event;
@@ -284,7 +284,7 @@ icd_event *icd_event_factory__make(icd_event_factory * that, void *src, char *sr
 
 /* Creates an event, fires it, and destroys it. This is the standard behaviour,
    but you can create your own with the other functions here. */
-icd_status icd_event_factory__generate(icd_event_factory * that, void *src, char *src_name, int mod_id,
+icd_status icd_event_factory__generate(icd_event_factory * that, void *src, const char *src_name, int mod_id,
     int event_id, char *msg, icd_listeners * targets, void *extra)
 {
     icd_event *event;
@@ -332,7 +332,7 @@ icd_status icd_event_factory__notify(icd_event_factory * that, void *src, char *
 
 /* Translates the event id into a suitable string for printing based on the
    factory's set of translation strings. */
-char *icd_event_factory__to_string(icd_event_factory * factory, icd_event_type event_id)
+const char *icd_event_factory__to_string(icd_event_factory * factory, icd_event_type event_id)
 {
     int x;
 
@@ -397,7 +397,7 @@ icd_status destroy_icd_event(icd_event ** eventp)
 }
 
 /* Initialize previously created event */
-icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, char *src_name, int mod_id,
+icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, const char *src_name, int mod_id,
     int event_id, char *msg, icd_listeners * targets, void *extra)
 {
     char buf[200];
@@ -537,7 +537,7 @@ icd_status icd_event__set_name(icd_event * that, void *src)
 }
 
 /* Gets the source name of the event */
-char *icd_event__get_name(icd_event * that)
+const char *icd_event__get_name(icd_event * that)
 {
     assert(that != NULL);
 
@@ -637,7 +637,7 @@ icd_listeners *icd_event__get_listeners(icd_event * that)
 /***** Factory Getters and Setters *****/
 
 /* Sets the strings to display for a particular event */
-icd_status icd_event_factory__set_event_strings(icd_event_factory * that, char **strs)
+icd_status icd_event_factory__set_event_strings(icd_event_factory * that, const char **strs)
 {
     assert(that != NULL);
 
@@ -646,7 +646,7 @@ icd_status icd_event_factory__set_event_strings(icd_event_factory * that, char *
 }
 
 /* Gets the strings that represent events for this factory */
-char **icd_event_factory__get_event_strings(icd_event_factory * that)
+const char **icd_event_factory__get_event_strings(icd_event_factory * that)
 {
     assert(that != NULL);
 
@@ -656,7 +656,7 @@ char **icd_event_factory__get_event_strings(icd_event_factory * that)
 /***** Help Functions *****/
 
 /* Translates the module ID into a suitable string for printing */
-char *icd_module__to_string(icd_module mod_id)
+const char *icd_module__to_string(icd_module mod_id)
 {
     int x;
 

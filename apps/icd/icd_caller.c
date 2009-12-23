@@ -98,11 +98,11 @@ int icd_caller__ready_state_on_fail(icd_event * event, void *extra);
 int icd_caller__limited_ready_state_on_fail(icd_event * event, void *extra);
 int icd_caller__destroy_on_fail(icd_event * event, void *extra);
 int icd_caller__pushback_and_ready_on_fail(icd_event * event, void *extra);
-icd_status icd_caller__set_param_string(icd_caller * that, char *param, void *value);
-icd_status icd_caller__set_param_if_null(icd_caller * that, char *param, void *value);
+icd_status icd_caller__set_param_string(icd_caller * that, const char *param, const void *value);
+icd_status icd_caller__set_param_if_null(icd_caller * that, const char *param, void *value);
 
 /* TBD make these string shorter to fit the cli skip ICD_CALLER */
-char *icd_caller_state_strings[] = {
+const char *icd_caller_state_strings[] = {
     "ICD_CALLER_STATE_CREATED", "ICD_CALLER_STATE_INITIALIZED",
     "ICD_CALLER_STATE_CLEARED", "ICD_CALLER_STATE_DESTROYED",
     "ICD_CALLER_STATE_READY", "ICD_CALLER_STATE_DISTRIBUTING",
@@ -112,16 +112,16 @@ char *icd_caller_state_strings[] = {
     "ICD_CALLER_STATE_SUSPEND", "ICD_CALLER_STATE_CONFERENCED"
 };
 
-char *icd_bridge_status_strings[] = {
+const char *icd_bridge_status_strings[] = {
     "BRIDGE_UP", "BRIDGE_DOWN"
 };
 
-char *icd_thread_state_strings[] = {
+const char *icd_thread_state_strings[] = {
     "ICD_THREAD_STATE_UNINITIALIZED", "ICD_THREAD_STATE_PAUSED",
     "ICD_THREAD_STATE_RUNNING", "ICD_THREAD_STATE_FINISHED"
 };
 
-char *cw_state_strings[] = {
+const char *cw_state_strings[] = {
     " CW_STATE_DOWN", " CW_STATE_RESERVED", " CW_STATE_OFFHOOK",
     " CW_STATE_DIALING", " CW_STATE_RING", " CW_STATE_RINGING",
     " CW_STATE_UP", " CW_STATE_BUSY", " CW_STATE_DIALING_OFFHOOK"
@@ -205,7 +205,7 @@ void destroy_icd_caller_group(icd_caller_group ** group)
 
 icd_status icd_caller__rem_group_pointer(icd_caller * caller, icd_caller_group * group)
 {
-    icd_caller_group_list *ptr, *last;
+    icd_caller_group_list *ptr, *last = NULL;
 
     for (ptr = caller->group_list; ptr; ptr = ptr->next) {
         if (ptr->group == group) {
@@ -1169,7 +1169,7 @@ int icd_caller__get_id(icd_caller * that)
 }
 
 /* Set the name string to identify this caller. */
-icd_status icd_caller__set_name(icd_caller * that, char *name)
+icd_status icd_caller__set_name(icd_caller * that, const char *name)
 {
     assert(that != NULL);
 
@@ -1182,7 +1182,7 @@ icd_status icd_caller__set_name(icd_caller * that, char *name)
 }
 
 /* Get the name string being used to identify this caller. */
-char *icd_caller__get_name(icd_caller * that)
+const char *icd_caller__get_name(icd_caller * that)
 {
     assert(that != NULL);
 
@@ -1216,10 +1216,10 @@ icd_conference *icd_caller__get_conference(icd_caller * that)
 }
 
 /* Set the music on hold for that caller call */
-icd_status icd_caller__set_moh(icd_caller * that, char *moh)
+icd_status icd_caller__set_moh(icd_caller * that, const char *moh)
 {
     assert(that != NULL);
-    icd_caller__set_param(that, "moh", moh);
+    icd_caller__set_param(that, "moh", (char *)moh);
     time(&(that->last_mod));
     return ICD_SUCCESS;
 }
@@ -1277,7 +1277,7 @@ icd_status icd_caller__set_channel_string(icd_caller * that, char *channel)
 }
 
 /* Get the channel string for that caller call */
-char *icd_caller__get_channel_string(icd_caller * that)
+const char *icd_caller__get_channel_string(icd_caller * that)
 {
     assert(that != NULL);
 
@@ -1299,7 +1299,7 @@ icd_status icd_caller__set_caller_id(icd_caller * that, char *caller_id)
 }
 
 /* Get the caller id for that caller call */
-char *icd_caller__get_caller_id(icd_caller * that)
+const char *icd_caller__get_caller_id(icd_caller * that)
 {
     assert(that != NULL);
 
@@ -1432,7 +1432,7 @@ icd_caller_state icd_caller__get_state(icd_caller * that)
     return that->state;
 }
 
-char *icd_caller__get_state_string(icd_caller * that)
+const char *icd_caller__get_state_string(icd_caller * that)
 {
     assert(that != NULL);
 
@@ -1782,7 +1782,7 @@ icd_listeners *icd_caller__get_listeners(icd_caller * that)
 /***** Callback Setters *****/
 /* The dump function is a virtual function. You set the function to execute here. */
 icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller *, int verbosity, struct cw_dynstr **ds_p,
-        void *extra), void *extra)
+        const void *extra), const void *extra)
 {
     assert(that != NULL);
 
@@ -2185,7 +2185,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     char conf_name[10];
     icd_queue *queue = NULL;
     icd_member *member;
-    icd_caller *caller;
+    icd_caller *caller = NULL;
     int res, it;
 
     assert(event != NULL);
@@ -2248,7 +2248,7 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
  	                icd_list__lock((icd_list *) (that->associations));
         		iter = icd_list__get_iterator((icd_list *) (that->associations));
         		int ack_wait = 1;
-        		char *no_ack;
+                const char *no_ack;
         		while (icd_list_iterator__has_more_nolock(iter)) {
             		associate = (icd_caller *) icd_list_iterator__next(iter);
     				no_ack = icd_caller__get_param(associate, "no_ack");
@@ -2568,15 +2568,15 @@ int icd_caller__standard_state_suspend(icd_event * event, void *extra)
 /*     int cleanup_required = 0; */
     int ret;
 
-    if (icd_caller__has_role(that, ICD_AGENT_ROLE))
-        ret = icd_agent__standard_state_call_end(event, extra);
-
-#if 0
     assert(event != NULL);
     that = icd_event__get_source(event);
     assert(that != NULL);
     assert(that->params != NULL);
 
+    if (icd_caller__has_role(that, ICD_AGENT_ROLE))
+        ret = icd_agent__standard_state_call_end(event, extra);
+
+#if 0
     /* OffHook agent with PBX thread hungup */
     if ((that->chan == NULL || (that->chan != NULL && that->chan->_softhangup))
         && (icd_caller__get_onhook(that) == 0)) {
@@ -2745,8 +2745,8 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct 
        int (*link_fn)(icd_caller *, icd_caller *);
        int (*bridge_fn)(icd_caller *, icd_caller *);
        int (*authn_fn)(icd_caller *, int);
-       icd_status (*dump_fn)(icd_caller *. int verbosity, struct cw_dynstr **ds_p, void *extra);
-       void *dump_fn_extra;
+       icd_status (*dump_fn)(icd_caller *. int verbosity, struct cw_dynstr **ds_p, const void *extra);
+       const void *dump_fn_extra;
        icd_thread_state thread_state;
      */
     /*
@@ -2961,13 +2961,13 @@ void icd_caller__dump_debug(icd_caller * that)
     cw_dynstr_free(ds);
 }
 
-void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, char *indent)
+void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, const char *indent)
 {
-    char *ptr;
-    char *action;
-    char *entertain;
-    char *wakeup;
-    char *wait;
+    const char *ptr;
+    const char *action;
+    const char *entertain;
+    const char *wakeup;
+    const char *wait;
     int waittime;
 
     icd_member *member;
@@ -3073,10 +3073,10 @@ void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, char 
 cw_channel *icd_caller__create_channel(icd_caller * that)
 {
     struct cw_channel *chan;
-    char *chanstring;
-    char *context;
-    char *priority;
-    char *extension;
+    const char *chanstring;
+    const char *context;
+    const char *priority;
+    const char *extension;
 
     assert(that != NULL);
 
@@ -3124,8 +3124,8 @@ cw_channel *icd_caller__create_channel(icd_caller * that)
 /* TBD - This assumes we are using a channel string. How can we change that? */
 icd_status icd_caller__dial_channel(icd_caller * that)
 {
-    char *chanstring;
-    char *verify_app, *verify_app_arg;
+    const char *chanstring;
+    const char *verify_app, *verify_app_arg;
     int timeout;
     int result;
 
@@ -3158,7 +3158,14 @@ icd_status icd_caller__dial_channel(icd_caller * that)
         verify_app_arg = icd_caller__get_param(that, "verify_app_arg");
         result = 0;
         if (verify_app) {
-            result = cw_function_exec_str(that->chan, cw_hash_string(verify_app), verify_app, verify_app_arg, NULL, 0);
+            char *p = NULL;
+
+            result = ICD_ERESOURCE;
+            if (!verify_app_arg || (p = strdup(verify_app_arg))) {
+                result = cw_function_exec_str(that->chan, cw_hash_string(verify_app), verify_app, p, NULL, 0);
+                if (p)
+                    free(p);
+            }
         }
         if (result == 0 && that->chan) {
             return ICD_SUCCESS;
@@ -3186,7 +3193,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
     return ICD_EGENERAL;
 }
 
-void *icd_caller__get_param(icd_caller * that, char *param)
+const void *icd_caller__get_param(icd_caller * that, const char *param)
 {
     /* tbd conver to icd_fieldset
        return icd_fieldset__get_value(that->params, param)
@@ -3196,7 +3203,7 @@ void *icd_caller__get_param(icd_caller * that, char *param)
 
 }
 
-int icd_caller__del_param(icd_caller * that, char *param)
+int icd_caller__del_param(icd_caller * that, const char *param)
 {
     /* tbd conver to icd_fieldset
        return icd_fieldset__get_value(that->params, param)
@@ -3204,7 +3211,7 @@ int icd_caller__del_param(icd_caller * that, char *param)
     return (that && that->params && param) ? vh_delete(that->params, param) : 0;
 }
 
-icd_status icd_caller__set_param(icd_caller * that, char *param, void *value)
+icd_status icd_caller__set_param(icd_caller * that, const char *param, void *value)
 {
 
     if (that && that->params && param && value) {
@@ -3215,7 +3222,7 @@ icd_status icd_caller__set_param(icd_caller * that, char *param, void *value)
     return ICD_EGENERAL;
 }
 
-icd_status icd_caller__set_param_string(icd_caller * that, char *param, void *value)
+icd_status icd_caller__set_param_string(icd_caller * that, const char *param, const void *value)
 {
 
     if (that && that->params && param && value) {
@@ -3226,9 +3233,9 @@ icd_status icd_caller__set_param_string(icd_caller * that, char *param, void *va
     return ICD_EGENERAL;
 }
 
-icd_status icd_caller__set_param_if_null(icd_caller * that, char *param, void *value)
+icd_status icd_caller__set_param_if_null(icd_caller * that, const char *param, void *value)
 {
-    void *test;
+    const void *test;
 
     if (that && that->params && param && value) {
         test = vh_read(that->params, param);
@@ -3401,7 +3408,7 @@ icd_status icd_caller__standard_start_waiting(icd_caller * caller)
     return ICD_SUCCESS;
 }
 
-icd_status icd_caller__play_sound_file(icd_caller *caller, char *file)
+icd_status icd_caller__play_sound_file(icd_caller *caller, const char *file)
 {
     int res = 0;
     int ent = 0;
@@ -3455,7 +3462,7 @@ icd_status icd_caller__set_state_on_associations(icd_caller * that, icd_caller_s
 
     icd_list_iterator *iter;
     icd_caller *associate;
-    icd_status result;
+    icd_status result = ICD_SUCCESS;
 
     assert(that != NULL);
     assert(that->associations != NULL);
@@ -3604,7 +3611,7 @@ void *icd_caller__standard_run(void *ptr)
     icd_caller_state last_state;
     icd_status result;
     icd_status vetoed;
-    icd_list *live_associations;
+    icd_list *live_associations = NULL;
     icd_plugable_fn *icd_run;
     icd_customer *customer;
     icd_agent *agent;

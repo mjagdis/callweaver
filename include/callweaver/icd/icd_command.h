@@ -34,9 +34,8 @@
 
 void create_command_hash(void);
 void destroy_command_hash(void);
-int icd_command_register(char *name, int (*func) (struct cw_dynstr **, int, char **), char *short_help, char *syntax_help,
-    char *long_help);
-void *icd_command_pointer(char *name);
+int icd_command_register(const char *name, int (*func) (struct cw_dynstr **, int, char **), const char *short_help, const char *syntax_help, const char *long_help);
+void *icd_command_pointer(const char *name);
 int icd_command_cli(struct cw_dynstr **ds_p, int argc, char **argv);
 
 /* all our commands */
@@ -58,7 +57,7 @@ int icd_command_playback_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 int icd_command_record(struct cw_dynstr **ds_p, int argc, char **argv);
 int icd_command_join_queue(struct cw_dynstr **ds_p, int argc, char **argv);
 int icd_command_control_playback(struct cw_dynstr **ds_p, int argc, char **argv);
-void icd_manager_send_message( char *format, ...);
+void icd_manager_send_message( const char *format, ...);
 
 
 #endif

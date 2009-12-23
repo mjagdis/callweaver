@@ -71,7 +71,7 @@ static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, char
 	struct timeval tv;
 	time_t unixtime;
 	struct localuser *u;
-	char *format;
+	const char *format;
 	int res=0;
 
 	if (argc > 3)

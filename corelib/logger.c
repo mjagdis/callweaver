@@ -86,7 +86,7 @@ static struct logchannel *logchannels = NULL;
 static FILE *eventlog = NULL;
 
 
-static char *levels[] = {
+static const char *levels[] = {
 	[CW_EVENT_NUM_ERROR]	= "ERROR",
 	[CW_EVENT_NUM_WARNING]	= "WARNING",
 	[CW_EVENT_NUM_NOTICE]	= "NOTICE",
@@ -124,19 +124,19 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 #undef LENSTR
 	};
 	struct iovec iov[] = {
-		/*  0: Date      */ { .iov_base = "",    .iov_len = 0 },
-		/*  1: Level     */ { .iov_base = "",    .iov_len = 0 },
-		/*  2: [         */ { .iov_base = "[",   .iov_len = sizeof("]") - 1 },
-		/*  3: Thread ID */ { .iov_base = "",    .iov_len = 0 },
-		/*  4: ]:        */ { .iov_base = "]: ", .iov_len = sizeof("]: ") - 1 },
-		/*  5: File      */ { .iov_base = "",    .iov_len = 0 },
-		/*  6: :         */ { .iov_base = ":",   .iov_len = sizeof(":") - 1 },
-		/*  7: Line      */ { .iov_base = "",    .iov_len = 0 },
-		/*  8:           */ { .iov_base = " ",   .iov_len = sizeof(" ") - 1 },
-		/*  9: Function  */ { .iov_base = "",    .iov_len = 0 },
-		/* 10: :         */ { .iov_base = ": ",  .iov_len = sizeof(": ") - 1 },
-		/* 11: Message   */ { .iov_base = "",    .iov_len = 0 },
-		/* 12: \n        */ { .iov_base = "\n",  .iov_len = sizeof("\n") - 1 }
+		/*  0: Date      */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/*  1: Level     */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/*  2: [         */ { .iov_base = (void *)"[",   .iov_len = sizeof("]") - 1 },
+		/*  3: Thread ID */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/*  4: ]:        */ { .iov_base = (void *)"]: ", .iov_len = sizeof("]: ") - 1 },
+		/*  5: File      */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/*  6: :         */ { .iov_base = (void *)":",   .iov_len = sizeof(":") - 1 },
+		/*  7: Line      */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/*  8:           */ { .iov_base = (void *)" ",   .iov_len = sizeof(" ") - 1 },
+		/*  9: Function  */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/* 10: :         */ { .iov_base = (void *)": ",  .iov_len = sizeof(": ") - 1 },
+		/* 11: Message   */ { .iov_base = (void *)"",    .iov_len = 0 },
+		/* 12: \n        */ { .iov_base = (void *)"\n",  .iov_len = sizeof("\n") - 1 }
 	};
 	char *p;
 	int i, j, n, level = 0;
@@ -211,7 +211,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 {
 	cw_address_t addr;
 	struct logchannel *chan;
-	char *facility;
+	const char *facility;
 #ifndef SOLARIS
 	CODE *cptr;
 #endif

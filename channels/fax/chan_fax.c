@@ -251,32 +251,32 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 				cw_log(CW_LOG_ERROR, "%s: can't allocate a channel\n", fm->devlink);
 				res = -1;
 			} else {
-				struct faxmodem *fm = chan->tech_pvt;
+				struct faxmodem *fm2 = chan->tech_pvt;
 
 #ifdef DOTRACE
-				fm->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
-				fm->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
+				fm2->debug[0] = open("/tmp/cap-in.raw", O_WRONLY|O_CREAT, 00660);
+				fm2->debug[1] = open("/tmp/cap-out.raw", O_WRONLY|O_CREAT, 00660);
 #endif
 				if (cfg_vblevel > 0)
-					cw_log(CW_LOG_DEBUG, "%s: calling %s@%s\n", fm->devlink, chan->exten, chan->context);
+					cw_log(CW_LOG_DEBUG, "%s: calling %s@%s\n", fm2->devlink, chan->exten, chan->context);
 
-				fm->state = FAXMODEM_STATE_CALLING;
+				fm2->state = FAXMODEM_STATE_CALLING;
 
-				cw_mutex_unlock(&fm->lock);
+				cw_mutex_unlock(&fm2->lock);
 
 				cw_channel_lock(chan);
 				cw_copy_string(chan->context, cfg_context, sizeof(chan->context));
 				cw_copy_string(chan->exten, num, sizeof(chan->exten));
 				cw_setstate(chan, CW_STATE_RINGING);
 				if (cw_pbx_start(chan)) {
-					cw_log(CW_LOG_ERROR, "%s: unable to start PBX\n", fm->devlink);
+					cw_log(CW_LOG_ERROR, "%s: unable to start PBX\n", fm2->devlink);
 					cw_hangup(chan);
 					cw_channel_unlock(chan);
 
-					cw_mutex_lock(&fm->lock);
-					fm->state = FAXMODEM_STATE_ONHOOK;
-					t31_call_event(&fm->t31_state, AT_CALL_EVENT_BUSY);
-					cw_mutex_unlock(&fm->lock);
+					cw_mutex_lock(&fm2->lock);
+					fm2->state = FAXMODEM_STATE_ONHOOK;
+					t31_call_event(&fm2->t31_state, AT_CALL_EVENT_BUSY);
+					cw_mutex_unlock(&fm2->lock);
 					return -1;
 				}
 				cw_channel_unlock(chan);
@@ -605,14 +605,14 @@ static void *faxmodem_thread(void *obj)
 
 /*! Request a channel with an instance of the specified driver type.
  *
- * \param type		Driver type
+ * \param drvtype	Driver type
  * \param format	Acceptable formats
  * \param data		User supplied data (from <type>/<data>)
  * \param cause		To be filled in with the reason for failure if the channel could not be provided
  *
  * \return channel
  */
-static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
+static struct cw_channel *tech_requester(const char *drvtype, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
 	struct faxmodem *fm = NULL;
@@ -686,7 +686,7 @@ static struct cw_channel *tech_requester(const char *type, int format, void *dat
  * \param chan		Channel to use
  * \param dest		Destination to connect to
  */
-static int tech_call(struct cw_channel *chan, char *dest)
+static int tech_call(struct cw_channel *chan, const char *dest)
 {
 	struct tm tm;
 	char buf[sizeof("0000+0000")];

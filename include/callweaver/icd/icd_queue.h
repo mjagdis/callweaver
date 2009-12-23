@@ -114,12 +114,12 @@ extern "C" {
     int icd_queue__get_holdannounce_cycle(icd_queue * that);
     int icd_queue__get_holdannounce_frequency(icd_queue * that);
     int icd_queue__get_holdannounce_holdtime(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_next(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_calls(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that);
-    char *icd_queue__get_holdannounce_sound_thanks(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_next(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_calls(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that);
+    const char *icd_queue__get_holdannounce_sound_thanks(icd_queue * that);
 
     int icd_queue__get_wait_timeout(icd_queue * that);
 

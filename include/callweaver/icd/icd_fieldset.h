@@ -49,20 +49,20 @@ extern "C" {
 
 /***** Init - Destroyer for icd_fieldset *****/
 
-    icd_fieldset *create_icd_fieldset(char *name);
+    icd_fieldset *create_icd_fieldset(const char *name);
     icd_status destroy_icd_fieldset(icd_fieldset ** fieldsetp);
-    icd_status init_icd_fieldset(icd_fieldset * that, char *name);
+    icd_status init_icd_fieldset(icd_fieldset * that, const char *name);
     icd_status icd_fieldset__clear(icd_fieldset * that);
 
 /***** Actions *****/
 
-    void *icd_fieldset__get_value(icd_fieldset * that, char *key);
-    icd_status icd_fieldset__set_value(icd_fieldset * that, char *key, void *setting);
+    void *icd_fieldset__get_value(icd_fieldset * that, const char *key);
+    icd_status icd_fieldset__set_value(icd_fieldset * that, const char *key, void *setting);
     icd_status icd_fieldset__set_if_new(icd_fieldset * that, char *key, void *setting);
-    char *icd_fieldset__get_strdup(icd_fieldset * that, char *key, char *default_str);
+    char *icd_fieldset__get_strdup(icd_fieldset * that, const char *key, const char *default_str);
     icd_status icd_fieldset__strncpy(icd_fieldset * that, char *key, char *target, int maxchars);
-    int icd_fieldset__get_int_value(icd_fieldset * that, char *key, int default_int);
-    void *icd_fieldset__get_any_value(icd_fieldset * that, char *key, void *default_any);
+    int icd_fieldset__get_int_value(icd_fieldset * that, const char *key, int default_int);
+    void *icd_fieldset__get_any_value(icd_fieldset * that, const char *key, void *default_any);
     icd_fieldset *icd_fieldset__get_subset(icd_fieldset * that, char *begin_key);
     icd_status icd_fieldset__remove_key(icd_fieldset * that, char *key);
     icd_status icd_fieldset__remove_value(icd_fieldset * that, void *value);
@@ -76,7 +76,7 @@ extern "C" {
 
 /***** Shared helper functions *****/
 
-    char *correct_null_str(char *str);
+    const char *correct_null_str(const char *str);
 
 #ifdef __cplusplus
 }

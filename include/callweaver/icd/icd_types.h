@@ -109,7 +109,7 @@ typedef enum {
 #define ICD_MAX_MODULES 50
 
 /* extern int  *icd_event_modules[]; these are now local icd_event.c */
-extern char *icd_module_strings[];      /* see icd_event.c DONT forget to update when chg enum icd_module! */
+extern const char *icd_module_strings[];      /* see icd_event.c DONT forget to update when chg enum icd_module! */
 
 /* Event types. are generic and used by icd objects and by icd states*/
 typedef enum {
@@ -127,7 +127,7 @@ typedef enum {
 #define ICD_MAX_EVENTS 100
 
 /*extern int  *icd_event_ids[]; these are now local icd_event.c*/
-extern char *icd_event_strings[];       /* see icd_event.c DONT forget to update when chg enum icd_event_type!! */
+extern const char *icd_event_strings[];       /* see icd_event.c DONT forget to update when chg enum icd_event_type!! */
 
 /* Return codes from functions */
 typedef enum {
@@ -146,12 +146,12 @@ typedef enum {
     ICD_CALLER_STATE_SUSPEND, ICD_CALLER_STATE_CONFERENCED
 } icd_caller_state;
 
-extern char *icd_caller_state_strings[];        /* Kept in icd_caller.c */
+extern const char *icd_caller_state_strings[];        /* Kept in icd_caller.c */
 
 /* Status of bridging */
 typedef enum { BRIDGE_UP, BRIDGE_CLEANUP, BRIDGE_DOWN } icd_bridge_status;
 
-extern char *icd_bridge_status_strings[];       /* Kept in icd_caller.c */
+extern const char *icd_bridge_status_strings[];       /* Kept in icd_caller.c */
 
 /* Categories of lists that are available */
 typedef enum {
@@ -210,9 +210,9 @@ typedef enum {
 
 #define ICD_PLUGABLE_STANDARD icd_plugable_fn
 
-extern char *icd_thread_state_strings[];        /* Kept in icd_caller.c */
+extern const char *icd_thread_state_strings[];        /* Kept in icd_caller.c */
 
-extern char *cw_state_strings[];       /* Kept in icd_caller.c */
+extern const char *cw_state_strings[];       /* Kept in icd_caller.c */
 
 /* Generic list of void pointers to stuff several things into 1 obj */
 

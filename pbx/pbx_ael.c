@@ -71,8 +71,8 @@ static void FREE(void *ptr)
 static int aeldebug = 0;
 
 static const char dtext[] = "Asterisk Extension Language Compiler v2";
-static char *config = "extensions.ael";
-static char *registrar = "pbx_ael";
+static const char config[] = "extensions.ael";
+static const char registrar[] = "pbx_ael";
 
 static int errs, warns, notes;
 
@@ -91,15 +91,15 @@ struct argapp
 #endif
 
 #ifdef AAL_ARGCHECK
-int option_matches_j( struct argdesc *should, pval *is, struct argapp *app);
-int option_matches( struct argdesc *should, pval *is, struct argapp *app);
+int option_matches_j( struct argdesc *should, struct pval *is, struct argapp *app);
+int option_matches( struct argdesc *should, struct pval *is, struct argapp *app);
 int ael_is_funcname(char *name);
 #endif
 
-int check_app_args(pval *appcall, pval *arglist, struct argapp *app);
-void check_pval(pval *item, struct argapp *apps, int in_globals);
-void check_pval_item(pval *item, struct argapp *apps, int in_globals);
-void check_switch_expr(pval *item, struct argapp *apps);
+int check_app_args(struct pval *appcall, struct pval *arglist, struct argapp *app);
+void check_pval(struct pval *item, struct argapp *apps, int in_globals);
+void check_pval_item(struct pval *item, struct argapp *apps, int in_globals);
+void check_switch_expr(struct pval *item, struct argapp *apps);
 extern CW_API_PUBLIC void cw_expr_register_extra_error_info(char *errmsg);
 extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
 extern CW_API_PUBLIC int  cw_expr(char *expr, char *buf, int length);
@@ -110,18 +110,18 @@ struct ael_extension *new_exten(void);
 void linkprio(struct ael_extension *exten, struct ael_priority *prio);
 void destroy_extensions(struct ael_extension *exten);
 void linkexten(struct ael_extension *exten, struct ael_extension *add);
-void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten );
+void gen_prios(struct ael_extension *exten, char *label, struct pval *statement, struct ael_extension *mother_exten );
 void set_priorities(struct ael_extension *exten);
 void add_extensions(struct ael_extension *exten, struct cw_context *context);
 void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root);
-void destroy_pval(pval *item);
-void destroy_pval_item(pval *item);
+void destroy_pval(struct pval *item);
+void destroy_pval_item(struct pval *item);
 int is_float(char *arg );
 int is_int(char *arg );
 int is_empty(char *arg);
-static pval *current_db;
-static pval *current_context;
-static pval *current_extension;
+static struct pval *current_db;
+static struct pval *current_context;
+static struct pval *current_extension;
 
 static const char *match_context;
 static const char *match_exten;
@@ -130,30 +130,30 @@ static int in_abstract_context;
 static int count_labels; /* true, put matcher in label counting mode */
 static int label_count;  /* labels are only meant to be counted in a context or exten */
 static int return_on_context_match;
-static pval *last_matched_label;
-struct pval *match_pval(pval *item);
-static void check_timerange(pval *p);
-static void check_dow(pval *DOW);
-static void check_day(pval *DAY);
-static void check_month(pval *MON);
-static void check_expr2_input(pval *expr, char *str);
-static int extension_matches(pval *here, const char *exten, const char *pattern);
-static void check_goto(pval *item);
-static void find_pval_goto_item(pval *item, int lev);
-static void find_pval_gotos(pval *item, int lev);
+static struct pval *last_matched_label;
+struct pval *match_pval(struct pval *item);
+static void check_timerange(struct pval *p);
+static void check_dow(struct pval *DOW);
+static void check_day(struct pval *DAY);
+static void check_month(struct pval *MON);
+static void check_expr2_input(struct pval *expr, char *str);
+static int extension_matches(struct pval *here, const char *exten, const char *pattern);
+static void check_goto(struct pval *item);
+static void find_pval_goto_item(struct pval *item, int lev);
+static void find_pval_gotos(struct pval *item, int lev);
 
 static struct pval *find_label_in_current_context(char *exten, char *label);
-static void print_pval_list(FILE *fin, pval *item, int depth);
+static void print_pval_list(FILE *fin, struct pval *item, int depth);
 
 static struct pval *find_label_in_current_extension(const char *label);
 static struct pval *find_label_in_current_db(const char *context, const char *exten, const char *label);
 
 /* PRETTY PRINTER FOR AEL:  ============================================================================= */
 
-static void print_pval(FILE *fin, pval *item, int depth)
+static void print_pval(FILE *fin, struct pval *item, int depth)
 {
 	int i;
-	pval *lp;
+	struct pval *lp;
 	
 	for (i=0; i<depth; i++) {
 		fprintf(fin, "\t"); /* depth == indentation */
@@ -404,9 +404,9 @@ static void print_pval(FILE *fin, pval *item, int depth)
 	}
 }
 
-static void print_pval_list(FILE *fin, pval *item, int depth)
+static void print_pval_list(FILE *fin, struct pval *item, int depth)
 {
-	pval *i;
+	struct pval *i;
 	
 	for (i=item; i; i=i->next) {
 		print_pval(fin, i, depth);
@@ -414,7 +414,7 @@ static void print_pval_list(FILE *fin, pval *item, int depth)
 }
 
 #if 0
-static void ael2_print(char *fname, pval *tree)
+static void ael2_print(char *fname, struct pval *tree)
 {
 	FILE *fin = fopen(fname,"w");
 	if ( !fin ) {
@@ -429,14 +429,14 @@ static void ael2_print(char *fname, pval *tree)
 
 /* EMPTY TEMPLATE FUNCS FOR AEL TRAVERSAL:  ============================================================================= */
 
-void traverse_pval_template(pval *item, int depth);
-void traverse_pval_item_template(pval *item, int depth);
+void traverse_pval_template(struct pval *item, int depth);
+void traverse_pval_item_template(struct pval *item, int depth);
 
 
-void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy for a pretty print (indentation),
+void traverse_pval_item_template(struct pval *item, int depth)/* depth comes in handy for a pretty print (indentation),
 														  but you may not need it */
 {
-	pval *lp;
+	struct pval *lp;
 	
 	switch ( item->type ) {
 	case PV_WORD:
@@ -666,10 +666,10 @@ void traverse_pval_item_template(pval *item, int depth)/* depth comes in handy f
 	}
 }
 
-void traverse_pval_template(pval *item, int depth) /* depth comes in handy for a pretty print (indentation),
+void traverse_pval_template(struct pval *item, int depth) /* depth comes in handy for a pretty print (indentation),
 													  but you may not need it */
 {
-	pval *i;
+	struct pval *i;
 	
 	for (i=item; i; i=i->next) {
 		traverse_pval_item_template(i, depth);
@@ -683,7 +683,7 @@ void traverse_pval_template(pval *item, int depth) /* depth comes in handy for a
 
 
 
-static int extension_matches(pval *here, const char *exten, const char *pattern)
+static int extension_matches(struct pval *here, const char *exten, const char *pattern)
 {
 	int err1;
 	regex_t preg;
@@ -794,7 +794,7 @@ static int extension_matches(pval *here, const char *exten, const char *pattern)
 }
 
 
-static void check_expr2_input(pval *expr, char *str)
+static void check_expr2_input(struct pval *expr, char *str)
 {
 	int spaces = strspn(str,"\t \n");
 	if ( !strncmp(str+spaces,"$[",2) ) {
@@ -804,7 +804,7 @@ static void check_expr2_input(pval *expr, char *str)
 	}
 }
 
-static void check_timerange(pval *p)
+static void check_timerange(struct pval *p)
 {
 	char times[200];
 	char *e;
@@ -860,7 +860,7 @@ static void check_timerange(pval *p)
 	return;
 }
 
-static char *days[] =
+static const char *days[] =
 {
 	"sun",
 	"mon",
@@ -872,7 +872,7 @@ static char *days[] =
 };
 
 /*! \brief  get_dow: Get day of week */
-static void check_dow(pval *DOW)
+static void check_dow(struct pval *DOW)
 {
 	char dow[200];
 	char *c;
@@ -911,7 +911,7 @@ static void check_dow(pval *DOW)
 		e = s;
 }
 
-static void check_day(pval *DAY)
+static void check_day(struct pval *DAY)
 {
 	char day[200];
 	char *c;
@@ -957,7 +957,7 @@ static void check_day(pval *DAY)
 		e = s;
 }
 
-static char *months[] =
+static const char *months[] =
 {
 	"jan",
 	"feb",
@@ -973,7 +973,7 @@ static char *months[] =
 	"dec",
 };
 
-static void check_month(pval *MON)
+static void check_month(struct pval *MON)
 {
 	char mon[200];
 	char *c;
@@ -1013,7 +1013,7 @@ static void check_month(pval *MON)
 /* general purpose goto finder */
 
 
-static void check_goto(pval *item)
+static void check_goto(struct pval *item)
 {
 	/* check for the target of the goto-- does it exist? */
 	if ( !(item->u1.list)->next && !(item->u1.list)->u1.str ) {
@@ -1058,9 +1058,9 @@ static void check_goto(pval *item)
 	/* All 3 items! */
 	if (item->u1.list->next && item->u1.list->next->next) {
 		/* all three */
-		pval *first = item->u1.list;
-		pval *second = item->u1.list->next;
-		pval *third = item->u1.list->next->next;
+		struct pval *first = item->u1.list;
+		struct pval *second = item->u1.list->next;
+		struct pval *third = item->u1.list->next->next;
 		
 		/* printf("Calling find_label_in_current_context with args %s, %s, %s\n",
 		   (char*)first->u1.str, (char*)second->u1.str, (char*)third->u1.str); */
@@ -1115,7 +1115,7 @@ static void check_goto(pval *item)
 }
 	
 
-static void find_pval_goto_item(pval *item, int lev)
+static void find_pval_goto_item(struct pval *item, int lev)
 {
 	struct pval *p4;
 	if (lev>100) {
@@ -1273,9 +1273,9 @@ static void find_pval_goto_item(pval *item, int lev)
 	}
 }
 
-static void find_pval_gotos(pval *item,int lev)
+static void find_pval_gotos(struct pval *item,int lev)
 {
-	pval *i;
+	struct pval *i;
 
 	for (i=item; i; i=i->next) {
 		
@@ -1286,18 +1286,18 @@ static void find_pval_gotos(pval *item,int lev)
 
 
 /* general purpose label finder */
-static struct pval *match_pval_item(pval *item)
+static struct pval *match_pval_item(struct pval *item)
 {
-	pval *x;
+	struct pval *x;
 	
 	switch ( item->type ) {
 	case PV_PROC:
 		/* fields: item->u1.str     == name of proc
-		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.proc_statements == pval list of statements in proc body.
+				   item->u3.proc_statements == struct pval list of statements in proc body.
 		*/
 		if (!strcmp(match_context,"*") || !strcmp(item->u1.str, match_context)) {
 			if (return_on_context_match && !strcmp(item->u1.str, match_context)) {
@@ -1320,7 +1320,7 @@ static struct pval *match_pval_item(pval *item)
 			
 	case PV_CONTEXT:
 		/* fields: item->u1.str     == name of context
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 				   item->u3.abstract == int 1 if an abstract keyword were present
 		*/
 		if (!strcmp(match_context,"*") || !strcmp(item->u1.str, match_context)) {
@@ -1343,7 +1343,7 @@ static struct pval *match_pval_item(pval *item)
 
 	case PV_CASE:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
@@ -1352,7 +1352,7 @@ static struct pval *match_pval_item(pval *item)
 			
 	case PV_PATTERN:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
@@ -1361,7 +1361,7 @@ static struct pval *match_pval_item(pval *item)
 			
 	case PV_DEFAULT:
 		/* fields: 
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
@@ -1370,7 +1370,7 @@ static struct pval *match_pval_item(pval *item)
 			
 	case PV_CATCH:
 		/* fields: item->u1.str     == name of extension to catch
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 		*/
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
@@ -1378,7 +1378,7 @@ static struct pval *match_pval_item(pval *item)
 		break;
 			
 	case PV_STATEMENTBLOCK:
-		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of statements in block, one per entry in the list
 		*/
 		if ((x=match_pval(item->u1.list))) {
 			return x;
@@ -1409,7 +1409,7 @@ static struct pval *match_pval_item(pval *item)
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
-				   item->u4.for_statements == a pval list of statements in the for ()
+				   item->u4.for_statements == a struct pval list of statements in the for ()
 		*/
 		if ((x=match_pval(item->u4.for_statements))) {
 			return x;
@@ -1419,7 +1419,7 @@ static struct pval *match_pval_item(pval *item)
 	case PV_WHILE:
 		/* fields: item->u1.str        == the while conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the while ()
+				   item->u2.statements == a struct pval list of statements in the while ()
 		*/
 		if ((x=match_pval(item->u2.statements))) {
 			return x;
@@ -1429,23 +1429,23 @@ static struct pval *match_pval_item(pval *item)
 	case PV_RANDOM:
 		/* fields: item->u1.str        == the random number expression, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		 fall thru to PV_IF */
 		
 	case PV_IFTIME:
 		/* fields: item->u1.list        == the time values, 4 of them, as PV_WORD structs in a list
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		fall thru to PV_IF*/
 	case PV_IF:
 		/* fields: item->u1.str        == the if conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		if ((x=match_pval(item->u2.statements))) {
@@ -1461,7 +1461,7 @@ static struct pval *match_pval_item(pval *item)
 	case PV_SWITCH:
 		/* fields: item->u1.str        == the switch expression
 
-				   item->u2.statements == a pval list of statements in the switch, 
+				   item->u2.statements == a struct pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
 		if ((x=match_pval(item->u3.else_statements))) {
@@ -1472,7 +1472,7 @@ static struct pval *match_pval_item(pval *item)
 	case PV_EXTENSION:
 		/* fields: item->u1.str        == the extension name, label, whatever it's called
 
-				   item->u2.statements == a pval list of statements in the extension
+				   item->u2.statements == a struct pval list of statements in the extension
 				   item->u3.hints      == a char * hint argument
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
@@ -1505,12 +1505,12 @@ static struct pval *match_pval_item(pval *item)
 	return 0;
 }
 
-struct pval *match_pval(pval *item)
+struct pval *match_pval(struct pval *item)
 {
-	pval *i;
+	struct pval *i;
 
 	for (i=item; i; i=i->next) {
-		pval *x;
+		struct pval *x;
 		
 		if ((x = match_pval_item(i)))
 			return x; /* cut the search short */
@@ -1652,7 +1652,7 @@ int is_empty(char *arg)
 }
 
 #ifdef AAL_ARGCHECK
-int option_matches_j( struct argdesc *should, pval *is, struct argapp *app)
+int option_matches_j( struct argdesc *should, struct pval *is, struct argapp *app)
 {
 	struct argchoice *ac;
 	char opcop[400],*q,*p;
@@ -1714,7 +1714,7 @@ int option_matches_j( struct argdesc *should, pval *is, struct argapp *app)
 	
 }
 
-int option_matches( struct argdesc *should, pval *is, struct argapp *app)
+int option_matches( struct argdesc *should, struct pval *is, struct argapp *app)
 {
 	struct argchoice *ac;
 	char opcop[400];
@@ -1786,11 +1786,11 @@ int option_matches( struct argdesc *should, pval *is, struct argapp *app)
 }
 #endif
 
-int check_app_args(pval* appcall, pval *arglist, struct argapp *app)
+int check_app_args(struct pval* appcall, struct pval *arglist, struct argapp *app)
 {
 #ifdef AAL_ARGCHECK
 	struct argdesc *ad = app->args;
-	pval *pa;
+	struct pval *pa;
 	int z;
 	
 	for (pa = arglist; pa; pa=pa->next) {
@@ -1840,7 +1840,7 @@ int check_app_args(pval* appcall, pval *arglist, struct argapp *app)
 #endif
 }
 
-void check_switch_expr(pval *item, struct argapp *apps)
+void check_switch_expr(struct pval *item, struct argapp *apps)
 {
 #ifdef AAL_ARGCHECK
 	/* get and clean the variable name */
@@ -1848,7 +1848,7 @@ void check_switch_expr(pval *item, struct argapp *apps)
 	struct argapp *a,*a2;
 	struct appsetvar *v,*v2;
 	struct argchoice *c;
-	pval *t;
+	struct pval *t;
 	
 	p = item->u1.str;
 	while (p && *p && (*p == ' ' || *p == '\t' || *p == '$' || *p == '{' ) )
@@ -1940,7 +1940,7 @@ void check_switch_expr(pval *item, struct argapp *apps)
 
 static void check_context_names(void)
 {
-	pval *i,*j;
+	struct pval *i,*j;
 	for (i=current_db; i; i=i->next) {
 		if (i->type == PV_CONTEXT || i->type == PV_PROC) {
 			for (j=i->next; j; j=j->next) {
@@ -1957,9 +1957,9 @@ static void check_context_names(void)
 	}
 }
 
-static void check_abstract_reference(pval *abstract_context)
+static void check_abstract_reference(struct pval *abstract_context)
 {
-	pval *i,*j;
+	struct pval *i,*j;
 	/* find some context includes that reference this context */
 	
 
@@ -1985,9 +1985,9 @@ static void check_abstract_reference(pval *abstract_context)
 }
 
 
-void check_pval_item(pval *item, struct argapp *apps, int in_globals)
+void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 {
-	pval *lp;
+	struct pval *lp;
 #ifdef AAL_ARGCHECK
 	struct argapp *app, *found;
 #endif
@@ -2000,16 +2000,16 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	switch (item->type) {
 	case PV_WORD:
 		/* fields: item->u1.str == string associated with this (word).
-		           item->u2.arglist  == pval list of 4 PV_WORD elements for time values (only in PV_INCLUDES) */
+		           item->u2.arglist  == struct pval list of 4 PV_WORD elements for time values (only in PV_INCLUDES) */
 		break;
 		
 	case PV_PROC:
 		/* fields: item->u1.str     == name of proc
-		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.proc_statements == pval list of statements in proc body.
+				   item->u3.proc_statements == struct pval list of statements in proc body.
 		*/
 		in_abstract_context = 0;
 		current_context = item;
@@ -2022,7 +2022,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_CONTEXT:
 		/* fields: item->u1.str     == name of context
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 				   item->u3.abstract == int 1 if an abstract keyword were present
 		*/
 		current_context = item;
@@ -2037,7 +2037,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_PROC_CALL:
 		/* fields: item->u1.str     == name of proc to call
-		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -2071,7 +2071,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_APPLICATION_CALL:
 		/* fields: item->u1.str     == name of application to call
-		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -2111,7 +2111,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		
 	case PV_CASE:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		/* Make sure sequence of statements under case is terminated with  goto, return, or break */
 		/* find the last statement */
@@ -2120,7 +2120,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_PATTERN:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		/* Make sure sequence of statements under case is terminated with  goto, return, or break */
 		/* find the last statement */
@@ -2130,7 +2130,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_DEFAULT:
 		/* fields: 
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 
 		check_pval(item->u2.statements, apps,in_globals);
@@ -2138,25 +2138,25 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 			
 	case PV_CATCH:
 		/* fields: item->u1.str     == name of extension to catch
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 		*/
 		check_pval(item->u2.statements, apps,in_globals);
 		break;
 			
 	case PV_SWITCHES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
 		*/
 		check_pval(item->u1.list, apps,in_globals);
 		break;
 			
 	case PV_ESWITCHES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
 		*/
 		check_pval(item->u1.list, apps,in_globals);
 		break;
 			
 	case PV_INCLUDES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
 		*/
 		check_pval(item->u1.list, apps,in_globals);
 		for (lp=item->u1.list; lp; lp=lp->next){
@@ -2178,7 +2178,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		break;
 			
 	case PV_STATEMENTBLOCK:
-		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of statements in block, one per entry in the list
 		*/
 		check_pval(item->u1.list, apps,in_globals);
 		break;
@@ -2203,7 +2203,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		break;
 			
 	case PV_GOTO:
-		/* fields: item->u1.list     == pval list of PV_WORD target names, up to 3, in order as given by user.
+		/* fields: item->u1.list     == struct pval list of PV_WORD target names, up to 3, in order as given by user.
 		           item->u1.list->u1.str  == where the data on a PV_WORD will always be.
 		*/
 		/* don't check goto's in abstract contexts */
@@ -2228,7 +2228,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
-				   item->u4.for_statements == a pval list of statements in the for ()
+				   item->u4.for_statements == a struct pval list of statements in the for ()
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, for test expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.for_test);
 		cw_expr_register_extra_error_info(errmsg);
@@ -2262,7 +2262,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_WHILE:
 		/* fields: item->u1.str        == the while conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the while ()
+				   item->u2.statements == a struct pval list of statements in the while ()
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, while expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
 		cw_expr_register_extra_error_info(errmsg);
@@ -2295,8 +2295,8 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_RANDOM:
 		/* fields: item->u1.str        == the random number expression, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, random expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
@@ -2318,8 +2318,8 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_IFTIME:
 		/* fields: item->u1.list        == the if time values, 4 of them, each in PV_WORD, linked list 
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		if ( item->u2.arglist ) {
@@ -2338,8 +2338,8 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_IF:
 		/* fields: item->u1.str        == the if conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, if expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
@@ -2361,7 +2361,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_SWITCH:
 		/* fields: item->u1.str        == the switch expression
 
-				   item->u2.statements == a pval list of statements in the switch, 
+				   item->u2.statements == a struct pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
 		/* we can check the switch expression, see if it matches any of the app variables...
@@ -2373,7 +2373,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	case PV_EXTENSION:
 		/* fields: item->u1.str        == the extension name, label, whatever it's called
 
-				   item->u2.statements == a pval list of statements in the extension
+				   item->u2.statements == a struct pval list of statements in the extension
 				   item->u3.hints      == a char * hint argument
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
@@ -2388,7 +2388,7 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 		break;
 			
 	case PV_GLOBALS:
-		/* fields: item->u1.statements     == pval list of statements, usually vardecs
+		/* fields: item->u1.statements     == struct pval list of statements, usually vardecs
 		*/
 		in_abstract_context = 0;
 		check_pval(item->u1.statements, apps, 1);
@@ -2398,9 +2398,9 @@ void check_pval_item(pval *item, struct argapp *apps, int in_globals)
 	}
 }
 
-void check_pval(pval *item, struct argapp *apps, int in_globals)
+void check_pval(struct pval *item, struct argapp *apps, int in_globals)
 {
-	pval *i;
+	struct pval *i;
 
 	/* checks to do:
 	   1. Do goto's point to actual labels? 
@@ -2418,7 +2418,7 @@ void check_pval(pval *item, struct argapp *apps, int in_globals)
 	}
 }
 
-static void ael2_semantic_check(pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
+static void ael2_semantic_check(struct pval *item, int *arg_errs, int *arg_warns, int *arg_notes)
 {
 	
 #ifdef AAL_ARGCHECK
@@ -2524,9 +2524,9 @@ void linkexten(struct ael_extension *exten, struct ael_extension *add)
 	exten->next_exten = add;
 }
 
-void gen_prios(struct ael_extension *exten, char *label, pval *statement, struct ael_extension *mother_exten )
+void gen_prios(struct ael_extension *exten, char *label, struct pval *statement, struct ael_extension *mother_exten )
 {
-	pval *p,*p2,*p3;
+	struct pval *p,*p2,*p3;
 	struct ael_priority *pr;
 	struct ael_priority *for_init, *for_test, *for_inc, *for_loop, *for_end;
 	struct ael_priority *while_test, *while_loop, *while_end;
@@ -3282,13 +3282,13 @@ void add_extensions(struct ael_extension *exten, struct cw_context *context)
 
 void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 {
-	pval *p,*p2;
+	struct pval *p,*p2;
 	struct cw_context *context;
 	char buf[2000];
 	struct ael_extension *exten;
 	
 	for (p=root; p; p=p->next ) {
-		pval *lp;
+		struct pval *lp;
 		int argc;
 		
 		switch (p->type) {
@@ -3338,7 +3338,7 @@ void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 
 			/* contexts contain: ignorepat, includes, switches, eswitches, extensions,  */
 			for (p2=p->u2.statements; p2; p2=p2->next) {
-				pval *p3;
+				struct pval *p3;
 				char *s3;
 				
 				switch (p2->type) {
@@ -3405,7 +3405,7 @@ void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 							*c = '\0';
 							c++;
 						} else
-							c = "";
+							c = (char *)"";
 
 						cw_context_add_switch2(context, p3->u1.str, c, 0, registrar);
 					}
@@ -3418,7 +3418,7 @@ void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 							*c = '\0';
 							c++;
 						} else
-							c = "";
+							c = (char *)"";
 
 						cw_context_add_switch2(context, p3->u1.str, c, 1, registrar);
 					}
@@ -3442,7 +3442,7 @@ void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 
 static int pbx_load_module(void)
 {
-	int errs, sem_err, sem_warn, sem_note;
+	int errcount, sem_err, sem_warn, sem_note;
 	char *rfilename;
 	struct cw_context *local_contexts=NULL, *con;
 	struct pval *parse_tree;
@@ -3456,10 +3456,10 @@ static int pbx_load_module(void)
 	}
 	cw_log(CW_LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
 	
-	parse_tree = ael2_parse(rfilename, &errs);
+	parse_tree = ael2_parse(rfilename, &errcount);
 	cw_log(CW_LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
-	if (errs == 0 && sem_err == 0) {
+	if (errcount == 0 && sem_err == 0) {
 		cw_log(CW_LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
 		cw_compile_ael2(&local_contexts, parse_tree);
 		cw_log(CW_LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
@@ -3470,7 +3470,7 @@ static int pbx_load_module(void)
 			cw_context_verify_includes(con);
 		cw_log(CW_LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
 	} else {
-		cw_log(CW_LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errs, sem_err);
+		cw_log(CW_LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errcount, sem_err);
 	}
 	destroy_pval(parse_tree); /* free up the memory */
 	
@@ -3578,7 +3578,7 @@ MODULE_INFO(load_module, reload_module, unload_module, NULL, dtext)
 
 
 
-void destroy_pval_item(pval *item)
+void destroy_pval_item(struct pval *item)
 {
 	if (item == NULL) {
 		cw_log(CW_LOG_WARNING, "null item\n");
@@ -3599,11 +3599,11 @@ void destroy_pval_item(pval *item)
 		
 	case PV_PROC:
 		/* fields: item->u1.str     == name of proc
-		           item->u2.arglist == pval list of PV_WORD arguments of proc, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 
-				   item->u3.proc_statements == pval list of statements in proc body.
+				   item->u3.proc_statements == struct pval list of statements in proc body.
 		*/
 		destroy_pval(item->u2.arglist);
 		if (item->u1.str )
@@ -3613,7 +3613,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_CONTEXT:
 		/* fields: item->u1.str     == name of context
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 				   item->u3.abstract == int 1 if an abstract keyword were present
 		*/
 		if (item->u1.str)
@@ -3623,7 +3623,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_PROC_CALL:
 		/* fields: item->u1.str     == name of proc to call
-		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -3634,7 +3634,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_APPLICATION_CALL:
 		/* fields: item->u1.str     == name of application to call
-		           item->u2.arglist == pval list of PV_WORD arguments of proc call, as given by user
+		           item->u2.arglist == struct pval list of PV_WORD arguments of proc call, as given by user
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
@@ -3645,7 +3645,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_CASE:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		if (item->u1.str)
 			free(item->u1.str);
@@ -3654,7 +3654,7 @@ void destroy_pval_item(pval *item)
 			
 	case PV_PATTERN:
 		/* fields: item->u1.str     == value of case
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		if (item->u1.str)
 			free(item->u1.str);
@@ -3663,14 +3663,14 @@ void destroy_pval_item(pval *item)
 			
 	case PV_DEFAULT:
 		/* fields: 
-		           item->u2.statements == pval list of statements under the case
+		           item->u2.statements == struct pval list of statements under the case
 		*/
 		destroy_pval(item->u2.statements);
 		break;
 			
 	case PV_CATCH:
 		/* fields: item->u1.str     == name of extension to catch
-		           item->u2.statements == pval list of statements in context body
+		           item->u2.statements == struct pval list of statements in context body
 		*/
 		if (item->u1.str)
 			free(item->u1.str);
@@ -3678,26 +3678,26 @@ void destroy_pval_item(pval *item)
 		break;
 			
 	case PV_SWITCHES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
 		*/
 		destroy_pval(item->u1.list);
 		break;
 			
 	case PV_ESWITCHES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
 		*/
 		destroy_pval(item->u1.list);
 		break;
 			
 	case PV_INCLUDES:
-		/* fields: item->u1.list     == pval list of PV_WORD elements, one per entry in the list
-		           item->u2.arglist  == pval list of 4 PV_WORD elements for time values
+		/* fields: item->u1.list     == struct pval list of PV_WORD elements, one per entry in the list
+		           item->u2.arglist  == struct pval list of 4 PV_WORD elements for time values
 		*/
 		destroy_pval(item->u1.list);
 		break;
 			
 	case PV_STATEMENTBLOCK:
-		/* fields: item->u1.list     == pval list of statements in block, one per entry in the list
+		/* fields: item->u1.list     == struct pval list of statements in block, one per entry in the list
 		*/
 		destroy_pval(item->u1.list);
 		break;
@@ -3713,7 +3713,7 @@ void destroy_pval_item(pval *item)
 		break;
 			
 	case PV_GOTO:
-		/* fields: item->u1.list     == pval list of PV_WORD target names, up to 3, in order as given by user.
+		/* fields: item->u1.list     == struct pval list of PV_WORD target names, up to 3, in order as given by user.
 		           item->u1.list->u1.str  == where the data on a PV_WORD will always be.
 		*/
 		
@@ -3732,7 +3732,7 @@ void destroy_pval_item(pval *item)
 		           item->u2.for_test     == a string containing the loop test
 		           item->u3.for_inc      == a string containing the loop increment
 
-				   item->u4.for_statements == a pval list of statements in the for ()
+				   item->u4.for_statements == a struct pval list of statements in the for ()
 		*/
 		if (item->u1.for_init)
 			free(item->u1.for_init);
@@ -3746,7 +3746,7 @@ void destroy_pval_item(pval *item)
 	case PV_WHILE:
 		/* fields: item->u1.str        == the while conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the while ()
+				   item->u2.statements == a struct pval list of statements in the while ()
 		*/
 		if (item->u1.str)
 			free(item->u1.str);
@@ -3771,8 +3771,8 @@ void destroy_pval_item(pval *item)
 	case PV_IFTIME:
 		/* fields: item->u1.list        == the 4 time values, in PV_WORD structs, linked list
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		destroy_pval(item->u1.list);
@@ -3785,15 +3785,15 @@ void destroy_pval_item(pval *item)
 	case PV_RANDOM:
 		/* fields: item->u1.str        == the random percentage, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the true part ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the true part ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		fall thru to If */
 	case PV_IF:
 		/* fields: item->u1.str        == the if conditional, as supplied by user
 
-				   item->u2.statements == a pval list of statements in the if ()
-				   item->u3.else_statements == a pval list of statements in the else
+				   item->u2.statements == a struct pval list of statements in the if ()
+				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
 		if (item->u1.str)
@@ -3807,7 +3807,7 @@ void destroy_pval_item(pval *item)
 	case PV_SWITCH:
 		/* fields: item->u1.str        == the switch expression
 
-				   item->u2.statements == a pval list of statements in the switch, 
+				   item->u2.statements == a struct pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
 		if (item->u1.str)
@@ -3818,7 +3818,7 @@ void destroy_pval_item(pval *item)
 	case PV_EXTENSION:
 		/* fields: item->u1.str        == the extension name, label, whatever it's called
 
-				   item->u2.statements == a pval list of statements in the extension
+				   item->u2.statements == a struct pval list of statements in the extension
 				   item->u3.hints      == a char * hint argument
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
@@ -3837,7 +3837,7 @@ void destroy_pval_item(pval *item)
 		break;
 			
 	case PV_GLOBALS:
-		/* fields: item->u1.statements     == pval list of statements, usually vardecs
+		/* fields: item->u1.statements     == struct pval list of statements, usually vardecs
 		*/
 		destroy_pval(item->u1.statements);
 		break;
@@ -3845,9 +3845,9 @@ void destroy_pval_item(pval *item)
 	free(item);
 }
 
-void destroy_pval(pval *item) 
+void destroy_pval(struct pval *item) 
 {
-	pval *i,*nxt;
+	struct pval *i,*nxt;
 	
 	for (i=item; i; i=nxt) {
 		nxt = i->next;

@@ -93,7 +93,6 @@
 static pthread_t visdn_q931_thread = CW_PTHREADT_NULL;
 
 struct visdn_state visdn = {
-	.usecnt = 0,
 #ifdef DEBUG_DEFAULTS
 	.debug = TRUE,
 	.debug_q921 = TRUE,
@@ -1022,7 +1021,7 @@ err_call_alloc:
 
 static int visdn_call(
 	struct cw_channel *cw_chan,
-	char *orig_dest)
+	const char *orig_dest)
 {
 	struct visdn_chan *visdn_chan = to_visdn_chan(cw_chan);
 	int err;
@@ -2096,9 +2095,6 @@ static struct cw_channel *visdn_request(
 	if (!cw_chan)
 		goto err_visdn_new;
 
-	cw_mutex_lock(&visdn.usecnt_lock);
-	visdn.usecnt++;
-	cw_mutex_unlock(&visdn.usecnt_lock);
 	cw_update_use_count();
 
 	return cw_chan;
@@ -3278,9 +3274,6 @@ static void visdn_q931_setup_indication(
 
 	strncpy(cw_chan->language, ic->language, sizeof(cw_chan->language));
 
-	cw_mutex_lock(&visdn.usecnt_lock);
-	visdn.usecnt++;
-	cw_mutex_unlock(&visdn.usecnt_lock);
 	cw_update_use_count();
 
 	char called_number[32] = "";

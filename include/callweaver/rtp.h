@@ -177,8 +177,7 @@ extern CW_API_PUBLIC void cw_rtp_pt_clear(struct cw_rtp* rtp);
 /* Set payload types to defaults */
 extern CW_API_PUBLIC void cw_rtp_pt_default(struct cw_rtp* rtp);
 extern CW_API_PUBLIC void cw_rtp_set_m_type(struct cw_rtp* rtp, int pt);
-extern CW_API_PUBLIC void cw_rtp_set_rtpmap_type(struct cw_rtp* rtp, int pt,
-			 char* mimeType, char* mimeSubtype);
+extern CW_API_PUBLIC void cw_rtp_set_rtpmap_type(struct cw_rtp* rtp, int pt, const char *mimeType, const char *mimeSubtype);
 
 /*  Mapping between RTP payload format codes and CallWeaver codes: */
 extern CW_API_PUBLIC struct rtpPayloadType cw_rtp_lookup_pt(struct cw_rtp* rtp, int pt);
@@ -189,7 +188,7 @@ extern CW_API_PUBLIC void cw_rtp_get_current_formats(struct cw_rtp* rtp,
 			     int* cw_formats, int* non_cw_formats);
 
 /*  Mapping an CallWeaver code into a MIME subtype (string): */
-extern CW_API_PUBLIC char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
+extern CW_API_PUBLIC const char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */
 extern CW_API_PUBLIC char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format);

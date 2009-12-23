@@ -62,7 +62,7 @@ static const char adsi_descrip[] =
 
 struct adsi_event {
 	int id;
-	char *name;
+	const char *name;
 };
 
 static struct adsi_event events[] = {
@@ -176,7 +176,7 @@ struct adsi_script {
 };
 
 
-static int process_token(void *out, char *src, int maxlen, int argtype)
+static int process_token(void *out, const char *src, int maxlen, int argtype)
 {
 	if ((strlen(src) > 1) && src[0] == '\"') {
 		/* This is a quoted string */
@@ -223,11 +223,12 @@ static int process_token(void *out, char *src, int maxlen, int argtype)
 	return 0;
 }
 
-static char *get_token(char **buf, char *script, int lineno)
+static const char *get_token(char **buf, char *script, int lineno)
 {
 	char *tmp = *buf;
 	char *keyword;
 	int quoted = 0;
+
 	/* Advance past any white space */
 	tmp = cw_skip_blanks(*buf);
 	if (!*tmp)
@@ -251,13 +252,14 @@ static char *get_token(char **buf, char *script, int lineno)
 	return keyword;
 }
 
-static char *validdtmf = "123456789*0#ABCD";
+static const char *validdtmf = "123456789*0#ABCD";
 
-static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int send_dtmf(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
 	char dtmfstr[80];
-	char *a;
+	const char *a;
 	int bytes=0;
+
 	a = get_token(&args, script, lineno);
 	if (!a) {
 		cw_log(CW_LOG_WARNING, "Expecting something to send for SENDDTMF at line %d of %s\n", lineno, script);
@@ -280,12 +282,13 @@ static int send_dtmf(char *buf, char *name, int id, char *args, struct adsi_scri
 	return bytes;
 }
 
-static int goto_line(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int goto_line(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *page;
-	char *gline;
+	const char *page;
+	const char *gline;
 	int line;
 	unsigned char cmd;
+
 	page = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
 	if (!page || !gline) {
@@ -310,12 +313,13 @@ static int goto_line(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int goto_line_rel(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *dir;
-	char *gline;
+	const char *dir;
+	const char *gline;
 	int line;
 	unsigned char cmd;
+
 	dir = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
 	if (!dir || !gline) {
@@ -340,10 +344,11 @@ static int goto_line_rel(char *buf, char *name, int id, char *args, struct adsi_
 	return 2;
 }
 
-static int send_delay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int send_delay(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *gtime;
+	const char *gtime;
 	int ms;
+
 	gtime = get_token(&args, script, lineno);
 	if (!gtime) {
 		cw_log(CW_LOG_WARNING, "Expecting number of milliseconds to wait at line %d of %s\n", lineno, script);
@@ -361,10 +366,11 @@ static int send_delay(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 2;
 }
 
-static int set_state(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int set_state(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *gstate;
+	const char *gstate;
 	int state;
+
 	gstate = get_token(&args, script, lineno);
 	if (!gstate) {
 		cw_log(CW_LOG_WARNING, "Expecting state number at line %d of %s\n", lineno, script);
@@ -379,9 +385,10 @@ static int set_state(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int cleartimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int cleartimer(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (tok) 
 		cw_log(CW_LOG_WARNING, "Clearing timer requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -414,11 +421,12 @@ static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, ch
 	return &state->flags[state->numflags-1];
 }
 
-static int setflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int setflag(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
 	char sname[80];
 	struct adsi_flag *flag;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Setting flag requires a flag number at line %d of %s\n", lineno, script);
@@ -438,11 +446,12 @@ static int setflag(char *buf, char *name, int id, char *args, struct adsi_script
 	return 2;
 }
 
-static int clearflag(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int clearflag(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	struct adsi_flag *flag;
 	char sname[80];
+	struct adsi_flag *flag;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Clearing flag requires a flag number at line %d of %s\n", lineno, script);
@@ -462,10 +471,11 @@ static int clearflag(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int starttimer(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int starttimer(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
 	int secs;
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Missing number of seconds at line %d of %s\n", lineno, script);
@@ -481,7 +491,7 @@ static int starttimer(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 3;
 }
 
-static int geteventbyname(char *name)
+static int geteventbyname(const char *name)
 {
 	int x;
 	for (x=0;x<sizeof(events) / sizeof(events[0]); x++) {
@@ -491,7 +501,7 @@ static int geteventbyname(char *name)
 	return 0;
 }
 
-static int getjustifybyname(char *name)
+static int getjustifybyname(const char *name)
 {
 	int x;
 	for (x=0;x<sizeof(justify) / sizeof(justify[0]); x++) {
@@ -517,7 +527,7 @@ static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name,
 	return &state->keys[state->numkeys-1];
 }
 
-static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name, char *script, int lineno)
+static struct adsi_subscript *getsubbyname(struct adsi_script *state, const char *name, char *script, int lineno)
 {
 	int x;
 	for (x=0;x<state->numsubs;x++) 
@@ -533,7 +543,7 @@ static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name
 	return &state->subs[state->numsubs-1];
 }
 
-static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
+static struct adsi_state *getstatebyname(struct adsi_script *state, const char *name, char *script, int lineno, int create)
 {
 	int x;
 	for (x=0;x<state->numstates;x++) 
@@ -552,7 +562,7 @@ static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, 
 	return &state->states[state->numstates-1];
 }
 
-static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *name, char *script, int lineno, int create)
+static struct adsi_display *getdisplaybyname(struct adsi_script *state, const char *name, char *script, int lineno, int create)
 {
 	int x;
 	for (x=0;x<state->numdisplays;x++) 
@@ -571,16 +581,16 @@ static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *na
 	return &state->displays[state->numdisplays-1];
 }
 
-static int showkeys(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int showkeys(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
 	char newkey[80];
-	int bytes;
 	unsigned char keyid[6];
-	int x;
-	int flagid=0;
 	struct adsi_soft_key *key;
 	struct adsi_flag *flag;
+	const char *tok;
+	int bytes;
+	int x;
+	int flagid=0;
 
 	for (x=0;x<7;x++) {
 		/* Up to 6 key arguments */
@@ -624,14 +634,14 @@ static int showkeys(char *buf, char *name, int id, char *args, struct adsi_scrip
 	return 2 + x;
 }
 
-static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int showdisplay(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
 	char dispname[80];
+	struct adsi_display *disp;
+	const char *tok;
 	int line=0;
 	int flag=0;
 	int cmd = 3;
-	struct adsi_display *disp;
 
 	/* Get display */
 	tok = get_token(&args, script, lineno);
@@ -679,9 +689,10 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 	return 3;
 }
 
-static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int cleardisplay(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (tok) 
 		cw_log(CW_LOG_WARNING, "Clearing display requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -691,9 +702,10 @@ static int cleardisplay(char *buf, char *name, int id, char *args, struct adsi_s
 	return 2;
 }
 
-static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int digitdirect(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (tok) 
 		cw_log(CW_LOG_WARNING, "Digitdirect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -703,9 +715,10 @@ static int digitdirect(char *buf, char *name, int id, char *args, struct adsi_sc
 	return 2;
 }
 
-static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int clearcbone(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (tok)
 		cw_log(CW_LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -715,9 +728,10 @@ static int clearcbone(char *buf, char *name, int id, char *args, struct adsi_scr
 	return 2;
 }
 
-static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
+static int digitcollect(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
-	char *tok;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (tok) 
 		cw_log(CW_LOG_WARNING, "Digitcollect requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -727,21 +741,22 @@ static int digitcollect(char *buf, char *name, int id, char *args, struct adsi_s
 	return 2;
 }
 
-static int subscript(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int subscript(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	char subscript[80];
+	char subbuf[80];
 	struct adsi_subscript *sub;
+	const char *tok;
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
-	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
+	if (process_token(subbuf, tok, sizeof(subbuf) - 1, ARG_STRING)) {
 		cw_log(CW_LOG_WARNING, "Invalid number of seconds '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	sub = getsubbyname(state, subscript, script, lineno);
+	sub = getsubbyname(state, subbuf, script, lineno);
 	if (!sub) 
 		return 0;
 	buf[0] = 0x9d;
@@ -749,17 +764,18 @@ static int subscript(char *buf, char *name, int id, char *args, struct adsi_scri
 	return 2;
 }
 
-static int onevent(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
+static int onevent(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	char *tok;
-	char subscript[80];
+	char subbuf[80];
 	char sname[80];
+	struct adsi_subscript *sub;
+	const char *tok;
 	int sawin=0;
 	int event;
 	int snums[8];
 	int scnt = 0;
 	int x;
-	struct adsi_subscript *sub;
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Missing event for 'ONEVENT' at line %d of %s\n", lineno, script);
@@ -806,11 +822,11 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 		cw_log(CW_LOG_WARNING, "Missing subscript to call at line %d of %s\n", lineno, script);
 		return 0;
 	}
-	if (process_token(subscript, tok, sizeof(subscript) - 1, ARG_STRING)) {
+	if (process_token(subbuf, tok, sizeof(subbuf) - 1, ARG_STRING)) {
 		cw_log(CW_LOG_WARNING, "Invalid subscript '%s' at line %d of %s\n", tok, lineno, script);
 		return 0;
 	}
-	sub = getsubbyname(state, subscript, script, lineno);
+	sub = getsubbyname(state, subbuf, script, lineno);
 	if (!sub) 
 		return 0;
 	buf[0] = 8;
@@ -822,9 +838,9 @@ static int onevent(char *buf, char *name, int id, char *args, struct adsi_script
 }
 
 struct adsi_key_cmd {
-	char *name;
+	const char *name;
 	int id;
-	int (*add_args)(char *buf, char *name, int id, char *args, struct adsi_script *state, char *script, int lineno);
+	int (*add_args)(char *buf, const char *name, int id, char *args, struct adsi_script *state, char *script, int lineno);
 };
 
 static struct adsi_key_cmd kcmds[] = {
@@ -889,11 +905,12 @@ static struct adsi_key_cmd opcmds[] = {
 };
 
 
-static int process_returncode(struct adsi_soft_key *key, char *code, char *args, struct adsi_script *state, char *script, int lineno)
+static int process_returncode(struct adsi_soft_key *key, const char *code, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	int x;
-	char *unused;
+	const char *unused;
 	int res;
+	int x;
+
 	for (x=0;x<sizeof(kcmds) / sizeof(kcmds[0]);x++) {
 		if ((kcmds[x].id > -1) && !strcasecmp(kcmds[x].name, code)) {
 			if (kcmds[x].add_args) {
@@ -918,12 +935,13 @@ static int process_returncode(struct adsi_soft_key *key, char *code, char *args,
 	return -1;
 }
 
-static int process_opcode(struct adsi_subscript *sub, char *code, char *args, struct adsi_script *state, char *script, int lineno)
+static int process_opcode(struct adsi_subscript *sub, const char *code, char *args, struct adsi_script *state, char *script, int lineno)
 {
-	int x;
-	char *unused;
+	const char *unused;
 	int res;
+	int x;
 	int max = sub->id ? MAX_SUB_LEN : MAX_MAIN_LEN;
+
 	for (x=0;x<sizeof(opcmds) / sizeof(opcmds[0]);x++) {
 		if ((opcmds[x].id > -1) && !strcasecmp(opcmds[x].name, code)) {
 			if (opcmds[x].add_args) {
@@ -958,16 +976,17 @@ static int process_opcode(struct adsi_subscript *sub, char *code, char *args, st
 
 static int adsi_process(struct adsi_script *state, char *buf, char *script, int lineno)
 {
-	char *keyword;
-	char *args;
 	char vname[256];
 	char tmp[80];
 	char tmp2[80];
+	struct adsi_display *disp;
+	struct adsi_subscript *newsub;
+	const char *keyword;
+	const char *args;
 	int lrci;
 	int wi;
 	int event;
-	struct adsi_display *disp;
-	struct adsi_subscript *newsub;
+
 	/* Find the first keyword */
 	keyword = get_token(&buf, script, lineno);
 	if (!keyword) 
@@ -1550,9 +1569,9 @@ static int adsi_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
-	
+
 	if (argc == 0)
-		argv[0] = "callweaver.adsi";
+		argv[0] = (char *)"callweaver.adsi";
 	
 	if (!adsi_available(chan)) {
 		if (option_verbose > 2)

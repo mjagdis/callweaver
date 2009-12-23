@@ -70,7 +70,7 @@ static icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that);
 
 /* Private implemenations */
 static int module_id = 0;
-static char *module_name = "Agent_Priority_Groups";
+static const char module_name[] = "Agent_Priority_Groups";
 
 /* maybe we just use the agent struc by default b4  we have an active member 
  * also might use a macro ICD_PLUGABLE_STANDARD; ...*/
@@ -183,12 +183,12 @@ static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * t
 
 int icd_module_command_agtpri(struct cw_dynstr **ds_p, int argc, char **argv)
 {
-    static char *help[2] = { "help", "agtpri" };
+    static const char *help[2] = { "help", "agtpri" };
 
     if (argc >= 2)
         cw_dynstr_printf(ds_p, "\n\nICD Module loaded a icd command interface \n\n\n");
     else
-        icd_command_help(ds_p, 2, help);
+        icd_command_help(ds_p, 2, (char **)help);
 
     return 0;
 }
@@ -196,7 +196,7 @@ int icd_module_command_agtpri(struct cw_dynstr **ds_p, int argc, char **argv)
 icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that)
 {
     icd_plugable_fn *plugable_fns = NULL;
-    char *dist_name = NULL;
+    const char *dist_name = NULL;
 
     assert(that != NULL);
 
@@ -281,7 +281,7 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     int first_agent_id = -1;
     icd_status result;
 
-    char *tmp_str;
+    const char *tmp_str;
     int agent_priority = 0;
     char agent_priority_str[3];
     int match_found = 1;

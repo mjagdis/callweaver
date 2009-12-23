@@ -953,7 +953,7 @@ struct cw_conf_member* delete_member( struct cw_conf_member* member )
 }
 
 
-char *membertypetostring  (int member_type ) {
+const char *membertypetostring  (int member_type ) {
 
     switch (member_type) {
 	case MEMBERTYPE_MASTER:

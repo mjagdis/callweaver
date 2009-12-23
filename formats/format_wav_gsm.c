@@ -123,7 +123,7 @@ static int check_header(FILE *f)
     int fmt;
     int hsize;
     int fact;
-    int16_t format;
+    int16_t filefmt;
     int16_t chans;
     int freq;
     int data;
@@ -174,14 +174,14 @@ static int check_header(FILE *f)
         cw_log(CW_LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
         return -1;
     }
-    if (fread(&format, 1, 2, f) != 2)
+    if (fread(&filefmt, 1, 2, f) != 2)
     {
         cw_log(CW_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
-    if (ltohs(format) != 49)
+    if (ltohs(filefmt) != 49)
     {
-        cw_log(CW_LOG_WARNING, "Not a GSM file %d\n", ltohs(format));
+        cw_log(CW_LOG_WARNING, "Not a GSM file %d\n", ltohs(filefmt));
         return -1;
     }
     if (fread(&chans, 1, 2, f) != 2)

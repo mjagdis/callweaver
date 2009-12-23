@@ -46,7 +46,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 typedef struct
 {
-    char *separator_dziesiatek;
+    const char *separator_dziesiatek;
     char *cyfry[10];
     char *cyfry2[10];
     char *setki[10];
@@ -55,7 +55,7 @@ typedef struct
     char *rzedy[3][3];
 } odmiana;
 
-static char *pl_rzad_na_tekst(odmiana *odm, int i, int rzad)
+static const char *pl_rzad_na_tekst(odmiana *odm, int i, int rzad)
 {
     if (rzad==0)
         return "";
@@ -68,14 +68,14 @@ static char *pl_rzad_na_tekst(odmiana *odm, int i, int rzad)
         return odm->rzedy[rzad - 1][2];
 }
 
-static char *pl_append(char* buffer, char* str)
+static char *pl_append(char* buffer, const char* str)
 {
     strcpy(buffer, str);
     buffer += strlen(str);
     return buffer;
 }
 
-static void pl_odtworz_plik(struct cw_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, char *fn)
+static void pl_odtworz_plik(struct cw_channel *chan, const char *language, int audiofd, int ctrlfd, const char *ints, const char *fn)
 {
     char file_name[255] = "digits/";
     strcat(file_name, fn);
@@ -263,31 +263,31 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 
 */
 {
-    char *zenski_cyfry[] = {"0","1z", "2z", "3", "4", "5", "6", "7", "8", "9"};
+    const char *zenski_cyfry[] = {"0","1z", "2z", "3", "4", "5", "6", "7", "8", "9"};
 
-    char *zenski_cyfry2[] = {"0","1", "2z", "3", "4", "5", "6", "7", "8", "9"};
+    const char *zenski_cyfry2[] = {"0","1", "2z", "3", "4", "5", "6", "7", "8", "9"};
 
-    char *meski_cyfry[] = {"0","1", "2-1m", "3-1m", "4-1m", "5m",  /*"2-1mdwaj"*/ "6m", "7m", "8m", "9m"};
+    const char *meski_cyfry[] = {"0","1", "2-1m", "3-1m", "4-1m", "5m",  /*"2-1mdwaj"*/ "6m", "7m", "8m", "9m"};
 
-    char *meski_cyfry2[] = {"0","1", "2-2m", "3-2m", "4-2m", "5m", "6m", "7m", "8m", "9m"};
+    const char *meski_cyfry2[] = {"0","1", "2-2m", "3-2m", "4-2m", "5m", "6m", "7m", "8m", "9m"};
 
-    char *meski_setki[] = {"", "100m", "200m", "300m", "400m", "500m", "600m", "700m", "800m", "900m"};
+    const char *meski_setki[] = {"", "100m", "200m", "300m", "400m", "500m", "600m", "700m", "800m", "900m"};
 
-    char *meski_dziesiatki[] = {"", "10m", "20m", "30m", "40m", "50m", "60m", "70m", "80m", "90m"};
+    const char *meski_dziesiatki[] = {"", "10m", "20m", "30m", "40m", "50m", "60m", "70m", "80m", "90m"};
 
-    char *meski_nastki[] = {"", "11m", "12m", "13m", "14m", "15m", "16m", "17m", "18m", "19m"};
+    const char *meski_nastki[] = {"", "11m", "12m", "13m", "14m", "15m", "16m", "17m", "18m", "19m"};
 
-    char *nijaki_cyfry[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
+    const char *nijaki_cyfry[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
-    char *nijaki_cyfry2[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
+    const char *nijaki_cyfry2[] = {"0","1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
-    char *nijaki_setki[] = {"", "100", "200", "300", "400", "500", "600", "700", "800", "900"};
+    const char *nijaki_setki[] = {"", "100", "200", "300", "400", "500", "600", "700", "800", "900"};
 
-    char *nijaki_dziesiatki[] = {"", "10", "20", "30", "40", "50", "60", "70", "80", "90"};
+    const char *nijaki_dziesiatki[] = {"", "10", "20", "30", "40", "50", "60", "70", "80", "90"};
 
-    char *nijaki_nastki[] = {"", "11", "12", "13", "14", "15", "16", "17", "18", "19"};
+    const char *nijaki_nastki[] = {"", "11", "12", "13", "14", "15", "16", "17", "18", "19"};
 
-    char *rzedy[][3] = { {"1000", "1000.2", "1000.5"}, {"1000000", "1000000.2", "1000000.5"}, {"1000000000", "1000000000.2", "1000000000.5"}};
+    const char *rzedy[][3] = { {"1000", "1000.2", "1000.5"}, {"1000000", "1000000.2", "1000000.5"}, {"1000000000", "1000000000.2", "1000000000.5"}};
 
     /* Initialise variables to allow compilation on Debian-stable, etc */
     odmiana *o;

@@ -83,8 +83,8 @@ static int controlplayback_exec(struct cw_channel *chan, int argc, char **argv, 
 		if (i >= argc || !argv[i] || !is_on_phonepad(argv[i][0]))
 			argv[i] = NULL;
 	}
-	if (!argv[2]) argv[2] = "#";
-	if (!argv[3]) argv[2] = "*";
+	if (!argv[2]) argv[2] = (char *)"#";
+	if (!argv[3]) argv[2] = (char *)"*";
 
 	res = cw_control_streamfile(chan, argv[0], argv[2], argv[3], argv[4], argv[5], argv[6], skipms);
 

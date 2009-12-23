@@ -56,7 +56,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define COMMENT_META ';'
 #define COMMENT_TAG '-'
 
-static char *extconfig_conf = "extconfig.conf";
+static const char *extconfig_conf = "extconfig.conf";
 
 static struct cw_config_map {
 	struct cw_config_map *next;
@@ -666,9 +666,9 @@ static struct cw_config *config_text_file_load(const char *database, const char 
 					}
 				}
 				if (process_buf) {
-					char *buf = cw_strip(process_buf);
-					if (!cw_strlen_zero(buf)) {
-						if (process_text_line(cfg, &cat, buf, lineno, filename)) {
+					char *p = cw_strip(process_buf);
+					if (!cw_strlen_zero(p)) {
+						if (process_text_line(cfg, &cat, p, lineno, filename)) {
 							cfg = NULL;
 							break;
 						}
@@ -710,7 +710,7 @@ static void clear_config_maps(void)
 	cw_mutex_unlock(&config_lock);
 }
 
-static int append_mapping(char *name, char *driver, char *database, char *table)
+static int append_mapping(const char *name, const char *driver, const char *database, const char *table)
 {
 	struct cw_config_map *map;
 	int length;

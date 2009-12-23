@@ -245,22 +245,13 @@ static int onedigit_goto(struct cw_channel *chan, const char *context, const cha
 
 static char *get_cid_name(char *name, int namelen, struct cw_channel *chan)
 {
-	char *context;
-	char *exten;
-	if (!cw_strlen_zero(chan->proc_context))
-		context = chan->proc_context;
-	else
-		context = chan->context;
+	if (!cw_get_hint(NULL, 0, name, namelen, chan,
+			(!cw_strlen_zero(chan->proc_context) ? chan->proc_context : chan->context),
+			(!cw_strlen_zero(chan->proc_exten) ? chan->proc_exten : chan->exten))
+	)
+		name[0] = '\0';
 
-	if (!cw_strlen_zero(chan->proc_exten))
-		exten = chan->proc_exten;
-	else
-		exten = chan->exten;
-
-	if (cw_get_hint(NULL, 0, name, namelen, chan, context, exten))
-		return name;
-	else
-		return "";
+	return name;
 }
 
 static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
@@ -352,7 +343,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 				if (!cw_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256];
 					char *stuff;
-					char *tech;
+					const char *tech;
 					cw_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff = '\0';
@@ -1134,26 +1125,26 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		if (!cw_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256];
 			char *stuff;
-			char *tech;
+			const char *fwdtech;
 			cw_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));
 			if ((stuff = strchr(tmpchan, '/'))) {
 				*stuff = '\0';
 				stuff++;
-				tech = tmpchan;
+				fwdtech = tmpchan;
 			} else {
 				snprintf(tmpchan, sizeof(tmpchan), "%s@%s", tmp->chan->call_forward, tmp->chan->context);
 				stuff = tmpchan;
-				tech = "Local";
+				fwdtech = "Local";
 			}
 			tmp->forwards++;
 			if (tmp->forwards < CW_MAX_FORWARDS) {
 				if (option_verbose > 2)
-					cw_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
+					cw_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, fwdtech, stuff, tmp->chan->name);
 				cw_hangup(tmp->chan);
 				/* Setup parameters */
-				tmp->chan = cw_request(tech, chan->nativeformats, stuff, &cause);
+				tmp->chan = cw_request(fwdtech, chan->nativeformats, stuff, &cause);
 				if (!tmp->chan)
-					cw_log(CW_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+					cw_log(CW_LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", fwdtech, stuff, cause);
 			} else {
 				if (option_verbose > 2)
 					cw_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
@@ -1723,7 +1714,7 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 {
 	struct cw_var_t *context;
 	char *announce = NULL;
-	int sleep = 0, loops = 0, res = 0;
+	int retryinterval = 0, loops = 0, res = 0;
 	struct localuser *u;
 	struct cw_flags peerflags;
 	
@@ -1733,8 +1724,8 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 	LOCAL_USER_ADD(u);
 
 	announce = argv[0];
-	sleep = atoi(argv[1]) * 1000;
-	if (sleep < 1000) sleep = 10000;
+	retryinterval = atoi(argv[1]) * 1000;
+	if (retryinterval < 1000) retryinterval = 10000;
 	loops = atoi(argv[2]);
 	if (!loops) loops = -1;
 
@@ -1751,19 +1742,19 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 			if (cw_test_flag(&peerflags, DIAL_HALT_ON_DTMF)) {
 				if (!(res = cw_streamfile(chan, announce, chan->language)))
 					res = cw_waitstream(chan, CW_DIGIT_ANY);
-				if (!res && sleep) {
+				if (!res && retryinterval) {
 					if (!cw_test_flag(chan, CW_FLAG_MOH))
 						cw_moh_start(chan, NULL);
-					res = cw_waitfordigit(chan, sleep);
+					res = cw_waitfordigit(chan, retryinterval);
 				}
 			} else {
 				if (!(res = cw_streamfile(chan, announce, chan->language)))
 					res = cw_waitstream(chan, "");
-				if (sleep) {
+				if (retryinterval) {
 					if (!cw_test_flag(chan, CW_FLAG_MOH))
 						cw_moh_start(chan, NULL);
 					if (!res) 
-						res = cw_waitfordigit(chan, sleep);
+						res = cw_waitfordigit(chan, retryinterval);
 				}
 			}
 		}

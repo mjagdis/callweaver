@@ -538,7 +538,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 	struct chanspy_by_prefix_args args;
 	struct cw_flags flags;
 	struct localuser *u;
-	char *recbase = NULL;
+	const char *recbase = NULL;
 	int waitms;
 	int oldrf;
 	int oldwf;

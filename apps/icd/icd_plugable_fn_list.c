@@ -47,7 +47,7 @@ struct icd_plugable_fn_list {
     int allocated;
 };
 
-static int icd_plugable_fn_list__identify_name(void *key, void *payload);
+static int icd_plugable_fn_list__identify_name(const void *key, void *payload);
 
 /***** Constructors and Destructors *****/
 
@@ -187,7 +187,7 @@ icd_status icd_plugable_fn_list__add_fns(icd_plugable_fn_list * that, icd_plugab
 }
 
 /* Retrieves a function ptr from the list when given a name. */
-icd_plugable_fn *icd_plugable_fn_list__fetch_fns(icd_plugable_fn_list * that, char *name)
+icd_plugable_fn *icd_plugable_fn_list__fetch_fns(icd_plugable_fn_list * that, const char *name)
 {
     assert(that != NULL);
 
@@ -239,7 +239,7 @@ icd_plugable_fn *icd_plugable_fn_list_iterator__next(icd_list_iterator * that)
 }
 
 /*===== Private Implementations  =====*/
-static int icd_plugable_fn_list__identify_name(void *key, void *payload)
+static int icd_plugable_fn_list__identify_name(const void *key, void *payload)
 {
     icd_plugable_fn *plugable_fns;
     char *name;

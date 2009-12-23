@@ -406,20 +406,20 @@ static int load_module(const char *filename, lt_ptr data)
 {
 	struct load_module_args *args = (struct load_module_args *)data;
 	struct cw_object *obj = NULL;
-	char *basename;
+	char *bname;
 
 	/* We want _basenames_ that match the given prefix, completely if prefix_len is not set,
 	 * otherwise with the given prefix.
 	 */
-	if ((basename = strrchr(filename, '/')) && (basename++, 1)
+	if ((bname = strrchr(filename, '/')) && (bname++, 1)
 	&& (!args->prefix
-		|| (args->prefix_len && !strncmp(basename, args->prefix, args->prefix_len))
-		|| (!args->prefix_len && !strcmp(basename, args->prefix)))
+		|| (args->prefix_len && !strncmp(bname, args->prefix, args->prefix_len))
+		|| (!args->prefix_len && !strcmp(bname, args->prefix)))
 	) {
 		args->found++;
 
-		if ((args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(basename), basename)))) {
-			int baselen = strlen(basename);
+		if ((args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(bname), bname)))) {
+			int baselen = strlen(bname);
 			struct cw_variable *v;
 
 			/* If we were given a config check that this module is not barred from loading.
@@ -429,10 +429,10 @@ static int load_module(const char *filename, lt_ptr data)
 			v = NULL;
 			if (args->cfg) {
 				for (v = cw_variable_browse(args->cfg, "modules");
-					v && (strcasecmp(v->name, "noload") || strncasecmp(v->value, basename, baselen) || (v->value[baselen] && v->value[baselen] != '.'));
+					v && (strcasecmp(v->name, "noload") || strncasecmp(v->value, bname, baselen) || (v->value[baselen] && v->value[baselen] != '.'));
 					v = v->next);
 				if (option_verbose && v)
-					cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", basename);
+					cw_verbose(VERBOSE_PREFIX_1 "[skipping %s]\n", bname);
 			}
 			if (v == NULL)
 				module_load(filename);
@@ -597,11 +597,11 @@ struct complete_fn_args {
 static int complete_fn_one(const char *filename, lt_ptr data)
 {
 	struct complete_fn_args *args = (struct complete_fn_args *)data;
-	char *basename;
+	char *bname;
 
-	if ((basename = strrchr(filename, '/')) && (basename++, 1)
-	&& !strncmp(basename, args->word, args->word_len))
-		cw_dynstr_printf(args->ds_p, "%s\n", basename);
+	if ((bname = strrchr(filename, '/')) && (bname++, 1)
+	&& !strncmp(bname, args->word, args->word_len))
+		cw_dynstr_printf(args->ds_p, "%s\n", bname);
 
 	return 0;
 }

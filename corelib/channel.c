@@ -484,7 +484,7 @@ const char *cw_control2str(int control)
 }
 
 /*--- cw_state2str: Gives the string form of a given channel state */
-char *cw_state2str(int state)
+const char *cw_state2str(int state)
 {
 	/* XXX Not reentrant XXX */
 	static char localtmp[256];
@@ -512,7 +512,7 @@ char *cw_state2str(int state)
 }
 
 /*--- cw_transfercapability2str: Gives the string form of a given transfer capability */
-char *cw_transfercapability2str(int transfercapability)
+const char *cw_transfercapability2str(int transfercapability)
 {
 	switch(transfercapability) {
 	case CW_TRANS_CAP_SPEECH:
@@ -1311,16 +1311,16 @@ void cw_spy_queue_frame(struct cw_channel_spy *spy, struct cw_frame *f, int pos)
 }
 
 
-static void free_translation(struct cw_channel *clone)
+static void free_translation(struct cw_channel *chan)
 {
-	if (clone->writetrans)
-		cw_translator_free_path(clone->writetrans);
-	if (clone->readtrans)
-		cw_translator_free_path(clone->readtrans);
-	clone->writetrans = NULL;
-	clone->readtrans = NULL;
-	clone->rawwriteformat = clone->nativeformats;
-	clone->rawreadformat = clone->nativeformats;
+	if (chan->writetrans)
+		cw_translator_free_path(chan->writetrans);
+	if (chan->readtrans)
+		cw_translator_free_path(chan->readtrans);
+	chan->writetrans = NULL;
+	chan->readtrans = NULL;
+	chan->rawwriteformat = chan->nativeformats;
+	chan->rawreadformat = chan->nativeformats;
 }
 
 
@@ -2553,7 +2553,7 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 	return c;
 }
 
-int cw_call(struct cw_channel *chan, char *addr) 
+int cw_call(struct cw_channel *chan, const char *addr)
 {
 	int res = -1;
 
@@ -2569,7 +2569,7 @@ int cw_call(struct cw_channel *chan, char *addr)
 
 /*--- cw_transfer: Transfer a call to dest, if the channel supports transfer */
 /*	called by app_transfer or the manager interface */
-int cw_transfer(struct cw_channel *chan, char *dest) 
+int cw_transfer(struct cw_channel *chan, const char *dest)
 {
 	int res = -1;
 
@@ -2588,7 +2588,7 @@ int cw_transfer(struct cw_channel *chan, char *dest)
 	return res;
 }
 
-int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int ftimeout, char *enders)
+int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int ftimeout, const char *enders)
 {
 	int pos = 0;
 	int to = ftimeout;
@@ -2628,7 +2628,7 @@ int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int ftime
 	return 0;
 }
 
-int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int ftimeout, char *enders, int audiofd, int ctrlfd)
+int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int ftimeout, const char *enders, int audiofd, int ctrlfd)
 {
 	int pos = 0;
 	int to = ftimeout;
@@ -2742,40 +2742,40 @@ int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)
 	return 0;
 }
 
-int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone)
+int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *oldchan)
 {
     struct cw_frame null = { CW_FRAME_NULL, };
     int res = -1;
 
-    if (original == clone) {
+    if (original == oldchan) {
 		cw_log(CW_LOG_WARNING, "Can't masquerade channel '%s' into itself!\n", original->name);
 		return -1;
     }
 
     cw_channel_lock(original);
-    while (cw_channel_trylock(clone)) {
+    while (cw_channel_trylock(oldchan)) {
 		cw_channel_unlock(original);
 		usleep(1);
 		cw_channel_lock(original);
     }
     cw_log(CW_LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
-		clone->name, original->name);
+		oldchan->name, original->name);
 
     if (original->masq) {
 	cw_log(CW_LOG_WARNING, "%s is already going to masquerade as %s\n", 
 		original->masq->name, original->name);
-    } else if (clone->masqr) {
+    } else if (oldchan->masqr) {
 		cw_log(CW_LOG_WARNING, "%s is already going to masquerade as %s\n", 
-			clone->name, clone->masqr->name);
+			oldchan->name, oldchan->masqr->name);
     } else {
-		original->masq = clone;
-		clone->masqr = original;
+		original->masq = oldchan;
+		oldchan->masqr = original;
 		cw_queue_frame(original, &null);
-		cw_queue_frame(clone, &null);
-		cw_log(CW_LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
+		cw_queue_frame(oldchan, &null);
+		cw_log(CW_LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", oldchan->name, original->name);
 		res = 0;
     }
-    cw_channel_unlock(clone);
+    cw_channel_unlock(oldchan);
     cw_channel_unlock(original);
     return res;
 }
@@ -2825,23 +2825,23 @@ static int clone_variables_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static void clone_variables(struct cw_channel *original, struct cw_channel *clone)
+static void clone_variables(struct cw_channel *original, struct cw_channel *oldchan)
 {
 	struct cw_registry tmp;
 
-	/* Append variables from clone channel into original channel by pushing
-	 * the variables from the original channel onto the clone and flipping
+	/* Append variables from oldchan channel into original channel by pushing
+	 * the variables from the original channel onto the oldchan and flipping
 	 * the registries. This ensures that the ordering of variables remains
 	 * correct. This is needed because gosub, proc etc assume a push down
 	 * stack :-(
 	 */
-	cw_registry_iterate_rev(&original->vars, clone_variables_one, &clone->vars);
+	cw_registry_iterate_rev(&original->vars, clone_variables_one, &oldchan->vars);
 
 	/* This is highly dangerous if anything else could touch either
 	 * registry in parallel!
 	 */
-	tmp = clone->vars;
-	clone->vars = original->vars;
+	tmp = oldchan->vars;
+	oldchan->vars = original->vars;
 	original->vars = tmp;
 }
 
@@ -2856,70 +2856,70 @@ int cw_do_masquerade(struct cw_channel *original)
 	const struct cw_channel_tech *t;
 	void *t_pvt;
 	struct cw_callerid tmpcid;
-	struct cw_channel *clone = original->masq;
+	struct cw_channel *oldchan = original->masq;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
 
 	if (option_debug > 3)
 		cw_log(CW_LOG_DEBUG, "Actually Masquerading %s(%d) into the structure of %s(%d)\n",
-			clone->name, clone->_state, original->name, original->_state);
+			oldchan->name, oldchan->_state, original->name, original->_state);
 
 	/* XXX This is a seriously wacked out operation.  We're essentially putting the guts of
-	   the clone channel into the original channel.  Start by killing off the original
+	   the oldchan channel into the original channel.  Start by killing off the original
 	   channel's backend.   I'm not sure we're going to keep this function, because 
 	   while the features are nice, the cost is very high in terms of pure nastiness. XXX */
 
-	/* We need the clone's lock, too */
-	cw_channel_lock(clone);
+	/* We need the oldchan's lock, too */
+	cw_channel_lock(oldchan);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */
-	free_translation(clone);
+	free_translation(oldchan);
 	free_translation(original);
 
 	/* Unlink the masquerade */
 	original->masq = NULL;
-	clone->masqr = NULL;
+	oldchan->masqr = NULL;
 
-	/* Copy the name from the clone channel */
-	cw_change_name(original, "%s", clone->name);
+	/* Copy the name from the oldchan channel */
+	cw_change_name(original, "%s", oldchan->name);
 
-	/* Mangle the name of the clone channel */
-	cw_change_name(clone, "%s<MASQ>", clone->name);
+	/* Mangle the name of the oldchan channel */
+	cw_change_name(oldchan, "%s<MASQ>", oldchan->name);
 
 	/* Swap the technlogies */	
 	t = original->tech;
-	original->tech = clone->tech;
-	clone->tech = t;
+	original->tech = oldchan->tech;
+	oldchan->tech = t;
 
 	t_pvt = original->tech_pvt;
-	original->tech_pvt = clone->tech_pvt;
-	clone->tech_pvt = t_pvt;
+	original->tech_pvt = oldchan->tech_pvt;
+	oldchan->tech_pvt = t_pvt;
 
 	/* Swap the readq's */
 	cur = original->readq;
-	original->readq = clone->readq;
-	clone->readq = cur;
+	original->readq = oldchan->readq;
+	oldchan->readq = cur;
 
 	/* Swap the alertpipes */
 	for (i = 0;  i < 2;  i++) {
 		x = original->alertpipe[i];
-		original->alertpipe[i] = clone->alertpipe[i];
-		clone->alertpipe[i] = x;
+		original->alertpipe[i] = oldchan->alertpipe[i];
+		oldchan->alertpipe[i] = x;
 	}
 
 	/* Swap the raw formats */
 	x = original->rawreadformat;
-	original->rawreadformat = clone->rawreadformat;
-	clone->rawreadformat = x;
+	original->rawreadformat = oldchan->rawreadformat;
+	oldchan->rawreadformat = x;
 	x = original->rawwriteformat;
-	original->rawwriteformat = clone->rawwriteformat;
-	clone->rawwriteformat = x;
+	original->rawwriteformat = oldchan->rawwriteformat;
+	oldchan->rawwriteformat = x;
 
 	/* Save any pending frames on both sides.  Start by counting
 	 * how many we're going to need... */
 	prev = NULL;
-	cur = clone->readq;
+	cur = oldchan->readq;
 	x = 0;
 	while (cur) {
 		x++;
@@ -2930,8 +2930,8 @@ int cw_do_masquerade(struct cw_channel *original)
 	 * load up the alertpipe */
 	if (prev) {
 		prev->next = original->readq;
-		original->readq = clone->readq;
-		clone->readq = NULL;
+		original->readq = oldchan->readq;
+		oldchan->readq = NULL;
 		if (original->alertpipe[1] > -1) {
 			for (i = 0;  i < x;  i++) {
 				char c;
@@ -2939,64 +2939,64 @@ int cw_do_masquerade(struct cw_channel *original)
 			}
 		}
 	}
-	clone->_softhangup = CW_SOFTHANGUP_DEV;
+	oldchan->_softhangup = CW_SOFTHANGUP_DEV;
 
 
 	/* And of course, so does our current state.  Note we need not
 	   call cw_setstate since the event manager doesn't really consider
-	   these separate.  We do this early so that the clone has the proper
+	   these separate.  We do this early so that the oldchan has the proper
 	   state of the original channel. */
 	origstate = original->_state;
-	original->_state = clone->_state;
-	clone->_state = origstate;
+	original->_state = oldchan->_state;
+	oldchan->_state = origstate;
 
-	if (clone->tech->fixup) {
-		if ((res = clone->tech->fixup(original, clone)))
-			cw_log(CW_LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", clone->name);
+	if (oldchan->tech->fixup) {
+		if ((res = oldchan->tech->fixup(original, oldchan)))
+			cw_log(CW_LOG_WARNING, "Fixup failed on channel %s, strange things may happen.\n", oldchan->name);
 	}
 
 	/* Start by disconnecting the original's physical side */
-	if (clone->tech->hangup)
-		res = clone->tech->hangup(clone);
+	if (oldchan->tech->hangup)
+		res = oldchan->tech->hangup(oldchan);
 	if (res) {
 		cw_log(CW_LOG_WARNING, "Hangup failed!  Strange things may happen!\n");
-		cw_channel_unlock(clone);
+		cw_channel_unlock(oldchan);
 		return -1;
 	}
 	
-	/* Mangle the name of the clone channel */
-	x = strrchr(clone->name, '<') - clone->name;
-	cw_change_name(clone, "%*.*s<ZOMBIE>", x, x, clone->name);
+	/* Mangle the name of the oldchan channel */
+	x = strrchr(oldchan->name, '<') - oldchan->name;
+	cw_change_name(oldchan, "%*.*s<ZOMBIE>", x, x, oldchan->name);
 
 	/* Update the type. */
-	original->type = clone->type;
+	original->type = oldchan->type;
 	t_pvt = original->monitor;
-	original->monitor = clone->monitor;
-	clone->monitor = t_pvt;
+	original->monitor = oldchan->monitor;
+	oldchan->monitor = t_pvt;
 	
 	/* Keep the same language.  */
-	cw_copy_string(original->language, clone->language, sizeof(original->language));
+	cw_copy_string(original->language, oldchan->language, sizeof(original->language));
 
 	/* Copy the FD's */
 	for (x = 0;  x < CW_MAX_FDS;  x++)
-		original->fds[x] = clone->fds[x];
+		original->fds[x] = oldchan->fds[x];
 
 	/* Drop group from original */
 	cw_app_group_discard(original);
 
-	clone_variables(original, clone);
+	clone_variables(original, oldchan);
 
-	/* Presense of ADSI capable CPE follows clone */
-	original->adsicpe = clone->adsicpe;
+	/* Presense of ADSI capable CPE follows oldchan */
+	original->adsicpe = oldchan->adsicpe;
 
 	/* Bridge remains the same */
 	/* CDR fields remain the same */
 	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
 	/* Application and data remain the same */
 
-	/* Clone exception  becomes real one, as with fdno */
-	cw_copy_flags(original, clone, CW_FLAG_EXCEPTION);
-	original->fdno = clone->fdno;
+	/* oldchan exception  becomes real one, as with fdno */
+	cw_copy_flags(original, oldchan, CW_FLAG_EXCEPTION);
+	original->fdno = oldchan->fdno;
 
 	/* Stream stuff stays the same */
 	/* Keep the original state.  The fixup code will need to work with it most likely */
@@ -3004,11 +3004,11 @@ int cw_do_masquerade(struct cw_channel *original)
 	/* Just swap the whole structures, nevermind the allocations, they'll work themselves
 	   out. */
 	tmpcid = original->cid;
-	original->cid = clone->cid;
-	clone->cid = tmpcid;
+	original->cid = oldchan->cid;
+	oldchan->cid = tmpcid;
 	
 	/* Our native formats are different now */
-	original->nativeformats = clone->nativeformats;
+	original->nativeformats = oldchan->nativeformats;
 	
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
@@ -3020,18 +3020,18 @@ int cw_do_masquerade(struct cw_channel *original)
 	cw_set_read_format(original, rformat);
 
 	/* Copy the music class */
-	cw_copy_string(original->musicclass, clone->musicclass, sizeof(original->musicclass));
+	cw_copy_string(original->musicclass, oldchan->musicclass, sizeof(original->musicclass));
 
 	cw_log(CW_LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
 	/* Okay.  Last thing is to let the channel driver know about all this mess, so he
 	   can fix up everything as best as possible */
 	if (original->tech->fixup) {
-		res = original->tech->fixup(clone, original);
+		res = original->tech->fixup(oldchan, original);
 		if (res) {
 			cw_log(CW_LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
 				original->type, original->name);
-			cw_channel_unlock(clone);
+			cw_channel_unlock(oldchan);
 			return -1;
 		}
 	} else {
@@ -3039,26 +3039,25 @@ int cw_do_masquerade(struct cw_channel *original)
                  original->type, original->name);
 	}
 
-	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
+	/* Now, at this point, the "oldchan" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
 	   zombie, then free it now (since it already is considered invalid). */
-	if (cw_test_flag(clone, CW_FLAG_ZOMBIE)) {
-		cw_log(CW_LOG_DEBUG, "Destroying channel clone '%s'\n", clone->name);
-		cw_channel_unlock(clone);
-		cw_channel_free(clone);
+	if (cw_test_flag(oldchan, CW_FLAG_ZOMBIE)) {
+		cw_log(CW_LOG_DEBUG, "Destroying channel oldchan '%s'\n", oldchan->name);
+		cw_channel_unlock(oldchan);
+		cw_channel_free(oldchan);
 		cw_manager_event(EVENT_FLAG_CALL, "Hangup",
 			4,
-			cw_msg_tuple("Channel",   "%s", clone->name),
-			cw_msg_tuple("Uniqueid",  "%s", clone->uniqueid),
-			cw_msg_tuple("Cause",     "%d", clone->hangupcause),
-			cw_msg_tuple("Cause-txt", "%s", cw_cause2str(clone->hangupcause))
+			cw_msg_tuple("Channel",   "%s", oldchan->name),
+			cw_msg_tuple("Uniqueid",  "%s", oldchan->uniqueid),
+			cw_msg_tuple("Cause",     "%d", oldchan->hangupcause),
+			cw_msg_tuple("Cause-txt", "%s", cw_cause2str(oldchan->hangupcause))
 		);
 	} else {
-		struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
-		cw_log(CW_LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
-		cw_set_flag(clone, CW_FLAG_ZOMBIE);
-		cw_queue_frame(clone, &cw_null_frame);
-		cw_channel_unlock(clone);
+		cw_log(CW_LOG_DEBUG, "Released oldchan lock on '%s'\n", oldchan->name);
+		cw_set_flag(oldchan, CW_FLAG_ZOMBIE);
+		cw_queue_frame(oldchan, &cw_null_frame);
+		cw_channel_unlock(oldchan);
 	}
 	
 	/* Signal any blocker */
@@ -3751,14 +3750,11 @@ cw_group_t cw_get_group(char *s)
 	return group;
 }
 
-static int (*cw_moh_start_ptr)(struct cw_channel *, char *) = NULL;
+static int (*cw_moh_start_ptr)(struct cw_channel *, const char *) = NULL;
 static void (*cw_moh_stop_ptr)(struct cw_channel *) = NULL;
 static void (*cw_moh_cleanup_ptr)(struct cw_channel *) = NULL;
 
-void cw_install_music_functions(int (*start_ptr)(struct cw_channel *, char *),
-								 void (*stop_ptr)(struct cw_channel *),
-								 void (*cleanup_ptr)(struct cw_channel *)
-								 ) 
+void cw_install_music_functions(int (*start_ptr)(struct cw_channel *, const char *), void (*stop_ptr)(struct cw_channel *), void (*cleanup_ptr)(struct cw_channel *))
 {
 	cw_moh_start_ptr = start_ptr;
 	cw_moh_stop_ptr = stop_ptr;
@@ -3773,7 +3769,7 @@ void cw_uninstall_music_functions(void)
 }
 
 /*! Turn on music on hold on a given channel */
-int cw_moh_start(struct cw_channel *chan, char *mclass) 
+int cw_moh_start(struct cw_channel *chan, const char *mclass)
 {
 	if (cw_moh_start_ptr)
 		return cw_moh_start_ptr(chan, mclass);

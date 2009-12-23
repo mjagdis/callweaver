@@ -422,10 +422,7 @@ sco_thread(void * data)
       break;
 
     } else if (pfd[1].revents & POLLIN) {
-
-      int len;
-
-      len = read(pfd[1].fd, &c, 1);
+      read(pfd[1].fd, &c, 1);
       sending = (sending) ? 0 : 1;
 
       cw_mutex_unlock(&(dev->sco_lock));
@@ -710,7 +707,7 @@ ring_hs(blt_dev_t * dev)
  * then intiate the connection.  Once we've done that, we can start the call.
  */
 static int
-blt_call(struct cw_channel *chan, char * dest)
+blt_call(struct cw_channel *chan, const char *dest)
 {
   blt_dev_t * dev = chan->tech_pvt;
 
@@ -901,10 +898,6 @@ blt_new(blt_dev_t *dev, int state, const char *context, const char *number)
   write(dev->sco_pipe[1], &c, 1);
 
   dev->owner = chan;
-
-  cw_mutex_lock(&usecnt_lock);
-  usecnt++;
-  cw_mutex_unlock(&usecnt_lock);
 
   if (state != CW_STATE_DOWN) {
     if (cw_pbx_start(chan)) {

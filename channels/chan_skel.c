@@ -46,10 +46,10 @@ static const char type[] = "Skeleton";
 static const char tdesc[] = "Skeleton Channel Driver";
 
 
-static struct cw_channel *skel_request(const char *type, int format, void *data, int *cause);
+static struct cw_channel *skel_request(const char *drvtype, int format, void *data, int *cause);
 static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 
-static int skel_call(struct cw_channel *ast, char *dest);
+static int skel_call(struct cw_channel *ast, const char *dest);
 static int skel_answer(struct cw_channel *ast);
 static int skel_hangup(struct cw_channel *ast);
 
@@ -65,7 +65,7 @@ static int skel_sendhtml(struct cw_channel *ast, int subclass, const char *data,
 static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame);
 
 
-static struct cw_channel *skel_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *skel_request(const char *drvtype, int format, void *data, int *cause)
 {
 	return NULL;
 }
@@ -93,7 +93,7 @@ static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
  * \param chan		Channel to use
  * \param dest		Destination to connect to
  */
-static int skel_call(struct cw_channel *chan, char *dest)
+static int skel_call(struct cw_channel *chan, const char *dest)
 {
 	return -1;
 }
@@ -215,6 +215,7 @@ static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame)
  */
 static int skel_writevideo(struct cw_channel *chan, struct cw_frame *frame)
 {
+	return 0;
 }
 
 
@@ -224,6 +225,7 @@ static int skel_writevideo(struct cw_channel *chan, struct cw_frame *frame)
  */
 static int skel_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
+	return 0;
 }
 
 
@@ -233,6 +235,7 @@ static int skel_setoption(struct cw_channel *chan, int option, void *data, int d
  */
 static int skel_queryoption(struct cw_channel *chan, int option, void *data, int *datalen)
 {
+	return 0;
 }
 
 
@@ -242,6 +245,7 @@ static int skel_queryoption(struct cw_channel *chan, int option, void *data, int
  */
 static int skel_transfer(struct cw_channel *chan, const char *newdest)
 {
+	return 0;
 }
 
 
@@ -252,6 +256,7 @@ static int skel_transfer(struct cw_channel *chan, const char *newdest)
 static enum cw_bridge_result skel_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags,
 	struct cw_frame **fo, struct cw_channel **rc, int timeoutms)
 {
+	return CW_BRIDGE_COMPLETE;
 }
 
 
@@ -261,6 +266,7 @@ static enum cw_bridge_result skel_bridge(struct cw_channel *c0, struct cw_channe
  */
 static struct cw_channel *skel_bridgedchannel(struct cw_channel *chan, struct cw_channel *bridge)
 {
+	return NULL;
 }
 
 
@@ -298,6 +304,11 @@ static const struct cw_channel_tech skel_tech = {
 };
 
 
+static int reconfig_module(void)
+{
+	return 0;
+}
+
 static int load_module(void)
 {
 	/* Make sure we can register our channel type */
@@ -310,10 +321,12 @@ static int load_module(void)
 
 static int unload_module(void)
 {
-	struct local_pvt *p;
-
 	cw_channel_unregister(&skel_tech);
 	return 0;
 }
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
+static void release_module(void)
+{
+}
+
+MODULE_INFO(load_module, reconfig_module, unload_module, release_module, desc)

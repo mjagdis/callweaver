@@ -57,7 +57,7 @@ extern "C" {
         ICD_LIST_STATE_LAST_STANDARD
     } icd_list_state;
 
-    extern char *icd_list_state_strings[];
+    extern const char *icd_list_state_strings[];
 
     typedef enum {
         ICD_NODE_STATE_ALLOCATED, ICD_NODE_STATE_FREE, ICD_NODE_STATE_USED,
@@ -97,7 +97,7 @@ extern "C" {
         icd_memory *memory;
         int created_as_object;
         int allocated;
-        int (*key_fn) (void *key, void *payload);
+        int (*key_fn) (const void *key, void *payload);
         icd_list_node *(*ins_fn) (icd_list * that, void *new_elem, void *extra);
         int (*add_fn) (icd_event * that, void *extra);
         int (*del_fn) (icd_event * that, void *extra);
@@ -117,13 +117,13 @@ extern "C" {
 /* Methods available for use of subtypes */
 
 /* Retrieves the first node whose payload the match_fn returns true for */
-    icd_list_node *icd_list__fetch_node(icd_list * that, void *key, int (*match_fn) (void *key, void *payload));
+    icd_list_node *icd_list__fetch_node(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload));
 
 /* Fetches the first payload that a callback function returns true for. */
-    void *icd_list__fetch(icd_list * that, void *key, int (*match_fn) (void *key, void *payload));
+    void *icd_list__fetch(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload));
 
 /* Removes the first node that a callback function returns true for */
-    icd_status icd_list__drop_node(icd_list * that, void *key, int (*match_fn) (void *key, void *payload));
+    icd_status icd_list__drop_node(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload));
 
 /* Gets an unused node out of the list's cache */
     icd_list_node *icd_list__get_node(icd_list * list);

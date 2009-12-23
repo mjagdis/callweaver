@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "iax2-parser.h"
 
 static struct iax_flag {
-	char *name;
+	const char *name;
 	int value;
 } iax_flags[] = {
 	{ "register", PROV_FLAG_REGISTER },

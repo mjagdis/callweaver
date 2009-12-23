@@ -81,8 +81,8 @@ static int userevent_exec(struct cw_channel *chan, int argc, char **argv, char *
 	snprintf(eventname, sizeof(eventname), "UserEvent%s", argv[0]);
 
 	for (i = (argc - 1) / 2; i < MAX_KEY_VAL_PAIRS; i++) {
-		argv[1 + argc * 2 + 0] = "nokey";
-		argv[1 + argc * 2 + 1] = "";
+		argv[1 + argc * 2 + 0] = (char *)"nokey";
+		argv[1 + argc * 2 + 1] = (char *)"";
 	}
 
 	cw_manager_event(EVENT_FLAG_USER, eventname,

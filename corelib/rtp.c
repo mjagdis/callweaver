@@ -649,7 +649,6 @@ static int rtpread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 
 struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
 {
-    static struct cw_frame cw_null_frame = { CW_FRAME_NULL, };
     uint32_t rtcpdata[1024];
     char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in sin;
@@ -872,7 +871,7 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 
 int cw_rtp_sendevent(struct cw_rtp * const rtp, char event, uint16_t duration)
 {
-	static char *eventcodes = "0123456789*#ABCDX";
+	static const char *eventcodes = "0123456789*#ABCDX";
 	char *p;
 
 	if (!(p = strchr(eventcodes, toupper(event)))) {
@@ -905,23 +904,22 @@ static void calc_rxstamp(struct timeval *tv, struct cw_rtp *rtp, unsigned int ti
 
 struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 {
-    int res;
+    char iabuf[INET_ADDRSTRLEN];
     struct sockaddr_in sin;
+    struct rtpPayloadType rtpPT;
     socklen_t len;
-    uint32_t seqno;
-    uint32_t csrc_count;
+    struct cw_frame *f;
+    uint32_t *rtpheader;
+    int res;
     int version;
     int payloadtype;
     int hdrlen = 3*sizeof(uint32_t);
     int mark;
     int actions;
-    /* Remove the variable for the pointless loop */
-    char iabuf[INET_ADDRSTRLEN];
+    uint32_t seqno;
+    uint32_t csrc_count;
     uint32_t timestamp;
     uint32_t ssrc;
-    uint32_t *rtpheader;
-    static struct cw_frame *f, cw_null_frame = { CW_FRAME_NULL, };
-    struct rtpPayloadType rtpPT;
 
     len = sizeof(sin);
 
@@ -1150,8 +1148,8 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 static struct
 {
   struct rtpPayloadType payloadType;
-  char* type;
-  char* subtype;
+  const char *type;
+  const char *subtype;
 } mimeTypes[] =
 {
     {{1, CW_FORMAT_G723_1}, "audio", "G723"},
@@ -1258,8 +1256,7 @@ void cw_rtp_set_m_type(struct cw_rtp* rtp, int pt)
 
 /* Make a note of a RTP payload type (with MIME type) that was seen in */
 /* a SDP "a=rtpmap:" line. */
-void cw_rtp_set_rtpmap_type(struct cw_rtp *rtp, int pt,
-                              char *mimeType, char *mimeSubtype)
+void cw_rtp_set_rtpmap_type(struct cw_rtp *rtp, int pt, const char *mimeType, const char *mimeSubtype)
 {
     int i;
 
@@ -1363,7 +1360,7 @@ int cw_rtp_lookup_code(struct cw_rtp* rtp, const int is_cw_format, const int cod
     return -1;
 }
 
-char *cw_rtp_lookup_mime_subtype(const int is_cw_format, const int code)
+const char *cw_rtp_lookup_mime_subtype(const int is_cw_format, const int code)
 {
     int i;
 
@@ -1485,7 +1482,8 @@ void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them)
     udp_socket_set_far(rtp->rtp_sock_info, them);
     /* We need to cook up the RTCP address */
     memcpy(&them_rtcp, them, sizeof(them_rtcp));
-    them_rtcp.sin_port = htons(ntohs(them->sin_port) + 1);
+    them_rtcp.sin_port = ntohs(them->sin_port);
+    them_rtcp.sin_port = htons(them_rtcp.sin_port + 1);
     udp_socket_set_far(rtp->rtcp_sock_info, &them_rtcp);
     rtp->rxseqno = 0;
 }

@@ -410,7 +410,7 @@ extern CW_API_PUBLIC void cw_swapcopy_samples(void *dst, const void *src, int sa
  * \param format id of format
  * \return A static string containing the name of the format or "UNKN" if unknown.
  */
-extern CW_API_PUBLIC char *cw_getformatname(int format);
+extern CW_API_PUBLIC const char *cw_getformatname(int format);
 
 /*! Get the names of a set of formats */
 /*!
@@ -436,7 +436,7 @@ extern CW_API_PUBLIC int cw_getformatbyname(const char *name);
  * Gets a name from a format
  * This returns a static string identifying the format on success, 0 on error.
  */
-extern CW_API_PUBLIC char *cw_codec2str(int codec);
+extern CW_API_PUBLIC const char *cw_codec2str(int codec);
 
 struct cw_smoother;
 
@@ -466,7 +466,7 @@ extern CW_API_PUBLIC void cw_frame_dump(const char *name, const struct cw_frame 
 extern CW_API_PUBLIC void cw_codec_pref_init(struct cw_codec_pref *pref);
 
 /* Codec located at  a particular place in the preference index */
-extern CW_API_PUBLIC int cw_codec_pref_index(struct cw_codec_pref *pref, int index);
+extern CW_API_PUBLIC int cw_codec_pref_index(struct cw_codec_pref *pref, int i);
 
 /* Remove a codec from a preference list */
 extern CW_API_PUBLIC void cw_codec_pref_remove(struct cw_codec_pref *pref, int format);

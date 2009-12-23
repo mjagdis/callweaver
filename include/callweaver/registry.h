@@ -91,7 +91,7 @@ struct cw_registry {
 	int entries;
 	int (*qsort_compare)(const void *a, const void *b);
 	int (*match)(struct cw_object *obj, const void *pattern);
-	char *name;
+	const char *name;
 	void (*onchange)(void);
 };
 

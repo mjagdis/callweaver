@@ -32,7 +32,7 @@
 #define LDAP_CONFIG "ldap.conf"
 
 char *replace_cw_vars(struct cw_channel *chan, const char *string);
-int ldap_lookup(char *host, int port, int version, int timeout, char *user, char *pass, char *base, char *scope, char *filter, char *attribute, char *result);
+int ldap_lookup(const char *host, int port, int version, int timeout, const char *user, const char *pass, const char *base, const char *scope, const char *filter, const char *attribute, char *result);
 static int strconvert(const char *incharset,
                       const char *outcharset,
 #if 0
@@ -45,7 +45,7 @@ static char *strtrim(char *string);
 
 static const char tdesc[] = "LDAP directory lookup function for CallWeaver extension logic.";
 
-static void *g_app = "LDAPget";
+static void *g_app;
 static const char g_name[] = "LDAPget";
 static const char g_synopsis[] = "Retrieve a value from an ldap directory";
 static const char g_syntax[] = "LDAPget(varname=config-file-section/key)";
@@ -57,10 +57,10 @@ static const char g_descrip[] =
 static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
-    char *varname;
-    char *config;
+    const char *varname;
+    const char *config;
     char *keys = NULL;
-    char *key = NULL;
+    const char *key = NULL;
     char *tail = NULL;
     char *result_conv;
     struct cw_config *cfg;
@@ -68,16 +68,16 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     int version = LDAP_VERSION2;
     int timeout = 10;
     char *temp;
-    char *host;
-    char *user;
-    char *pass;
+    const char *host;
+    const char *user;
+    const char *pass;
     char *base;
-    char *scope;
+    const char *scope;
     char *filter;
-    char *_filter;
-    char *attribute;
-    char *convert_from = NULL;
-    char *convert_to = NULL;
+    const char *_filter;
+    const char *attribute;
+    const char *convert_from = NULL;
+    const char *convert_to = NULL;
 
     if (argc != 1)
     {
@@ -143,7 +143,7 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     pass = cw_variable_retrieve(cfg, config, "pass");
     base = cw_variable_retrieve(cfg, config, "base");
     if (!base)
-        base = "";
+        base = (char *)"";
     base = replace_cw_vars(chan, base);
     if (!(scope = cw_variable_retrieve(cfg, config, "scope")))
     {
@@ -233,16 +233,16 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     return 0;
 }
 
-int ldap_lookup(char *host,
+int ldap_lookup(const char *host,
                 int port,
                 int version,
                 int timeout,
-                char *user,
-                char *pass, 
-                char *base,
-                char *scope,
-                char *filter,
-                char *attribute,
+                const char *user,
+                const char *pass, 
+                const char *base,
+                const char *scope,
+                const char *filter,
+                const char *attribute,
                 char *result)
 {
     char *attrs[] = {NULL};
@@ -342,7 +342,7 @@ char *replace_cw_vars(struct cw_channel *chan, const char *_string)
     int end;
 
     if (!_string)
-        return "";
+        return (char *)"";
     string = (char *) malloc((strlen(_string) + 1)*sizeof(char));
     memcpy(string, _string, strlen(_string) + 1);
 

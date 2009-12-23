@@ -128,5 +128,5 @@ int member_exec( struct cw_channel* chan, int argc, char **argv );
 struct cw_conf_member* create_member( struct cw_channel *chan, int argc, char **argv ) ;
 struct cw_conf_member* delete_member( struct cw_conf_member* member ) ;
 int cw_conf_member_genactivate( struct cw_conf_member *member ) ;
-char *membertypetostring  (int member_type);
+const char *membertypetostring  (int member_type);
 

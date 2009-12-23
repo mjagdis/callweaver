@@ -254,7 +254,7 @@ CW_DECLARE_OPTIONS(meetme_opts,{
     ['P'] = { CONFFLAG_ALWAYSPROMPT },
 });
 
-static char *istalking(int x)
+static const char *istalking(int x)
 {
     if (x > 0)
         return "(talking)";
@@ -438,7 +438,7 @@ static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int s
         cw_autoservice_stop(chan);
 }
 
-static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin, int make, int dynamic)
+static struct cw_conference *build_conf(const char *confno, const char *pin, const char *pinadmin, int make, int dynamic)
 {
     struct cw_conference *cnf;
     struct dahdi_confinfo ztc;
@@ -461,7 +461,7 @@ static struct cw_conference *build_conf(char *confno, char *pin, char *pinadmin,
             cw_copy_string(cnf->pin, pin, sizeof(cnf->pin));
             cw_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
             cnf->markedusers = 0;
-            cnf->chan = cw_request("DAHDI", CW_FORMAT_ULAW, "pseudo", NULL);
+            cnf->chan = cw_request("DAHDI", CW_FORMAT_ULAW, (void *)"pseudo", NULL);
             if (cnf->chan)
             {
                 cnf->fd = cnf->chan->fds[0];    /* for use by conf_play() */
@@ -535,8 +535,8 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     /* Process the command */
     char buf[1024] = "";
-    char *header_format = "%-14s %-14s %-10s %-8s  %-8s\n";
-    char *data_format = "%-12.12s   %4.4d          %4.4s       %02d:%02d:%02d  %-8s\n";
+    const char header_format[] = "%-14s %-14s %-10s %-8s  %-8s\n";
+    const char data_format[] = "%-12.12s   %4.4d          %4.4s       %02d:%02d:%02d  %-8s\n";
     struct cw_conference *cnf;
     struct cw_conf_user *user;
     int hr, min, sec;
@@ -585,7 +585,7 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
 
     if (strstr(argv[1], "lock"))
     {
-        argv[3] = (strcmp(argv[1], "lock") == 0 ? argv[3] = "L" : "l");
+        argv[3] = (char *)(strcmp(argv[1], "lock") == 0 ? "L" : "l");
         argc = 2;
     }
     else if (strstr(argv[1], "mute"))
@@ -597,13 +597,13 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
             /* Mute */
             if (strcmp(argv[3], "all") == 0)
             {
-                argv[3] = "N";
+                argv[3] = (char *)"N";
                 argc = 2;
             }
             else
             {
                 argv[4] = argv[3];
-                argv[3] = "M";
+                argv[3] = (char *)"M";
                 argc = 3;
             }
         }
@@ -612,13 +612,13 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
             /* Unmute */
             if (strcmp(argv[3], "all") == 0)
             {
-                argv[3] = "n";
+                argv[3] = (char *)"n";
                 argc = 2;
             }
             else
             {
                 argv[4] = argv[3];
-                argv[3] = "m";
+                argv[3] = (char *)"m";
                 argc = 3;
             }
         }
@@ -630,14 +630,14 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
         if (strcmp(argv[3], "all") == 0)
         {
             /* Kick all */
-            argv[3] = "K";
+            argv[3] = (char *)"K";
             argc = 2;
         }
         else
         {
             /* Kick a single user */
             argv[4] = argv[3];
-            argv[3] = "k";
+            argv[3] = (char *)"k";
             argc = 3;
         }
     }
@@ -820,7 +820,7 @@ static int conf_free(struct cw_conference *conf)
 
 static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int confflags)
 {
-    static char *ogifiledefault = "conf-background.ogi";
+    char ogifiledefault[] = "conf-background.ogi";
     struct cw_conf_user *user = malloc(sizeof(struct cw_conf_user));
     struct cw_conf_user *usr = NULL;
     struct cw_var_t *var;

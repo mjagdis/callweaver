@@ -54,13 +54,13 @@ extern "C" {
 /***** Init - Destroyer *****/
 
 /* Create a caller list. data is a parsable string of parameters. */
-    icd_caller_list *create_icd_caller_list(char *name, icd_config * data);
+    icd_caller_list *create_icd_caller_list(const char *name, icd_config * data);
 
 /* Destroy a caller list, freeing its memory and cleaning up after it. */
     icd_status destroy_icd_caller_list(icd_caller_list ** listp);
 
 /* Initialize a caller list */
-    icd_status init_icd_caller_list(icd_caller_list * that, char *name, icd_config * data);
+    icd_status init_icd_caller_list(icd_caller_list * that, const char *name, icd_config * data);
 
 /* Clear a caller list */
     icd_status icd_caller_list__clear(icd_caller_list * that);

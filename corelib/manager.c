@@ -1168,9 +1168,9 @@ static const char mandescr_originate[] =
 
 static struct cw_manager_message *action_originate(struct mansession *sess, const struct message *req)
 {
-	struct cw_manager_message *msg = NULL;
 	char tmp[256];
 	char tmp2[256];
+	struct cw_manager_message *msg = NULL;
 	struct fast_originate_helper *fast;
 	char *name = cw_manager_msg_header(req, "Channel");
 	char *exten = cw_manager_msg_header(req, "Exten");
@@ -1225,11 +1225,11 @@ static struct cw_manager_message *action_originate(struct mansession *sess, cons
 
 		for (x = 0; x < req->hdrcount; x++) {
 			if (!strcasecmp("Variable", req->header[x].key)) {
-				char *n, *v;
-				n = v = cw_strdupa(req->header[x].val);
-				strsep(&v, "=");
-				if (v && !cw_strlen_zero(n))
-					cw_var_assign(&fast->vars, n, v);
+				char *varname, *varval;
+				varname = varval = cw_strdupa(req->header[x].val);
+				strsep(&varval, "=");
+				if (varval && !cw_strlen_zero(varname))
+					cw_var_assign(&fast->vars, varname, varval);
 			}
 		}
 
@@ -1360,8 +1360,8 @@ static struct cw_manager_message *action_extensionstate(struct mansession *sess,
 {
 	char hint[256] = "";
 	struct cw_manager_message *msg = NULL;
-	char *exten = cw_manager_msg_header(req, "Exten");
-	char *context = cw_manager_msg_header(req, "Context");
+	const char *exten = cw_manager_msg_header(req, "Exten");
+	const char *context = cw_manager_msg_header(req, "Context");
 	int status;
 	
 	if (!cw_strlen_zero(exten)) {
@@ -1420,12 +1420,13 @@ static struct cw_manager_message *action_timeout(struct mansession *sess, const 
 
 static int process_message(struct mansession *sess, const struct message *req)
 {
+	char *action = cw_manager_msg_header(req, "Action");
 	struct cw_manager_message *msg = NULL;
 	int islogoff = 0;
 
-	if (cw_strlen_zero(req->action))
+	if (cw_strlen_zero(action))
 		msg = cw_manager_response("Error", "Missing action in request");
-	else if (!strcasecmp(req->action, "Challenge")) {
+	else if (!strcasecmp(action, "Challenge")) {
 		char *authtype;
 
 		if ((authtype = cw_manager_msg_header(req, "AuthType")) && !strcasecmp(authtype, "MD5")) {
@@ -1437,15 +1438,15 @@ static int process_message(struct mansession *sess, const struct message *req)
 			}
 		} else
 			msg = cw_manager_response("Error", "Must specify AuthType");
-	} else if (!strcasecmp(req->action, "Login")) {
+	} else if (!strcasecmp(action, "Login")) {
 		msg = authenticate(sess, req);
-	} else if (!strcasecmp(req->action, "Logoff")) {
+	} else if (!strcasecmp(action, "Logoff")) {
 		msg = cw_manager_response("Success", "See ya");
 		islogoff = 1;
 	} else if (sess->authenticated) {
 		struct cw_object *it;
 
-		if ((it = cw_registry_find(&manager_action_registry, 0, 0, req->action))) {
+		if ((it = cw_registry_find(&manager_action_registry, 0, 0, action))) {
 			struct manager_action *act = container_of(it, struct manager_action, obj);
 			if ((sess->writeperm & act->authority) == act->authority)
 				msg = act->func(sess, req);
@@ -1502,7 +1503,7 @@ static void *manager_session_ami_read(void *data)
 						pthread_cond_signal(&sess->activity);
 						pthread_cond_wait(&sess->ack, &sess->lock);
 						pthread_cleanup_pop(1);
-						m.action = m.actionid = NULL;
+						m.actionid = NULL;
 						m.hdrcount = 0;
 						memmove(buf, &buf[pos + 1], res - 1);
 						pos = -1;
@@ -1522,10 +1523,6 @@ static void *manager_session_ami_read(void *data)
 						state = 2;
 						buf[pos] = '\0';
 						switch (&buf[pos] - m.header[m.hdrcount].key) {
-							case sizeof("Action")-1:
-								if (!strcasecmp(m.header[m.hdrcount].key, "Action"))
-									hval = &m.action;
-								break;
 							case sizeof("ActionID")-1:
 								if (!strcasecmp(m.header[m.hdrcount].key, "ActionID"))
 									hval = &m.actionid;
@@ -2171,7 +2168,7 @@ int manager_reload(void)
 {
 	struct cw_config *cfg;
 	struct cw_variable *v;
-	char *bindaddr, *portno;
+	const char *bindaddr, *portno;
 
 	/* Shut down any existing listeners */
 	cw_registry_iterate(&cw_connection_registry, listener_close, NULL);

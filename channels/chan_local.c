@@ -59,9 +59,6 @@ static const char desc[] = "Local Proxy Channel";
 static const char type[] = "Local";
 static const char tdesc[] = "Local Proxy Channel Driver";
 
-static int usecnt =0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
 static struct cw_jb_conf g_jb_conf = {
@@ -77,7 +74,7 @@ CW_MUTEX_DEFINE_STATIC(locallock);
 
 static struct cw_channel *local_request(const char *type, int format, void *data, int *cause);
 static int local_digit(struct cw_channel *ast, char digit);
-static int local_call(struct cw_channel *ast, char *dest);
+static int local_call(struct cw_channel *ast, const char *dest);
 static int local_hangup(struct cw_channel *ast);
 static int local_answer(struct cw_channel *ast);
 static struct cw_frame *local_read(struct cw_channel *ast);
@@ -335,7 +332,7 @@ static int local_sendhtml(struct cw_channel *ast, int subclass, const char *data
 
 /*--- local_call: Initiate new call, part of PBX interface */
 /* 	dest is the dial string */
-static int local_call(struct cw_channel *ast, char *dest)
+static int local_call(struct cw_channel *ast, const char *dest)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;
@@ -421,10 +418,6 @@ static int local_hangup(struct cw_channel *ast)
 	} else
 		p->owner = NULL;
 	ast->tech_pvt = NULL;
-	
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	cw_mutex_unlock(&usecnt_lock);
 	
 	if (!p->owner && !p->chan) {
 		/* Okay, done with the private part now, too. */
@@ -566,10 +559,6 @@ static struct cw_channel *local_new(struct local_pvt *p, int state)
 	tmp2->tech_pvt = p;
 	p->owner = tmp;
 	p->chan = tmp2;
-	cw_mutex_lock(&usecnt_lock);
-	usecnt++;
-	usecnt++;
-	cw_mutex_unlock(&usecnt_lock);
 	cw_copy_string(tmp->context, p->context, sizeof(tmp->context));
 	cw_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
 	cw_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
@@ -583,7 +572,7 @@ static struct cw_channel *local_new(struct local_pvt *p, int state)
 
 
 /*--- local_request: Part of PBX interface */
-static struct cw_channel *local_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *local_request(const char *drvtype, int format, void *data, int *cause)
 {
 	struct local_pvt *p;
 	struct cw_channel *chan = NULL;

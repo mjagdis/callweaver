@@ -52,8 +52,8 @@ static const char config_func_desc[] = "This function will read configuration va
 /* function_config_read() {{{ */
 static int function_config_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	static struct {
-		char *key, *value;
+	static const struct {
+		const char *key, *value;
 	} keytab[] = {
 #if 0
 		/* These doesn't seem to be available outside callweaver.c */

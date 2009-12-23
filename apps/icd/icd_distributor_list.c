@@ -46,7 +46,7 @@
 /* Constructor for a list object. */
 icd_distributor_list *init_icd_distributor_list(int size)
 {
-    icd_distributor_list *list;
+    icd_distributor_list *list = NULL;
 
     return list;
 }
@@ -54,7 +54,7 @@ icd_distributor_list *init_icd_distributor_list(int size)
 /* Destructor for a list object. */
 icd_status destroy_icd_distributor_list(icd_distributor_list ** listp)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }
@@ -64,7 +64,7 @@ icd_status destroy_icd_distributor_list(icd_distributor_list ** listp)
 /* Add an element onto the list. */
 icd_status icd_distributor_list__push(icd_distributor_list * that, icd_distributor * dist)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }
@@ -72,7 +72,7 @@ icd_status icd_distributor_list__push(icd_distributor_list * that, icd_distribut
 /* Pop the top element off of the list. */
 icd_distributor *icd_distributor_list__pop(icd_distributor_list * that)
 {
-    icd_distributor *dist;
+    icd_distributor *dist = NULL;
 
     return dist;
 }
@@ -80,7 +80,7 @@ icd_distributor *icd_distributor_list__pop(icd_distributor_list * that)
 /* Print our a copy of the list */
 icd_status icd_distributor_list__dump(icd_distributor_list * that, struct cw_dynstr **ds_p)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 
@@ -91,7 +91,7 @@ icd_status icd_distributor_list__dump(icd_distributor_list * that, struct cw_dyn
 /* Lock the list */
 icd_status icd_distributor_list__lock(icd_distributor_list * that)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }
@@ -99,7 +99,7 @@ icd_status icd_distributor_list__lock(icd_distributor_list * that)
 /* Unlock the list */
 icd_status icd_distributor_list__unlock(icd_distributor_list * that)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }
@@ -109,14 +109,14 @@ icd_status icd_distributor_list__unlock(icd_distributor_list * that)
 icd_status icd_distributor_list__add_listener(icd_distributor_list * that, void *listener,
     int (*lstn_fn) (icd_distributor_list * that, void *msg, void *extra), void *extra)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }
 
 icd_status icd_distributor_list__remove_listener(icd_distributor_list * that, void *listener)
 {
-    icd_status ret;
+    icd_status ret = ICD_SUCCESS;
 
     return ret;
 }

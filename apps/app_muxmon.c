@@ -157,8 +157,9 @@ static void *muxmon_thread(void *obj)
     struct cw_channel *bchan;
     struct muxmon *muxmon = obj;
     struct cw_filestream *fs = NULL;
-    char *ext;
+    const char *ext;
     char *name;
+    char *p;
     int len0 = 0;
     int len1 = 0;
     int samp0 = 0;
@@ -182,9 +183,10 @@ static void *muxmon_thread(void *obj)
     if (muxmon->readvol  ||  muxmon->writevol)
         cw_set_flag(muxmon, MUXFLAG_VOLUME);
 
-    if ((ext = strrchr(muxmon->filename, '.')))
-        *(ext++) = '\0';
-    else
+    if ((p = strrchr(muxmon->filename, '.'))) {
+        *p = '\0';
+        ext = p + 1;
+    } else
         ext = "raw";
 
     memset(&spy, 0, sizeof(spy));
@@ -299,7 +301,6 @@ static void *muxmon_thread(void *obj)
 
     if (muxmon->post_process)
     {
-        char *p;
         for (p = muxmon->post_process;  *p;  p++)
         {
             if (*p == '^'  &&  *(p+1) == '{')

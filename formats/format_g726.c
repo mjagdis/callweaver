@@ -79,7 +79,7 @@ static const char desc[] = "Raw G.726 (16/24/32/40kbps) data";
 /*
  * Rate dependant format functions (open, rewrite)
  */
-static void *g726_open(FILE *f, int rate, char *name)
+static void *g726_open(FILE *f, int rate, const char *name)
 {
     struct pvt *tmp;
 

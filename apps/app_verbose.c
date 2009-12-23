@@ -50,7 +50,7 @@ static const char verbose_descrip[] =
 
 static int verbose_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	static char *prefix[] = {
+	static const char *prefix[] = {
 		"",
 		VERBOSE_PREFIX_1,
 		VERBOSE_PREFIX_2,

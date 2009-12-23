@@ -135,7 +135,7 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
     icd_member *agent = NULL;
     icd_caller *customer_caller = NULL;
     icd_caller *agent_caller = NULL;
-    char *tmp_str;
+    const char *tmp_str;
     icd_list_iterator *iter;
     icd_status result;
     int LinkFound;

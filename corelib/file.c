@@ -500,7 +500,7 @@ static struct cw_filestream *cw_openvstream(struct cw_channel *chan, const char 
 	char filename2[256];
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
-	char *fmt = "h263";
+	const char *fmt = "h263";
 	struct cw_filestream *fs;
 	int fmts = 0;
 
@@ -645,8 +645,8 @@ int cw_fileexists(const char *filename, const char *fmt, const char *preflang)
 {
 	char filename2[256];
 	char tmp[256];
-	char *postfix;
-	char *prefix;
+	const char *postfix;
+	const char *prefix;
 	char *c;
 	char lang2[MAX_LANGUAGE];
 	int res = 0;
@@ -941,7 +941,7 @@ int cw_waitstream(struct cw_channel *c, const char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
-int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *rewind, int ms)
+int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forward, const char *backward, int ms)
 {
 	int res;
 	struct cw_frame *fr;
@@ -950,8 +950,8 @@ int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forw
 		breakon = "";
 	if (!forward)
 		forward = "";
-	if (!rewind)
-		rewind = "";
+	if (!backward)
+		backward = "";
 	
 	while (atomic_read(&c->stream->running) || (c->stream->vfs && atomic_read(&c->stream->vfs->running))) {
 		res = cw_waitfor(c, 10000);
@@ -972,7 +972,7 @@ int cw_waitstream_fr(struct cw_channel *c, const char *breakon, const char *forw
 				res = fr->subclass;
 				if (strchr(forward,res)) {
 					cw_stream_fastforward(c->stream, ms);
-				} else if (strchr(rewind,res)) {
+				} else if (strchr(backward,res)) {
 					cw_stream_rewind(c->stream, ms);
 				} else if (strchr(breakon, res)) {
 					cw_fr_free(fr);

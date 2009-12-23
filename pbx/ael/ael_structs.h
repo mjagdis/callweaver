@@ -122,22 +122,20 @@ struct pval
 						  EXCEPT for objects of the different types, that are in the same list, like contexts & procs, etc */
 };
 
-typedef struct pval pval;
-
 #if 0
-pval *npval(pvaltype type, int first_line, int last_line, int first_column, int last_column);
-void linku1(pval *head, pval *tail);
-void print_pval_list(FILE *f, pval *item, int depth);
-void print_pval(FILE *f, pval *item, int depth);
-void ael2_semantic_check(pval *item, int *errs, int *warns, int *notes);
+struct pval *npval(pvaltype type, int first_line, int last_line, int first_column, int last_column);
+void linku1(struct pval *head, struct pval *tail);
+void print_pval_list(FILE *f, struct pval *item, int depth);
+void print_pval(FILE *f, struct pval *item, int depth);
+void ael2_semantic_check(struct pval *item, int *errs, int *warns, int *notes);
 struct pval *find_label_in_current_context(char *exten, char *label);
 struct pval *find_label_in_current_extension(char *label);
 int count_labels_in_current_context(char *label);
 struct pval *find_label_in_current_db(char *context, char *exten, char *label);
-void ael2_print(char *fname, pval *tree);
+void ael2_print(char *fname, struct pval *tree);
 #endif
 struct pval *ael2_parse(char *fname, int *errs);	/* in ael.flex */
-void destroy_pval(pval *item);
+void destroy_pval(struct pval *item);
 
 extern char *prev_word;	/* in ael.flex */
 

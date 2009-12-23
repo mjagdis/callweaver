@@ -66,7 +66,7 @@ typedef enum {
 
 #define cw_toggle_flag(it,flag) if(cw_test_flag(it, flag)) cw_clear_flag(it, flag); else cw_set_flag(it, flag)
 
-static int play_and_wait(struct cw_channel *chan, char *file, char *digits) 
+static int play_and_wait(struct cw_channel *chan, const char *file, const char *digits)
 {
 	int res = -1;
 	if (!cw_streamfile(chan, file, chan->language)) {

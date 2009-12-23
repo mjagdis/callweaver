@@ -66,13 +66,13 @@ static const char transfer_descrip[] =
 
 static int transfer_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res;
-	int len;
 	struct localuser *u;
-	char *slash;
-	char *tech = NULL;
-	char *dest;
-	char *status;
+	const char *slash;
+	const char *tech = NULL;
+	const char *dest;
+	const char *status;
+	int len;
+	int res;
 
 	if (argc != 1)
 		return cw_function_syntax(transfer_syntax);

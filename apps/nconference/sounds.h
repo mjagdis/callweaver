@@ -24,6 +24,6 @@ struct cw_conf_soundq
 
 
 int conf_play_soundqueue( struct cw_conf_member *member );
-int conference_queue_sound( struct cw_conf_member *member, char *soundfile );
+int conference_queue_sound( struct cw_conf_member *member, const char *soundfile );
 int conference_queue_number( struct cw_conf_member *member, char *str );
 int conference_stop_sounds( struct cw_conf_member *member );

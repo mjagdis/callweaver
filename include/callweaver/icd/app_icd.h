@@ -118,16 +118,16 @@ icd_status app_icd__add_agent_to_queue(icd_agent * agent, char *queue);
 
 /* Configuration through conf files. If filename NULL use default. Use these as a pair. */
 /*icd general system options */
-icd_status app_icd__read_icd_config(char *icd_config_name);
+icd_status app_icd__read_icd_config(const char *icd_config_name);
 
 /* conference options */
-icd_status app_icd__read_conference_config(char *conference_config_name);
+icd_status app_icd__read_conference_config(const char *conference_config_name);
 
 /*queues config */
-icd_status app_icd__read_queue_config(icd_fieldset * queues, char *queue_config_name,
+icd_status app_icd__read_queue_config(icd_fieldset * queues, const char *queue_config_name,
         icd_fieldset * outstanding_members);
 /* agents config */
-icd_status app_icd__read_agents_config(icd_fieldset * agents, char *agent_config_name, icd_fieldset * queues,
+icd_status app_icd__read_agents_config(icd_fieldset * agents, const char *agent_config_name, icd_fieldset * queues,
         icd_fieldset * outstanding_members);
 
 /* Adds a customer to the ICD system */
@@ -152,7 +152,7 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
 int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
 
 /* dunno where this belongs but useful every where : */
-int icd_instr(char *bigstr, char *smallstr, char delimit);
+int icd_instr(const char *bigstr, const char *smallstr, char delimit);
 
 /***** Getters and Setters *****/
 

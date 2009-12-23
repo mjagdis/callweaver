@@ -50,8 +50,8 @@ static void FREE(void *ptr)
 #endif
 
 static const char dtext[] = "Text Extension Configuration";
-static char *config = "extensions.conf";
-static char *registrar = "pbx_config";
+static const char *config = "extensions.conf";
+static const char *registrar = "pbx_config";
 
 static int static_config = 0;
 static int write_protect_config = 1;
@@ -783,7 +783,7 @@ static int handle_context_add_extension(struct cw_dynstr **ds_p, int argc, char 
 	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT)) return RESULT_SHOWUSAGE;
 
 	if (!app_data)
-		app_data="";
+		app_data = (char *)"";
 	if (cw_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, NULL, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
@@ -1148,7 +1148,7 @@ static int pbx_load_module(void)
 							stringp=tc;
 							ext = strsep(&stringp, ",");
 							if (!ext)
-								ext="";
+								ext = (char *)"";
 							pbx_substitute_variables(NULL, NULL, ext, realext, sizeof(realext));
 							cidmatch = strchr(realext, '/');
 							if (cidmatch) {
@@ -1158,7 +1158,7 @@ static int pbx_load_module(void)
 							}
 							pri = strsep(&stringp, ",");
 							if (!pri)
-								pri="";
+								pri = (char *)"";
 							label = strchr(pri, '(');
 							if (label) {
 								*label = '\0';
@@ -1196,7 +1196,7 @@ static int pbx_load_module(void)
 							}
 							appl = stringp;
 							if (!appl)
-								appl="";
+								appl = (char *)"";
 							/* Find the first occurrence of either '(' or ',' */
 							firstc = strchr(appl, ',');
 							firstp = strchr(appl, '(');
@@ -1207,7 +1207,7 @@ static int pbx_load_module(void)
 								data = stringp;
 							} else if ((!firstc) && (!firstp)) {
 								/* Neither found */
-								data = "";
+								data = (char *)"";
 							} else {
 								/* Final remaining case is parenthesis found first */
 								appl = strsep(&stringp, "(");
@@ -1221,7 +1221,7 @@ static int pbx_load_module(void)
 							}
 
 							if (!data)
-								data="";
+								data = (char *)"";
 							appl = cw_skip_blanks(appl);
 							if (ipri) {
 								if (plus)
@@ -1257,7 +1257,7 @@ static int pbx_load_module(void)
 						appl = strsep(&stringp, "/");
 						data = strsep(&stringp, "");
 						if (!data)
-							data = "";
+							data = (char *)"";
 						if (cw_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}

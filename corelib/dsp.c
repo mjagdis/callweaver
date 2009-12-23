@@ -70,9 +70,9 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* For UK mode */
 #define HZ_400  0
 
-static struct progalias
+static const struct progalias
 {
-    char *name;
+    const char *name;
     int mode;
 } aliases[] =
 {
@@ -83,7 +83,7 @@ static struct progalias
     { "uk", PROG_MODE_UK },
 };
 
-static struct progress
+static const struct progress
 {
     int size;
     int freqs[7];

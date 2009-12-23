@@ -71,7 +71,7 @@ static char remoteversion[256];
 
 static char *clr_eol;
 
-static int prompt;
+static int prompting;
 static int progress;
 
 static char **matches;
@@ -81,8 +81,8 @@ static int matches_count;
 
 static void smart_write(const char *buf, int len)
 {
-	if (prompt && (option_console || option_remote)) {
-		prompt = 0;
+	if (prompting && (option_console || option_remote)) {
+		prompting = 0;
 		if (clr_eol) {
 			terminal_write("\r", 1);
 			fputs(clr_eol, stdout);
@@ -95,7 +95,7 @@ static void smart_write(const char *buf, int len)
 
 
 /*! Set an X-term or screen title */
-static void set_title(char *text)
+static void set_title(const char *text)
 {
 	char *p;
 
@@ -514,11 +514,11 @@ static char **cli_completion(const char *text, int start, int end)
 		matches_count = 1;
 		matches[0] = NULL;
 
-		iov[0].iov_base = "Action: Complete\r\nCommand: ";
+		iov[0].iov_base = (void *)"Action: Complete\r\nCommand: ";
 		iov[0].iov_len = sizeof("Action: Complete\r\nCommand: ") - 1;
 		iov[1].iov_base = rl_line_buffer;
 		iov[1].iov_len = strlen(rl_line_buffer);
-		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_base = (void *)"\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
 		cw_writev_all(console_sock, iov, arraysize(iov));
 
@@ -579,11 +579,11 @@ static void console_handler(char *s)
 			} else {
 				struct iovec iov[3];
 
-				iov[0].iov_base = "Action: Command\r\nCommand: ";
+				iov[0].iov_base = (void *)"Action: Command\r\nCommand: ";
 				iov[0].iov_len = sizeof("Action: Command\r\nCommand: ") - 1;
 				iov[1].iov_base = s;
 				iov[1].iov_len = strlen(s);
-				iov[2].iov_base = "\r\n\r\n";
+				iov[2].iov_base = (void *)"\r\n\r\n";
 				iov[2].iov_len = sizeof("\r\n\r\n") - 1;
 				if (cw_writev_all(console_sock, iov, 3) < 1) {
 					cw_log(CW_LOG_WARNING, "Unable to write: %s\n", strerror(errno));
@@ -591,7 +591,7 @@ static void console_handler(char *s)
 					pthread_cancel(pthread_self());
 				}
 				read_message(console_sock, 1);
-				prompt = 1;
+				prompting = 1;
 			}
 		}
 	} else if (option_remote) {
@@ -729,17 +729,17 @@ void *console(void *data)
 		/* Make sure verbose and debug settings are what we want or higher
 		 * and enable events
 		 */
-		iov[0].iov_base = "Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ";
+		iov[0].iov_base = (void *)"Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ";
 		iov[0].iov_len = sizeof("Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ") - 1;
 		iov[1].iov_base = buf;
 		iov[1].iov_len = snprintf(buf, sizeof(buf), "%d", option_verbose);
-		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_base = (void *)"\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
-		iov[3].iov_base = "Action: Command\r\nCommand: set debug atleast ";
+		iov[3].iov_base = (void *)"Action: Command\r\nCommand: set debug atleast ";
 		iov[3].iov_len = sizeof("Action: Command\r\nCommand: set debug atleast ") - 1;
 		iov[4].iov_base = buf + iov[1].iov_len;
 		iov[4].iov_len = snprintf(buf + iov[1].iov_len, sizeof(buf) - iov[1].iov_len, "%d", option_debug);
-		iov[5].iov_base = "\r\n\r\n";
+		iov[5].iov_base = (void *)"\r\n\r\n";
 		iov[5].iov_len = sizeof("\r\n\r\n") - 1;
 		cw_writev_all(console_sock, iov, 6);
 		read_message(console_sock, 4);
@@ -749,7 +749,7 @@ void *console(void *data)
 			kill(cw_mainpid, SIGHUP);
 
 		progress = 0;
-		prompt = 1;
+		prompting = 1;
 		rl_callback_handler_install(cli_prompt(), console_handler);
 
 		pfd[0].fd = console_sock;
@@ -773,8 +773,8 @@ void *console(void *data)
 					if (read_message(console_sock, 0))
 						break;
 
-					if (!progress && !prompt) {
-						prompt = 1;
+					if (!progress && !prompting) {
+						prompting = 1;
 						rl_forced_update_display();
 						fflush(stdout);
 					}
@@ -811,11 +811,11 @@ int console_oneshot(char *spec, char *cmd)
 		/* Dump the connection banner. We don't need it here */
 		while (read(s, &c, 1) == 1 && c != '\n');
 
-		iov[0].iov_base = "Action: Command\r\nCommand: ";
+		iov[0].iov_base = (void *)"Action: Command\r\nCommand: ";
 		iov[0].iov_len = sizeof("Action: Command\r\nCommand: ") - 1;
 		iov[1].iov_base = cmd;
 		iov[1].iov_len = strlen(cmd);
-		iov[2].iov_base = "\r\n\r\n";
+		iov[2].iov_base = (void *)"\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
 		cw_writev_all(s, iov, 3);
 

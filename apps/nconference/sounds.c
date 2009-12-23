@@ -99,7 +99,7 @@ int conf_play_soundqueue( struct cw_conf_member *member )
 
 
 
-int conference_queue_sound( struct cw_conf_member *member, char *soundfile )
+int conference_queue_sound( struct cw_conf_member *member, const char *soundfile )
 {
 	struct cw_conf_soundq *newsound;
 	struct cw_conf_soundq **q;

@@ -98,8 +98,6 @@ typedef enum {
 	TFLAG_ANSWER = (1 << 10),
 } TFLAGS;
 
-static int usecnt = 0;
-
 struct woomera_message {
 	char callid[WOOMERA_STRLEN];
 	int mval;
@@ -177,17 +175,16 @@ static struct woomera_profile_container {
     ASTOBJ_CONTAINER_COMPONENTS(woomera_profile);
 } woomera_profile_list;
 
-static woomera_profile default_profile;
+static woomera_profile global_default_profile;
 
 /* some locks you will use for use count and for exclusive access to the main linked-list of private objects */
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 CW_MUTEX_DEFINE_STATIC(lock);
 
 /* local prototypes */
 static void woomera_close_socket(int *socket);
 static void global_set_flag(int flags);
-static void woomera_printf(woomera_profile *profile, int fd, char *fmt, ...);
-static char *woomera_message_header(woomera_message *wmsg, char *key);
+static void woomera_printf(woomera_profile *profile, int fd, const char *fmt, ...);
+static char *woomera_message_header(woomera_message *wmsg, const char *key);
 static int woomera_enqueue_event(woomera_event_queue *event_queue, woomera_message *wmsg);
 static int woomera_dequeue_event(woomera_event_queue *event_queue, woomera_message *wmsg);
 static int woomera_message_parse(int fd, woomera_message *wmsg, int timeout, woomera_profile *profile, woomera_event_queue *event_queue);
@@ -220,7 +217,7 @@ static void tech_monitor_in_one_thread(void);
  */
 static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause);
 static int tech_send_digit(struct cw_channel *self, char digit);
-static int tech_call(struct cw_channel *self, char *dest);
+static int tech_call(struct cw_channel *self, const char *dest);
 static int tech_hangup(struct cw_channel *self);
 static int tech_answer(struct cw_channel *self);
 static struct cw_frame *tech_read(struct cw_channel *self);
@@ -277,13 +274,13 @@ static const struct cw_channel_tech technology = {
 };
 
 
-static void woomera_close_socket(int *socket) 
+static void woomera_close_socket(int *sock)
 {
 
-	if (*socket > 0) {
-		close(*socket);
+	if (*sock > 0) {
+		close(*sock);
 	}
-	*socket = 0;
+	*sock = 0;
 }
 
 static void global_set_flag(int flags)
@@ -300,7 +297,7 @@ static void global_set_flag(int flags)
 
 
 
-static void woomera_printf(woomera_profile *profile, int fd, char *fmt, ...)
+static void woomera_printf(woomera_profile *profile, int fd, const char *fmt, ...)
 {
     char *stuff;
     int res = 0;
@@ -331,7 +328,7 @@ static void woomera_printf(woomera_profile *profile, int fd, char *fmt, ...)
 
 }
 
-static char *woomera_message_header(woomera_message *wmsg, char *key) 
+static char *woomera_message_header(woomera_message *wmsg, const char *key)
 {
 	int x = 0;
 	char *value = NULL;
@@ -735,12 +732,6 @@ static void tech_destroy(private_object *tech_pvt)
 	}
 	
 	free(tech_pvt);	
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	if (usecnt < 0) {
-		usecnt = 0;
-	}
-	cw_mutex_unlock(&usecnt_lock);
 }
 
 static int waitfor_socket(int fd, int timeout) 
@@ -871,9 +862,10 @@ static void *tech_monitor_thread(void *obj)
 				/* This packet has lots of info so well keep it */
 				tech_pvt->call_info = wmsg;
 			} else if (cw_test_flag(tech_pvt, TFLAG_PARSE_INCOMING) && !strcasecmp(wmsg.command, "INCOMING")) {
-				char *exten;
+				const char *exten;
 				char *cid_name;
 				char *cid_num;
+
 				cw_clear_flag(tech_pvt, TFLAG_PARSE_INCOMING);
 				cw_set_flag(tech_pvt, TFLAG_INCOMING);
 				tech_pvt->call_info = wmsg;
@@ -892,7 +884,7 @@ static void *tech_monitor_thread(void *obj)
 				}
 
 				strncpy(tech_pvt->owner->exten, exten, sizeof(tech_pvt->owner->exten) - 1);
-				
+
 				cid_name = cw_strdupa(woomera_message_header(&wmsg, "Remote-Name"));
 
 				if ((cid_num = strchr(cid_name, '!'))) {
@@ -1233,7 +1225,7 @@ static int config_woomera(void)
 	woomera_profile *profile;
 	int count = 0;
 
-	memset(&default_profile, 0, sizeof(default_profile));
+	memset(&global_default_profile, 0, sizeof(global_default_profile));
 	
 	if ((cfg = cw_config_load(configfile))) {
 		for (entry = cw_category_browse(cfg, NULL); entry != NULL; entry = cw_category_browse(cfg, entry)) {
@@ -1250,12 +1242,12 @@ static int config_woomera(void)
 				int new = 0;
 				count++;
 				if (!strcmp(entry, "default")) {
-					profile = &default_profile;
+					profile = &global_default_profile;
 				} else {
 					if((profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, entry))) {
-						clone_woomera_profile(profile, &default_profile);
+						clone_woomera_profile(profile, &global_default_profile);
 					} else {
-						if((profile = create_woomera_profile(&default_profile))) {
+						if((profile = create_woomera_profile(&global_default_profile))) {
 							new = 1;
 						} else {
 							cw_log(CW_LOG_ERROR, "Out of memory\n");
@@ -1386,17 +1378,15 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 	}
 	if (res) {
 		int flag = 1;
-		int res;
 		woomera_message wmsg;
 
 		/* disable nagle's algorythm */
-		res = setsockopt(*new_socket, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+		setsockopt(*new_socket, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
 
-		
 		if (!(flags & WCFLAG_NOWAIT)) {
 			/* kickstart the session waiting for a HELLO */
 			woomera_printf(NULL, *new_socket, "%s", WOOMERA_RECORD_SEPERATOR);
-			
+
 			if ((res = woomera_message_parse(*new_socket,
 											 &wmsg,
 											 WOOMERA_HARD_TIMEOUT,
@@ -1405,13 +1395,11 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 											 )) < 0) {
 				cw_log(CW_LOG_ERROR, "{%s} Timed out waiting for a hello from woomera!\n", profile->name);
 				woomera_close_socket(new_socket);
-			}
-			if (res > 0 && strcasecmp(wmsg.command, "HELLO")) {
+			} else if (res > 0 && strcasecmp(wmsg.command, "HELLO")) {
 				cw_log(CW_LOG_ERROR, "{%s} unexpected reply [%s] while waiting for a hello from woomera!\n", profile->name, wmsg.command);
 				woomera_close_socket(new_socket);
 			}
 		}
-
 	} else {
 		woomera_close_socket(new_socket);
 	}
@@ -1441,7 +1429,7 @@ static int init_woomera(void)
 	return 1;
 }
 
-static struct cw_channel *woomera_new(const char *type, int format, void *data, int *cause)
+static struct cw_channel *woomera_new(const char *drvtype, int format, void *data, int *cause)
 {
 	private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
@@ -1469,9 +1457,6 @@ static struct cw_channel *woomera_new(const char *type, int format, void *data, 
 	} else {
 		cw_log(CW_LOG_ERROR, "Can't allocate a channel\n");
 	}
-	cw_mutex_lock(&usecnt_lock);
-	usecnt++;
-	cw_mutex_unlock(&usecnt_lock);
 
 	return chan;
 }
@@ -1488,7 +1473,7 @@ static struct cw_channel *woomera_new(const char *type, int format, void *data, 
 /*--- tech_requester: parse 'data' a url-like destination string, allocate a channel and a private structure
  * and return the newly-setup channel.
  */
-static struct cw_channel *tech_requester(const char *type, int format, void *data, int *cause)
+static struct cw_channel *tech_requester(const char *drvtype, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
 
@@ -1542,7 +1527,7 @@ static int tech_send_digit(struct cw_channel *self, char digit)
  * is willing to wait for the call to be complete.
  */
 
-static int tech_call(struct cw_channel *self, char *dest)
+static int tech_call(struct cw_channel *self, const char *dest)
 {
 	private_object *tech_pvt = self->tech_pvt;
 	char *workspace;
@@ -1570,7 +1555,7 @@ static int tech_call(struct cw_channel *self, char *dest)
 		*addr = '\0';
 		addr++;
 	} else {
-		proto = "H323";
+		proto = (char *)"H323";
 		addr = workspace;
 	}
 	
@@ -1579,7 +1564,7 @@ static int tech_call(struct cw_channel *self, char *dest)
 		profile_name++;
 		isprofile = 1;
 	} else {
-		profile_name = "default";
+		profile_name = (char *)"default";
 	}
 	if (! (profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, profile_name))) {
 		profile = ASTOBJ_CONTAINER_FIND(&woomera_profile_list, "default");
@@ -1912,7 +1897,7 @@ static int load_module(void)
 	   every channel you can disable it with more_threads => no in [settings] */
 	globals.more_threads = 1;
 
-	cw_mutex_init(&default_profile.iolock);
+	cw_mutex_init(&global_default_profile.iolock);
 	if (!init_woomera()) {
 		return -1;
 	}
@@ -1955,7 +1940,7 @@ static int unload_module(void)
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));
 
-	cw_mutex_destroy(&default_profile.iolock);
+	cw_mutex_destroy(&global_default_profile.iolock);
 	cw_cli_unregister(&cli_woomera);
 	ASTOBJ_CONTAINER_DESTROY(&private_object_list);
 	ASTOBJ_CONTAINER_DESTROYALL(&woomera_profile_list, destroy_woomera_profile);

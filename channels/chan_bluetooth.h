@@ -145,7 +145,7 @@ struct blt_dev {
   char rd_buff[BLT_RDBUFF_MAX];     /* RFCOMM input buffer */
   int rd_buff_pos;                  /* RFCOMM input buffer position */
   int ready;                        /* 1 When ready */
-  char *context;
+  const char *context;
 
   /* AG mode */
   char last_ok_cmd[BLT_RDBUFF_MAX];        /* Runtime[AG]: Last AT command that was OK */
@@ -179,7 +179,7 @@ struct blt_dev {
 typedef struct blt_atcb {
 
   /* The command */
-  char * str;
+  const char * str;
 
   /* DTE callbacks: */
   int (*set)(blt_dev_t * dev, const char * arg, int len);
@@ -226,10 +226,6 @@ static int sco_socket = -1;
 static pthread_t monitor_thread = CW_PTHREADT_NULL;
 CW_MUTEX_DEFINE_STATIC(monitor_lock);
 
-/* Cound how many times this module is currently in use */
-static int usecnt = 0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 static struct sched_context * sched = NULL;
 
 /* ---------------------------------- */
@@ -238,7 +234,7 @@ static struct cw_channel *blt_request(const char *type, int format, void *data, 
 static int blt_hangup(struct cw_channel *c);
 static int blt_answer(struct cw_channel *c);
 static struct cw_frame *blt_read(struct cw_channel *chan);
-static int blt_call(struct cw_channel *c, char *dest);
+static int blt_call(struct cw_channel *c, const char *dest);
 static int blt_write(struct cw_channel *chan, struct cw_frame *f);
 static int blt_indicate(struct cw_channel *chan, int cond);
 

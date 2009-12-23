@@ -124,7 +124,6 @@ static const char dundifunc_desc[] =
 
 static cw_io_context_t io;
 static struct sched_context *sched;
-static struct sockaddr_in sin;
 static int netsocket = -1;
 static struct cw_io_rec netsocket_io_id;
 static pthread_t netthreadid = CW_PTHREADT_NULL;
@@ -296,9 +295,10 @@ static void dundi_error_output(const char *data)
 	cw_log(CW_LOG_WARNING, "%s", data);
 }
 
-static int has_permission(struct permission *ps, char *cont)
+static int has_permission(struct permission *ps, const char *cont)
 {
-	int res=0;
+	int res = 0;
+
 	while(ps) {
 		if (!strcasecmp(ps->name, "all") || !strcasecmp(ps->name, cont))
 			res = ps->allow;
@@ -307,7 +307,7 @@ static int has_permission(struct permission *ps, char *cont)
 	return res;
 }
 
-static char *tech2str(int tech)
+static const char *tech2str(int tech)
 {
 	switch(tech) {
 	case DUNDI_PROTO_NONE:
@@ -323,7 +323,7 @@ static char *tech2str(int tech)
 	}
 }
 
-static int str2tech(char *str)
+static const int str2tech(char *str)
 {
 	if (!strcasecmp(str, "IAX") || !strcasecmp(str, "IAX2")) 
 		return DUNDI_PROTO_IAX;
@@ -338,13 +338,13 @@ static int str2tech(char *str)
 static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct cw_channel *chan, const char *dcontext, const char *number, int ttl, int blockempty, struct dundi_hint_metadata *md, int *expiration, int cybpass, int modeselect, dundi_eid *skip, dundi_eid *avoid[], int direct[]);
 static int dundi_precache_internal(const char *context, const char *number, int ttl, dundi_eid *avoids[]);
 static struct dundi_transaction *create_transaction(struct dundi_peer *p);
-static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct sockaddr_in *sin)
+static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct sockaddr_in *sain)
 {
 	/* Look for an exact match first */
 	struct dundi_transaction *trans;
 	trans = alltrans;
 	while(trans) {
-		if (!inaddrcmp(&trans->addr, sin) && 
+		if (!inaddrcmp(&trans->addr, sain) &&
 		     ((trans->strans == (ntohs(hdr->dtrans) & 32767)) /* Matches our destination */ ||
 			  ((trans->dtrans == (ntohs(hdr->strans) & 32767)) && (!hdr->dtrans))) /* We match their destination */) {
 			  if (hdr->strans)
@@ -365,7 +365,7 @@ static struct dundi_transaction *find_transaction(struct dundi_hdr *hdr, struct 
 				/* Create new transaction */
 				trans = create_transaction(NULL);
 				if (trans) {
-					memcpy(&trans->addr, sin, sizeof(trans->addr));
+					memcpy(&trans->addr, sain, sizeof(trans->addr));
 					trans->dtrans = ntohs(hdr->strans) & 32767;
 				} else
 					cw_log(CW_LOG_WARNING, "Out of memory\n");
@@ -384,7 +384,7 @@ static int dundi_ack(struct dundi_transaction *trans, int final)
 {
 	return dundi_send(trans, DUNDI_COMMAND_ACK, 0, final, NULL);
 }
-static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
+static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sain)
 {
 	struct {
 		struct dundi_packet pack;
@@ -396,7 +396,7 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
 		return;
 	memset(&tmp, 0, sizeof(tmp));
 	memset(&trans, 0, sizeof(trans));
-	memcpy(&trans.addr, sin, sizeof(trans.addr));
+	memcpy(&trans.addr, sain, sizeof(trans.addr));
 	tmp.hdr.strans = h->dtrans;
 	tmp.hdr.dtrans = h->strans;
 	tmp.hdr.iseqno = h->oseqno;
@@ -749,7 +749,7 @@ static void *dundi_query_thread(void *data)
 	return NULL;	
 }
 
-static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies *ies, char *ccontext)
+static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies *ies, const char *ccontext)
 {
 	struct dundi_query_state *st;
 	int totallen;
@@ -882,7 +882,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	return 0;
 }
 
-static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies *ies, char *ccontext)
+static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies *ies, const char *ccontext)
 {
 	struct dundi_query_state *st;
 	int totallen;
@@ -1034,7 +1034,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	return 0;
 }
 
-static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies *ies, char *ccontext)
+static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies *ies, const char *ccontext)
 {
 	struct dundi_query_state *st;
 	int totallen;
@@ -1153,7 +1153,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							*src = '\0';
 							src++;
 						} else
-							src = "";
+							src = (char *)"";
 						cw_log(CW_LOG_DEBUG, "Found cached answer '%s/%s' originally from '%s' with flags '%s' on behalf of '%s'\n", 
 							tech2str(tech), ptr, src, dundi_flags2str(fs, sizeof(fs), flags.flags), eid_str_full);
 						/* Make sure it's not already there */
@@ -1195,7 +1195,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	return 0;
 }
 
-static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned long crc32, int *lowexpiration)
+static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned long csum_crc32, int *lowexpiration)
 {
 	char key[256];
 	char eid_str[20];
@@ -1211,7 +1211,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 	dundi_eid_to_str_short(eid_str, sizeof(eid_str), peer_eid);
 	dundi_eid_to_str_short(eidroot_str, sizeof(eidroot_str), &req->root_eid);
 	dundi_eid_to_str(eid_str_full, sizeof(eid_str_full), peer_eid);
-	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, crc32);
+	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, csum_crc32);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 	snprintf(key, sizeof(key), "%s/%s/%s/e%08lx", eid_str, req->number, req->dcontext, 0L);
 	res |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1226,7 +1226,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 				break;
 			x++;
 			/* Check for hints */
-			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, crc32);
+			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, csum_crc32);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
 			snprintf(key, sizeof(key), "hint/%s/%s/%s/e%08lx", eid_str, tmp, req->dcontext, 0L);
 			res2 |= cache_lookup_internal(now, req, key, eid_str_full, lowexpiration);
@@ -1926,12 +1926,12 @@ static int ack_trans(struct dundi_transaction *trans, int iseqno)
 	return 0;
 }
 
-static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datalen)
+static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sain, int datalen)
 {
 	struct dundi_transaction *trans;
-	trans = find_transaction(h, sin);
+	trans = find_transaction(h, sain);
 	if (!trans) {
-		dundi_reject(h, sin);
+		dundi_reject(h, sain);
 		return 0;
 	}
 	/* Got a transaction, see where this header fits in */
@@ -1970,13 +1970,13 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sin, int datale
 
 static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
-	struct sockaddr_in sin;
+	struct sockaddr_in sain;
 	int res;
 	struct dundi_hdr *h;
 	char buf[MAX_PACKET_SIZE];
 	socklen_t len;
-	len = sizeof(sin);
-	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sin, &len);
+	len = sizeof(sain);
+	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sain, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
 			cw_log(CW_LOG_WARNING, "Error: %s\n", strerror(errno));
@@ -1989,9 +1989,9 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 	buf[res] = '\0';
 	h = (struct dundi_hdr *)buf;
 	if (dundidebug)
-		dundi_showframe(h, 1, &sin, res - sizeof(struct dundi_hdr));
+		dundi_showframe(h, 1, &sain, res - sizeof(struct dundi_hdr));
 	cw_mutex_lock(&peerlock);
-	handle_frame(h, &sin, res - sizeof(struct dundi_hdr));
+	handle_frame(h, &sain, res - sizeof(struct dundi_hdr));
 	cw_mutex_unlock(&peerlock);
 	return 1;
 }
@@ -2093,6 +2093,8 @@ static void network_thread_cleanup(void *data)
 
 static void *network_thread(void *ignore)
 {
+	struct sockaddr_in sain;
+
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
 	pthread_cleanup_push(network_thread_cleanup, NULL);
@@ -2101,7 +2103,7 @@ static void *network_thread(void *ignore)
 	for (;;) {
 		pthread_testcancel();
 		if ((netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
-			if (!bind(netsocket, (struct sockaddr *)&sin, sizeof(sin)))
+			if (!bind(netsocket, (struct sockaddr *)&sain, sizeof(sain)))
 				break;
 			close(netsocket);
 		}
@@ -2252,7 +2254,7 @@ static int dundi_no_store_history(struct cw_dynstr **ds_p, int argc, char *argv[
 	return RESULT_SUCCESS;
 }
 
-static char *model2str(int model)
+static const char *model2str(int model)
 {
 	switch(model) {
 	case DUNDI_MODEL_INBOUND:
@@ -2410,7 +2412,7 @@ static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct dundi_peer *peer;
 	struct permission *p;
-	char *order;
+	const char *order;
 	char iabuf[INET_ADDRSTRLEN];
 	char eid_str[20];
 	int x, cnt;
@@ -3931,7 +3933,7 @@ static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, char *
 {
 	static int deprecated_app = 0;
 	static int deprecated_jump = 0;
-	char *context;
+	const char *context;
 	int results;
 	int x;
 	int bypass = 0;
@@ -4584,20 +4586,20 @@ static struct cw_switch dundi_switch =
         matchmore:              dundi_matchmore,
 };
 
-static int set_config(char *config_file, struct sockaddr_in* sin)
+static int set_config(const char *config_file, struct sockaddr_in* sain)
 {
+	char hn[MAXHOSTNAMELEN] = "";
+	struct cw_hostent he;
+	struct sockaddr_in sain2;
+	dundi_eid testeid;
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *cat;
+	struct hostent *hp;
+	static int last_port = 0;
 	int format;
 	int x;
-	char hn[MAXHOSTNAMELEN] = "";
-	struct cw_hostent he;
-	struct hostent *hp;
-	struct sockaddr_in sin2;
-	static int last_port = 0;
 	int globalpcmodel = 0;
-	dundi_eid testeid;
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
 	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
@@ -4612,8 +4614,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	if (!gethostname(hn, sizeof(hn)-1)) {
 		hp = cw_gethostbyname(hn, &he);
 		if (hp) {
-			memcpy(&sin2.sin_addr, hp->h_addr, sizeof(sin2.sin_addr));
-			cw_inet_ntoa(ipaddr, sizeof(ipaddr), sin2.sin_addr);
+			memcpy(&sain2.sin_addr, hp->h_addr, sizeof(sain2.sin_addr));
+			cw_inet_ntoa(ipaddr, sizeof(ipaddr), sain2.sin_addr);
 		} else
 			cw_log(CW_LOG_WARNING, "Unable to look up host '%s'\n", hn);
 	} else
@@ -4625,17 +4627,15 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	v = cw_variable_browse(cfg, "general");
 	while(v) {
 		if (!strcasecmp(v->name, "port")){ 
-			sin->sin_port = ntohs(atoi(v->value));
+			sain->sin_port = ntohs(atoi(v->value));
 			if(last_port==0){
-				last_port=sin->sin_port;
-			} else if(sin->sin_port != last_port)
+				last_port=sain->sin_port;
+			} else if(sain->sin_port != last_port)
 				cw_log(CW_LOG_WARNING, "change to port ignored until next callweaver re-start\n");
 		} else if (!strcasecmp(v->name, "bindaddr")) {
-			struct hostent *hp;
-			struct cw_hostent he;
 			hp = cw_gethostbyname(v->value, &he);
 			if (hp) {
-				memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
+				memcpy(&sain->sin_addr, hp->h_addr, sizeof(sain->sin_addr));
 			} else
 				cw_log(CW_LOG_WARNING, "Invalid host/IP '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "authdebug")) {
@@ -4782,13 +4782,16 @@ static int unload_module(void)
 
 static int reload_module(void)
 {
+	char iabuf[INET_ADDRSTRLEN];
+	struct sockaddr_in sain;
+
 	stop_threads();
 
-	sin.sin_family = AF_INET;
-	sin.sin_port = ntohs(DUNDI_PORT);
-	sin.sin_addr.s_addr = INADDR_ANY;
+	sain.sin_family = AF_INET;
+	sain.sin_port = ntohs(DUNDI_PORT);
+	sain.sin_addr.s_addr = INADDR_ANY;
 
-	set_config("dundi.conf", &sin);
+	set_config("dundi.conf", &sain);
 
 	if (cw_pthread_create(&netthreadid, &global_attr_default, network_thread, NULL)
 	|| cw_pthread_create(&precachethreadid, &global_attr_default, process_precache, NULL)) {
@@ -4797,14 +4800,17 @@ static int reload_module(void)
 		return -1;
 	}
 
+	if (option_verbose > 1)
+		cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port));
+
+
 	return 0;
 }
 
 static int load_module(void)
 {
 	int res = 0;
-	char iabuf[INET_ADDRSTRLEN];
-	
+
 	dundi_set_output(dundi_debug_output);
 	dundi_set_error(dundi_error_output);
 
@@ -4820,9 +4826,6 @@ static int load_module(void)
 	cw_io_init(&netsocket_io_id, socket_read, NULL);
 
 	res |= reload_module();
-
-	if (option_verbose > 1)
-		cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 
 	cw_switch_register(&dundi_switch);
 	cw_cli_register(&cli_debug);

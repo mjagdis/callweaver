@@ -161,7 +161,7 @@ icd_status icd_metalist__add_list(icd_metalist * that, icd_list * new_list)
 }
 
 /* Retrieves a list from the metalist when given a name. */
-icd_list *icd_metalist__fetch_list(icd_metalist * that, char *name)
+icd_list *icd_metalist__fetch_list(icd_metalist * that, const char *name)
 {
     assert(that != NULL);
 
@@ -169,7 +169,7 @@ icd_list *icd_metalist__fetch_list(icd_metalist * that, char *name)
 }
 
 /* Removes a list from the metalist when given a name, returns success or failure. */
-icd_status icd_metalist__remove_list(icd_metalist * that, char *name)
+icd_status icd_metalist__remove_list(icd_metalist * that, const char *name)
 {
     assert(that != NULL);
 

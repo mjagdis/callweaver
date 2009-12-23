@@ -198,9 +198,9 @@ static void add_tm(sms_t *h)
     l = -1;
     tx_len = adsi_add_field(&h->tx_adsi, tx_msg, -1, DLL_SMS_P2_INFO_MT, NULL, 0);
     tx_len += 2;
-    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, "CW", 2);
+    tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_PROVIDER_ID, (uint8_t *)"CW", 2);
     if (h->da[0])
-        tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DESTINATION, h->da, strlen(h->da));
+        tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DESTINATION, (uint8_t *)h->da, strlen(h->da));
     tx_len = adsi_add_field(&h->tx_adsi, tx_msg, tx_len, DLL_PARM_DISPLAY_INFO, (const uint8_t *) h->ud, h->udl);
     tx_msg[2] = tx_len - 4;
     tx_msg[3] = 0;
@@ -1406,7 +1406,7 @@ static void sms_nextoutgoing(sms_t *h)
     }
 }
 
-static void sms_debug(char *dir, const uint8_t *msg, int len)
+static void sms_debug(const char *dir, const uint8_t *msg, int len)
 {
     char txt[259*3 + 1];
     char *p = txt;                         /* always long enough */

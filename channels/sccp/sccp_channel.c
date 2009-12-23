@@ -286,7 +286,7 @@ void sccp_channel_openreceivechannel(sccp_channel_t * c) {
 
 void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	sccp_moo_t * r;
-	struct sockaddr_in sin;
+	struct sockaddr_in sain;
 	char iabuf[INET_ADDRSTRLEN];
 	struct cw_hostent ahp;
 	struct hostent *hp;
@@ -297,7 +297,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 		return;
 	}
 
-	cw_rtp_get_us(c->rtp, &sin);
+	cw_rtp_get_us(c->rtp, &sain);
 	cw_rtp_settos(c->rtp, c->line->rtptos);
 
 	REQ(r, StartMediaTransmission);
@@ -314,11 +314,11 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 				} else
 					cw_log(CW_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
 			}
-			memcpy(&sin.sin_addr, &GLOB(externip.sin_addr), 4);
+			memcpy(&sain.sin_addr, &GLOB(externip.sin_addr), 4);
 		}
 	}
-	memcpy(&r->msg.StartMediaTransmission.bel_remoteIpAddr, &sin.sin_addr, 4);
-	r->msg.StartMediaTransmission.lel_remotePortNumber = htolel(ntohs(sin.sin_port));
+	memcpy(&r->msg.StartMediaTransmission.bel_remoteIpAddr, &sain.sin_addr, 4);
+	r->msg.StartMediaTransmission.lel_remotePortNumber = htolel(ntohs(sain.sin_port));
 	r->msg.StartMediaTransmission.lel_millisecondPacketSize = htolel(20);
 	r->msg.StartMediaTransmission.lel_payloadType = htolel((payloadType) ? payloadType : 4);
 	r->msg.StartMediaTransmission.lel_precedenceValue = htolel(c->line->rtptos);
@@ -326,7 +326,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	r->msg.StartMediaTransmission.lel_maxFramesPerPacket = 0;
 	r->msg.StartMediaTransmission.lel_conferenceId1 = htolel(c->callid);
 	sccp_dev_send(c->line->device, r);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %s:%d with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %s:%d with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port), skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
 }
 
 

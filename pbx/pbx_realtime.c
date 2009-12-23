@@ -87,7 +87,7 @@ static const char tdesc[] = "Realtime Switch";
 		*opts='\0'; \
 		opts++; \
 	} else \
-		opts=""; \
+		opts = (char *)""; \
 	table = strchr(buf, '@'); \
 	if (table) { \
 		*table = '\0'; \
@@ -97,16 +97,16 @@ static const char tdesc[] = "Realtime Switch";
 	if (!cxt || cw_strlen_zero(cxt)) \
 		cxt = context;\
 	if (!table || cw_strlen_zero(table)) \
-		table = "extensions"; \
+		table = (char *)"extensions"; \
 	var = realtime_switch_common(table, cxt, exten, priority, mode);
 
 static struct cw_variable *realtime_switch_common(const char *table, const char *context, const char *exten, int priority, int mode)
 {
+	char rexten[CW_MAX_EXTENSION + 20]="";
+	char pri[20];
 	struct cw_variable *var;
 	struct cw_config *cfg;
-	char pri[20];
-	char *ematch;
-	char rexten[CW_MAX_EXTENSION + 20]="";
+	const char *ematch;
 	int match;
 
 	snprintf(pri, sizeof(pri), "%d", priority);
@@ -183,8 +183,9 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 {
 	char app[256];
 	char appdata[512]="";
-	char *tmp="";
+	char *tmp = NULL;
 	struct cw_variable *v;
+
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
 		v = var;

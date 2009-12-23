@@ -112,7 +112,7 @@ struct cw_channel_tech {
 	int (* const send_digit)(struct cw_channel *chan, char digit);
 
 	/*! Call a given phone number (address, etc) */
-	int (* const call)(struct cw_channel *chan, char *addr);
+	int (* const call)(struct cw_channel *chan, const char *addr);
 
 	/*! Hangup (and possibly destroy) the channel */
 	int (* const hangup)(struct cw_channel *chan);
@@ -619,7 +619,7 @@ extern CW_API_PUBLIC int cw_answer(struct cw_channel *chan);
  *
  * \return 0 on success, -1 on failure
  */
-extern CW_API_PUBLIC int cw_call(struct cw_channel *chan, char *addr);
+extern CW_API_PUBLIC int cw_call(struct cw_channel *chan, const char *addr);
 
 /*! Indicates condition of channel */
 /*! 
@@ -812,8 +812,8 @@ extern CW_API_PUBLIC int cw_waitfordigit_full(struct cw_channel *c, int ms, int 
    for the first digit.  Returns 0 on normal return, or 1 on a timeout.  In the case of
    a timeout, any digits that were read before the timeout will still be available in s.  
    RETURNS 2 in full version when ctrlfd is available, NOT 1*/
-extern CW_API_PUBLIC int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders);
-extern CW_API_PUBLIC int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, char *enders, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_readstring(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, const char *enders);
+extern CW_API_PUBLIC int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int rtimeout, const char *enders, int audiofd, int ctrlfd);
 
 /*! Report DTMF on channel 0 */
 #define CW_BRIDGE_DTMF_CHANNEL_0		(1 << 0)		
@@ -857,7 +857,7 @@ extern CW_API_PUBLIC int cw_channel_bridge(struct cw_channel *c0,struct cw_chann
    channel driver of the change, asking it to fixup any private information (like the
    p->owner pointer) that is affected by the change.  The physical layer of the original
    channel is hung up.  */
-extern CW_API_PUBLIC int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *clone);
+extern CW_API_PUBLIC int cw_channel_masquerade(struct cw_channel *original, struct cw_channel *oldchan);
 
 /*! Gives the string form of a given cause code */
 /*! 
@@ -880,7 +880,7 @@ extern CW_API_PUBLIC const char *cw_control2str(int control);
  * Give a name to a state 
  * Returns the text form of the binary state given
  */
-extern CW_API_PUBLIC char *cw_state2str(int state);
+extern CW_API_PUBLIC const char *cw_state2str(int state);
 
 /*! Gives the string form of a given transfer capability */
 /*!
@@ -889,7 +889,7 @@ extern CW_API_PUBLIC char *cw_state2str(int state);
  * See above
  * Returns the text form of the binary transfer capbility
  */
-extern CW_API_PUBLIC char *cw_transfercapability2str(int transfercapability);
+extern CW_API_PUBLIC const char *cw_transfercapability2str(int transfercapability);
 
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support
@@ -969,7 +969,7 @@ extern CW_API_PUBLIC int cw_autoservice_stop(struct cw_channel *chan);
 	\param chan current channel
 	\param dest destination extension for transfer
 */
-extern CW_API_PUBLIC int cw_transfer(struct cw_channel *chan, char *dest);
+extern CW_API_PUBLIC int cw_transfer(struct cw_channel *chan, const char *dest);
 
 /*!	\brief  Start masquerading a channel
 	XXX This is a seriously wacked out operation.  We're essentially putting the guts of

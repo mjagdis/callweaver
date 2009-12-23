@@ -57,6 +57,7 @@ char *dundi_eid_to_str(char *s, int maxlen, dundi_eid *eid)
 {
 	int x;
 	char *os = s;
+
 	if (maxlen < 18) {
 		if (s && (maxlen > 0))
 			*s = '\0';
@@ -74,6 +75,7 @@ char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 {
 	int x;
 	char *os = s;
+
 	if (maxlen < 13) {
 		if (s && (maxlen > 0))
 			*s = '\0';
@@ -86,10 +88,11 @@ char *dundi_eid_to_str_short(char *s, int maxlen, dundi_eid *eid)
 	return os;
 }
 
-int dundi_str_to_eid(dundi_eid *eid, char *s)
+int dundi_str_to_eid(dundi_eid *eid, const char *s)
 {
 	unsigned int eid_int[6];
 	int x;
+
 	if (sscanf(s, "%x:%x:%x:%x:%x:%x", &eid_int[0], &eid_int[1], &eid_int[2],
 		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
 		 	return -1;
@@ -98,10 +101,11 @@ int dundi_str_to_eid(dundi_eid *eid, char *s)
 	return 0;
 }
 
-int dundi_str_short_to_eid(dundi_eid *eid, char *s)
+int dundi_str_short_to_eid(dundi_eid *eid, const char *s)
 {
 	unsigned int eid_int[6];
 	int x;
+
 	if (sscanf(s, "%2x%2x%2x%2x%2x%2x", &eid_int[0], &eid_int[1], &eid_int[2],
 		 &eid_int[3], &eid_int[4], &eid_int[5]) != 6)
 		 	return -1;
@@ -113,6 +117,7 @@ int dundi_str_short_to_eid(dundi_eid *eid, char *s)
 int dundi_eid_zero(dundi_eid *eid)
 {
 	int x;
+
 	for (x=0;x<sizeof(eid->eid) / sizeof(eid->eid[0]);x++)
 		if (eid->eid[x]) return 0;
 	return 1;
@@ -169,9 +174,10 @@ char *dundi_hint2str(char *buf, int bufsiz, int flags)
 
 static void dump_hint(char *output, int maxlen, void *value, int len)
 {
-	unsigned short flags;
 	char tmp[512];
 	char tmp2[256];
+	unsigned short flags;
+
 	if (len < 2) {
 		strncpy(output, "<invalid contents>", maxlen);
 		return;
@@ -187,7 +193,7 @@ static void dump_hint(char *output, int maxlen, void *value, int len)
 
 static void dump_cause(char *output, int maxlen, void *value, int len)
 {
-	static char *causes[] = {
+	static const char *causes[] = {
 		"SUCCESS",
 		"GENERAL",
 		"DYNAMIC",
@@ -197,6 +203,7 @@ static void dump_cause(char *output, int maxlen, void *value, int len)
 	char tmp2[256];
 	int mlen;
 	unsigned char cause;
+
 	if (len < 1) {
 		strncpy(output, "<invalid contents>", maxlen);
 		return;
@@ -309,11 +316,12 @@ char *dundi_flags2str(char *buf, int bufsiz, int flags)
 
 static void dump_answer(char *output, int maxlen, void *value, int len)
 {
-	struct dundi_answer *answer;
+	char tmp[512]="";
 	char proto[40];
 	char flags[40];
 	char eid_str[40];
-	char tmp[512]="";
+	struct dundi_answer *answer;
+
 	if (len >= 10) {
 		answer = (struct dundi_answer *)(value);
 		memcpy(tmp, answer->data, (len >= 500) ? 500 : len - 10);
@@ -331,6 +339,7 @@ static void dump_encrypted(char *output, int maxlen, void *value, int len)
 {
 	char iv[33];
 	int x;
+
 	if ((len > 16) && !(len % 16)) {
 		/* Build up IV */
 		for (x=0;x<16;x++) {
@@ -343,8 +352,9 @@ static void dump_encrypted(char *output, int maxlen, void *value, int len)
 
 static void dump_raw(char *output, int maxlen, void *value, int len)
 {
-	int x;
 	unsigned char *u = value;
+	int x;
+
 	output[maxlen - 1] = '\0';
 	strcpy(output, "[ ");
 	for (x=0;x<len;x++) {
@@ -355,9 +365,9 @@ static void dump_raw(char *output, int maxlen, void *value, int len)
 
 static struct dundi_ie {
 	int ie;
-	char *name;
+	const char *name;
 	void (*dump)(char *output, int maxlen, void *value, int len);
-} ies[] = {
+} ies_table[] = {
 	{ DUNDI_IE_EID, "ENTITY IDENT", dump_eid },
 	{ DUNDI_IE_CALLED_CONTEXT, "CALLED CONTEXT", dump_string },
 	{ DUNDI_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
@@ -388,21 +398,22 @@ static struct dundi_ie {
 const char *dundi_ie2str(int ie)
 {
 	int x;
-	for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-		if (ies[x].ie == ie)
-			return ies[x].name;
+	for (x=0;x<(int)sizeof(ies_table) / (int)sizeof(ies_table[0]); x++) {
+		if (ies_table[x].ie == ie)
+			return ies_table[x].name;
 	}
 	return "Unknown IE";
 }
 
 static void dump_ies(unsigned char *iedata, int spaces, int len)
 {
+	char interp[1024];
+	char tmp[1024];
 	int ielen;
 	int ie;
 	int x;
 	int found;
-	char interp[1024];
-	char tmp[1024];
+
 	if (len < 2)
 		return;
 	while(len >= 2) {
@@ -417,18 +428,18 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 			return;
 		}
 		found = 0;
-		for (x=0;x<(int)sizeof(ies) / (int)sizeof(ies[0]); x++) {
-			if (ies[x].ie == ie) {
-				if (ies[x].dump) {
-					ies[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
-					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies[x].name, interp);
+		for (x=0;x<(int)sizeof(ies_table) / (int)sizeof(ies_table[0]); x++) {
+			if (ies_table[x].ie == ie) {
+				if (ies_table[x].dump) {
+					ies_table[x].dump(interp, (int)sizeof(interp), iedata + 2, ielen);
+					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies_table[x].name, interp);
 					outputf(tmp);
 				} else {
 					if (ielen)
 						snprintf(interp, (int)sizeof(interp), "%d bytes", ielen);
 					else
 						strcpy(interp, "Present");
-					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies[x].name, interp);
+					snprintf(tmp, (int)sizeof(tmp), "   %s%-15.15s : %s\n", (spaces ? "     " : "" ), ies_table[x].name, interp);
 					outputf(tmp);
 				}
 				found++;
@@ -446,12 +457,12 @@ static void dump_ies(unsigned char *iedata, int spaces, int len)
 
 void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
-	char *pref[] = {
+	static const char *pref[] = {
 		"Tx",
 		"Rx",
 		"    ETx",
 		"    Erx" };
-	char *commands[] = {
+	static const char *commands[] = {
 		"ACK         ",
 		"DPDISCOVER  ",
 		"DPRESPONSE  ",
@@ -467,46 +478,54 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 		"CANCEL      ",
 		"ENCRYPT     ",
 		"ENCREJ      " };
-	char class2[20];
-	char *class;
-	char subclass2[20];
-	char *subclass;
 	char tmp[256];
+	char class2[20];
+	char subclass2[20];
 	char retries[20];
 	char iabuf[INET_ADDRSTRLEN];
+	const char *class;
+	const char *subclass;
+
 	if (ntohs(fhi->dtrans) & DUNDI_FLAG_RETRANS)
 		strcpy(retries, "Yes");
 	else
 		strcpy(retries, "No");
+
 	if ((ntohs(fhi->strans) & DUNDI_FLAG_RESERVED)) {
 		/* Ignore frames with high bit set to 1 */
 		return;
 	}
+
 	if ((fhi->cmdresp & 0x3f) > (int)sizeof(commands)/(int)sizeof(char *)) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fhi->cmdresp);
 		class = class2;
 	} else {
 		class = commands[(int)(fhi->cmdresp & 0x3f)];
 	}
+
 	snprintf(subclass2, (int)sizeof(subclass2), "%02x", fhi->cmdflags);
 	subclass = subclass2;
+
 	snprintf(tmp, (int)sizeof(tmp), 
 		"%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",
 		pref[rx],
 		retries, fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
 	outputf(tmp);
+
 	snprintf(tmp, (int)sizeof(tmp), 
 		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
 		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
 		cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
 		fhi->cmdresp & 0x80 ? " (Final)" : "");
 	outputf(tmp);
+
 	dump_ies(fhi->ies, rx > 1, datalen);
 }
 
-int dundi_ie_append_raw(struct dundi_ie_data *ied, unsigned char ie, void *data, int datalen)
+int dundi_ie_append_raw(struct dundi_ie_data *ied, unsigned char ie, const void *data, int datalen)
 {
 	char tmp[256];
+
 	if (datalen > ((int)sizeof(ied->buf) - ied->pos)) {
 		snprintf(tmp, (int)sizeof(tmp), "Out of space for ie '%s' (%d), need %d have %d\n", dundi_ie2str(ie), ie, datalen, (int)sizeof(ied->buf) - ied->pos);
 		errorf(tmp);
@@ -519,7 +538,7 @@ int dundi_ie_append_raw(struct dundi_ie_data *ied, unsigned char ie, void *data,
 	return 0;
 }
 
-int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned char cause, char *data)
+int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned char cause, const char *data)
 {
 	char tmp[256];
 	int datalen = data ? strlen(data) + 1 : 1;
@@ -536,10 +555,11 @@ int dundi_ie_append_cause(struct dundi_ie_data *ied, unsigned char ie, unsigned 
 	return 0;
 }
 
-int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned short flags, char *data)
+int dundi_ie_append_hint(struct dundi_ie_data *ied, unsigned char ie, unsigned short flags, const char *data)
 {
 	char tmp[256];
 	int datalen = data ? strlen(data) + 2 : 2;
+
 	if (datalen > ((int)sizeof(ied->buf) - ied->pos)) {
 		snprintf(tmp, (int)sizeof(tmp), "Out of space for ie '%s' (%d), need %d have %d\n", dundi_ie2str(ie), ie, datalen, (int)sizeof(ied->buf) - ied->pos);
 		errorf(tmp);
@@ -575,12 +595,13 @@ int dundi_ie_append_encdata(struct dundi_ie_data *ied, unsigned char ie, unsigne
 	return 0;
 }
 
-int dundi_ie_append_answer(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid, unsigned char protocol, unsigned short flags, unsigned short weight, char *data)
+int dundi_ie_append_answer(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid, unsigned char protocol, unsigned short flags, unsigned short weight, const char *data)
 {
 	char tmp[256];
 	int datalen = data ? strlen(data) + 11 : 11;
 	int x;
 	unsigned short myw;
+
 	if (datalen > ((int)sizeof(ied->buf) - ied->pos)) {
 		snprintf(tmp, (int)sizeof(tmp), "Out of space for ie '%s' (%d), need %d have %d\n", dundi_ie2str(ie), ie, datalen, (int)sizeof(ied->buf) - ied->pos);
 		errorf(tmp);
@@ -602,7 +623,7 @@ int dundi_ie_append_answer(struct dundi_ie_data *ied, unsigned char ie, dundi_ei
 	return 0;
 }
 
-int dundi_ie_append_addr(struct dundi_ie_data *ied, unsigned char ie, struct sockaddr_in *sin)
+int dundi_ie_append_addr(struct dundi_ie_data *ied, unsigned char ie, const struct sockaddr_in *sin)
 {
 	return dundi_ie_append_raw(ied, ie, sin, (int)sizeof(struct sockaddr_in));
 }
@@ -621,12 +642,12 @@ int dundi_ie_append_short(struct dundi_ie_data *ied, unsigned char ie, unsigned 
 	return dundi_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int dundi_ie_append_str(struct dundi_ie_data *ied, unsigned char ie, char *str)
+int dundi_ie_append_str(struct dundi_ie_data *ied, unsigned char ie, const char *str)
 {
 	return dundi_ie_append_raw(ied, ie, str, strlen(str));
 }
 
-int dundi_ie_append_eid(struct dundi_ie_data *ied, unsigned char ie, dundi_eid *eid)
+int dundi_ie_append_eid(struct dundi_ie_data *ied, unsigned char ie, const dundi_eid *eid)
 {
 	return dundi_ie_append_raw(ied, ie, (unsigned char *)eid, sizeof(dundi_eid));
 }

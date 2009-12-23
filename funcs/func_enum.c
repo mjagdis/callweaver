@@ -69,6 +69,7 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
 {
        char tech[80];
        struct localuser *u;
+       const char *suffix, *options;
        char *p, *s;
 
        if (argc < 1 || argc == arraysize(argv) || !argv[0][0])
@@ -93,22 +94,17 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
        }
 
 	if (buf) {
-		if (argc < 1 || !argv[1][0])
-			argv[1] = "sip";
+		cw_copy_string(tech, (argc < 1 || !argv[1][0] ? "sip" : argv[1]), sizeof(tech));
 
-		if (argc < 2 || !argv[2][0])
-			argv[2] = "1";
+		options = (argc < 2 || !argv[2][0] ? "1" : argv[2]);
 
-		if (argc < 3 || !argv[3][0])
-			argv[3] = "e164.arpa";
+		suffix = (argc < 3 || !argv[3][0] ? "e164.arpa" : argv[3]);
 
 		/* strip any '-' signs from number */
 		for (s = p = argv[0]; *s; s++)
 			if (*s != '-')
 				*(p++) = *s;
 		*p = '\0';
-
-		cw_copy_string(tech, argv[1], sizeof(tech));
 
 		LOCAL_USER_ADD(u);
 
@@ -117,7 +113,7 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
 		 * from enum method to channel technology. With funcs/func_enum
 		 * you're expected to do it yourself in the dialplan.
 		 */
-		cw_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), argv[3], argv[2]);
+		cw_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), suffix, options);
 
 		LOCAL_USER_REMOVE(u);
 

@@ -88,7 +88,7 @@ static void *gsm_new(void)
     return tmp;
 }
 
-static struct cw_frame *gsmtolin_sample(int *index)
+static struct cw_frame *gsmtolin_sample(int *i)
 {
     static struct cw_frame f;
 

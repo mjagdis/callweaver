@@ -32,7 +32,7 @@
 
 /* Private implemenations */
 static int module_id = 0;
-static char *module_name = "External_Module_Example";
+static char module_name[] = "External_Module_Example";
 
 static icd_status init_icd_distributor_external(icd_distributor * that, char *name, icd_config * data);
 static int icd_module__factory_event_listener(void *listener, icd_event * factory_event, void *extra);
@@ -97,14 +97,14 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
     icd_caller *caller = NULL;
     struct cw_channel *chan = NULL;
     icd_event *event = icd_event__get_extra(factory_event);
-    int module_id = icd_event__get_module_id(event);
+    int event_module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
     int call_pos=0, call_cnt=0;
 
     switch (event_id) {
     case ICD_EVENT_ADD:
         /* ok need to get the src see if itsa q add */
-        switch (module_id) {
+        switch (event_module_id) {
         case ICD_QUEUE:        /*new queue created & added */
             queue = (icd_queue *) icd_event__get_source(event);
 

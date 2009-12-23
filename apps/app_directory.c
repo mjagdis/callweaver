@@ -144,7 +144,7 @@ static char *convert(char *lastname)
  *           '1' for selected entry from directory
  *           '*' for skipped entry from directory
  */
-static int play_mailbox_owner(struct cw_channel *chan, char *context, char *dialcontext, char *ext, char *name) {
+static int play_mailbox_owner(struct cw_channel *chan, const char *context, const char *dialcontext, const char *ext, const char *name) {
 	int res = 0;
 	int loop = 3;
 	char fn[256];
@@ -222,7 +222,7 @@ static int play_mailbox_owner(struct cw_channel *chan, char *context, char *dial
 	return(res);
 }
 
-static struct cw_config *realtime_directory(char *context)
+static struct cw_config *realtime_directory(const char *context)
 {
 	struct cw_config *cfg;
 	struct cw_config *rtdata;
@@ -281,7 +281,7 @@ static struct cw_config *realtime_directory(char *context)
 	return cfg;
 }
 
-static int do_directory(struct cw_channel *chan, struct cw_config *cfg, char *context, char *dialcontext, char digit, int last)
+static int do_directory(struct cw_channel *chan, struct cw_config *cfg, const char *context, const char *dialcontext, char digit, int last)
 {
 	/* Read in the first three digits..  "digit" is the first digit, already read */
 	char ext[NUMDIGITS + 1];
@@ -405,7 +405,7 @@ static int directory_exec(struct cw_channel *chan, int argc, char **argv, char *
 {
 	struct localuser *u;
 	struct cw_config *cfg;
-	char *context, *dialcontext, *dirintro;
+	const char *context, *dialcontext, *dirintro;
 	int res = 0;
 	int last = 1;
 

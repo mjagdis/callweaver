@@ -436,7 +436,7 @@ static inline int ccopy(unsigned char *dst, unsigned char *src, int max)
 	return x;
 }
 
-static int __adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data)
+static int __adsi_load_soft_key(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data)
 {
 	int bytes=0;
 
@@ -782,7 +782,7 @@ static int __adsi_download_disconnect(unsigned char *buf)
 }
 
 static int __adsi_display(unsigned char *buf, int page, int line, int just, int wrap, 
-		 char *col1, char *col2)
+		 const char *col1, const char *col2)
 {
 	int bytes=0;
 
@@ -850,7 +850,7 @@ static int __adsi_input_control(unsigned char *buf, int page, int line, int disp
 
 }
 
-static int __adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2)
+static int __adsi_input_format(unsigned char *buf, int num, int dir, int wrap, const char *format1, const char *format2)
 {
 	int bytes = 0;
 

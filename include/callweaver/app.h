@@ -104,10 +104,10 @@ extern CW_API_PUBLIC int cw_parseoptions(const struct cw_option *options, struct
  *  is pressed during playback, it will immediately break out of the message and continue
  *  execution of your code.
  */
-extern CW_API_PUBLIC int cw_app_getdata(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout);
+extern CW_API_PUBLIC int cw_app_getdata(struct cw_channel *c, const char *prompt, char *s, int maxlen, int timeout);
 
 /* Full version with audiofd and controlfd.  NOTE: returns '2' on ctrlfd available, not '1' like other full functions */
-extern CW_API_PUBLIC int cw_app_getdata_full(struct cw_channel *c, char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
+extern CW_API_PUBLIC int cw_app_getdata_full(struct cw_channel *c, const char *prompt, char *s, int maxlen, int timeout, int audiofd, int ctrlfd);
 
 
 void CW_API_PUBLIC cw_install_t38_functions( int (*has_request_t38_func)(const struct cw_channel *chan) );

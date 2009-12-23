@@ -55,8 +55,8 @@ struct cw_format_list_s
 {
     int visible; /* Can we see this entry */
     int bits; /* bitmask value */
-    char *name; /* short name */
-    char *desc; /* Description */
+    const char *name; /* short name */
+    const char *desc; /* Description */
     int sample_rate;
 };
 
@@ -386,10 +386,10 @@ int cw_codec_sample_rate(struct cw_frame *f)
     return cw_format_list[top_bit(codec)].sample_rate;
 }
 
-char *cw_getformatname(int format)
+const char *cw_getformatname(int format)
 {
     int x = 0;
-    char *ret = "unknown";
+    const char *ret = "unknown";
 
     for (x = 0;  x < sizeof(cw_format_list)/sizeof(struct cw_format_list_s);  x++)
     {
@@ -435,8 +435,8 @@ char *cw_getformatname_multiple(char *buf, size_t size, int format)
 
 static struct cw_codec_alias_table
 {
-    char *alias;
-    char *realname;
+    const char *alias;
+    const char *realname;
 } cw_codec_alias_table[] =
 {
     {"slinear", "slin"},
@@ -483,10 +483,10 @@ int cw_getformatbyname(const char *name)
     return format;
 }
 
-char *cw_codec2str(int codec)
+const char *cw_codec2str(int codec)
 {
     int x = 0;
-    char *ret = "unknown";
+    const char *ret = "unknown";
 
     for (x = 0;  x < sizeof(cw_format_list)/sizeof(struct cw_format_list_s);  x++)
     {
@@ -588,8 +588,8 @@ static const char frame_show_codec_n_usage[] =
 
 void cw_frame_dump(const char *name, const struct cw_frame *f, const char *prefix)
 {
-    char *ftype = "Unknown Frametype";
-    char *subclass = "Unknown Subclass";
+    const char *ftype = "Unknown Frametype";
+    const char *subclass = "Unknown Subclass";
     int moreinfo = 0;
     char buf[2];
 
@@ -800,11 +800,11 @@ void cw_codec_pref_convert(struct cw_codec_pref *pref, char *buf, size_t size, i
 
 int cw_codec_pref_string(struct cw_codec_pref *pref, char *buf, size_t size)
 {
-    int x = 0;
-    int codec = 0;
+    const char *formatname = NULL;
     size_t total_len = 0;
     size_t slen = 0;
-    char *formatname = 0;
+    int x = 0;
+    int codec = 0;
 
     memset(buf,0,size);
     total_len = size;
@@ -839,12 +839,12 @@ int cw_codec_pref_string(struct cw_codec_pref *pref, char *buf, size_t size)
     return size - total_len;
 }
 
-int cw_codec_pref_index(struct cw_codec_pref *pref, int index)
+int cw_codec_pref_index(struct cw_codec_pref *pref, int i)
 {
     int slot = 0;
 
-    if ((index >= 0)  &&  (index < sizeof(pref->order)))
-        slot = pref->order[index];
+    if ((i >= 0)  &&  (i < sizeof(pref->order)))
+        slot = pref->order[i];
 
     return slot  ?  cw_format_list[slot-1].bits  :  0;
 }

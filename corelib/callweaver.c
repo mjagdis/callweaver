@@ -282,7 +282,7 @@ static void cw_run_atexits(void)
 
 
 /*! NULL handler so we can collect the child exit status */
-static void null_sig_handler(int signal)
+static void null_sig_handler(int sig)
 {
 }
 
@@ -607,11 +607,11 @@ static void quit_handler(void *data)
 
 struct shutdown_state {
 	pthread_t tid;
-	int nice;
+	int graceful;
 	int timeout;
 };
 
-static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int timeout);
+static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int graceful, int timeout);
 
 static void *quit_when_idle(void *data)
 {
@@ -655,7 +655,7 @@ static void *quit_when_idle(void *data)
 	 * timeout applied). Otherwise we are good to initiate
 	 * the shutdown/restart.
 	 */
-	if (state->timeout == 0 && state->nice) {
+	if (state->timeout == 0 && state->graceful) {
 		cw_log(CW_LOG_NOTICE, "Timeout waiting for idle. Initiating immediate %s\n", (restart ? "restart" : "shutdown"));
 		pthread_detach(pthread_self());
 		state->tid = CW_PTHREADT_NULL;
@@ -669,12 +669,12 @@ static void *quit_when_idle(void *data)
 }
 
 
-static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int timeout)
+static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int graceful, int timeout)
 {
 	static cw_mutex_t lock = CW_MUTEX_INIT_VALUE;
 	static struct shutdown_state state = {
 		.tid = CW_PTHREADT_NULL,
-		.nice = 0,
+		.graceful = 0,
 		.timeout = 0,
 	};
 
@@ -688,15 +688,15 @@ static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int ti
 		}
 
 		if (doit) {
-			if (nice < 2) {
-				cw_begin_shutdown((nice ? 0 : 1));
+			if (graceful < 2) {
+				cw_begin_shutdown((graceful ? 0 : 1));
 
 				if (ds_p && !option_console)
 					cw_dynstr_printf(ds_p, "Blocked new calls\n");
 				if (!option_remote)
 					cw_log(CW_LOG_NOTICE, "Blocked new calls\n");
 
-				if (nice < 1) {
+				if (graceful < 1) {
 					if (ds_p && !option_console)
 						cw_dynstr_printf(ds_p, "Hanging up active calls\n");
 					if (!option_remote)
@@ -709,8 +709,8 @@ static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int ti
 			if (!option_remote)
 				cw_log(CW_LOG_NOTICE, "Will %s when idle...\n", (restart ? "restart" : "shutdown"));
 
-			state.nice = nice;
-			state.timeout = (nice ? (timeout >= 0 ? timeout : -1 ) : 15);
+			state.graceful = graceful;
+			state.timeout = (graceful ? (timeout >= 0 ? timeout : -1 ) : 15);
 			cw_pthread_create(&state.tid, &global_attr_default, quit_when_idle, &state);
 		} else {
 			if (ds_p && !option_console)
@@ -721,9 +721,9 @@ static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int nice, int ti
 	} else {
 		if (!pthread_equal(state.tid, CW_PTHREADT_NULL)) {
 			if (state.timeout == -1)
-				cw_dynstr_printf(ds_p, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_dynstr_printf(ds_p, "Pending %s when idle%s\n", (restart ? "restart" : "shutdown"), (state.graceful < 2 ? " (new calls blocked)" : ""));
 			else
-				cw_dynstr_printf(ds_p, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.nice < 2 ? " (new calls blocked)" : ""));
+				cw_dynstr_printf(ds_p, "Pending %s in less than %ds%s\n", (restart ? "restart" : "shutdown"), state.timeout, (state.graceful < 2 ? " (new calls blocked)" : ""));
 		} else
 			cw_dynstr_printf(ds_p, "No shutdown or restart pending\n");
 	}

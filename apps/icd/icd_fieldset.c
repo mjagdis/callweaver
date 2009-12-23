@@ -88,7 +88,7 @@ void_hash_table *icd_fieldset__get_hash(icd_fieldset * that);
 /***** Init - Destroyer for icd_fieldset *****/
 
 /* Create a field set. */
-icd_fieldset *create_icd_fieldset(char *name)
+icd_fieldset *create_icd_fieldset(const char *name)
 {
     icd_fieldset *fieldset;
     icd_status result;
@@ -132,7 +132,7 @@ icd_status destroy_icd_fieldset(icd_fieldset ** fieldsetp)
 }
 
 /* Initialize an already created field set. */
-icd_status init_icd_fieldset(icd_fieldset * that, char *name)
+icd_status init_icd_fieldset(icd_fieldset * that, const char *name)
 {
     assert(that != NULL);
 
@@ -171,7 +171,7 @@ icd_status icd_fieldset__clear(icd_fieldset * that)
 /***** Actions *****/
 
 /* Gets a value from the fieldset, null if field not present */
-void *icd_fieldset__get_value(icd_fieldset * that, char *key)
+void *icd_fieldset__get_value(icd_fieldset * that, const char *key)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -182,7 +182,7 @@ void *icd_fieldset__get_value(icd_fieldset * that, char *key)
 }
 
 /* Sets a value in the fieldset, using the registry to decide how to do it. */
-icd_status icd_fieldset__set_value(icd_fieldset * that, char *key, void *setting)
+icd_status icd_fieldset__set_value(icd_fieldset * that, const char *key, void *setting)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -213,7 +213,7 @@ icd_status icd_fieldset__set_if_new(icd_fieldset * that, char *key, void *settin
 /* Gets a string value out of the field set, duplicating it.
    If it isn't in the set, a default string is duplicated instead.
    Remember to free it! */
-char *icd_fieldset__get_strdup(icd_fieldset * that, char *key, char *default_str)
+char *icd_fieldset__get_strdup(icd_fieldset * that, const char *key, const char *default_str)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -239,7 +239,7 @@ icd_status icd_fieldset__strncpy(icd_fieldset * that, char *key, char *target, i
 
 /* Returns an integer value from the field set, or a default value if
    key isn't found in the set. */
-int icd_fieldset__get_int_value(icd_fieldset * that, char *key, int default_int)
+int icd_fieldset__get_int_value(icd_fieldset * that, const char *key, int default_int)
 {
     assert(that != NULL);
     assert(that->entries != NULL);
@@ -251,7 +251,7 @@ int icd_fieldset__get_int_value(icd_fieldset * that, char *key, int default_int)
 
 /* Gets a void pointer value from the field set, or a default if the key
    isn't found in the set. */
-void *icd_fieldset__get_any_value(icd_fieldset * that, char *key, void *default_any)
+void *icd_fieldset__get_any_value(icd_fieldset * that, const char *key, void *default_any)
 {
     void *any;
 
@@ -437,7 +437,7 @@ icd_status destroy_icd_fieldset_iterator(icd_fieldset_iterator ** iterp)
 /***** Helper Functions *****/
 
 /* Ensures a string that would be null is empty instead. */
-char *correct_null_str(char *str)
+const char *correct_null_str(const char *str)
 {
     if (str == NULL) {
         return "";

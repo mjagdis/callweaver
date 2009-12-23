@@ -171,7 +171,7 @@ static const char desc[] = "IAX2";
 static const char tdesc[] = "IAX2 driver";
 static const char channeltype[] = "IAX2";
 
-static char context[80] = "default";
+static char gcontext[80] = "default";
 
 static char language[MAX_LANGUAGE] = "";
 static char regcontext[CW_MAX_CONTEXT] = "";
@@ -203,9 +203,6 @@ static struct cw_netsock_list *netsock;
 static int defaultsockfd = -1;
 
 static int listen_port = IAX_DEFAULT_PORTNO;
-
-static int usecnt;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 int (*iax2_regfunk)(char *username, int onoff) = NULL;
 
@@ -698,7 +695,7 @@ static int iax2_digit(struct cw_channel *c, char digit);
 static int iax2_sendtext(struct cw_channel *c, const char *text);
 static int iax2_sendimage(struct cw_channel *c, struct cw_frame *img);
 static int iax2_sendhtml(struct cw_channel *c, int subclass, const char *data, int datalen);
-static int iax2_call(struct cw_channel *c, char *dest);
+static int iax2_call(struct cw_channel *c, const char *dest);
 static int iax2_hangup(struct cw_channel *c);
 static int iax2_answer(struct cw_channel *c);
 static struct cw_frame *iax2_read(struct cw_channel *c);
@@ -1262,11 +1259,6 @@ static int iax2_predestroy(int callno)
 		c->tech_pvt = NULL;
 		cw_queue_hangup(c);
 		pvt->owner = NULL;
-		cw_mutex_lock(&usecnt_lock);
-		usecnt--;
-		if (usecnt < 0) 
-			cw_log(CW_LOG_WARNING, "Usecnt < 0???\n");
-		cw_mutex_unlock(&usecnt_lock);
 	}
 	cw_mutex_unlock(&iaxsl[callno]);
 	return 0;
@@ -2172,14 +2164,14 @@ static unsigned int iax2_datetime(char *tz)
 }
 
 struct parsed_dial_string {
-	char *username;
-	char *password;
-	char *key;
-	char *peer;
-	char *port;
-	char *exten;
-	char *context;
-	char *options;
+	const char *username;
+	const char *password;
+	const char *key;
+	const char *peer;
+	const char *port;
+	const char *exten;
+	const char *context;
+	const char *options;
 };
 
 /*!
@@ -2202,54 +2194,63 @@ struct parsed_dial_string {
  */
 static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 {
+	char *peer, *exten, *username, *password;
+
 	if (cw_strlen_zero(data))
 		return;
 
-	pds->peer = strsep(&data, "/");
-	pds->exten = strsep(&data, "/");
+	peer = strsep(&data, "/");
+	exten = strsep(&data, "/");
+	username = NULL;
+	password = NULL;
 	pds->options = data;
 
-	if (pds->exten) {
-		data = pds->exten;
-		pds->exten = strsep(&data, "@");
+	if (exten) {
+		data = exten;
+		exten = strsep(&data, "@");
 		pds->context = data;
 	}
 
-	if (strchr(pds->peer, '@')) {
-		data = pds->peer;
-		pds->username = strsep(&data, "@");
-		pds->peer = data;
+	if (strchr(peer, '@')) {
+		data = peer;
+		username = strsep(&data, "@");
+		peer = data;
 	}
 
-	if (pds->username) {
-		data = pds->username;
-		pds->username = strsep(&data, ":");
-		pds->password = data;
+	if (username) {
+		data = username;
+		username = strsep(&data, ":");
+		password = data;
 	}
 
-	data = pds->peer;
-	pds->peer = strsep(&data, ":");
+	data = peer;
+	peer = strsep(&data, ":");
 	pds->port = data;
 
 	/* check for a key name wrapped in [] in the secret position, if found,
 	   move it to the key field instead
 	*/
-	if (pds->password && (pds->password[0] == '[')) {
-		int l = strlen(pds->password) - 1;
-		if (pds->password[l] == ']') {
-			pds->key = pds->password + 1;
-			pds->password[l] = '\0';
-			pds->password = NULL;
+	if (password && (password[0] == '[')) {
+		int l = strlen(password) - 1;
+		if (password[l] == ']') {
+			pds->key = password + 1;
+			password[l] = '\0';
+			password = NULL;
 		}
 	}
+
+	pds->peer = peer;
+	pds->exten = exten;
+	pds->username = username;
+	pds->password = password;
 }
 
-static int iax2_call(struct cw_channel *c, char *dest)
+static int iax2_call(struct cw_channel *c, const char *dest)
 {
 	struct sockaddr_in sin;
 	char *l=NULL, *n=NULL, *tmpstr;
 	struct iax_ie_data ied;
-	char *defaultrdest = "s";
+	const char *defaultrdest = "s";
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
@@ -2671,19 +2672,21 @@ static int iax2_indicate(struct cw_channel *c, int condition)
 	
 static int iax2_transfer(struct cw_channel *c, const char *dest)
 {
-	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+	char tmp[256];
 	struct iax_ie_data ied;
-	char tmp[256], *context;
+	char *ctxt;
+	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
+
 	cw_copy_string(tmp, dest, sizeof(tmp));
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
+	ctxt = strchr(tmp, '@');
+	if (ctxt) {
+		*ctxt = '\0';
+		ctxt++;
 	}
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, tmp);
-	if (context)
-		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
+	if (ctxt)
+		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, ctxt);
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "Transferring '%s' to '%s'\n", c->name, dest);
 	return send_command_locked(callno, CW_FRAME_IAX, IAX_COMMAND_TRANSFER, 0, ied.buf, ied.pos, -1);
@@ -2768,9 +2771,6 @@ static struct cw_channel *cw_iax2_new(int callno, int state, int capability)
 		}
 		for (v = i->vars ; v ; v = v->next)
 			pbx_builtin_setvar_helper(tmp,v->name,v->value);
-		cw_mutex_lock(&usecnt_lock);
-		usecnt++;
-		cw_mutex_unlock(&usecnt_lock);
 	}
 
 	/* Configure the new channel jb */
@@ -3469,7 +3469,7 @@ static int iax2_show_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 	struct iax2_user *user;
 	char auth[90];
-	char *pstr = "";
+	const char *pstr = "";
 
 	switch (argc) {
 	case 5:
@@ -3506,7 +3506,7 @@ static int iax2_show_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 			pstr = cw_test_flag(user,IAX_CODEC_USER_FIRST) ? "Caller" : "Host";
 
 		cw_dynstr_printf(ds_p, FORMAT2, user->name, auth, user->authmethods,
-				user->contexts ? user->contexts->context : context,
+				user->contexts ? user->contexts->context : gcontext,
 				user->ha ? "Yes" : "No", pstr);
 
 	}
@@ -3532,11 +3532,11 @@ static int __iax2_show_peers(int manager, struct cw_dynstr **ds_p, int argc, cha
 #define FORMAT2 "%-15.15s  %-15.15s %s  %-15.15s  %-8s  %s %-10s%s"
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s%s"
 
-	struct iax2_peer *peer;
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
+	struct iax2_peer *peer;
+	const char *term = manager ? "\r\n" : "\n";
 	int registeredonly=0;
-	char *term = manager ? "\r\n" : "\n";
 
 	switch (argc) {
 	case 6:
@@ -3656,19 +3656,19 @@ static struct cw_manager_message *manager_iax2_show_netstats(struct mansession *
 
 static struct cw_manager_message *manager_iax2_show_peers(struct mansession *sess, const struct message *req)
 {
-	char *a[] = { "iax2", "show", "users" };
+	const char *a[] = { "iax2", "show", "users" };
 	struct cw_manager_message *msg;
 
 	if ((msg = cw_manager_response("Follows", NULL))) {
 		msg->data->used -= 2;
-		__iax2_show_peers(1, &msg->data, 3, a);
+		__iax2_show_peers(1, &msg->data, 3, (char **)a);
 		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
 	}
 
 	return msg;
 }
 
-static char *regstate2str(int regstate)
+static const char *regstate2str(int regstate)
 {
 	switch(regstate) {
 	case REG_STATE_UNREGISTERED:
@@ -3804,7 +3804,7 @@ static int cw_cli_netstats(struct cw_dynstr **ds_p, int limit_fmt)
 #endif
 			{
 				int localjitter, locallost;
-				char *fmt;
+				const char *fmt;
 
 				cw_jb_info jbstats;
 
@@ -3980,10 +3980,10 @@ static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command
 	return __send_command(i, type, command, ts, data, datalen, 0, 0, 1, 0);
 }
 
-static int apply_context(struct iax2_context *con, char *context)
+static int apply_context(struct iax2_context *con, char *ctxt)
 {
 	while(con) {
-		if (!strcmp(con->context, context) || !strcmp(con->context, "*"))
+		if (!strcmp(con->context, ctxt) || !strcmp(con->context, "*"))
 			return -1;
 		con = con->next;
 	}
@@ -4135,7 +4135,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			if (user->contexts)
 				cw_copy_string(iaxs[callno]->context, user->contexts->context, sizeof(iaxs[callno]->context));
 			else
-				cw_copy_string(iaxs[callno]->context, context, sizeof(iaxs[callno]->context));
+				cw_copy_string(iaxs[callno]->context, gcontext, sizeof(iaxs[callno]->context));
 		}
 		/* And any input keys */
 		cw_copy_string(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys));
@@ -4806,7 +4806,7 @@ static int iax2_register(char *value, int lineno)
 {
 	struct iax2_registry *reg;
 	char copy[256];
-	char *username, *hostname, *secret;
+	char *username, *host, *secret;
 	char *porta;
 	char *stringp=NULL;
 	
@@ -4815,16 +4815,16 @@ static int iax2_register(char *value, int lineno)
 	cw_copy_string(copy, value, sizeof(copy));
 	stringp=copy;
 	username = strsep(&stringp, "@");
-	hostname = strsep(&stringp, "@");
-	if (!hostname) {
+	host = strsep(&stringp, "@");
+	if (!host) {
 		cw_log(CW_LOG_WARNING, "Format for registration is user[:secret]@host[:port] at line %d", lineno);
 		return -1;
 	}
 	stringp=username;
 	username = strsep(&stringp, ":");
 	secret = strsep(&stringp, ":");
-	stringp=hostname;
-	hostname = strsep(&stringp, ":");
+	stringp=host;
+	host = strsep(&stringp, ":");
 	porta = strsep(&stringp, ":");
 	
 	if (porta && !atoi(porta)) {
@@ -4835,7 +4835,7 @@ static int iax2_register(char *value, int lineno)
 	reg = malloc(sizeof(struct iax2_registry));
 	if (reg) {
 		memset(reg, 0, sizeof(struct iax2_registry));
-		cw_copy_string(reg->host, hostname, sizeof(reg->host));
+		cw_copy_string(reg->host, host, sizeof(reg->host));
 		cw_copy_string(reg->username, username, sizeof(reg->username));
 		if (secret)
 			cw_copy_string(reg->secret, secret, sizeof(reg->secret));
@@ -5588,7 +5588,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 	char host_pref_buf[128];
 	char caller_pref_buf[128];
 	struct cw_codec_pref pref,rpref;
-	char *using_prefs = "mine";
+	const char *using_prefs = "mine";
 
 	/* Clear frames */
 	memset(&frb.fr, 0, sizeof(frb.fr));
@@ -5654,20 +5654,20 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 			cw_mutex_unlock(&tpeer->lock);
 			while(res >= sizeof(*mte)) {
 				/* Process channels */
-				unsigned short callno, trunked_ts, len;
+				unsigned short callno, trunked_ts, datalen;
 
 				if( metatype == IAX_META_TRUNK_MINI) {
 					mtm = (struct cw_iax2_meta_trunk_mini *)ptr;
 					ptr += sizeof(*mtm);
 					res -= sizeof(*mtm);
-					len = ntohs(mtm->len);
+					datalen = ntohs(mtm->len);
 					callno = ntohs(mtm->mini.callno);
 					trunked_ts = ntohs(mtm->mini.ts);
 				} else if ( metatype == IAX_META_TRUNK_SUPERMINI ) {
 					mte = (struct cw_iax2_meta_trunk_entry *)ptr;
 					ptr += sizeof(*mte);
 					res -= sizeof(*mte);
-					len = ntohs(mte->len);
+					datalen = ntohs(mte->len);
 					callno = ntohs(mte->callno);
 					trunked_ts = 0;
 				} else {
@@ -5675,7 +5675,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 					break;
 				}
 				/* Stop if we don't have enough data */
-				if (len > res)
+				if (datalen > res)
 					break;
 				frb.fr.callno = find_callno(callno & ~IAX_FLAG_FULL, 0, &sin, NEW_PREVENT, fd);
 				if (frb.fr.callno) {
@@ -5688,7 +5688,7 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 					if (iaxs[frb.fr.callno]) {
 						if (iaxs[frb.fr.callno]->voiceformat > 0) {
 							f.subclass = iaxs[frb.fr.callno]->voiceformat;
-							f.datalen = len;
+							f.datalen = datalen;
 							if (f.datalen >= 0) {
 								if (f.datalen)
 									f.data = ptr;
@@ -5746,8 +5746,8 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 					}
 					cw_mutex_unlock(&iaxsl[frb.fr.callno]);
 				}
-				ptr += len;
-				res -= len;
+				ptr += datalen;
+				res -= datalen;
 			}
 			
 		}
@@ -6503,10 +6503,10 @@ retryowner2:
 					    iax2_send(iaxs[frb.fr.callno], &frb.fr.af, frb.fr.ts, -1, 0, 0, 0);
 					} else {
 					    /* Received LAGRP in response to our LAGRQ */
-					    unsigned int ts;
+					    unsigned int tstamp;
 					    /* This is a reply we've been given, actually measure the difference */
-					    ts = calc_timestamp(iaxs[frb.fr.callno], 0, &frb.fr.af);
-					    iaxs[frb.fr.callno]->lag = ts - frb.fr.ts;
+					    tstamp = calc_timestamp(iaxs[frb.fr.callno], 0, &frb.fr.af);
+					    iaxs[frb.fr.callno]->lag = tstamp - frb.fr.ts;
 					    if (option_debug && iaxdebug)
 						cw_log(CW_LOG_DEBUG, "Peer %s lag measured as %dms\n",
 								cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[frb.fr.callno]->addr.sin_addr), iaxs[frb.fr.callno]->lag);
@@ -7383,7 +7383,7 @@ static void *async_get_ip_handler(void *data)
 	return NULL;
 }
 
-int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const char *value, const char *service)
+static int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const char *value, const char *service)
 {
 	pthread_t tid;
 	struct async_get_ip_args *args;
@@ -7864,7 +7864,7 @@ static void prune_peers(void){
 
 
 /*--- set_config: Load configuration */
-static int set_config(char *config_file, int reload)
+static int set_config(const char *config_file, int reload)
 {
 	struct cw_config *cfg;
 	int capability=iax2_capability;
@@ -8114,7 +8114,7 @@ static int set_config(char *config_file, int reload)
 
 static int reload_config(void)
 {
-	char *config = "iax.conf";
+	const char *config = "iax.conf";
 	struct iax2_registry *reg;
 	struct iax2_peer *peer;
 	cw_copy_string(accountcode, "", sizeof(accountcode));
@@ -8224,7 +8224,7 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 	int timeout;
 	int old=0;
 	int outfd;
-	int abort;
+	int hungup;
 	int callno;
 	struct cw_channel *c;
 	struct cw_frame *f;
@@ -8311,7 +8311,7 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 		/* Defer any dtmf */
 		if (chan)
 			old = cw_channel_defer_dtmf(chan);
-		abort = 0;
+		hungup = 0;
 		while(timeout) {
 			c = cw_waitfor_nandfds(&chan, chan ? 1 : 0, &com[0], 1, NULL, &outfd, &timeout);
 			if (outfd > -1) {
@@ -8324,7 +8324,7 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 				else {
 					/* Got hung up on, abort! */
 					break;
-					abort = 1;
+					hungup = 1;
 				}
 			}
 		}
@@ -8335,7 +8335,7 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 		dp->waiters[x] = -1;
 		close(com[1]);
 		close(com[0]);
-		if (abort) {
+		if (hungup) {
 			/* Don't interpret anything, just abort.  Not sure what th epoint
 			  of undeferring dtmf on a hung up channel is but hey whatever */
 			if (!old && chan)
@@ -8447,7 +8447,7 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
 		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_DIALSTATUS, "DIALSTATUS"))) {
-			cw_function_exec_str(chan, var->hash, var->value, "", NULL, 0);
+			cw_function_exec_str(chan, var->hash, var->value, (char *)"", NULL, 0);
 			cw_object_put(var);
 		}
 		return -1;
@@ -8508,7 +8508,7 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 			}
 			*(argv[1]++) = '\0';
 		} else
-			argv[1] = "ip";
+			argv[1] = (char *)"ip";
 	}
 
 	if (!(peer = find_peer(argv[0], 1)))
@@ -8532,7 +8532,7 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 		cw_getformatname_multiple(buf, len -1, peer->capability);
 	} else  if (!strncasecmp(argv[1], "codec[", 6)) {
 		char *codecnum, *ptr;
-		int index = 0, codec = 0;
+		int i = 0, codec = 0;
 		
 		codecnum = strchr(argv[1], '[');
 		*codecnum = '\0';
@@ -8540,8 +8540,8 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 		if ((ptr = strchr(codecnum, ']'))) {
 			*ptr = '\0';
 		}
-		index = atoi(codecnum);
-		if((codec = cw_codec_pref_index(&peer->prefs, index))) {
+		i = atoi(codecnum);
+		if((codec = cw_codec_pref_index(&peer->prefs, i))) {
 			cw_copy_string(buf, cw_getformatname(codec), len);
 		}
 	}
@@ -8852,7 +8852,7 @@ static int unload_module(void)
 /*--- load_module: Load IAX2 module, load configuraiton ---*/
 static int load_module(void)
 {
-	char *config = "iax.conf";
+	const char *config = "iax.conf";
 	int res = 0;
 	int x;
 	struct iax2_registry *reg;

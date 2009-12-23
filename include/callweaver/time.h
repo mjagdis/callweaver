@@ -85,9 +85,8 @@ static inline void cw_clock_add_ms(struct timespec *ts, int ms)
 /* We have to let the compiler learn what types to use for the elements of a
    struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
    they are just a long. */
-extern struct timeval tv;
-typedef typeof(tv.tv_sec) cw_time_t;
-typedef typeof(tv.tv_usec) cw_suseconds_t;
+typedef typeof(((struct timeval *)0)->tv_sec) cw_time_t;
+typedef typeof(((struct timeval *)0)->tv_usec) cw_suseconds_t;
 
 /*!
  * \brief Computes the difference (in microseconds) between two \c struct \c timeval instances.

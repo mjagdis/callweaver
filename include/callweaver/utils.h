@@ -264,7 +264,7 @@ extern CW_API_PUBLIC int cw_base64decode(unsigned char *dst, const char *src, in
 	\param doreserved	Convert reserved characters
 */
 
-extern CW_API_PUBLIC char *cw_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
+extern CW_API_PUBLIC char *cw_uri_encode(const char *string, char *outbuf, int buflen, int doreserved);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
 	\param s	String to be decoded 

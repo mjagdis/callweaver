@@ -175,7 +175,7 @@ static int stevek_to_abstract_code[] =
 	{JB_IMPL_OK, JB_IMPL_NOFRAME, JB_IMPL_NOFRAME, JB_IMPL_INTERP, JB_IMPL_DROP, JB_IMPL_OK};
 
 /* JB_GET actions (used only for the frames log) */
-static char *jb_get_actions[] = {"Delivered", "Dropped", "Interpolated", "No"};
+static const char *jb_get_actions[] = {"Delivered", "Dropped", "Interpolated", "No"};
 
 /* Macros for JB logs */
 #define jb_verbose(...) cw_verbose(VERBOSE_PREFIX_3 " ***[JB LOG]*** " __VA_ARGS__)

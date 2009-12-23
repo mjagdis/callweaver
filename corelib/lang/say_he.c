@@ -238,7 +238,7 @@ static int say_number_full(struct cw_channel *chan, int num, const char *ints, c
 #define IL_DATE_STR "AdBY"
 #define IL_TIME_STR "IMp"
 #define IL_DATE_STR_FULL IL_DATE_STR " 'digits/at' " IL_TIME_STR
-static int say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+static int say_date_with_format(struct cw_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *tz)
 {
     /* TODO: This whole function is cut&paste from
      * cw_say_date_with_format_en . Is that considered acceptable?
@@ -250,7 +250,7 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
     char sndfile[256];
     char nextmsg[256];
 
-    cw_localtime(&time, &tm, timezone);
+    cw_localtime(&t, &tm, tz);
 
     for (offset = 0;  format[offset] != '\0';  offset++)
     {
@@ -341,11 +341,11 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
             char todo = format[offset]; /* The letter to format*/
 
             gettimeofday(&now,NULL);
-            cw_localtime(&now.tv_sec,&tmnow,timezone);
+            cw_localtime(&now.tv_sec,&tmnow,tz);
             /* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
             /* In any case, it saves not having to do cw_mktime() */
             beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
-            if (beg_today < time)
+            if (beg_today < t)
             {
                 /* Today */
                 if (todo == 'Q')
@@ -356,42 +356,42 @@ static int say_date_with_format(struct cw_channel *chan, time_t time, const char
                                     lang);
                 }
             }
-            else if (beg_today - 86400 < time)
+            else if (beg_today - 86400 < t)
             {
                 /* Yesterday */
                 res = wait_file(chan,ints, "digits/yesterday",lang);
             }
             else if ((todo != 'Q') &&
-                     (beg_today - 86400 * 6 < time))
+                     (beg_today - 86400 * 6 < t))
             {
                 /* Within the last week */
-                res = say_date_with_format(chan, time, ints, lang, "A", timezone);
+                res = say_date_with_format(chan, t, ints, lang, "A", tz);
             }
             else
             {
-                res = say_date_with_format(chan, time, ints, lang, IL_DATE_STR, timezone);
+                res = say_date_with_format(chan, t, ints, lang, IL_DATE_STR, tz);
             }
         }
             break;
         case 'R':
-            res = say_date_with_format(chan, time, ints, lang, "HM", timezone);
+            res = say_date_with_format(chan, t, ints, lang, "HM", tz);
             break;
         case 'S': /* Seconds */
             res = say_number_full(chan, tm.tm_sec, ints, lang, "f", -1, -1);
             break;
         case 'T':
-            res = say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+            res = say_date_with_format(chan, t, ints, lang, "HMS", tz);
             break;
             /* c, x, and X seem useful for testing. Not sure
                          * if thiey're good for the general public */
         case 'c':
-            res = say_date_with_format(chan, time, ints, lang, IL_DATE_STR_FULL, timezone);
+            res = say_date_with_format(chan, t, ints, lang, IL_DATE_STR_FULL, tz);
             break;
         case 'x':
-            res = say_date_with_format(chan, time, ints, lang, IL_DATE_STR, timezone);
+            res = say_date_with_format(chan, t, ints, lang, IL_DATE_STR, tz);
             break;
         case 'X': /* Currently not locale-dependent...*/
-            res = say_date_with_format(chan, time, ints, lang, IL_TIME_STR, timezone);
+            res = say_date_with_format(chan, t, ints, lang, IL_TIME_STR, tz);
             break;
         case ' ':
         case '	':

@@ -36,11 +36,10 @@ struct cw_channel *icd_request_and_dial(char *type, int format, void *data, int 
     char *callerid, icd_caller * caller, icd_caller * peer, icd_caller_state req_state);
 
 /* This is the function icd_caller calls to translate strings into an callweaver channel */
-struct cw_channel *icd_bridge_get_callweaver_channel(char *chanstring, char *context, char *priority,
-    char *extension);
+struct cw_channel *icd_bridge_get_callweaver_channel(const char *chanstring, const char *context, const char *priority, const char *extension);
 
 /* This is the function that icd_caller calls to dial out, typically for onhook agents */
-int icd_bridge_dial_callweaver_channel(icd_caller * caller, char *chanstring, int timeout);
+int icd_bridge_dial_callweaver_channel(icd_caller * caller, const char *chanstring, int timeout);
 
 /* check the hangup status of the caller's chan (frontended for future cross compatibility) */
 int icd_bridge__check_hangup(icd_caller * that);
@@ -56,7 +55,7 @@ void icd_bridge__unbridge_caller(icd_caller * caller, icd_unbridge_flag ubf);
 void icd_bridge__parse_ubf(icd_caller * caller, icd_unbridge_flag ubf);
 void icd_bridge__remasq(icd_caller * caller);
 
-int icd_bridge__play_sound_file(struct cw_channel *chan, char *file);
+int icd_bridge__play_sound_file(struct cw_channel *chan, const char *file);
 #endif
 
 /* For Emacs:

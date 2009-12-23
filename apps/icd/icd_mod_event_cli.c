@@ -32,7 +32,7 @@
 
 /* Private implemenations */
 static int module_id = 0;
-static char *module_name = "event_cli";
+static const char module_name[] = "event_cli";
 
 static int icd_module__event_cli(void *listener, icd_event * event, void *extra);
 
@@ -69,7 +69,7 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
     int confnr = 0;
     icd_conference * conf;
     icd_event *event = icd_event__get_extra(factory_event);
-    int module_id = icd_event__get_module_id(event);
+    int event_module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
 /*
     assert(factory_event != NULL);
@@ -86,7 +86,7 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
       event_mask[icd_event__get_event_id(event)]
       );
     */
-    if (module_mask[module_id] && event_mask[event_id]) {
+    if (module_mask[event_module_id] && event_mask[event_id]) {
         /* filter based on icd.conf events */
         smsg = icd_event__get_message(event);
         switch (event_id) {

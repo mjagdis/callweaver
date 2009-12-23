@@ -101,7 +101,7 @@
 
 #include "callweaver/icd/icd_list_private.h"
 
-char *icd_list_state_strings[] = {
+const char *icd_list_state_strings[] = {
     "ICD_LIST_STATE_CREATED", "ICD_LIST_STATE_INITIALIZED",
     "ICD_LIST_STATE_CLEARED", "ICD_LIST_STATE_DESTROYED",
     "ICD_LIST_STATE_L CW_STANDARD"
@@ -116,7 +116,7 @@ static void icd_list__init_node(icd_list_node * node);
 static void icd_list__free_node(icd_list * list, icd_list_node * node);
 
 /* Function for finding node by payload */
-int icd_list__identify_payload(void *key, void *payload);
+int icd_list__identify_payload(const void *key, void *payload);
 
 static icd_module module_id = ICD_LIST;
 
@@ -129,13 +129,13 @@ icd_list *create_icd_list(icd_config * data)
 {
     icd_list *list;
     icd_status result;
-    icd_memory *memory;
+    icd_memory *mem;
 
     /* make a new list from scratch */
     /*   check for passed in memory manager, use it if so */
-    if ((memory = icd_config__get_value(data, "memory")) != NULL) {
+    if ((mem = icd_config__get_value(data, "memory")) != NULL) {
         ICD_CALLOC(list, icd_list)
-            list->memory = memory;
+            list->memory = mem;
     } else {
         ICD_OBJECT_CALLOC(list, icd_list)
             list->created_as_object = 1;
@@ -536,7 +536,7 @@ int icd_list__count(icd_list * that)
 
 /* Uses key_fn (see icd_list__set_key_check_func) to find the first payload
    in the list that matches the key value. */
-void *icd_list__find(icd_list * that, void *key)
+void *icd_list__find(icd_list * that, const void *key)
 {
     assert(that != NULL);
     assert(that->key_fn != NULL);
@@ -545,7 +545,7 @@ void *icd_list__find(icd_list * that, void *key)
 }
 
 /* Returns the position in the list of a particular payload, -1 if not found. */
-int icd_list__position(icd_list * that, void *target)
+int icd_list__position(icd_list * that, const void *target)
 {
     int count;
     icd_list_iterator *iter;
@@ -579,7 +579,7 @@ int icd_list__position(icd_list * that, void *target)
 }
 
 /* Uses key_fn to find a node to remove based on its key value. */
-icd_status icd_list__remove(icd_list * that, void *key)
+icd_status icd_list__remove(icd_list * that, const void *key)
 {
     assert(that != NULL);
     assert(that->key_fn != NULL);
@@ -588,7 +588,7 @@ icd_status icd_list__remove(icd_list * that, void *key)
 }
 
 /* Removes a node based on its payload. */
-icd_status icd_list__remove_by_element(icd_list * that, void *payload)
+icd_status icd_list__remove_by_element(icd_list * that, const void *payload)
 {
     assert(that != NULL);
 
@@ -617,7 +617,7 @@ void *icd_list__get_payload(icd_list_node * that)
 /***** Getters and Setters *****/
 
 /* Sets the name of the list */
-icd_status icd_list__set_name(icd_list * that, char *name)
+icd_status icd_list__set_name(icd_list * that, const char *name)
 {
     assert(that != NULL);
 
@@ -634,7 +634,7 @@ char *icd_list__get_name(icd_list * that)
     assert(that != NULL);
 
     if (that->name == NULL) {
-        return "";
+        return (char *)"";
     }
     return that->name;
 }
@@ -673,7 +673,7 @@ icd_status icd_list__set_node_insert_func(icd_list * that, icd_list_node * (*ins
 }
 
 /* Allows you to provide a function that can compare a node in the list to a key value. */
-icd_status icd_list__set_key_check_func(icd_list * that, int (*key_fn) (void *key, void *payload))
+icd_status icd_list__set_key_check_func(icd_list * that, int (*key_fn) (const void *key, void *payload))
 {
     assert(that != NULL);
 
@@ -1089,7 +1089,7 @@ int icd_list__cmp_name_reverse_order(void *arg1, void *arg2)
 
 /***** Key functions *****/
 
-int icd_list__by_name(void *key, void *list)
+int icd_list__by_name(const void *key, void *list)
 {
 
     if (list == NULL) {
@@ -1101,7 +1101,7 @@ int icd_list__by_name(void *key, void *list)
 /*===== Protected Implementations =====*/
 
 /* Fetches the first node that a callback function returns true for. */
-icd_list_node *icd_list__fetch_node(icd_list * that, void *key, int (*match_fn) (void *key, void *payload))
+icd_list_node *icd_list__fetch_node(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload))
 {
     icd_list_iterator *iter;
     icd_list_node *node;
@@ -1133,7 +1133,7 @@ icd_list_node *icd_list__fetch_node(icd_list * that, void *key, int (*match_fn) 
 }
 
 /* Fetches the first payload that a callback function returns true for. */
-void *icd_list__fetch(icd_list * that, void *key, int (*match_fn) (void *key, void *payload))
+void *icd_list__fetch(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload))
 {
     icd_list_node *node;
 
@@ -1148,7 +1148,7 @@ void *icd_list__fetch(icd_list * that, void *key, int (*match_fn) (void *key, vo
 }
 
 /* Removes the first node that a callback function returns true for */
-icd_status icd_list__drop_node(icd_list * that, void *key, int (*match_fn) (void *key, void *payload))
+icd_status icd_list__drop_node(icd_list * that, const void *key, int (*match_fn) (const void *key, void *payload))
 {
     icd_list_iterator *iter;
     icd_list_node *node;
@@ -1244,7 +1244,7 @@ static void icd_list__free_node(icd_list * list, icd_list_node * node)
 }
 
 /* To find a node by its payload */
-int icd_list__identify_payload(void *key, void *payload)
+int icd_list__identify_payload(const void *key, void *payload)
 {
     return (key == payload);
 }

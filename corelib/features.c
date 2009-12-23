@@ -114,7 +114,7 @@ static int featuredigittimeout;
 /* Default courtesy tone played when party joins conference */
 
 /* Registrar for operations */
-static char *registrar = "features";
+static const char *registrar = "features";
 
 static void *parkedcall_app;
 static const char parkedcall_name[] = "ParkedCall";
@@ -1354,7 +1354,7 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 		struct cw_var_t *var;
 
 		argv[0] = argv[3] = NULL;
-		argv[1] = argv[2] = "";
+		argv[1] = argv[2] = (char *)"";
 
 		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_AUTO_MONITOR_FORMAT, "AUTO_MONITOR_FORMAT"))) {
 			argv[0] = cw_strdupa(var->value);

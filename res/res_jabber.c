@@ -1731,7 +1731,8 @@ static void *cli_command_thread(void *cli_command)
 
 	cw_cli_command(&ds, (char *)cli_command);
 	cw_dynstr_free(ds);
-/*   	free(cli_command);	 */
+	free(cli_command);
+
 	return NULL;
 }	
 
@@ -1741,20 +1742,13 @@ static void launch_cli_thread(char *cli_command)
 	char *cli_command_dup;
 	struct jabber_message_node *node;
 
-    if(!cw_strlen_zero(cli_command)) {
-        cli_command_dup = cw_strdupa(cli_command);
-    }
-    else {
-    	return;
-    }
-	if ((node = jabber_message_node_printf("Cli command", 
-											    "Cli Command Call",
-												"Command: %s\n",
-												cli_command 
-												))) {
-				jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
+	if (!cw_strlen_zero(cli_command) && (cli_command_dup = strdup(cli_command))) {
+		if ((node = jabber_message_node_printf("Cli command", "Cli Command Call", "Command: %s\n", cli_command)))
+			jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
+
+		if (cw_pthread_create(&tid, &global_attr_rr_detached, cli_command_thread, cli_command_dup))
+			free(cli_command_dup);
 	}
-	cw_pthread_create(&tid, &global_attr_rr_detached, cli_command_thread, cli_command_dup);
 }
 
 static int parse_jabber_command_main(struct jabber_message *jmsg)

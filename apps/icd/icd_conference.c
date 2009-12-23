@@ -202,7 +202,7 @@ icd_status icd_conference__deregister(char *name)
     return ICD_SUCCESS;
 }
 
-icd_conference *icd_conference__locate(char *name)
+icd_conference *icd_conference__locate(const char *name)
 {
     icd_conference__init_registry();
     return vh_read(CONF_REGISTRY, name);
@@ -214,7 +214,7 @@ vh_keylist *icd_conference__list()
     return vh_keys(CONF_REGISTRY);
 }
 
-icd_conference *icd_conference__new(char *name)
+icd_conference *icd_conference__new(const char *name)
 {
     icd_conference *new;
 

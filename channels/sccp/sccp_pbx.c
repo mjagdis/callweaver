@@ -73,7 +73,7 @@ static void * sccp_pbx_call_autoanswer_thread(void *data) {
 
 
 /* this is for incoming calls callweaver sccp_request */
-static int sccp_pbx_call(struct cw_channel *ast, char *dest) {
+static int sccp_pbx_call(struct cw_channel *ast, const char *dest) {
 	sccp_line_t	 * l;
 	sccp_device_t  * d;
 	sccp_session_t * s;
@@ -200,10 +200,6 @@ static int sccp_pbx_hangup(struct cw_channel * ast) {
 
 	c = CS_CW_CHANNEL_PVT(ast);
 
-	cw_mutex_lock(&GLOB(usecnt_lock));
-	GLOB(usecnt)--;
-	cw_mutex_unlock(&GLOB(usecnt_lock));
-
 	if (!c) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "SCCP: Asked to hangup channel %s. SCCP channel already hangup\n", ast->name);
 		return 0;
@@ -313,7 +309,7 @@ static int sccp_pbx_write(struct cw_channel *ast, struct cw_frame *frame) {
 	return res;
 }
 
-static char *sccp_control2str(int state) {
+static const char *sccp_control2str(int state) {
 		switch(state) {
 		case CW_CONTROL_HANGUP:
 				return "Hangup";
@@ -564,10 +560,6 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 
 	// XXX: Bridge?
 	// XXX: Transfer?
-
-	cw_mutex_lock(&GLOB(usecnt_lock));
-	GLOB(usecnt)++;
-	cw_mutex_unlock(&GLOB(usecnt_lock));
 
 	if (l->cid_num)
 	  tmp->cid.cid_num = strdup(l->cid_num);

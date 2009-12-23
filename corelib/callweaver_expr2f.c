@@ -1405,7 +1405,7 @@ struct val {
 
 struct parse_io
 {
-	char *string;
+	const char *string;
 	struct val *val;
 	yyscan_t scanner;
 };
@@ -1413,9 +1413,17 @@ struct parse_io
 void cw_yyset_column(int column_no, yyscan_t yyscanner);
 int cw_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
-static char *expr2_token_subst(char *mess);
+static char *expr2_token_subst(const char *mess);
 
-#line 1419 "callweaver_expr2f.c"
+#ifndef YY_NO_INPUT
+#  ifdef __cplusplus
+    static int yyinput (yyscan_t yyscanner) __attribute__ (( unused ));
+#  else
+    static int input  (yyscan_t yyscanner) __attribute__ (( unused ));
+#  endif
+#endif
+
+#line 1427 "callweaver_expr2f.c"
 
 #define INITIAL 0
 #define var 1
@@ -1642,10 +1650,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 102 "callweaver_expr2.l"
+#line 110 "callweaver_expr2.l"
 
 
-#line 1649 "callweaver_expr2f.c"
+#line 1657 "callweaver_expr2f.c"
 
     yylval = yylval_param;
 
@@ -1728,122 +1736,122 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 104 "callweaver_expr2.l"
+#line 112 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 105 "callweaver_expr2.l"
+#line 113 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 106 "callweaver_expr2.l"
+#line 114 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 107 "callweaver_expr2.l"
+#line 115 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 108 "callweaver_expr2.l"
+#line 116 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 109 "callweaver_expr2.l"
+#line 117 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 110 "callweaver_expr2.l"
+#line 118 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 111 "callweaver_expr2.l"
+#line 119 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 112 "callweaver_expr2.l"
+#line 120 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 113 "callweaver_expr2.l"
+#line 121 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 114 "callweaver_expr2.l"
+#line 122 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 115 "callweaver_expr2.l"
+#line 123 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 116 "callweaver_expr2.l"
+#line 124 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 117 "callweaver_expr2.l"
+#line 125 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 118 "callweaver_expr2.l"
+#line 126 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 119 "callweaver_expr2.l"
+#line 127 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 120 "callweaver_expr2.l"
+#line 128 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 121 "callweaver_expr2.l"
+#line 129 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 122 "callweaver_expr2.l"
+#line 130 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 123 "callweaver_expr2.l"
+#line 131 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 124 "callweaver_expr2.l"
+#line 132 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 125 "callweaver_expr2.l"
+#line 133 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 126 "callweaver_expr2.l"
+#line 134 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 127 "callweaver_expr2.l"
+#line 135 "callweaver_expr2.l"
 {
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -1856,24 +1864,24 @@ YY_RULE_SETUP
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 137 "callweaver_expr2.l"
+#line 145 "callweaver_expr2.l"
 {}
 	YY_BREAK
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 138 "callweaver_expr2.l"
+#line 146 "callweaver_expr2.l"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 27:
 /* rule 27 can match eol */
 YY_RULE_SETUP
-#line 140 "callweaver_expr2.l"
+#line 148 "callweaver_expr2.l"
 {/* what to do with eol */}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 141 "callweaver_expr2.l"
+#line 149 "callweaver_expr2.l"
 {
 		SET_COLUMNS;
 		/* the original behavior of the expression parser was
@@ -1885,7 +1893,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 150 "callweaver_expr2.l"
+#line 158 "callweaver_expr2.l"
 {
 		SET_COLUMNS;
 		SET_STRING;
@@ -1895,7 +1903,7 @@ YY_RULE_SETUP
 case 30:
 /* rule 30 can match eol */
 YY_RULE_SETUP
-#line 157 "callweaver_expr2.l"
+#line 165 "callweaver_expr2.l"
 {
 		curlycount--;
 		if (curlycount < 0) {
@@ -1909,7 +1917,7 @@ YY_RULE_SETUP
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 167 "callweaver_expr2.l"
+#line 175 "callweaver_expr2.l"
 {
 		curlycount++;
 		yymore();
@@ -1917,7 +1925,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 173 "callweaver_expr2.l"
+#line 181 "callweaver_expr2.l"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1928,7 +1936,7 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 180 "callweaver_expr2.l"
+#line 188 "callweaver_expr2.l"
 {
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -1940,7 +1948,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 189 "callweaver_expr2.l"
+#line 197 "callweaver_expr2.l"
 {
 		curlycount = 0;
 		BEGIN(var);
@@ -1948,7 +1956,7 @@ YY_RULE_SETUP
 	}
 	YY_BREAK
 case YY_STATE_EOF(trail):
-#line 195 "callweaver_expr2.l"
+#line 203 "callweaver_expr2.l"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1959,10 +1967,10 @@ case YY_STATE_EOF(trail):
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 203 "callweaver_expr2.l"
+#line 211 "callweaver_expr2.l"
 ECHO;
 	YY_BREAK
-#line 1966 "callweaver_expr2f.c"
+#line 1974 "callweaver_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -3137,7 +3145,7 @@ void cw_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 203 "callweaver_expr2.l"
+#line 211 "callweaver_expr2.l"
 
 
 
@@ -3150,7 +3158,7 @@ void cw_yyfree (void * ptr , yyscan_t yyscanner)
 int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int cw_expr(char *expr, char *buf, int length)
+int cw_expr(const char *expr, char *buf, int length)
 {
 	struct parse_io io;
 	int return_value = 0;
@@ -3194,10 +3202,10 @@ int cw_expr(char *expr, char *buf, int length)
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;
-extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(char *message);
+extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(const char *message);
 extern CW_API_PUBLIC void  cw_expr_clear_extra_error_info(void);
 
-void  cw_expr_register_extra_error_info(char *message)
+void  cw_expr_register_extra_error_info(const char *message)
 {
        extra_error_message_supplied=1;
        strcpy(extra_error_message, message);
@@ -3209,7 +3217,7 @@ void  cw_expr_clear_extra_error_info(void)
        extra_error_message[0] = 0;
 }
 
-static char *expr2_token_equivs1[] = 
+static const char *expr2_token_equivs1[] =
 {
 	"TOKEN",
 	"TOK_COND",
@@ -3234,7 +3242,7 @@ static char *expr2_token_equivs1[] =
 	"TOK_LP"
 };
 
-static char *expr2_token_equivs2[] = 
+static const char *expr2_token_equivs2[] =
 {
 	"<token>",
 	"?",
@@ -3260,12 +3268,12 @@ static char *expr2_token_equivs2[] =
 };
 
 
-static char *expr2_token_subst(char *mess)
+static char *expr2_token_subst(const char *mess)
 {
 	/* calc a length, malloc, fill, and return; yyerror had better free it! */
 	int len=0,i;
-	char *p;
-	char *res, *s,*t;
+	const char *t, *p;
+	char *res, *s;
 	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
 
 	for (p=mess; *p; p++) {
@@ -3279,7 +3287,7 @@ static char *expr2_token_subst(char *mess)
 		}
 		len++;
 	}
-	res = (char*)malloc(len+1);
+	res = malloc(len+1);
 	res[0] = 0;
 	s = res;
 	for (p=mess; *p;) {

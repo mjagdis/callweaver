@@ -36,6 +36,7 @@ static inline int cw_strlen_zero(const char *s)
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
   \param str the input string
+
   \return a pointer to the first non-whitespace character
  */
 static inline char *cw_skip_blanks(char *str)
@@ -44,6 +45,7 @@ static inline char *cw_skip_blanks(char *str)
 		str++;
 	return str;
 }
+
 
 /*!
   \brief Trims trailing whitespace characters from a string.

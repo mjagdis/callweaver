@@ -49,7 +49,7 @@ unsigned long VH_ElfHash(const unsigned char *name)
     return h;
 }
 
-hash_storage *vh_init_hash_storage()
+hash_storage *vh_init_hash_storage(void)
 {
 
     hash_storage *new_store;
@@ -85,7 +85,7 @@ void vh_destroy_hash_storage(hash_storage ** nuke)
 
 }
 
-void_hash_table *vh_init(char *name)
+void_hash_table *vh_init(const char *name)
 {
     void_hash_table *newhash;
     int key;
@@ -161,10 +161,10 @@ int vh_write_store(void_hash_table * hash, hash_storage * new)
     return key;
 }
 
-int vh_write(void_hash_table * hash, char *name, void *value)
+int vh_write(void_hash_table * hash, const char *name, void *value)
 {
     hash_storage *store, *last;
-    unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((const unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     int ow = 0;
 
     store = last = NULL;
@@ -206,7 +206,7 @@ int vh_write(void_hash_table * hash, char *name, void *value)
     return key;
 }
 
-int vh_write_cp_string(void_hash_table * hash, char *key, char *string)
+int vh_write_cp_string(void_hash_table * hash, const char *key, const char *string)
 {
     int res = 0;
     char *ptr;
@@ -227,7 +227,7 @@ int vh_write_cp_string(void_hash_table * hash, char *key, char *string)
     return res;
 }
 
-void *vh_read(void_hash_table * hash, char *name)
+void *vh_read(void_hash_table * hash, const char *name)
 {
     unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     hash_storage *store;
@@ -244,9 +244,9 @@ void *vh_read(void_hash_table * hash, char *name)
     return NULL;
 }
 
-int vh_delete(void_hash_table * hash, char *name)
+int vh_delete(void_hash_table * hash, const char *name)
 {
-    unsigned long key = VH_ElfHash((unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
+    unsigned long key = VH_ElfHash((const unsigned char *) name) & VOID_HASH_TABLE_KEY_SIZE;
     hash_storage *store = NULL, *last = NULL;
     int ret = 0;
 
@@ -433,11 +433,11 @@ int vh_carve_data(void_hash_table * hash, char *data, char delim)
     return count;
 }
 
-int strncpy_if_exists(void_hash_table * hash, char *key, char *cpy_to, size_t size)
+int strncpy_if_exists(void_hash_table * hash, const char *key, char *cpy_to, size_t size)
 {
-    char *key_test;
+    const char *key_test;
 
-    if ((key_test = (char *) vh_read(hash, key)) != NULL) {
+    if ((key_test = (const char *) vh_read(hash, key)) != NULL) {
         strncpy(cpy_to, key_test, size);
         return 1;
     }
@@ -445,11 +445,11 @@ int strncpy_if_exists(void_hash_table * hash, char *key, char *cpy_to, size_t si
     return 0;
 }
 
-int atoi_if_exists(void_hash_table * hash, char *key, int dft)
+int atoi_if_exists(void_hash_table * hash, const char *key, int dft)
 {
-    char *key_test;
+    const char *key_test;
 
-    if (((key_test = (char *) vh_read(hash, key)) != NULL) && atoi(key_test)) {
+    if (((key_test = (const char *) vh_read(hash, key)) != NULL) && atoi(key_test)) {
         return atoi(key_test);
     }
 
@@ -460,9 +460,9 @@ int atoi_if_exists(void_hash_table * hash, char *key, int dft)
    not found and the deflt_str is not NULL, it is duplicated instead.
    Otherwise the function returns NULL. Freeing the object again is
    up to you. */
-char *vh_get_strdup(void_hash_table * hash, char *key, char *deflt_str)
+char *vh_get_strdup(void_hash_table * hash, const char *key, const char *deflt_str)
 {
-    char *value = (char *) vh_read(hash, key);
+    const char *value = (const char *) vh_read(hash, key);
 
     if (value == NULL) {
         value = deflt_str;
@@ -473,7 +473,7 @@ char *vh_get_strdup(void_hash_table * hash, char *key, char *deflt_str)
     return strdup(value);
 }
 
-int vh_cp_string(void_hash_table * hash, char *key, char *string)
+int vh_cp_string(void_hash_table * hash, const char *key, const char *string)
 {
     char *ptr;
 
@@ -490,7 +490,7 @@ int vh_cp_string(void_hash_table * hash, char *key, char *string)
         return 0;
 }
 
-int vh_carve_data_perm(void_hash_table * hash, char *data, char delim)
+int vh_carve_data_perm(void_hash_table * hash, const char *data, char delim)
 {
     char *ptr;
 
@@ -520,10 +520,10 @@ void vh_merge(void_hash_table * hash, void_hash_table * new)
 void vh_merge_if_undef(void_hash_table * hash, void_hash_table * new)
 {
     vh_keylist *keys = vh_keys(new), *key;
-    char *ptr;
+    const char *ptr;
 
     for (key = keys; key; key = key->next) {
-        ptr = (char *) vh_read(hash, key->name);
+        ptr = (const char *) vh_read(hash, key->name);
         if (!ptr)
             vh_cp_string(hash, key->name, vh_read(new, key->name));
     }

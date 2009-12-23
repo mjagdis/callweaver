@@ -564,8 +564,8 @@ static int festival_exec(struct cw_channel *chan, char *vdata)
    enetered text. */
 static const char *char_to_text(char c)
 {
-    char *s;
-    
+    const char *s;
+
     s = NULL;
     switch (c)
     {
@@ -762,7 +762,7 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
         /* Even if the caller hung up we may still have a valid input, as it
            is often valid to enter a string of digits at the last phase of a
            call and just drop the line */
-        cw_log(CW_LOG_DEBUG, "Current text %d/%d\n", t - entered_text, max_chars);
+        cw_log(CW_LOG_DEBUG, "Current text %ld/%d\n", t - entered_text, max_chars);
         s = digval;
         ul =
         u = talk_back;

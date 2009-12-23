@@ -93,7 +93,7 @@ static int read_environment(void)
 	return 0;
 }
 
-static char *wait_result(void)
+static const char *wait_result(void)
 {
 	fd_set fds;
 	int res;
@@ -149,7 +149,7 @@ static char *wait_result(void)
 		
 }
 
-static char *run_command(char *command)
+static const char *run_command(const char *command)
 {
 	fprintf(stdout, "%s\n", command);
 	return wait_result();
@@ -157,7 +157,7 @@ static char *run_command(char *command)
 
 static int run_script(void)
 {
-	char *res;
+	const char *res;
 	res = run_command("STREAM FILE demo-enterkeywords 0123456789*#");
 	if (!res) {
 		fprintf(stderr, "Failed to execute command\n");

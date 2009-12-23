@@ -359,7 +359,7 @@ int cw_say_date(struct cw_channel *chan, time_t t, const char *ints, const char 
     return lang_specific_en.say_date(chan, t, ints, lang);
 }
 
-int cw_say_date_with_format(struct cw_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
+int cw_say_date_with_format(struct cw_channel *chan, time_t t, const char *ints, const char *lang, const char *format, const char *tz)
 {
     int i;
 
@@ -368,12 +368,12 @@ int cw_say_date_with_format(struct cw_channel *chan, time_t time, const char *in
         if (strcasecmp(lang, lang_list[i]->tag) == 0)
         {
             if (lang_list[i]->say_date_with_format)
-                return lang_list[i]->say_date_with_format(chan, time, ints, lang, format, timezone);
+                return lang_list[i]->say_date_with_format(chan, t, ints, lang, format, tz);
             break;
         }
     }
     /* Default to English */
-    return lang_specific_en.say_date_with_format(chan, time, ints, lang, format, timezone);
+    return lang_specific_en.say_date_with_format(chan, t, ints, lang, format, tz);
 }
 
 int cw_say_time(struct cw_channel *chan, time_t t, const char *ints, const char *lang)

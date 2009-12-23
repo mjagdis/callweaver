@@ -275,7 +275,7 @@ extern CW_API_PUBLIC int (*adsi_available)(struct cw_channel *chan);
  *
  */
 
-extern CW_API_PUBLIC int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
+extern CW_API_PUBLIC int (*adsi_display)(unsigned char *buf, int page, int line, int just, int wrap, const char *col1, const char *col2);
 
 /*! Sets the current line and page */ 
 /*!
@@ -301,7 +301,7 @@ extern CW_API_PUBLIC int (*adsi_set_line)(unsigned char *buf, int page, int line
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern CW_API_PUBLIC int (*adsi_load_soft_key)(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data);
+extern CW_API_PUBLIC int (*adsi_load_soft_key)(unsigned char *buf, int key, const char *llabel, const char *slabel, const char *ret, int data);
 
 /*! Set which soft keys should be displayed */
 /*!
@@ -340,6 +340,6 @@ extern CW_API_PUBLIC int (*adsi_input_control)(unsigned char *buf, int page, int
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern CW_API_PUBLIC int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
+extern CW_API_PUBLIC int (*adsi_input_format)(unsigned char *buf, int num, int dir, int wrap, const char *format1, const char *format2);
 
 #endif /* _CALLWEAVER_ADSI_H */

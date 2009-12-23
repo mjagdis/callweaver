@@ -94,7 +94,7 @@ static int check_header(FILE *f)
 {
     int type, size, formtype;
     int fmt, hsize;
-    short format, chans, bysam, bisam;
+    short filefmt, chans, bysam, bisam;
     int bysec;
     int freq;
     int data;
@@ -135,12 +135,12 @@ static int check_header(FILE *f)
         cw_log(CW_LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
         return -1;
     }
-    if (fread(&format, 1, 2, f) != 2) {
+    if (fread(&filefmt, 1, 2, f) != 2) {
         cw_log(CW_LOG_WARNING, "Read failed (format)\n");
         return -1;
     }
-    if (ltohs(format) != 1) {
-        cw_log(CW_LOG_WARNING, "Not a wav file %d\n", ltohs(format));
+    if (ltohs(filefmt) != 1) {
+        cw_log(CW_LOG_WARNING, "Not a wav file %d\n", ltohs(filefmt));
         return -1;
     }
     if (fread(&chans, 1, 2, f) != 2) {

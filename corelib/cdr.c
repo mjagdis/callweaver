@@ -78,7 +78,7 @@ static struct {
 	int size;
 	struct cw_cdr *head;
 	struct cw_cdr **tail;
-} batch;
+} curbatch;
 
 static pthread_t cdr_thread = CW_PTHREADT_NULL;
 
@@ -320,7 +320,7 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 void cw_cdr_free(struct cw_cdr *batch)
 {
 	struct cw_cdr *cdr, *next;
-	char *chan;
+	const char *chan;
 
 	while ((cdr = batch)) {
 		batch = batch->batch_next;
@@ -357,7 +357,7 @@ struct cw_cdr *cw_cdr_alloc(void)
 
 void cw_cdr_start(struct cw_cdr *cdr)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		if (!cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
@@ -374,7 +374,7 @@ void cw_cdr_start(struct cw_cdr *cdr)
 
 void cw_cdr_answer(struct cw_cdr *cdr)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -390,7 +390,7 @@ void cw_cdr_answer(struct cw_cdr *cdr)
 
 void cw_cdr_busy(struct cw_cdr *cdr)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		if (!cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
@@ -406,7 +406,7 @@ void cw_cdr_busy(struct cw_cdr *cdr)
 
 void cw_cdr_failed(struct cw_cdr *cdr)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -446,7 +446,7 @@ int cw_cdr_disposition(struct cw_cdr *cdr, int cause)
 
 void cw_cdr_setdestchan(struct cw_cdr *cdr, const char *chann)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -460,7 +460,7 @@ void cw_cdr_setdestchan(struct cw_cdr *cdr, const char *chann)
 
 void cw_cdr_setapp(struct cw_cdr *cdr, const char *app, const char *data)
 {
-	char *chan; 
+	const char *chan;
 
 	while (cdr) {
 		if (!cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
@@ -487,7 +487,7 @@ int cw_cdr_setcid(struct cw_cdr *cdr, struct cw_channel *c)
 		if (!cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
 			/* Grab source from ANI or normal Caller*ID */
 			num = c->cid.cid_ani ? c->cid.cid_ani : c->cid.cid_num;
-			
+
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
@@ -506,7 +506,7 @@ int cw_cdr_setcid(struct cw_cdr *cdr, struct cw_channel *c)
 
 int cw_cdr_init(struct cw_cdr *cdr, struct cw_channel *c)
 {
-	char *chan;
+	const char *chan;
 	char *num;
 	char tmp[CW_MAX_EXTENSION] = "";
 
@@ -544,7 +544,7 @@ int cw_cdr_init(struct cw_cdr *cdr, struct cw_channel *c)
 
 void cw_cdr_end(struct cw_cdr *cdr)
 {
-	char *chan;
+	const char *chan;
 
 	while (cdr) {
 		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
@@ -566,7 +566,7 @@ void cw_cdr_end(struct cw_cdr *cdr)
 	}
 }
 
-char *cw_cdr_disp2str(int disposition)
+const char *cw_cdr_disp2str(int disposition)
 {
 	switch (disposition) {
 	case CW_CDR_NOANSWER:
@@ -581,7 +581,7 @@ char *cw_cdr_disp2str(int disposition)
 	return "UNKNOWN";
 }
 
-char *cw_cdr_flags2str(int flag)
+const char *cw_cdr_flags2str(int flag)
 {
 	switch(flag) {
 	case CW_CDR_OMIT:
@@ -705,7 +705,7 @@ static int post_cdrbe(struct cw_object *obj, void *data)
 static void post_cdr(struct cw_cdr *submission)
 {
 	struct cw_cdr *batch, *cdrset, *cdr;
-	char *chan;
+	const char *chan;
 
 	batch = submission;
 	while ((cdrset = batch)) {
@@ -730,7 +730,7 @@ static void post_cdr(struct cw_cdr *submission)
 
 void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags)
 {
-	struct cw_cdr *dup;
+	struct cw_cdr *dupcdr;
 
 
 	while (cdr) {
@@ -738,8 +738,8 @@ void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags)
 		if ((flags & CW_CDR_FLAG_LOCKED) || !cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
 			if ((flags & CW_CDR_FLAG_POSTED)) {
 				cw_cdr_end(cdr);
-				if ((dup = cw_cdr_dup(cdr)))
-					cw_cdr_detach(dup);
+				if ((dupcdr = cw_cdr_dup(cdr)))
+					cw_cdr_detach(dupcdr);
 				cw_set_flag(cdr, CW_CDR_FLAG_POSTED);
 			}
 
@@ -788,16 +788,16 @@ static void *cw_cdr_submit(void *data)
 		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &cdr_batch_lock);
 		pthread_mutex_lock(&cdr_batch_lock);
 
-		if (!batch.head) {
+		if (!curbatch.head) {
 			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 			pthread_cond_wait(&cdr_batch_cond, &cdr_batch_lock);
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 		}
 
-		oldbatchitems = batch.head;
-		batch.size = 0;
-		batch.head = NULL;
-		batch.tail = &batch.head;
+		oldbatchitems = curbatch.head;
+		curbatch.size = 0;
+		curbatch.head = NULL;
+		curbatch.tail = &curbatch.head;
 
 		pthread_cleanup_pop(1);
 
@@ -814,9 +814,9 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 	if (enabled) {
 		pthread_mutex_lock(&cdr_batch_lock);
 
-		*batch.tail = cdr;
-		batch.tail = &cdr->batch_next;
-		batch.size++;
+		*curbatch.tail = cdr;
+		curbatch.tail = &cdr->batch_next;
+		curbatch.size++;
 		pthread_cond_signal(&cdr_batch_cond);
 
 		pthread_mutex_unlock(&cdr_batch_lock);
@@ -923,7 +923,7 @@ int cw_cdr_engine_init(void)
 {
 	int res = 0;
 
-	batch.tail = &batch.head;
+	curbatch.tail = &curbatch.head;
 
 	cw_atexit_register(&cdr_atexit);
 

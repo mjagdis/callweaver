@@ -256,7 +256,7 @@ extern CW_API_PUBLIC int cw_cdr_amaflags2int(const char *flag);
  * Converts the binary form of a disposition to string form.
  * Returns a pointer to the string form
  */
-extern CW_API_PUBLIC char *cw_cdr_disp2str(int disposition);
+extern CW_API_PUBLIC const char *cw_cdr_disp2str(int disposition);
 
 /*! Reset the detail record, optionally posting it first */
 /*!
@@ -272,7 +272,7 @@ extern CW_API_PUBLIC void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags);
  * Converts binary flags to string flags
  * Returns string with flag name
  */
-extern CW_API_PUBLIC char *cw_cdr_flags2str(int flags);
+extern CW_API_PUBLIC const char *cw_cdr_flags2str(int flags);
 
 extern CW_API_PUBLIC int cw_cdr_setaccount(struct cw_channel *chan, const char *account);
 extern CW_API_PUBLIC int cw_cdr_setamaflags(struct cw_channel *chan, const char *amaflags);

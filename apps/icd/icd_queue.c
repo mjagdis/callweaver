@@ -653,7 +653,7 @@ icd_status icd_queue__dump(icd_queue * that, int verbosity, struct cw_dynstr **d
 /* Standard dump function for distributor */
 icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
-    static char *indent = "    ";
+    static const char *indent = "    ";
     vh_keylist *keys;
     icd_distributor *dist;
 
@@ -728,7 +728,7 @@ icd_status icd_queue__set_name(icd_queue * that, char *name)
 char *icd_queue__get_name(icd_queue * that)
 {
     if (that->name == NULL) {
-        return "";
+        return (char *)"";
     }
     return that->name;
 }
@@ -845,18 +845,18 @@ int icd_queue__get_holdannounce_holdtime(icd_queue * that)
     return that->holdannounce.holdtime;
 }
 
-int icd_queue__set_holdannounce_holdtime(icd_queue * that, int time)
+int icd_queue__set_holdannounce_holdtime(icd_queue * that, int t)
 {
     assert(that != NULL);
     if (icd_queue__lock(that) == ICD_SUCCESS) {
-        that->holdannounce.holdtime = time;
+        that->holdannounce.holdtime = t;
         icd_queue__unlock(that);
     }
 
     return that->holdannounce.holdtime;
 }
 
-char *icd_queue__get_holdannounce_sound_next(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_next(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_next == NULL || !strlen(that->holdannounce.sound_next)) {
@@ -866,7 +866,7 @@ char *icd_queue__get_holdannounce_sound_next(icd_queue * that)
     return that->holdannounce.sound_next;
 }
 
-char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_thereare == NULL || !strlen(that->holdannounce.sound_thereare)) {
@@ -876,7 +876,7 @@ char *icd_queue__get_holdannounce_sound_thereare(icd_queue * that)
     return that->holdannounce.sound_thereare;
 }
 
-char *icd_queue__get_holdannounce_sound_calls(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_calls(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_calls == NULL || !strlen(that->holdannounce.sound_calls)) {
@@ -886,7 +886,7 @@ char *icd_queue__get_holdannounce_sound_calls(icd_queue * that)
     return that->holdannounce.sound_calls;
 }
 
-char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_holdtime == NULL || !strlen(that->holdannounce.sound_holdtime)) {
@@ -896,7 +896,7 @@ char *icd_queue__get_holdannounce_sound_holdtime(icd_queue * that)
     return that->holdannounce.sound_holdtime;
 }
 
-char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_minutes == NULL || !strlen(that->holdannounce.sound_minutes)) {
@@ -906,7 +906,7 @@ char *icd_queue__get_holdannounce_sound_minutes(icd_queue * that)
     return that->holdannounce.sound_minutes;
 }
 
-char *icd_queue__get_holdannounce_sound_thanks(icd_queue * that)
+const char *icd_queue__get_holdannounce_sound_thanks(icd_queue * that)
 {
     assert(&that->holdannounce != NULL);
     if (that->holdannounce.sound_thanks == NULL || !strlen(that->holdannounce.sound_thanks)) {

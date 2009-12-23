@@ -60,7 +60,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static const char desc[] = "ODBC CDR Backend";
 static const char name[] = "ODBC";
-static char *config = "cdr_odbc.conf";
+static const char config[] = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
 static int loguniqueid = 0;
 static int usegmtime = 0;
@@ -163,9 +163,10 @@ static int odbc_log(struct cw_cdr *batch)
 			SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
 			SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
 			SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-			if (dispositionstring)
-				SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cw_cdr_disp2str(cdr->disposition)) + 1, 0, cw_cdr_disp2str(cdr->disposition), 0, NULL);
-			else
+			if (dispositionstring) {
+				const char *s = cw_cdr_disp2str(cdr->disposition);
+				SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(s) + 1, 0, (char *)s, 0, NULL);
+			} else
 				SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
 			SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
 			SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
@@ -265,7 +266,7 @@ static int load_module(void)
 	int res = 0;
 	struct cw_config *cfg;
 	struct cw_variable *var;
-	char *tmp;
+	const char *tmp;
 
 	cw_cdrbe_register(&cdrbe);
 

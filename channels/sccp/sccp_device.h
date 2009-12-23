@@ -19,11 +19,11 @@ void sccp_dev_set_deactivate_cplane(sccp_channel_t * c);
 void sccp_dev_starttone(sccp_device_t * d, uint8_t tone, uint8_t line, uint32_t callid, uint32_t timeout);
 void sccp_dev_stoptone(sccp_device_t * d, uint8_t line, uint32_t callid);
 void sccp_dev_clearprompt(sccp_device_t * d, uint8_t line, uint32_t callid);
-void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, char * msg, int timeout);
+void sccp_dev_displayprompt(sccp_device_t * d, uint8_t line, uint32_t callid, const char * msg, int timeout);
 void sccp_dev_cleardisplaynotify(sccp_device_t * d);
 void sccp_dev_displaynotify(sccp_device_t * d, char * msg, uint32_t timeout);
 void sccp_dev_cleardisplayprinotify(sccp_device_t * d);
-void sccp_dev_displayprinotify(sccp_device_t * d, char * msg, uint32_t priority, uint32_t timeout);
+void sccp_dev_displayprinotify(sccp_device_t * d, const char * msg, uint32_t priority, uint32_t timeout);
 
 sccp_speed_t * sccp_dev_speed_find_byindex(sccp_device_t * d, uint8_t instance, uint8_t type);
 sccp_line_t * sccp_dev_get_activeline(sccp_device_t * d);

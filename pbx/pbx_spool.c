@@ -221,7 +221,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	return 0;
 }
 
-static void safe_append(struct outgoing *o, time_t now, char *s)
+static void safe_append(struct outgoing *o, time_t now, const char *s)
 {
 	int fd;
 	FILE *f;

@@ -193,12 +193,13 @@ static int add_identifier_and_set_callweaver_int(struct cw_channel *chan, char *
 	return set_callweaver_int(chan,varname,add_identifier(identifier_type,data));
 }
 
-static int safe_scan_int( char** data, char* delim, int def ) {
+static int safe_scan_int(char **data, const char *delim, int def) {
 	char* end;
 	int res = def;
-	char* s = strsep(data,delim);
-	if( s ) {
-		res = strtol(s,&end,10);
+	char *s = strsep(data,delim);
+
+	if (s) {
+		res = strtol(s, &end, 10);
 		if (*end) res = def;  /* not an integer */
 	}
 	return res;

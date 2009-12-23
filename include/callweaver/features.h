@@ -37,7 +37,7 @@
 /*! \brief main call feature structure */
 struct cw_call_feature {
 	int feature_mask;
-	char *fname;
+	const char *fname;
 	char sname[FEATURE_SNAME_LEN];
 	char exten[FEATURE_MAX_LEN];
 	char default_exten[FEATURE_MAX_LEN];

@@ -55,7 +55,10 @@ static const char settransfercapability_descrip[] =
 ;
 
 
-static struct {	int val; char *name; } transcaps[] = {
+static struct {
+	int val;
+	const char *name;
+} transcaps[] = {
 	{ CW_TRANS_CAP_SPEECH,				"SPEECH" },
 	{ CW_TRANS_CAP_DIGITAL,			"DIGITAL" },
 	{ CW_TRANS_CAP_RESTRICTED_DIGITAL,	"RESTRICTED_DIGITAL" },

@@ -174,13 +174,13 @@ int icd_bridge__wait_call_customer(icd_caller * that)
     int res = 0;
     struct cw_channel *chan = (cw_channel *) icd_caller__get_channel(that);
     icd_queue *queue;
-    char *chimefile;
+    const char *chimefile;
     int result = 0;
     time_t now, start;
     int avgholdmins;
     static int waitms = 100;
     int noagent_wait_timeout = 20;       /* number of sec to wait when no agents in the q */
-    char *noagent_time; 
+    const char *noagent_time; 
     int agent_count;
     
     noagent_time = icd_caller__get_param(that, "noagent_timeout");
@@ -456,13 +456,12 @@ int icd_bridge_wait_ack(icd_caller * that)
  * /return an callweaver channel or NULL on failure
  * /todo implement the local channel method for getting a channel
  */
-struct cw_channel *icd_bridge_get_callweaver_channel(char *chanstring, char *context, char *priority,
-    char *extension)
+struct cw_channel *icd_bridge_get_callweaver_channel(const char *chanstring, const char *context, const char *priority, const char *extension)
 {
     struct cw_channel *chan = NULL;
     int cause;
-    char *type;
-    char *data;
+    char *type = NULL;
+    char *data = NULL;
 
     /* The channel string method */
     if (chan == NULL && chanstring != NULL) {
@@ -502,13 +501,13 @@ struct cw_channel *icd_bridge_get_callweaver_channel(char *chanstring, char *con
  * \param timeout how long in milliseconds to wait before timing out
  * \return callweaver channel state
  */
-int icd_bridge_dial_callweaver_channel(icd_caller * that, char *chanstring, int timeout)
+int icd_bridge_dial_callweaver_channel(icd_caller * that, const char *chanstring, int timeout)
 {
     //struct cw_channel *newchan;
     struct cw_channel *chan;
     struct cw_frame *f = NULL;
-    char *caller_id;
-    char *addr;
+    const char *caller_id;
+    const char *addr;
     int result;
     int state = CW_CONTROL_HANGUP;
 //    int assoc;
@@ -856,7 +855,7 @@ int ok_exit(icd_caller * that, char digit)
 
 int no_agent(icd_caller * caller, icd_queue * queue){
 
-    char * tmp_str;
+    const char * tmp_str;
     icd_caller *agent_caller = NULL;
 
     tmp_str = icd_caller__get_param(caller, "identifier");
@@ -1030,7 +1029,7 @@ int icd_bridge__check_hangup(icd_caller * that)
     return 1;
 }
 
-int icd_bridge__play_sound_file(struct cw_channel *chan, char *file)
+int icd_bridge__play_sound_file(struct cw_channel *chan, const char *file)
 {
     int res = 0;
 

@@ -113,7 +113,7 @@ static void *lpc10_dec_new(void)
     return tmp;
 }
 
-static struct cw_frame *lpc10tolin_sample(int *index)
+static struct cw_frame *lpc10tolin_sample(int *i)
 {
     static struct cw_frame f;
 

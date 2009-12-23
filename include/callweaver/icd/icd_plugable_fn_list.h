@@ -69,7 +69,7 @@ extern "C" {
     icd_status icd_plugable_fn_list__add_fns(icd_plugable_fn_list * that, icd_plugable_fn * new_fns);
 
 /* Retrieves a  plugable_fns from the list when given a name, usually dist name */
-    icd_plugable_fn *icd_plugable_fn_list__fetch_fns(icd_plugable_fn_list * that, char *id);
+    icd_plugable_fn *icd_plugable_fn_list__fetch_fns(icd_plugable_fn_list * that, const char *id);
 
 /* Removes a  plugable_fns from the list when given a name, usually dist name returns success or failure. */
     icd_status icd_plugable_fn_list__remove_fns(icd_plugable_fn_list * that, char *id);

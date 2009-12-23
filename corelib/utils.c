@@ -422,7 +422,7 @@ int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 	int cnt = 0;
 	unsigned int byte = 0;
 	int bits = 0;
-	int index;
+	int i;
 	int cntin = 0;
 #if 0
 	char *odst = dst;
@@ -439,8 +439,8 @@ int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 		while((bits >= 6) && (cnt < max)) {
 			bits -= 6;
 			/* We want only the top */
-			index = (byte >> bits) & 0x3f;
-			*dst = base64[index];
+			i = (byte >> bits) & 0x3f;
+			*dst = base64[i];
 
 			dst++;
 			cnt++;
@@ -450,8 +450,8 @@ int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max)
 		/* Add one last character for the remaining bits, 
 		   padding the rest with 0 */
 		byte <<= (6 - bits);
-		index = (byte) & 0x3f;
-		*(dst++) = base64[index];
+		i = (byte) & 0x3f;
+		*(dst++) = base64[i];
 		cnt++;
 	}
 	*dst = '\0';
@@ -494,11 +494,11 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *cw_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
+char *cw_uri_encode(const char *string, char *outbuf, int buflen, int doreserved)
 {
-	char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
+	const char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
 
- 	char *ptr  = string;	/* Start with the string */
+	const char *ptr  = string;	/* Start with the string */
 	char *out = NULL;
 	char *buf = NULL;
 

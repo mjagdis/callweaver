@@ -957,7 +957,7 @@ void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
 
 	for (i = 0; i < v_count; i++) {
 		const uint8_t * b = v->ptr;
-		uint8_t c, i = 0;
+		uint8_t c, j;
 
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set[%-2d]= ", d->id, v->id);
 
@@ -987,10 +987,10 @@ void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
 			if ( (b[c] == SKINNY_LBL_PRIVATE) && (!d->private) ) {
 				continue;
 			}
-			for (i = 0; i < sizeof(softkeysmap); i++) {
-				if (b[c] == softkeysmap[i]) {
-				sccp_log(10)("%-2d:%-10s ", c, skinny_lbl2str(softkeysmap[i]));
-				r1->msg.SoftKeySetResMessage.definition[v->id].softKeyTemplateIndex[c] = (i+1);
+			for (j = 0; j < sizeof(softkeysmap); j++) {
+				if (b[c] == softkeysmap[j]) {
+				sccp_log(10)("%-2d:%-10s ", c, skinny_lbl2str(softkeysmap[j]));
+				r1->msg.SoftKeySetResMessage.definition[v->id].softKeyTemplateIndex[c] = (j+1);
 				break;
 			}
 		}

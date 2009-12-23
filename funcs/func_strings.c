@@ -212,13 +212,13 @@ static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, 
 static int acf_strftime(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char *epoch = NULL;
-	char *timezone = NULL;
-	char *format = "%c";
+	char *tz = NULL;
+	const char *format = "%c";
 	long epochi;
-	struct tm time;
+	struct tm now_tm;
 
 	if ( (argc>0) && (!cw_strlen_zero(argv[0])) ) epoch=argv[0];
-	if ( (argc>1) && (!cw_strlen_zero(argv[1])) ) timezone=argv[1];
+	if ( (argc>1) && (!cw_strlen_zero(argv[1])) ) tz=argv[1];
 	if ( (argc>2) && (!cw_strlen_zero(argv[2])) ) format=argv[2];
 
 	if (argc < 1 || !argv[0][0] || !sscanf(epoch, "%ld", &epochi)) {
@@ -226,9 +226,9 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, char *bu
 		epochi = tv.tv_sec;
 	}
 	buf[0] = '\0';
-	cw_localtime(&epochi, &time, timezone);
+	cw_localtime(&epochi, &now_tm, tz);
 
-	if (!strftime(buf, len, format, &time)) {
+	if (!strftime(buf, len, format, &now_tm)) {
 		cw_log(CW_LOG_DEBUG, "C function strftime() output nothing or needed more than %lu bytes\n", (unsigned long)len);
 		*buf = '\0';
 	}
@@ -248,7 +248,9 @@ static int function_eval(struct cw_channel *chan, int argc, char **argv, char *b
 
 static int function_cut(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char varvalue[MAXRESULT], *tmp2;
+	char varvalue[MAXRESULT];
+	char one[] = "1";
+	char *tmp2;
 	char *field=NULL;
 	char *tmp;
 	char d, ds[2];
@@ -262,7 +264,7 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, char *bu
 		snprintf(tmp, strlen(argv[0]) + 4, "${%s}", argv[0]);
 
 		d = (argc > 1 && argv[1][0] ? argv[1][0] : '-');
-		field = (argc > 2 && argv[2] ? argv[2] : "1");
+		field = (argc > 2 && argv[2] ? argv[2] : one);
 
 		/* String form of the delimiter, for use with strsep(3) */
 		snprintf(ds, sizeof(ds), "%c", d);

@@ -117,10 +117,10 @@ extern "C" {
 
     extern icd_fieldset *queues;
 
-    icd_plugable_fn *create_icd_plugable_fns(icd_config * data, char *name);
+    icd_plugable_fn *create_icd_plugable_fns(icd_config * data, const char *name);
 
 /* Initialize a previously created plugable_fns */
-    icd_status init_icd_plugable_fns(icd_plugable_fn * that, char *name, icd_config * data);
+    icd_status init_icd_plugable_fns(icd_plugable_fn * that, const char *name, icd_config * data);
 
     void icd_plugable__create_standard_fns(icd_plugable_fn_list * that, icd_config * data);
 

@@ -148,10 +148,10 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  */
 #define cw_object_put(ptr) ({ \
 	const typeof(ptr) __ptr = (ptr); \
-	int r = 0; \
+	int __r = 0; \
 	if (__ptr) \
-		r = cw_object_put_obj(&__ptr->obj); \
-	r; \
+		__r = cw_object_put_obj(&__ptr->obj); \
+	__r; \
 })
 
 

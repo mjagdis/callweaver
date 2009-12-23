@@ -266,7 +266,7 @@ static struct cw_frame *lintog722_frameout(void *pvt)
     return &tmp->f;
 }
 
-static struct cw_frame *g722tolin_sample(int *index)
+static struct cw_frame *g722tolin_sample(int *i)
 {
     static struct cw_frame f;
  

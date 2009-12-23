@@ -191,7 +191,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 	int ret;
 
 	if (!args)
-		args = "";
+		args = (char *)"";
 
 	/* Save the last byte for a terminating '\0' */
 	outlen--;

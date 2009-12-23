@@ -92,7 +92,7 @@ extern "C" {
 /***** Actions *****/
 
 /* Create a new event from this factory. */
-    icd_event *icd_event_factory__make(icd_event_factory * that, void *src, char *src_name, int mod_id,
+    icd_event *icd_event_factory__make(icd_event_factory * that, void *src, const char *src_name, int mod_id,
         int event_id, char *msg, icd_listeners * targets, void *extra);
 
 /* Macro that expands to create event in the most common way within ICD.
@@ -102,13 +102,13 @@ extern "C" {
 #define icd_event__make(event_id, msg, extra) icd_event_factory__make(event_factory, that, that->name, module_id, event_id, msg, that->listeners, extra)
 
 /* Translates event ID to string based on factory strings */
-    char *icd_event_factory__to_string(icd_event_factory * factory, icd_event_type event_id);
+    const char *icd_event_factory__to_string(icd_event_factory * factory, icd_event_type event_id);
 
 /* Macro __to_string() that assumes factory is "event_factory" */
 #define icd_event__to_string(event_id) icd_event_factory__to_string(event_factory, event_id)
 
 /* Create an event, fire it, and destroy it. This is the standard behaviour. */
-    icd_status icd_event_factory__generate(icd_event_factory * that, void *src, char *src_name, int mod_id,
+    icd_status icd_event_factory__generate(icd_event_factory * that, void *src, const char *src_name, int mod_id,
         int event_id, char *msg, icd_listeners * targets, void *extra);
 
 /* Macro that simplifies call to __generate() */
@@ -138,7 +138,7 @@ extern "C" {
     icd_status destroy_icd_event(icd_event ** eventp);
 
 /* Initialize an event */
-    icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, char *src_name, int mod_id,
+    icd_status init_icd_event(icd_event * that, icd_event_factory * factory, void *src, const char *src_name, int mod_id,
         int event_id, char *msg, icd_listeners * targets, void *extra);
 
 /* Clear an event */
@@ -154,8 +154,8 @@ extern "C" {
 
 /***** Getters and Setters *****/
 /* add/register new modules or events */
-    int icd_event_factory__add_module(char *name);
-    int icd_event_factory__add_event(char *name);
+    int icd_event_factory__add_module(const char *name);
+    int icd_event_factory__add_event(const char *name);
 
 /* Sets the source of the event */
     icd_status icd_event__set_source(icd_event * that, void *src);
@@ -164,7 +164,7 @@ extern "C" {
     void *icd_event__get_source(icd_event * that);
 
     icd_status icd_event__set_name(icd_event * that, void *src);
-    char *icd_event__get_name(icd_event * that);
+    const char *icd_event__get_name(icd_event * that);
 
 /* Sets the module_id of the event */
     icd_status icd_event__set_module_id(icd_event * that, int mod_id);
@@ -199,7 +199,7 @@ extern "C" {
 /***** Helper Functions *****/
 
 /* Translates the module id into a suitable string for printing */
-    char *icd_module__to_string(icd_module mod_id);
+    const char *icd_module__to_string(icd_module mod_id);
 
 #ifdef __cplusplus
 }

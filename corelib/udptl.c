@@ -74,8 +74,10 @@ static int udptlfecentries = 0;
 static int udptlfecspan = 0;
 static int udptlmaxdatagram = 0;
 
+#ifndef LOCAL_FAX_MAX_FEC_PACKETS
+#  define LOCAL_FAX_MAX_FEC_PACKETS   4
+#endif
 #define LOCAL_FAX_MAX_DATAGRAM      400
-#define LOCAL_FAX_MAX_FEC_PACKETS   4
 #define LOCAL_FAX_MAX_FEC_SPAN      4
 
 #define UDPTL_BUF_MASK              15
@@ -256,7 +258,7 @@ struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
     printf("Got UDPTL packet from %s:%d (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
 #endif
     /* If its not a valid UDPTL packet, restore the original port */
-    if (udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
+    if (cw_udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
         udp_socket_set_far(udptl->udptl_sock_info, &original_dest);
 
     return &udptl->f[0];
@@ -411,7 +413,7 @@ int cw_udptl_set_active(cw_udptl_t *udptl, int active)
 
 int cw_udptl_settos(cw_udptl_t *udptl, int tos)
 {
-//    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
+    return udp_socket_set_tos(udptl->udptl_sock_info, tos);
 }
 
 void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
@@ -759,7 +761,7 @@ static int udptl_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int udptl_show_settings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-    char *error_correction_str;
+    const char *error_correction_str;
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;

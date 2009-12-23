@@ -54,7 +54,7 @@ static const char vmcount_func_desc[] =
 
 static const char tdesc[] = "Indicator for whether a voice mailbox has messages in a given folder.";
 
-static int hasvoicemail_internal(char *context, char *box, char *folder)
+static int hasvoicemail_internal(const char *context, const char *box, const char *folder)
 {
 	char vmpath[256];
 	DIR *vmdir;
@@ -78,7 +78,8 @@ static int hasvoicemail_internal(char *context, char *box, char *folder)
 static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	char *context;
+	const char *context;
+	char *p;
 
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(vmcount_func_syntax);
@@ -88,9 +89,10 @@ static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, char
 
 	LOCAL_USER_ADD(u);
 
-	if ((context = strchr(argv[0], '@')))
-		*(context++) = '\0';
-	else
+	if ((p = strchr(argv[0], '@'))) {
+		*p = '\0';
+		context = p + 1;
+	} else
 		context = "default";
 
 	snprintf(result, result_max, "%d", hasvoicemail_internal(context, argv[0], (argc > 1 && argv[1][0] ? argv[1] : "INBOX")));

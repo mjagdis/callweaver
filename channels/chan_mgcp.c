@@ -157,7 +157,7 @@ static const char config[] = "mgcp.conf";
 #define MGCP_CX_MUTE		4
 #define MGCP_CX_INACTIVE	4
 
-static char *mgcp_cxmodes[] = {
+static const char *mgcp_cxmodes[] = {
 	"sendonly",
 	"recvonly",
 	"sendrecv",
@@ -239,8 +239,6 @@ static int amaflags = 0;
 
 static int adsi = 0;
 
-static int usecnt =0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 /* SC: transaction id should always be positive */
 static unsigned int oseq;
 
@@ -265,7 +263,7 @@ static pthread_t monitor_thread = CW_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-static int capability = CW_FORMAT_ULAW;
+static int gcapability = CW_FORMAT_ULAW;
 static int nonCodecCapability = CW_RTP_DTMF;
 
 static char ourhost[MAXHOSTNAMELEN];
@@ -473,10 +471,10 @@ static int mgcpsock  = -1;
 static struct sockaddr_in bindaddr;
 
 static struct cw_frame  *mgcp_read(struct cw_channel *ast);
-static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp_request *req, char *msgrest);
-static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone);
+static int transmit_response(struct mgcp_subchannel *sub, const char *msg, struct mgcp_request *req, const char *msgrest);
+static int transmit_notify_request(struct mgcp_subchannel *sub, const char *tone);
 static int transmit_modify_request(struct mgcp_subchannel *sub);
-static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername);
+static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, const char *tone, const char *callernum, const char *callername);
 static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct cw_rtp *rtp, int codecs);
 static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
@@ -488,7 +486,7 @@ static int mgcp_do_reload(void);
 static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[]);
 
 static struct cw_channel *mgcp_request(const char *type, int format, void *data, int *cause);
-static int mgcp_call(struct cw_channel *ast, char *dest);
+static int mgcp_call(struct cw_channel *ast, const char *dest);
 static int mgcp_hangup(struct cw_channel *ast);
 static int mgcp_answer(struct cw_channel *ast);
 static struct cw_frame *mgcp_read(struct cw_channel *ast);
@@ -886,7 +884,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 	return res;
 }
 
-static int mgcp_call(struct cw_channel *ast, char *dest)
+static int mgcp_call(struct cw_channel *ast, const char *dest)
 {
 	int res;
 	struct mgcp_endpoint *p;
@@ -1054,12 +1052,6 @@ static int mgcp_hangup(struct cw_channel *ast)
 		cw_rtp_destroy(sub->rtp);
 		sub->rtp = NULL;
 	}
-
-	/* SC: Decrement use count */
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	cw_mutex_unlock(&usecnt_lock);
-	/* SC: Decrement use count */
 
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
@@ -1323,7 +1315,7 @@ static int mgcp_senddigit(struct cw_channel *ast, char digit)
 	return -1;
 }
 
-static char *control2str(int ind) {
+static const char *control2str(int ind) {
 	switch (ind) {
 	case CW_CONTROL_HANGUP:
 		return "Other end has hungup";
@@ -1401,7 +1393,7 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		tmp->tech = &mgcp_tech;
 		tmp->nativeformats = i->capability;
 		if (!tmp->nativeformats)
-			tmp->nativeformats = capability;
+			tmp->nativeformats = gcapability;
 		fmt = cw_best_codec(tmp->nativeformats);
 		if (sub->rtp)
 			tmp->fds[0] = cw_rtp_fd(sub->rtp);
@@ -1429,9 +1421,6 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
-		cw_mutex_lock(&usecnt_lock);
-		usecnt++;
-		cw_mutex_unlock(&usecnt_lock);
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
 		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
@@ -1462,16 +1451,16 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 	return tmp;
 }
 
-static char* get_sdp_by_line(char* line, char *name, int nameLen)
+static char* get_sdp_by_line(char* line, const char *name, int nameLen)
 {
 	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
 		char* r = cw_skip_blanks(line + nameLen + 1);
 		return r;
 	}
-	return "";
+	return (char *)"";
 }
 
-static char *get_sdp(struct mgcp_request *req, char *name)
+static char *get_sdp(struct mgcp_request *req, const char *name)
 {
 	int x;
 	int len = strlen(name);
@@ -1481,7 +1470,7 @@ static char *get_sdp(struct mgcp_request *req, char *name)
 		r = get_sdp_by_line(req->line[x], name, len);
 		if (r[0] != '\0') return r;
 	}
-	return "";
+	return (char *)"";
 }
 
 static void sdpLineNum_iterator_init(int* iterator)
@@ -1489,7 +1478,7 @@ static void sdpLineNum_iterator_init(int* iterator)
 	*iterator = 0;
 }
 
-static char* get_sdp_iterate(int* iterator, struct mgcp_request *req, char *name)
+static char* get_sdp_iterate(int* iterator, struct mgcp_request *req, const char *name)
 {
 	int len = strlen(name);
 	char *r;
@@ -1497,10 +1486,10 @@ static char* get_sdp_iterate(int* iterator, struct mgcp_request *req, char *name
 		r = get_sdp_by_line(req->line[(*iterator)++], name, len);
 		if (r[0] != '\0') return r;
 	}
-	return "";
+	return (char *)"";
 }
 
-static char *__get_header(struct mgcp_request *req, char *name, int *start)
+static char *__get_header(struct mgcp_request *req, const char *name, int *start)
 {
 	int x;
 	int len = strlen(name);
@@ -1514,10 +1503,10 @@ static char *__get_header(struct mgcp_request *req, char *name, int *start)
 		}
 	}
 	/* Don't return NULL, so get_header is always a valid pointer */
-	return "";
+	return (char *)"";
 }
 
-static char *get_header(struct mgcp_request *req, char *name)
+static char *get_header(struct mgcp_request *req, const char *name)
 {
 	int start = 0;
 	return __get_header(req, name, &start);
@@ -1832,10 +1821,10 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 
 	/* Now gather all of the codecs that were asked for: */
 	cw_rtp_get_current_formats(sub->rtp, &peercapability, &peerNonCodecCapability);
-	p->capability = capability & peercapability;
+	p->capability = gcapability & peercapability;
 	if (mgcpdebug) {
 		cw_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
-			capability, peercapability, p->capability);
+			gcapability, peercapability, p->capability);
 		cw_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
 			nonCodecCapability, peerNonCodecCapability, p->nonCodecCapability);
 	}
@@ -1846,7 +1835,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	return 0;
 }
 
-static int add_header(struct mgcp_request *req, char *var, char *value)
+static int add_header(struct mgcp_request *req, const char *var, const char *value)
 {
 	if (req->len >= sizeof(req->data) - 4) {
 		cw_log(CW_LOG_WARNING, "Out of space, can't add anymore\n");
@@ -1891,7 +1880,7 @@ static int add_line(struct mgcp_request *req, char *line)
 	return 0;	
 }
 
-static int init_resp(struct mgcp_request *req, char *resp, struct mgcp_request *orig, char *resprest)
+static int init_resp(struct mgcp_request *req, const char *resp, struct mgcp_request *orig, const char *resprest)
 {
 	/* Initialize a response */
 	if (req->headers || req->len) {
@@ -1908,7 +1897,7 @@ static int init_resp(struct mgcp_request *req, char *resp, struct mgcp_request *
 	return 0;
 }
 
-static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *verb)
+static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, const char *verb)
 {
 	/* Initialize a response */
 	if (req->headers || req->len) {
@@ -1930,14 +1919,14 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 }
 
 
-static int respprep(struct mgcp_request *resp, struct mgcp_endpoint *p, char *msg, struct mgcp_request *req, char *msgrest)
+static int respprep(struct mgcp_request *resp, struct mgcp_endpoint *p, const char *msg, struct mgcp_request *req, const char *msgrest)
 {
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req, msgrest);
 	return 0;
 }
 
-static int reqprep(struct mgcp_request *req, struct mgcp_endpoint *p, char *verb)
+static int reqprep(struct mgcp_request *req, struct mgcp_endpoint *p, const char *verb)
 {
 	memset(req, 0, sizeof(struct mgcp_request));
 	oseq++;
@@ -1947,7 +1936,7 @@ static int reqprep(struct mgcp_request *req, struct mgcp_endpoint *p, char *verb
 	return 0;
 }
 
-static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp_request *req, char *msgrest)
+static int transmit_response(struct mgcp_subchannel *sub, const char *msg, struct mgcp_request *req, const char *msgrest)
 {
 	struct mgcp_request resp;
 	struct mgcp_endpoint *p = sub->parent;
@@ -2139,7 +2128,7 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct cw_rtp 
 	return send_request(p, sub, &resp, oseq);  /* SC */
 }
 
-static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
+static int transmit_notify_request(struct mgcp_subchannel *sub, const char *tone)
 {
 	struct mgcp_request resp;
 	struct mgcp_endpoint *p = sub->parent;
@@ -2168,11 +2157,11 @@ static int transmit_notify_request(struct mgcp_subchannel *sub, char *tone)
 	return send_request(p, NULL, &resp, oseq); /* SC */
 }
 
-static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, char *tone, char *callernum, char *callername)
+static int transmit_notify_request_with_callerid(struct mgcp_subchannel *sub, const char *tone, const char *callernum, const char *callername)
 {
 	struct mgcp_request resp;
 	char tone2[256];
-	char *l, *n;
+	const char *l, *n;
 	time_t t;
 	struct tm tm;
 	struct mgcp_endpoint *p = sub->parent;
@@ -3519,7 +3508,7 @@ static int restart_monitor(void)
 	return 0;
 }
 
-static struct cw_channel *mgcp_request(const char *type, int format, void *data, int *cause)
+static struct cw_channel *mgcp_request(const char *drvtype, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct mgcp_subchannel *sub;
@@ -3528,7 +3517,7 @@ static struct cw_channel *mgcp_request(const char *type, int format, void *data,
 	char *dest = data;
 
 	oldformat = format;
-	format &= capability;
+	format &= gcapability;
 	if (!format) {
 		cw_log(CW_LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
@@ -3751,7 +3740,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 					snprintf(e->rqnt_ident, sizeof(e->rqnt_ident), "%08lx", cw_random());
 					e->msgstate = -1;
 					e->amaflags = amaflags;
-					e->capability = capability;
+					e->capability = gcapability;
 					e->parent = gw;
 					e->dtmfmode = dtmfmode;
 					if (!ep_reload && e->sub && e->sub->rtp)
@@ -3855,7 +3844,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 						e->parent = gw;
 					}
 					e->amaflags = amaflags;
-					e->capability = capability;
+					e->capability = gcapability;
 					e->dtmfmode = dtmfmode;
 					e->adsi = adsi;
 					if (!strcasecmp(v->name, "trunk"))
@@ -4164,13 +4153,13 @@ static int reload_config(void)
 			if (format < 1) 
 				cw_log(CW_LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
 			else
-				capability |= format;
+				gcapability |= format;
 		} else if (!strcasecmp(v->name, "disallow")) {
 			format = cw_getformatbyname(v->value);
 			if (format < 1) 
 				cw_log(CW_LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
 			else
-				capability &= ~format;
+				gcapability &= ~format;
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%d", &format) == 1)
 				tos = format & 0xff;

@@ -135,7 +135,7 @@ static const char mandescr_agent_callback_login[] =
 "	AckCall: Set to 'true' to require an acknowledgement by '#' when agent is called back\n"
 "	WrapupTime: the minimum amount of time after disconnecting before the caller can receive a new call\n";
 
-static char moh[80] = "default";
+static char default_moh[80] = "default";
 
 #define CW_MAX_AGENT	80		/**< Agent ID or Password max length */
 #define CW_MAX_BUF	256
@@ -156,9 +156,6 @@ static int ackcall;
 
 static int maxlogintries = 3;
 static char agentgoodbye[CW_MAX_FILENAME_LEN] = "vm-goodbye";
-
-static int usecnt =0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 /* Protect the interface list (of pvt's) */
 CW_MUTEX_DEFINE_STATIC(agentlock);
@@ -241,7 +238,7 @@ static struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded f
 static struct cw_channel *agent_request(const char *type, int format, void *data, int *cause);
 static int agent_devicestate(void *data);
 static int agent_digit(struct cw_channel *ast, char digit);
-static int agent_call(struct cw_channel *ast, char *dest);
+static int agent_call(struct cw_channel *ast, const char *dest);
 static int agent_hangup(struct cw_channel *ast);
 static int agent_answer(struct cw_channel *ast);
 static struct cw_frame *agent_read(struct cw_channel *ast);
@@ -367,7 +364,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	
 	cw_copy_string(p->password, password ? password : "", sizeof(p->password));
 	cw_copy_string(p->name, name ? name : "", sizeof(p->name));
-	cw_copy_string(p->moh, moh, sizeof(p->moh));
+	cw_copy_string(p->moh, default_moh, sizeof(p->moh));
 	p->ackcall = ackcall;
 	p->autologoff = autologoff;
 
@@ -641,7 +638,7 @@ static int agent_digit(struct cw_channel *ast, char digit)
 	return res;
 }
 
-static int agent_call(struct cw_channel *ast, char *dest)
+static int agent_call(struct cw_channel *ast, const char *dest)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
@@ -746,10 +743,6 @@ static int agent_hangup(struct cw_channel *ast)
 	 * agent_request() is followed immediately by agent_hangup()
 	 * as in apps/app_chanisavail.c:chanavail_exec()
 	 */
-
-	cw_mutex_lock(&usecnt_lock);
-	usecnt--;
-	cw_mutex_unlock(&usecnt_lock);
 
 	cw_log(CW_LOG_DEBUG, "Hangup called for state %s\n", cw_state2str(ast->_state));
 	if (p->start && (ast->_state != CW_STATE_UP)) {
@@ -933,7 +926,6 @@ static struct cw_channel *agent_bridgedchannel(struct cw_channel *chan, struct c
 static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct cw_channel *tmp;
-	struct cw_frame cw_null_frame = { CW_FRAME_NULL };
 #if 0
 	if (!p->chan) {
 		cw_log(CW_LOG_WARNING, "No channel? :(\n");
@@ -968,9 +960,6 @@ static struct cw_channel *agent_new(struct agent_pvt *p, int state)
 		cw_setstate(tmp, state);
 		tmp->tech_pvt = p;
 		p->owner = tmp;
-		cw_mutex_lock(&usecnt_lock);
-		usecnt++;
-		cw_mutex_unlock(&usecnt_lock);
 		tmp->priority = 1;
 		/* Wake up and wait for other applications (by definition the login app)
 		 * to release this channel). Takes ownership of the agent channel
@@ -1054,7 +1043,7 @@ static int read_agent_config(void)
 		p->dead = 1;
 		p = p->next;
 	}
-	strcpy(moh, "default");
+	strcpy(default_moh, "default");
 	/* set the default recording values */
 	recordagentcalls = 0;
 	createlink = 0;
@@ -1097,7 +1086,7 @@ static int read_agent_config(void)
 		} else if (!strcasecmp(v->name, "goodbye") && !cw_strlen_zero(v->value)) {
 			strcpy(agentgoodbye,v->value);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
-			cw_copy_string(moh, v->value, sizeof(moh));
+			cw_copy_string(default_moh, v->value, sizeof(default_moh));
 		} else if (!strcasecmp(v->name, "updatecdr")) {
 			if (cw_true(v->value))
 				updatecdr = 1;
@@ -1403,9 +1392,9 @@ static struct cw_manager_message *action_agents(struct mansession *sess, const s
 	char chanbuf[256];
 	struct cw_manager_message *msg;
 	struct agent_pvt *p;
-	char *loginChan = NULL;
-	char *talkingtoChan = NULL;
-	char *status = NULL;
+	const char *loginChan = NULL;
+	const char *talkingtoChan = NULL;
+	const char *status = NULL;
 	int err;
 
 	if ((msg = cw_manager_response("Success", "Agents will follow")) && !cw_manager_send(sess, req, &msg)) {
@@ -1686,9 +1675,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	struct agent_pvt *p;
 	struct localuser *u;
 	struct cw_var_t *var;
-	char *errmsg;
+	const char *errmsg;
 	char *context = NULL;
-	char *filename = "agent-loginok";
+	const char *filename = "agent-loginok";
 	int tries = 0;
 	int max_login_tries = maxlogintries;
 	int login_state = 0;

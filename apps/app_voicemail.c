@@ -248,8 +248,8 @@ struct vm_state {
 static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm_state *vms, int msg,
 			    int option, signed char record_gain);
 static int dialout(struct cw_channel *chan, struct cw_vm_user *vmu, char *num, char *outgoing_context);
-static int play_record_review(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime,
-			      char *fmt, int outsidecaller, struct cw_vm_user *vmu, int *duration, const char *unlockdir,
+static int play_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime,
+			      const char *fmt, int outsidecaller, struct cw_vm_user *vmu, int *duration, const char *unlockdir,
 			      signed char record_gain);
 static int vm_tempgreeting(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm_state *vms, char *fmtc, signed char record_gain);
 static int vm_play_folder_name(struct cw_channel *chan, char *mbox);
@@ -717,7 +717,7 @@ static void vm_change_password_shell(struct cw_vm_user *vmu, char *newpassword)
 		cw_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
-static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
+static int make_dir(char *dest, int len, const char *context, const char *ext, const char *mailbox)
 {
 	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, mailbox);
 }
@@ -1399,7 +1399,7 @@ static int last_message_index(struct cw_vm_user *vmu, char *dir)
 	return x - 1;
 }
 
-static int vm_delete(char *file)
+static int vm_delete(const char *file)
 {
 	char *txt;
 	int txtsize = 0;
@@ -1539,7 +1539,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *dur, char *date, char *passdata, size_t passdatasize)
+static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *dur, const char *date, char *passdata, size_t passdatasize)
 {
 	char callerid[256];
 	/* Prepare variables for substition in email body and subject */
@@ -1555,21 +1555,22 @@ static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, 
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 }
 
-static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
+static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *attach, const char *format, int duration, int attach_user_voicemail)
 {
-	FILE *p=NULL;
-	int pfd;
 	char date[256];
-	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
 	char bound[256];
 	char fname[256];
 	char dur[256];
-	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
+	char host[MAXHOSTNAMELEN] = "";
+	char tmp[80] = "/tmp/astmail-XXXXXX";
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
+	FILE *p=NULL;
+	int pfd;
+
 	if (vmu && cw_strlen_zero(vmu->email)) {
 		cw_log(CW_LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
@@ -1689,7 +1690,7 @@ static int sendmail(char *srcemail, struct cw_vm_user *vmu, int msgnum, char *co
 		}
 		if (attach_user_voicemail) {
 			/* Eww. We want formats to tell us their own MIME type */
-			char *ctype = "audio/x-";
+			const char *ctype = "audio/x-";
 			if (!strcasecmp(format, "ogg"))
 				ctype = "application/";
 		
@@ -1886,7 +1887,7 @@ static void free_zone(struct vm_zone *z)
 	free(z);
 }
 
-static char *mbox(int id)
+static const char *mbox(int id)
 {
 	switch(id) {
 	case 0:
@@ -2091,13 +2092,14 @@ yuck:
 
 static int has_voicemail(const char *mailbox, const char *folder)
 {
-	DIR *dir;
-	struct dirent *de;
 	char fn[256];
 	char tmp[256]="";
+	DIR *dir;
+	struct dirent *de;
 	char *mb, *cur;
-	char *context;
+	const char *context;
 	int ret;
+
 	if (!folder)
 		folder = "INBOX";
 	/* If no mailbox, return immediately */
@@ -2116,10 +2118,9 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		return 0;
 	}
 	cw_copy_string(tmp, mailbox, sizeof(tmp));
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
+	if ((cur = strchr(tmp, '@'))) {
+		*cur = '\0';
+		context = cur + 1;
 	} else
 		context = "default";
 	snprintf(fn, sizeof(fn), "%s/%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
@@ -2139,13 +2140,14 @@ static int has_voicemail(const char *mailbox, const char *folder)
 
 static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
-	DIR *dir;
-	struct dirent *de;
 	char fn[256];
 	char tmp[256]="";
+	DIR *dir;
+	struct dirent *de;
 	char *mb, *cur;
-	char *context;
+	const char *context;
 	int ret;
+
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
@@ -2173,10 +2175,9 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return 0;
 	}
 	cw_copy_string(tmp, mailbox, sizeof(tmp));
-	context = strchr(tmp, '@');
-	if (context) {
-		*context = '\0';
-		context++;
+	if ((cur  = strchr(tmp, '@'))) {
+		*cur = '\0';
+		context = cur + 1;
 	} else
 		context = "default";
 	if (newmsgs) {
@@ -2215,7 +2216,7 @@ static int notify_new_message(struct cw_channel *chan, struct cw_vm_user *vmu, i
 static int copy_message(struct cw_channel *chan, struct cw_vm_user *vmu, int imbox, int msgnum, long duration, struct cw_vm_user *recip, char *fmt)
 {
 	char fromdir[256], todir[256], frompath[256], topath[256];
-	char *frombox = mbox(imbox);
+	const char *frombox = mbox(imbox);
 	int recipmsgnum;
 
 	cw_log(CW_LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
@@ -2536,8 +2537,8 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 			/* Are there to be more recipients of this message? */
 			while (tmpptr) {
 				struct cw_vm_user recipu, *recip;
-				char *exten, *context;
-					
+				char *exten;
+
 				exten = strsep(&tmpptr, "&");
 				context = strchr(exten, '@');
 				if (context) {
@@ -2610,8 +2611,9 @@ static int save_to_folder(struct cw_vm_user *vmu, char *dir, int msg, char *cont
 	char sfn[256];
 	char dfn[256];
 	char ddir[256];
-	char *dbox = mbox(box);
+	const char *dbox = mbox(box);
 	int x;
+
 	make_file(sfn, sizeof(sfn), dir, msg);
 	make_dir(ddir, sizeof(ddir), context, username, dbox);
 	mkdir(ddir, 0700);
@@ -2838,11 +2840,11 @@ static void adsi_password(struct cw_channel *chan)
 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 }
 
-static void adsi_folders(struct cw_channel *chan, int start, char *label)
+static void adsi_folders(struct cw_channel *chan, int start, const char *label)
 {
 	unsigned char buf[256];
-	int bytes=0;
 	unsigned char keys[8];
+	int bytes=0;
 	int x,y;
 
 	if (!adsi_available(chan))
@@ -2869,19 +2871,16 @@ static void adsi_folders(struct cw_channel *chan, int start, char *label)
 
 static void adsi_message(struct cw_channel *chan, struct vm_state *vms)
 {
-	int bytes=0;
 	unsigned char buf[256]; 
 	char buf1[256], buf2[256];
 	char fn2[256];
-
 	char cid[256]="";
-	char *val;
-	char *name, *num;
 	char datetime[21]="";
-	FILE *f;
-
 	unsigned char keys[8];
-
+	char *val;
+	char *cidname, *cidnum;
+	FILE *f;
+	int bytes=0;
 	int x;
 
 	if (!adsi_available(chan))
@@ -2932,11 +2931,11 @@ static void adsi_message(struct cw_channel *chan, struct vm_state *vms)
 	}
 
 	if (!cw_strlen_zero(cid)) {
-		cw_callerid_parse(cid, &name, &num);
-		if (!name)
-			name = num;
+		cw_callerid_parse(cid, &cidname, &cidnum);
+		if (!cidname)
+			cidname = cidnum;
 	} else
-		name = "Unknown Caller";
+		cidname = (char *)"Unknown Caller";
 
 	/* If deleted, show "undeleted" */
 
@@ -2951,7 +2950,7 @@ static void adsi_message(struct cw_channel *chan, struct vm_state *vms)
 
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
-	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, name, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, cidname, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, datetime, "");
 	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
 	bytes += adsi_set_keys(buf + bytes, keys);
@@ -3013,8 +3012,9 @@ static void adsi_status(struct cw_channel *chan, struct vm_state *vms)
 	unsigned char keys[8];
 	int x;
 
-	char *newm = (vms->newmessages == 1) ? "message" : "messages";
-	char *oldm = (vms->oldmessages == 1) ? "message" : "messages";
+	const char *newm = (vms->newmessages == 1) ? "message" : "messages";
+	const char *oldm = (vms->oldmessages == 1) ? "message" : "messages";
+
 	if (!adsi_available(chan))
 		return;
 	if (vms->newmessages) {
@@ -3060,7 +3060,7 @@ static void adsi_status2(struct cw_channel *chan, struct vm_state *vms)
 	unsigned char keys[8];
 	int x;
 
-	char *mess = (vms->lastmsg == 0) ? "message" : "messages";
+	const char *mess = (vms->lastmsg == 0) ? "message" : "messages";
 
 	if (!adsi_available(chan))
 		return;
@@ -3157,7 +3157,7 @@ static int get_folder(struct cw_channel *chan, int start)
 	return d;
 }
 
-static int get_folder2(struct cw_channel *chan, char *fn, int start)
+static int get_folder2(struct cw_channel *chan, const char *fn, int start)
 {
 	int res = 0;
 	res = cw_play_and_wait(chan, fn);	/* Folder name */
@@ -3284,7 +3284,8 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 	int res = 0, cmd = 0;
 	struct cw_vm_user *receiver = NULL, *extensions = NULL, *vmtmp = NULL, *vmfree;
 	char tmp[256];
-	char *stringp, *s;
+	char *stringp;
+	char *s;
 	int saved_messages = 0, found = 0;
 	int valid_extensions = 0;
 	
@@ -3431,7 +3432,7 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 				while ((s = strsep(&stringp, "|,"))) {
 					/* XXX This is a hack -- we should use build_filename or similar XXX */
 					if (!strcasecmp(s, "wav49"))
-						s = "WAV";
+						s = (char *)"WAV";
 					snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
 					cw_log(CW_LOG_DEBUG, "%s", sys);
 					cw_safe_system(sys);
@@ -3502,9 +3503,10 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 	return res ? res : cmd;
 }
 
-static int wait_file2(struct cw_channel *chan, struct vm_state *vms, char *file)
+static int wait_file2(struct cw_channel *chan, struct vm_state *vms, const char *file)
 {
 	int res;
+
 	if ((res = cw_streamfile(chan, file, chan->language))) 
 		cw_log(CW_LOG_WARNING, "Unable to play message %s\n", file); 
 	if (!res)
@@ -3512,12 +3514,12 @@ static int wait_file2(struct cw_channel *chan, struct vm_state *vms, char *file)
 	return res;
 }
 
-static int wait_file(struct cw_channel *chan, struct vm_state *vms, char *file) 
+static int wait_file(struct cw_channel *chan, struct vm_state *vms, const char *file)
 {
 	return cw_control_streamfile(chan, file, "#", "*", "1456789", "0", "2", skipms);
 }
 
-static int play_message_category(struct cw_channel *chan, char *category)
+static int play_message_category(struct cw_channel *chan, const char *category)
 {
 	int res = 0;
 
@@ -3527,7 +3529,7 @@ static int play_message_category(struct cw_channel *chan, char *category)
 	return res;
 }
 
-static int play_message_datetime(struct cw_channel *chan, struct cw_vm_user *vmu, char *origtime, char *filename)
+static int play_message_datetime(struct cw_channel *chan, struct cw_vm_user *vmu, const char *origtime, const char *filename)
 {
 	int res = 0;
 	struct vm_zone *the_zone = NULL;
@@ -3595,11 +3597,11 @@ static int play_message_datetime(struct cw_channel *chan, struct cw_vm_user *vmu
 
 
 
-static int play_message_callerid(struct cw_channel *chan, struct vm_state *vms, char *cid, char *context, int callback)
+static int play_message_callerid(struct cw_channel *chan, struct vm_state *vms, char *cid, const char *context, int callback)
 {
 	int res = 0;
 	int i;
-	char *callerid, *name;
+	char *callerid, *cidname;
 	char prefile[256]="";
 	
 
@@ -3610,7 +3612,7 @@ static int play_message_callerid(struct cw_channel *chan, struct vm_state *vms, 
 
 	/* Strip off caller ID number from name */
 	cw_log(CW_LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
-	cw_callerid_parse(cid, &name, &callerid);
+	cw_callerid_parse(cid, &cidname, &callerid);
 	if ((callerid != NULL)&&(!res)&&(!cw_strlen_zero(callerid))){
 		/* Check for internal contexts and only */
 		/* say extension when the call didn't come from an internal context in the list */
@@ -3852,29 +3854,29 @@ done:
  * syntax for the above three categories which is more elegant. 
 */
 
-static int vm_play_folder_name_gr(struct cw_channel *chan, char *mbox)
+static int vm_play_folder_name_gr(struct cw_channel *chan, char *mb)
 {
+	char *buf;
 	int cmd;
-	char buf[sizeof(mbox)+1]; 
 
-	memset(buf, '\0', sizeof(char)*(sizeof(buf)));
-	strcpy(buf, mbox);
+	buf = alloca(strlen(mb) + 1 + 1);
+	strcpy(buf, mb);
 	strcat(buf,"s");
 
-	if (!strcasecmp(mbox, "vm-INBOX") || !strcasecmp(mbox, "vm-Old")){
+	if (!strcasecmp(mb, "vm-INBOX") || !strcasecmp(mb, "vm-Old")){
 		cmd = cw_play_and_wait(chan, buf); /* "NEA / PALIA" */
 		if (cmd)
-		return cmd;
+			return cmd;
 		return cw_play_and_wait(chan, "vm-messages"); /* "messages" -> "MYNHMATA" */
 	} else {
 		cmd = cw_play_and_wait(chan, "vm-messages"); /* "messages" -> "MYNHMATA" */
 	  	if (cmd)
 			return cmd;
-	  	return cw_play_and_wait(chan, mbox); /* friends/family/work... -> "FILWN"/"OIKOGENIAS"/"DOULEIAS"*/
+		return cw_play_and_wait(chan, mb); /* friends/family/work... -> "FILWN"/"OIKOGENIAS"/"DOULEIAS"*/
 	}
 }
 
-static int vm_play_folder_name(struct cw_channel *chan, char *mbox)
+static int vm_play_folder_name(struct cw_channel *chan, char *mb)
 {
 	int cmd;
 
@@ -3882,11 +3884,11 @@ static int vm_play_folder_name(struct cw_channel *chan, char *mbox)
 		cmd = cw_play_and_wait(chan, "vm-messages"); /* "messages */
 		if (cmd)
 			return cmd;
-		return cw_play_and_wait(chan, mbox);
+		return cw_play_and_wait(chan, mb);
 	} else if (!strcasecmp(chan->language, "gr")){
-		return vm_play_folder_name_gr(chan, mbox);
+		return vm_play_folder_name_gr(chan, mb);
 	} else {  /* Default English */
-		cmd = cw_play_and_wait(chan, mbox);
+		cmd = cw_play_and_wait(chan, mb);
 		if (cmd)
 			return cmd;
 		return cw_play_and_wait(chan, "vm-messages"); /* "messages */
@@ -4868,7 +4870,7 @@ static int vm_browse_messages(struct cw_channel *chan, struct vm_state *vms, str
 
 static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_size,
 			   struct cw_vm_user *res_vmu, const char *context, const char *prefix,
-			   int skipuser, int maxlogins, int silent)
+			   int skipuser, int maxtries, int silent)
 {
 	int useadsi, valid=0, logretries=0;
 	char password[CW_MAX_EXTENSION]="", *passptr;
@@ -4885,7 +4887,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 	
 	/* Authenticate them and get their mailbox/password */
 	
-	while (!valid && (logretries < maxlogins)) {
+	while (!valid && (logretries < maxtries)) {
 		/* Prompt for, and read in the username */
 		if (!skipuser && cw_readstring(chan, mailbox, mailbox_size - 1, 2000, 10000, "#") < 0) {
 			cw_log(CW_LOG_WARNING, "Couldn't read username\n");
@@ -4939,7 +4941,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 		}
 		logretries++;
 		if (!valid) {
-			if (skipuser || logretries >= maxlogins) {
+			if (skipuser || logretries >= maxtries) {
 				if (cw_streamfile(chan, "vm-incorrect", chan->language)) {
 					cw_log(CW_LOG_WARNING, "Unable to stream incorrect message\n");
 					return -1;
@@ -4956,7 +4958,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 				return -1;
 		}
 	}
-	if (!valid && (logretries >= maxlogins)) {
+	if (!valid && (logretries >= maxtries)) {
 		cw_stopstream(chan);
 		cw_play_and_wait(chan, "vm-goodbye");
 		return -1;
@@ -5488,7 +5490,7 @@ static int vm_exec(struct cw_channel *chan, int argc, char **argv, char *result,
 	return res;
 }
 
-static int append_mailbox(char *context, char *mbox, char *data)
+static int append_mailbox(const char *context, const char *mb, const char *data)
 {
 	/* Assumes lock is already held */
 	char tmp[256] = "";
@@ -5501,7 +5503,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	if (vmu) {
 		memset(vmu, 0, sizeof(struct cw_vm_user));
 		cw_copy_string(vmu->context, context, sizeof(vmu->context));
-		cw_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+		cw_copy_string(vmu->mailbox, mb, sizeof(vmu->mailbox));
 
 		populate_defaults(vmu);
 
@@ -5590,7 +5592,7 @@ static const char show_voicemail_zones_help[] =
 static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct cw_vm_user *vmu = users;
-	char *output_format = "%-10s %-5s %-25s %-10s %6s\n";
+	const char output_format[] = "%-10s %-5s %-25s %-10s %6s\n";
 
 	if ((argc < 3) || (argc > 5) || (argc == 4)) return RESULT_SHOWUSAGE;
 	else if ((argc == 5) && strcmp(argv[3],"for")) return RESULT_SHOWUSAGE;
@@ -5644,7 +5646,7 @@ static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *
 static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct vm_zone *zone = zones;
-	char *output_format = "%-15s %-20s %-45s\n";
+	const char output_format[] = "%-15s %-20s %-45s\n";
 
 	if (argc != 3) return RESULT_SHOWUSAGE;
 
@@ -5664,7 +5666,7 @@ static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *
 static void complete_show_voicemail_users(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_vm_user *vmu;
-	char *context = "";
+	const char *context = "";
 
 	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
 	if (lastarg > 4)
@@ -5705,31 +5707,31 @@ static int load_config(void)
 	struct cw_vm_user *cur, *l;
 	struct vm_zone *zcur, *zl;
 	struct cw_config *cfg;
-	char *cat;
+	const char *cat;
 	struct cw_variable *var;
-	char *notifystr = NULL;
-	char *astattach;
-	char *astsaycid;
-	char *send_voicemail;
-	char *astcallop;
-	char *astreview;
-	char *astskipcmd;
-	char *asthearenv;
-	char *astsaydurationinfo;
-	char *astsaydurationminfo;
-	char *silencestr;
-	char *maxmsgstr;
-	char *astdirfwd;
-	char *thresholdstr;
-	char *fmt;
-	char *astemail;
- 	char *astmailcmd = SENDMAIL;
+	const char *notifystr = NULL;
+	const char *astattach;
+	const char *astsaycid;
+	const char *send_voicemail;
+	const char *astcallop;
+	const char *astreview;
+	const char *astskipcmd;
+	const char *asthearenv;
+	const char *astsaydurationinfo;
+	const char *astsaydurationminfo;
+	const char *silencestr;
+	const char *maxmsgstr;
+	const char *astdirfwd;
+	const char *thresholdstr;
+	const char *fmt;
+	const char *astemail;
+	const char *astmailcmd = SENDMAIL;
+	const char *dialoutcxt = NULL;
+	const char *callbackcxt = NULL;
+	const char *exitcxt = NULL;
+	const char *extpc;
+	const char *emaildateformatstr;
 	char *s,*q,*stringp;
-	char *dialoutcxt = NULL;
-	char *callbackcxt = NULL;	
-	char *exitcxt = NULL;	
-	char *extpc;
-	char *emaildateformatstr;
 	int x;
 	int tmpadsi[4];
 
@@ -5991,12 +5993,12 @@ static int load_config(void)
 						struct vm_zone *z;
 						z = malloc(sizeof(struct vm_zone));
 						if (z != NULL) {
-							char *msg_format, *timezone;
+							char *msg_format, *tz;
 							msg_format = cw_strdupa(var->value);
-							timezone = strsep(&msg_format, "|,");
+							tz = strsep(&msg_format, "|,");
 							if (msg_format) {
 								cw_copy_string(z->name, var->name, sizeof(z->name));
-								cw_copy_string(z->timezone, timezone, sizeof(z->timezone));
+								cw_copy_string(z->timezone, tz, sizeof(z->timezone));
 								cw_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
 								z->next = NULL;
 								if (zones) {
@@ -6243,9 +6245,11 @@ static int dialout(struct cw_channel *chan, struct cw_vm_user *vmu, char *num, c
 static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm_state *vms, int msg,
 			    int option, signed char record_gain)
 {
-	int res = 0;
-	char filename[256],*origtime, *cid, *context, *name, *num;
+	char filename[256];
+	const char *origtime, *context;
+	char *cid, *cidname, *cidnum;
 	struct cw_config *msg_cfg;
+	int res = 0;
 	int retries = 0;
 
 	vms->starting = 0; 
@@ -6281,13 +6285,13 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 	} else if (option == 2) { /* Call back */
 
 		if (!cw_strlen_zero(cid)) {
-			cw_callerid_parse(cid, &name, &num);
+			cw_callerid_parse(cid, &cidname, &cidnum);
 			while ((res > -1) && (res != 't')) {
 				switch(res) {
 					case '1':
-						if (num) {
+						if (cidnum) {
 							/* Dial the CID number */
-							res = dialout(chan, vmu, num, vmu->callback);
+							res = dialout(chan, vmu, cidnum, vmu->callback);
 							if (res)
 								return 9;
 						} else {
@@ -6322,11 +6326,11 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 						retries++;
 						break;
 					default:
-						if (num) {
-							cw_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", num);
+						if (cidnum) {
+							cw_verbose( VERBOSE_PREFIX_3 "Confirm CID number '%s' is number to use for callback\n", cidnum);
 							res = cw_play_and_wait(chan, "vm-num-i-have");
 							if (!res)
-								res = play_message_callerid(chan, vms, num, vmu->context, 1);
+								res = play_message_callerid(chan, vms, cidnum, vmu->context, 1);
 							if (!res)
 								res = cw_play_and_wait(chan, "vm-tocallnum");
 							/* Only prompt for a caller-specified number if there is a dialout context specified */
@@ -6363,27 +6367,27 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 	else if (option == 1) { /* Reply */
 		/* Send reply directly to sender */
 		if (!cw_strlen_zero(cid)) {
-			cw_callerid_parse(cid, &name, &num);
-			if (!num) {
+			cw_callerid_parse(cid, &cidname, &cidnum);
+			if (!cidnum) {
 				cw_verbose(VERBOSE_PREFIX_3 "No CID number available, no reply sent\n");
 				if (!res)
 					res = cw_play_and_wait(chan, "vm-nonumber");
 				return res;
 			} else {
-				if (find_user(NULL, vmu->context, num)) {
+				if (find_user(NULL, vmu->context, cidnum)) {
 					struct leave_vm_options leave_options;
 
-					cw_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", num, vmu->context);
+					cw_verbose(VERBOSE_PREFIX_3 "Leaving voicemail for '%s' in context '%s'\n", cidnum, vmu->context);
 					
 					memset(&leave_options, 0, sizeof(leave_options));
 					leave_options.record_gain = record_gain;
-					res = leave_voicemail(chan, num, &leave_options);
+					res = leave_voicemail(chan, cidnum, &leave_options);
 					if (!res)
 						res = 't';
 					return res;
 				} else {
 					/* Sender has no mailbox, can't reply */
-					cw_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", num, vmu->context);
+					cw_verbose( VERBOSE_PREFIX_3 "No mailbox number '%s' in context '%s', no reply sent\n", cidnum, vmu->context);
 					cw_play_and_wait(chan, "vm-nobox");
 					res = 't';
 					return res;
@@ -6403,7 +6407,7 @@ static int advanced_options(struct cw_channel *chan, struct cw_vm_user *vmu, str
 	return res;
 }
  
-static int play_record_review(struct cw_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt,
+static int play_record_review(struct cw_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt,
 			      int outsidecaller, struct cw_vm_user *vmu, int *duration, const char *unlockdir,
 			      signed char record_gain)
 {

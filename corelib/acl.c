@@ -123,31 +123,33 @@ struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original)
 {
 	struct cw_ha *start=original;
 	struct cw_ha *ret = NULL;
-	struct cw_ha *link,*prev=NULL;
+	struct cw_ha *ha,*prev=NULL;
 
 	while (start) {
-		link = cw_duplicate_ha(start);  /* Create copy of this object */
+		ha = cw_duplicate_ha(start);  /* Create copy of this object */
 		if (prev)
-			prev->next = link;		/* Link previous to this object */
+			prev->next = ha;		/* Link previous to this object */
 
 		if (!ret) 
-			ret = link;		/* Save starting point */
+			ret = ha;		/* Save starting point */
 
 		start = start->next;		/* Go to next object */
-		prev = link;			/* Save pointer to this object */
+		prev = ha;			/* Save pointer to this object */
 	}
 	return ret;    			/* Return start of list */
 }
 
-struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path)
+struct cw_ha *cw_append_ha(const char *sense, const char *stuff, struct cw_ha *path)
 {
-	struct cw_ha *ha = malloc(sizeof(struct cw_ha));
-	char *nm = "255.255.255.255";
 	char tmp[256];
+	struct cw_ha *ha = malloc(sizeof(struct cw_ha));
+	const char *nm = "255.255.255.255";
+	char *p;
 	struct cw_ha *prev = NULL;
 	struct cw_ha *ret;
 	int x, z;
 	unsigned int y;
+
 	ret = path;
 	while (path) {
 		prev = path;
@@ -155,12 +157,12 @@ struct cw_ha *cw_append_ha(char *sense, char *stuff, struct cw_ha *path)
 	}
 	if (ha) {
 		cw_copy_string(tmp, stuff, sizeof(tmp));
-		nm = strchr(tmp, '/');
-		if (!nm) {
+		p = strchr(tmp, '/');
+		if (!p) {
 			nm = "255.255.255.255";
 		} else {
-			*nm = '\0';
-			nm++;
+			*p = '\0';
+			nm = p + 1;
 		}
 		if (!strchr(nm, '.')) {
 			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32)) {

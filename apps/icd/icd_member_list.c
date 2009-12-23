@@ -57,10 +57,10 @@ struct icd_member_list {
 
 static const int skipconst = 1;
 
-static int icd_member_list__identify_queue(void *key, void *payload);
-static int icd_member_list__identify_distributor(void *key, void *payload);
-static int icd_member_list__identify_caller(void *key, void *payload);
-static int icd_member_list__identify_name(void *key, void *payload);
+static int icd_member_list__identify_queue(const void *key, void *payload);
+static int icd_member_list__identify_distributor(const void *key, void *payload);
+static int icd_member_list__identify_caller(const void *key, void *payload);
+static int icd_member_list__identify_name(const void *key, void *payload);
 
 /*===== Public API Implementations =====*/
 
@@ -439,7 +439,7 @@ icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct
 /*===== Private Implementations =====*/
 
 /* Returns true if the key (of type icd_queue) is the same as payload (of type icd_member) field "queue" */
-static int icd_member_list__identify_queue(void *key, void *payload)
+static int icd_member_list__identify_queue(const void *key, void *payload)
 {
     icd_member *member;
     icd_queue *queue;
@@ -451,7 +451,7 @@ static int icd_member_list__identify_queue(void *key, void *payload)
 }
 
 /* Returns true if the key (of type icd_distributor) is the same as payload (of type icd_member) field "distributor" */
-static int icd_member_list__identify_distributor(void *key, void *payload)
+static int icd_member_list__identify_distributor(const void *key, void *payload)
 {
     icd_member *member;
     icd_distributor *distributor;
@@ -463,7 +463,7 @@ static int icd_member_list__identify_distributor(void *key, void *payload)
 }
 
 /* Returns true if the key (of type icd_caller) is the same as payload (of type icd_member) field "caller" */
-static int icd_member_list__identify_caller(void *key, void *payload)
+static int icd_member_list__identify_caller(const void *key, void *payload)
 {
     icd_member *member;
     icd_caller *caller;
@@ -475,7 +475,7 @@ static int icd_member_list__identify_caller(void *key, void *payload)
 }
 
 /* Returns true if the key (of type char *) is the same as payload (of type icd_member) field "name" */
-static int icd_member_list__identify_name(void *key, void *payload)
+static int icd_member_list__identify_name(const void *key, void *payload)
 {
     icd_member *member;
     char *name;
