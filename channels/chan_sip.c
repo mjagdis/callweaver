@@ -586,9 +586,8 @@ struct sip_data_line {
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
-	unsigned int rlPart2; 		/*!< The Request URI or Response Status */
-	int len;		/*!< Length */
 	enum sipmethod method;		/*!< Method of this request */
+	unsigned int uriresp; 		/*!< The Request URI or Response Status */
 	int seqno;		/*!< Outgoing sequence number */
 	unsigned int cseq;	/*!< Offset of CSeq value in the data */
 	unsigned int cseq_len;	/*!< Length of CSeq value in the data */
@@ -597,6 +596,7 @@ struct sip_request {
 	unsigned int header_val[SIP_MAX_HEADERS];
 	int lines;		/*!< Body Content */
 	unsigned int line[SIP_MAX_LINES];
+	int len;		/*!< Length */
 	char data[SIP_MAX_PACKET];
 	int debug;		/*!< Debug flag for this packet */
 	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
@@ -1952,10 +1952,27 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod
     return res;
 }
 
-static int parse_request(struct sip_request *req);
-static char *get_header(struct sip_request *req, char *name);
+
+struct parse_request_state {
+	int i;
+	int state;
+	int content_length;
+	int limited;
+};
+
+static inline void parse_request_init(struct parse_request_state *pstate, struct sip_request *req)
+{
+	pstate->i = pstate->state = pstate->limited = 0;
+	pstate->content_length = -1;
+
+	req->headers = req->lines = 0;
+}
+
+static int parse_request(struct parse_request_state *state, struct sip_request *req);
+static void copy_and_parse_request(struct sip_request *dst,struct sip_request *src);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 
+static char *get_header(struct sip_request *req, char *name);
 static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain);
 static int sip_resend_reqresp(void *data);
 
@@ -4538,91 +4555,112 @@ static int sip_register(char *value, int lineno)
 
 
 /*! \brief  parse_request: Parse a SIP message */
-static int parse_request(struct sip_request *req)
+static int parse_request(struct parse_request_state *state, struct sip_request *req)
 {
-	int state;
-	int limited;
-	int content_length;
-	int i, j;
+	int j;
 
-	limited = 0;
-	state = 0;
-	req->headers = req->lines = 0;
-	req->header[0] = 0;
-	content_length = -1;
-	for (i = 0; req->data[i]; i++) {
-		switch (state) {
-			case 0: /* Start of header line */
-startline:
-				if (req->data[i] == '\r')
+	for (state->i = 0; req->data[state->i]; state->i++) {
+		switch (state->state) {
+			case 0: /* Start of message, scanning method, looking for white space */
+				while (req->data[state->i] && req->data[state->i] != ' ' && req->data[state->i] != '\t')
+					state->i++;
+				if (!req->data[state->i])
 					break;
-				else if (req->data[i] == '\n') {
+				req->data[state->i] = '\0';
+				req->method = find_sip_method(req->data);
+				state->state = 1;
+				break;
+			case 1: /* First line, looking for start of URI or response */
+				while (req->data[state->i] == ' ' || req->data[state->i] == '\t')
+					state->i++;
+				if (req->method != SIP_RESPONSE && req->data[state->i] == '<')
+					state->i++;
+				if (!req->data[state->i])
+					break;
+				req->uriresp = state->i;
+				state->state = 2;
+				/* Fall through */
+			case 2: /* First line, looking for end of line */
+				while (req->data[state->i] && req->data[state->i] != '\n')
+					state->i++;
+				if (!req->data[state->i])
+					break;
+				j = state->i;
+				if (req->data[j - 1] == '\r')
+					j--;
+				while (j && (req->data[j - 1] == ' ' || req->data[j - 1] == '\t'))
+					j--;
+				if (req->method != SIP_RESPONSE) {
+					if (j >= sizeof("SIP/2.0") - 1 && !strncmp(req->data + j - (sizeof("SIP/2.0") - 1), "SIP/2.0", sizeof("SIP/2.0") - 1))
+						j -= sizeof("SIP/2.0") - 1;
+					while (j && (req->data[j - 1] == ' ' || req->data[j - 1] == '\t'))
+						j--;
+					if (j && req->data[j - 1] == '>')
+						j--;
+				}
+				req->data[j] = '\0';
+				state->state = 3;
+				break;
+
+			case 3: /* Header: start of line */
+				if (req->data[state->i] == '\r')
+					break;
+				else if (req->data[state->i] == '\n') {
 					/* Now we process any mime content */
-					i++;
-					limited = 0;
-					state = 0;
-					req->line[0] = i;
-					for (; content_length > 0 && req->data[i]; content_length--, i++) {
-						if (req->data[i] == '\r')
-							req->data[i] = '\0';
-						else if (req->data[i] == '\n') {
-							req->data[i] = '\0';
-							state = 0;
-							req->lines++;
-							if (req->lines < arraysize(req->line))
-								req->line[req->lines] = i + 1;
-							else if (!limited) {
-								limited = 1;
-								cw_log(CW_LOG_ERROR, "Too many body/SDP lines. Ignoring the rest.\n");
-							}
-						} else
-							state = 1;
-					}
-					goto done;
-				} else if ((req->data[i] == ' ' || req->data[i] == '\t') && i) {
-					/* Continuation of previous header */
-					for (j = i - 1; j >= req->header[req->headers] && req->data[j] == '\0'; req->data[j--] = ' ');
-					state = 3;
+					state->state = 7;
+					state->limited = 0;
 					break;
 				}
 				if (req->headers < arraysize(req->header))
-					req->header[req->headers] = i;
-				else if (!limited) {
-					limited = 1;
+					req->header[req->headers] = state->i;
+				else if (!state->limited) {
+					state->limited = 1;
 					cw_log(CW_LOG_ERROR, "Too many SIP headers. Ignoring the rest.\n");
 				}
-				/* The first header is special - we consider it all key rather than key: value */
-				state = (req->headers ? 1 : 3);
+				state->state = 4;
 				/* Fall through - the key could be null */
-			case 1: /* In header name, looking for ':' */
-				if (req->data[i] != ':' && req->data[i] != '\r' && req->data[i] != '\n')
+			case 4: /* Header: in key, looking for ':' */
+				while (req->data[state->i] && req->data[state->i] != ':' && req->data[state->i] != '\r' && req->data[state->i] != '\n')
+					state->i++;
+				if (!req->data[state->i])
 					break;
 				/* End of header name, trim trailing spaces on the key */
-				state = 2;
-				for (j = i - 1; j >= req->header[req->headers] && (req->data[j] == ' ' || req->data[j] == '\t'); req->data[j--] = '\0');
+				state->state = 5;
+				if (req->headers < arraysize(req->header))
+					for (j = state->i - 1; j >= req->header[req->headers] && (req->data[j] == ' ' || req->data[j] == '\t'); req->data[j--] = '\0');
 				/* Skip spaces to value */
-				if (req->data[i] == ':') {
-					req->data[i] = '\0';
+				if (req->data[state->i] == ':') {
+					req->data[state->i] = '\0';
 					break;
 				}
-				req->data[i] = '\0';
+				req->data[state->i] = '\0';
 				/* Fall through all the way - no colon, null value - want end of line */
-			case 2: /* Skipping spaces before value */
-				if (req->data[i] == ' ' || req->data[i] == '\t')
+			case 5: /* Header: skipping spaces before value */
+				while (req->data[state->i] && (req->data[state->i] == ' ' || req->data[state->i] == '\t'))
+					state->i++;
+				if (!req->data[state->i])
 					break;
-				req->header_val[req->headers] = i;
-				state = 3;
+				if (req->headers < arraysize(req->header))
+					req->header_val[req->headers] = state->i;
+				state->state = 6;
 				/* Fall through - we are on the start of the value and it may be blank */
-			case 3: /* In value, looking for end of line */
-				if (req->data[i] == '\r' || req->data[i] == '\n') {
-					state = (req->data[i] == '\n' ? 0 : 4);
-					req->data[i] = '\0';
+			case 6: /* Header: in value, looking for end of line */
+				while (req->data[state->i] && req->data[state->i] != '\n')
+					state->i++;
+				if (!req->data[state->i] || req->data[state->i + 1] == ' ' || req->data[state->i + 1] == '\t')
+					break;
+				if (req->data[state->i - 1] == '\r')
+					req->data[state->i - 1] = '\0';
+				else
+					req->data[state->i] = '\0';
+				state->state = 3;
+				if (req->headers < arraysize(req->header)) {
 					if (!strcasecmp(req->data + req->header[req->headers], "CSeq")) {
 						req->seqno = atol(req->data + req->header_val[req->headers]);
 						req->cseq = req->header_val[req->headers];
-						req->cseq_len = i - req->header_val[req->headers];
+						req->cseq_len = state->i - req->header_val[req->headers];
 					} else if (!strcasecmp(req->data + req->header[req->headers], "l") || !strcasecmp(req->data + req->header[req->headers], "Content-Length")) {
-						content_length = atol(req->data + req->header_val[req->headers]);
+						state->content_length = atol(req->data + req->header_val[req->headers]);
 					} else if (!strcasecmp(req->data + req->header[req->headers], "Warning")) {
 						if (!strncmp(req->data + req->header_val[req->headers], "392 ", 4)) {
 							/* Sip EXpress router uses 392 to send "noisy feedback"
@@ -4639,79 +4677,62 @@ startline:
 					req->headers++;
 				}
 				break;
-			case 4: /* Got '\r' after value, expecting '\n' */
-				state = 0;
-				/* If it isn't the expected '\n' process it as the first char of the next line */
-				if (req->data[i] != '\n')
-					goto startline;
+
+			case 7: /* Body: start of line */
+				if (!state->content_length)
+					goto done;
+				if (req->lines < arraysize(req->line))
+					req->line[req->lines] = state->i;
+				else if (!state->limited) {
+					state->limited = 1;
+					cw_log(CW_LOG_ERROR, "Too many body/SDP lines. Ignoring the rest.\n");
+				}
+				state->state = 8;
+				/* Fall through */
+			case 8: /* Body: looking for '\n' */
+				while (state->content_length && req->data[state->i] && req->data[state->i] != '\n')
+					state->content_length--, state->i++;
+				if (!state->content_length || !req->data[state->i])
+					goto done;
+				state->content_length--;
+				if (state->i && req->data[state->i - 1] == '\r')
+					req->data[state->i - 1] = '\0';
+				else
+					req->data[state->i] = '\0';
+				if (req->lines < arraysize(req->line))
+					req->lines++;
+				state->state = 7;
 				break;
 		}
 	}
 done:
 
 	/* If we ran out of data before finding all the content we have to ignore this message */
-	if (content_length > 0) {
-		cw_log(CW_LOG_WARNING, "Insufficient data for content-Length (len = %d, missing = %d)\n", req->len, content_length);
+	if (state->content_length > 0) {
+		cw_log(CW_LOG_WARNING, "Insufficient data for content-Length (len = %d, missing = %d)\n", req->len, state->content_length);
 		return -1;
 	}
 
 	/* If we consumed all content but didn't end on a null there was data left over */
 #if 0
 	/* FIXME: Disabled until we have killed all non-incoming uses of parse_request */
-	if (content_length == 0 && req->data[i])
-		cw_log(CW_LOG_WARNING, "Ignoring data beyond given content-Length (len = %d, i = %d): \"%s\" ... \"%.16s...\"\n", req->len, i, req->data, req->data + i);
+	if (state->content_length == 0 && req->data[state->i])
+		cw_log(CW_LOG_WARNING, "Ignoring data beyond given content-Length (len = %d, i = %d): \"%s\" ... \"%.16s...\"\n", req->len, state->i, req->data, req->data + state->i);
 #endif
 
-	/* If state is anything other than 0 the last line was missing a newline
+	/* If state is anything other than 7 (start of body line) the last line was missing a newline
 	 * so is possibly truncated.
 	 */
-	if (state) {
+	if (state->state != 7) {
 		if (req->lines)
-			cw_log(CW_LOG_WARNING, "Last line has no newline and may be truncated - ignoring message (state %d, line=\"%s\")\n", state, req->data + req->line[req->lines]);
+			cw_log(CW_LOG_WARNING, "Last line has no newline and may be truncated - ignoring message (state %d, line=\"%s\")\n", state->state, req->data + req->line[req->lines]);
 		else
-			cw_log(CW_LOG_WARNING, "Last line has no newline and may be truncated - ignoring message (state %d, hdr=\"%s\", val=\"%s\")\n", state, req->data + req->header[req->headers], req->data + req->header_val[req->headers]);
+			cw_log(CW_LOG_WARNING, "Last line has no newline and may be truncated - ignoring message (state %d, hdr=\"%s\", val=\"%s\")\n", state->state, req->data + req->header[req->headers], req->data + req->header_val[req->headers]);
 		return -1;
 	}
 
 	if (!req->headers)
 		return -1;
-
-	j = req->header[0];
-
-	while (req->data[j] && !isspace(req->data[j])) j++;
-
-	/* Get the command */
-	while (isspace(req->data[j])) req->data[j++] = '\0';
-	if (!req->data[j])
-		return -1;
-
-	if (!strcasecmp(req->data + req->header[0], "SIP/2.0")) {
-		/* We have a response */
-		req->rlPart2 = j;
-		if (!req->data[j + 1] || !req->data[j + 2])
-			return -1;
-		for (i = j + strlen(req->data+ j) - 1; i >= j && isspace(req->data[i]); req->data[i--] = '\0');
-	} else {
-		char *p;
-
-		/* We have a request */
-		if (req->data[j] == '<') {
-			j++;
-			if (!req->data[j])
-				return -1;
-		}
-
-		req->rlPart2 = j;    /* URI */
-
-		if (!(p = strrchr(req->data + j, 'S'))) /* Discard the trailing "SIP/2.0" */
-			return -1;
-
-		while (isspace(*(--p)));
-		if (*p == '>')
-			*p = '\0';
-		else
-			*(++p)= '\0';
-	}
 
 	return 0;
 }
@@ -5803,7 +5824,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
 
     if (sipmethod == SIP_CANCEL)
     {
-        c = p->initreq.data + p->initreq.rlPart2;    /* Use original URI */
+        c = p->initreq.data + p->initreq.uriresp;    /* Use original URI */
     }
     else if (sipmethod == SIP_ACK)
     {
@@ -5812,7 +5833,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
         if (!cw_strlen_zero(p->okcontacturi))
             c = is_strict ? p->route->hop : p->okcontacturi;
          else
-             c = p->initreq.data + p->initreq.rlPart2;
+             c = p->initreq.data + p->initreq.uriresp;
     }
     else if (!cw_strlen_zero(p->okcontacturi))
     {
@@ -6566,11 +6587,23 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     return 0;
 }
 
+
 /*! \brief  copy_request: copy SIP request (mostly used to save request for responses) */
 static void copy_request(struct sip_request *dst, struct sip_request *src)
 {
-    memcpy(dst, src, sizeof(struct sip_request));
+	memcpy(dst, src, sizeof(struct sip_request));
 }
+
+
+static void copy_and_parse_request(struct sip_request *dst, struct sip_request *src)
+{
+	struct parse_request_state pstate;
+
+	memcpy(dst, src, sizeof(struct sip_request));
+	parse_request_init(&pstate, dst);
+	parse_request(&pstate, dst);
+}
+
 
 /*! \brief  transmit_response_with_sdp: Used for 200 OK and 183 early media */
 static int transmit_response_with_sdp(struct sip_pvt *p, char *status, struct sip_request *req, int reliable)
@@ -6642,11 +6675,13 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 			add_header(msg, "X-callweaver-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
 		cw_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(msg, p);
+
 		/* Use this as the basis */
-		copy_request(&p->initreq, msg);
-		parse_request(&p->initreq);
+		copy_and_parse_request(&p->initreq, msg);
+
 		if (sip_debug_test_pvt(p))
 			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+
 		p->lastinvite = p->ocseq;
 		cw_set_flag(p, SIP_OUTGOING);
 
@@ -6689,11 +6724,13 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 			add_header(msg, "X-callweaver-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
 		cw_udptl_offered_from_local(p->udptl, 1);
 		add_t38_sdp(msg, p);
+
 		/* Use this as the basis */
-		copy_request(&p->initreq, msg);
-		parse_request(&p->initreq);
+		copy_and_parse_request(&p->initreq, msg);
+
 		if (sip_debug_test_pvt(p))
 			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+
 		p->lastinvite = p->ocseq;
 		cw_set_flag(p, SIP_OUTGOING);
 
@@ -7078,8 +7115,8 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 
 		if (!p->initreq.headers) {
 			/* Use this as the basis */
-			copy_request(&p->initreq, msg);
-			parse_request(&p->initreq);
+			copy_and_parse_request(&p->initreq, msg);
+
 			if (sip_debug_test_pvt(p))
 				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		}
@@ -7293,8 +7330,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 
 		if (!p->initreq.headers) {
 			/* Use this as the basis */
-			copy_request(&p->initreq, msg);
-			parse_request(&p->initreq);
+			copy_and_parse_request(&p->initreq, msg);
+
 			if (sip_debug_test_pvt(p))
 				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		}
@@ -7313,8 +7350,8 @@ static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 {
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
-		copy_request(&p->initreq, req);
-		parse_request(&p->initreq);
+		copy_and_parse_request(&p->initreq, req);
+
 		if (sip_debug_test_pvt(p))
 			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	}
@@ -7346,8 +7383,8 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 
 		if (!p->initreq.headers) {
 			/* Use this as the basis */
-			copy_request(&p->initreq, msg);
-			parse_request(&p->initreq);
+			copy_and_parse_request(&p->initreq, msg);
+
 			if (sip_debug_test_pvt(p))
 				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		}
@@ -7518,7 +7555,6 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             cw_log(CW_LOG_WARNING, "Unable to allocate registration call\n");
             return 0;
         }
-        make_our_tag(p->tag, sizeof(p->tag));    /* create a new local tag for every register attempt */
 
         if (recordhistory)
             append_history(p, "%-15s Account: %s@%s\n", "RegistryInit", r->username, r->hostname);
@@ -7673,8 +7709,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         add_header(msg, "Event", "registration", SIP_DL_DONTCARE);
         add_header_contentLength(msg, 0);
         add_blank_header(msg);
-        copy_request(&p->initreq, msg);
-        parse_request(&p->initreq);
+        copy_and_parse_request(&p->initreq, msg);
 
         if (sip_debug_test_pvt(p))
             cw_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
@@ -8883,8 +8918,8 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
     req = oreq;
     if (!req)
         req = &p->initreq;
-    if (req->rlPart2)
-        cw_copy_string(tmp, req->data + req->rlPart2, sizeof(tmp));
+    if (req->uriresp)
+        cw_copy_string(tmp, req->data + req->uriresp, sizeof(tmp));
     uri = get_in_brackets(tmp);
     
     cw_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
@@ -12689,9 +12724,9 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     int resp;
     int res = 1;
 
-    if (sscanf(req->data + req->rlPart2, " %d", &resp) != 1)
+    if (sscanf(req->data + req->uriresp, " %d", &resp) != 1)
     {
-        cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->data + req->rlPart2);
+        cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->data + req->uriresp);
         return;
     }
 
@@ -12875,7 +12910,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             if ((resp >= 300) && (resp < 700))
             {
                 if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %s\n", req->data + req->rlPart2, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %s\n", req->data + req->uriresp, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
                 if (p->rtp)
                 {
                     /* Immediately stop RTP */
@@ -12952,7 +12987,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
                 }
             }
             else
-                cw_log(CW_LOG_NOTICE, "Dont know how to handle \"%s\" response from %s\n", req->data + req->rlPart2, p->owner ? p->owner->name : cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                cw_log(CW_LOG_NOTICE, "Dont know how to handle \"%s\" response from %s\n", req->data + req->uriresp, p->owner ? p->owner->name : cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         }
     }
     else
@@ -13032,7 +13067,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             if ((resp >= 300) && (resp < 700))
             {
                 if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response \"%s\" back from %s\n", req->data + req->rlPart2, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                    cw_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response \"%s\" back from %s\n", req->data + req->uriresp, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
                 switch (resp)
                 {
                 case 488: /* Not acceptable here - codec error */
@@ -13328,7 +13363,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         }
     }
     /* save the Request line */
-    cw_copy_string(p->ruri, req->data + req->rlPart2, sizeof(p->ruri));
+    cw_copy_string(p->ruri, req->data + req->uriresp, sizeof(p->ruri));
 
     /* Check if this is a loop */
     /* This happens since we do not properly support SIP domain
@@ -13382,7 +13417,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     if (!p->lastinvite && !ignore && !p->owner)
     {
         /* Handle authentication if this is our first invite */
-        res = check_user(p, req, SIP_INVITE, req->data + req->rlPart2, 1, sin, ignore);
+        res = check_user(p, req, SIP_INVITE, req->data + req->uriresp, 1, sin, ignore);
 	if (res > 0)
 	    return 0;
         if (res < 0)
@@ -13395,7 +13430,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		transmit_response_reliable(p, "403 Forbidden", req, 1);
 	    }
 	    sip_destroy(p);
-	    p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
 	    return 0;
         }
         /* Process the SDP portion */
@@ -13453,22 +13487,18 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	    sip_destroy(p);
 	    return 0;
         }
-        else
+
+        /* If no extension was specified, use the s one */
+        if (cw_strlen_zero(p->exten))
+            cw_copy_string(p->exten, "s", sizeof(p->exten));
+        /* First invitation */
+        c = sip_new(p, CW_STATE_DOWN, cw_strlen_zero(p->username)  ?  NULL  :  p->username);
+        /* Save Record-Route for any later requests we make on this dialogue */
+        build_route(p, req, 0);
+        if (c)
         {
-            /* If no extension was specified, use the s one */
-            if (cw_strlen_zero(p->exten))
-                cw_copy_string(p->exten, "s", sizeof(p->exten));
-            /* Initialize tag */    
-            make_our_tag(p->tag, sizeof(p->tag));
-            /* First invitation */
-            c = sip_new(p, CW_STATE_DOWN, cw_strlen_zero(p->username)  ?  NULL  :  p->username);
-            /* Save Record-Route for any later requests we make on this dialogue */
-            build_route(p, req, 0);
-            if (c)
-            {
-                /* Pre-lock the call */
-                cw_channel_lock(c);
-            }
+            /* Pre-lock the call */
+            cw_channel_lock(c);
         }
     }
     else
@@ -13990,7 +14020,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
             mailboxsize = sizeof(mailboxbuf);
         }
         /* Handle authentication if this is our first subscribe */
-        res = check_user_full(p, req, SIP_SUBSCRIBE, req->data + req->rlPart2, 0, sin, ignore, mailbox, mailboxsize);
+        res = check_user_full(p, req, SIP_SUBSCRIBE, req->data + req->uriresp, 0, sin, ignore, mailbox, mailboxsize);
 	/* if an authentication challenge was sent, we are done here */
 	if (res > 0)
 	    return 0;
@@ -14032,10 +14062,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         }
         else
         {
-            /* Initialize tag for new subscriptions */    
-            if (cw_strlen_zero(p->tag))
-                make_our_tag(p->tag, sizeof(p->tag));
-
             if (!strcmp(event, "presence") || !strcmp(event, "dialog"))
             {
                 /* Presence, RFC 3842 */
@@ -14190,7 +14216,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
         cw_verbose("Using latest REGISTER request as basis request\n");
     copy_request(&p->initreq, req);
     check_via(p, req);
-    if ((res = register_verify(p, sin, req, req->data + req->rlPart2, ignore)) < 0) 
+    if ((res = register_verify(p, sin, req, req->data + req->uriresp, ignore)) < 0)
         cw_log(CW_LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
     if (res < 1)
     {
@@ -14207,7 +14233,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 {
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
-    char *cmd;
     char *useragent;
     int seqno;
     int ignore=0;
@@ -14216,18 +14241,15 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     int debug = sip_debug_test_pvt(p);
     int error = 0;
 
-    /* Get Method and Cseq */
-    cmd = req->data + req->header[0];
-
     /* Must have Cseq */
-    if (cw_strlen_zero(cmd) || cw_strlen_zero(req->data + req->cseq))
+    if (cw_strlen_zero(req->data + req->cseq))
     {
         cw_log(CW_LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
         error = 1;
     }
     if (!error && sscanf(req->data + req->cseq, "%d", &seqno) != 1)
     {
-        cw_log(CW_LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
+        cw_log(CW_LOG_ERROR, "No seqno in \"%s\". Dropping incomplete message.\n", req->data + req->cseq);
         error = 1;
     }
     if (error)
@@ -14236,9 +14258,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             sip_destroy(p);
         return -1;
     }
-    /* Get the command XXX */
-
-    cmd = req->data + req->header[0];
 
     /* Save useragent of the client */
     useragent = get_header(req, "User-Agent");
@@ -14252,7 +14271,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         /* Response to our request -- Do some sanity checks */    
         if (!p->initreq.headers)
         {
-            cw_log(CW_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
+            cw_log(CW_LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %s\n", req->data + req->cseq);
             if (rfc3489_active) p->stun_needed=0; // We must ignore and destroy this packet. Allow destruction if stun is active
             sip_destroy(p);
             return 0;
@@ -14274,13 +14293,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         return 0;
     }
 
-    /* New SIP request coming in 
-       (could be new request in existing SIP dialog as well...) 
-     */            
-    
+    /* New SIP request coming in
+       (could be new request in existing SIP dialog as well...)
+     */
+
     p->method = req->method;    /* Find out which SIP method they are using */
     if (option_debug > 2)
-        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, cmd); 
+        cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, req->data);
 
     if (p->icseq && (p->icseq > seqno))
     {
@@ -14318,7 +14337,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     {
         gettag(req, "From", p->theirtag, sizeof(p->theirtag));
     }
-    snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", cmd);
+    snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", req->data);
 
     if (pedanticsipchecking)
     {
@@ -14342,7 +14361,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             return res;
         }
     }
-    if (!req->data[req->rlPart2] && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
+    if (!req->data[req->uriresp] && (p->method == SIP_INVITE || p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
         transmit_response(p, "400 Bad request", req);
         sip_destroy(p);
         return -1;
@@ -14414,7 +14433,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     default:
         transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
         cw_log(CW_LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
-                 cmd, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+                 req->data, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
         /* If this is some new method, and we don't have a call, destroy it now */
         if (!p->initreq.headers)
             sip_destroy(p);
@@ -14430,6 +14449,7 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	struct sip_request req;
 	char iabuf[INET_ADDRSTRLEN];
 	struct sockaddr_in sin, sout;
+	struct parse_request_state pstate;
 	struct sip_pvt *p;
 	socklen_t len, leno;
 	int res;
@@ -14482,12 +14502,12 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	} else {
 		if (sip_debug_test_addr(&sin)) {
 			cw_set_flag(&req, SIP_PKT_DEBUG);
-			cw_verbose("\n<-- SIP read from %s:%d: \n%s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
+			cw_verbose("\n<-- SIP read from %s:%d: \n%s---\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
 		}
 
-		if (!parse_request(&req)) {
-			req.method = find_sip_method(req.data + req.header[0]);
+		parse_request_init(&pstate, &req);
 
+		if (!parse_request(&pstate, &req)) {
 			if (cw_test_flag(&req, SIP_PKT_DEBUG))
 				cw_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
 
@@ -14519,7 +14539,7 @@ retrylock:
 				memcpy(&p->recv, &sin, sizeof(p->recv));
 
 				if (recordhistory)
-					append_history(p, "%-15s %s - %s\n", "Rx", req.data + req.cseq, req.data + req.rlPart2);
+					append_history(p, "%-15s %s - %s\n", "Rx", req.data + req.cseq, req.data + req.uriresp);
 
 				nounlock = 0;
 
