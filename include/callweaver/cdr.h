@@ -35,7 +35,6 @@
 #define CW_CDR_FLAG_POSTED			(1 << 1)
 #define CW_CDR_FLAG_LOCKED			(1 << 2)
 #define CW_CDR_FLAG_CHILD			(1 << 3)
-#define CW_CDR_FLAG_POST_DISABLED		(1 << 4)
 
 #define CW_CDR_NOANSWER			(1 << 0)
 #define CW_CDR_BUSY				(1 << 1)
@@ -265,7 +264,7 @@ extern CW_API_PUBLIC char *cw_cdr_disp2str(int disposition);
  * \param flags |CW_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
  *              |CW_CDR_FLAG_LOCKED whether or not to reset locked CDR's
  */
-extern CW_API_PUBLIC void cw_cdr_reset(struct cw_cdr *cdr, int flags);
+extern CW_API_PUBLIC void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags);
 
 /*! Flags to a string */
 /*!
@@ -300,8 +299,5 @@ extern void cw_cdr_engine_reload(void);
 
 /*! Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
 extern int cw_cdr_engine_init(void);
-
-/*! Submit any remaining CDRs and prepare for shutdown */
-extern void cw_cdr_engine_term(void);
 
 #endif /* _CALLWEAVER_CDR_H */

@@ -554,8 +554,6 @@ static void quit_handler(void *data)
 	if (option_verbose)
 		cw_verbose("Executing last minute cleanups\n");
 
-	cw_cdr_engine_term();
-
 	cw_run_atexits();
 
 	if (option_verbose && (option_console || option_nofork))

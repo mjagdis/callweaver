@@ -1,7 +1,12 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2009, Eris Associates Limited, UK
  * Copyright (C) 2004 - 2005, Holger Schurig
+ *
+ * Authors:
+ *     Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *     Holger Schurig <hs4233@mail.mn-solutions.de>
  *
  *
  * Ideas taken from other cdr_*.c files
@@ -21,6 +26,7 @@
  *
  * \brief Store CDR records in a SQLite database.
  * 
+ * \author Mike Jagdis <mjagdis@eris-associates.co.uk>
  * \author Holger Schurig <hs4233@mail.mn-solutions.de>
  *
  * See also

@@ -1,9 +1,12 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2009, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Mark Spencer <markster@digium.com>
+ * Authors:
+ *     Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *     Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -77,23 +80,16 @@ static struct {
 	struct cw_cdr **tail;
 } batch;
 
-static struct sched_context *sched;
-static int cdr_sched = -1;
 static pthread_t cdr_thread = CW_PTHREADT_NULL;
 
 #define BATCH_SIZE_DEFAULT 100
 #define BATCH_TIME_DEFAULT 300
 #define BATCH_SCHEDULER_ONLY_DEFAULT 0
-#define BATCH_SAFE_SHUTDOWN_DEFAULT 1
 
 static int enabled;
-static int batchmode;
-static int batchsize;
-static int batchtime;
-static int batchscheduleronly;
-static int batchsafeshutdown;
 
-CW_MUTEX_DEFINE_STATIC(cdr_batch_lock);
+pthread_mutex_t cdr_batch_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cdr_batch_cond = PTHREAD_COND_INITIALIZER;
 
 
 struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr) 
@@ -333,7 +329,7 @@ void cw_cdr_free(struct cw_cdr *batch)
 			next = cdr->next;
 
 			chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-			if (!cw_test_flag(cdr, CW_CDR_FLAG_POSTED) && !cw_test_flag(cdr, CW_CDR_FLAG_POST_DISABLED))
+			if (!cw_test_flag(cdr, CW_CDR_FLAG_POSTED))
 				cw_log(CW_LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
 			if (cw_tvzero(cdr->end))
 				cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
@@ -732,27 +728,24 @@ static void post_cdr(struct cw_cdr *submission)
 	cw_registry_iterate(&cdrbe_registry, post_cdrbe, submission);
 }
 
-void cw_cdr_reset(struct cw_cdr *cdr, int flags)
+void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags)
 {
-	struct cw_flags tmp = {flags};
 	struct cw_cdr *dup;
 
 
 	while (cdr) {
 		/* Detach if post is requested */
-		if (cw_test_flag(&tmp, CW_CDR_FLAG_LOCKED) || !cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
-			if (cw_test_flag(&tmp, CW_CDR_FLAG_POSTED)) {
+		if ((flags & CW_CDR_FLAG_LOCKED) || !cw_test_flag(cdr, CW_CDR_FLAG_LOCKED)) {
+			if ((flags & CW_CDR_FLAG_POSTED)) {
 				cw_cdr_end(cdr);
-				if ((dup = cw_cdr_dup(cdr))) {
+				if ((dup = cw_cdr_dup(cdr)))
 					cw_cdr_detach(dup);
-				}
 				cw_set_flag(cdr, CW_CDR_FLAG_POSTED);
 			}
 
 			/* clear variables */
-			if (!cw_test_flag(&tmp, CW_CDR_FLAG_KEEP_VARS)) {
+			if (!(flags & CW_CDR_FLAG_KEEP_VARS))
 				cw_registry_flush(&cdr->vars);
-			}
 
 			/* Reset to initial state */
 			cw_clear_flag(cdr, CW_FLAGS_ALL);	
@@ -787,98 +780,53 @@ struct cw_cdr *cw_cdr_append(struct cw_cdr *cdr, struct cw_cdr *newcdr)
 }
 
 
-static void cw_cdr_submit_batch(int shutdown)
+static void *cw_cdr_submit(void *data)
 {
 	struct cw_cdr *oldbatchitems;
-	pthread_t batch_post_thread = CW_PTHREADT_NULL;
 
-	/* move the old CDRs aside, and prepare a new CDR batch */
-	oldbatchitems = NULL;
+	for (;;) {
+		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &cdr_batch_lock);
+		pthread_mutex_lock(&cdr_batch_lock);
 
-	cw_mutex_lock(&cdr_batch_lock);
+		if (!batch.head) {
+			pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			pthread_cond_wait(&cdr_batch_cond, &cdr_batch_lock);
+			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+		}
 
-	if ((oldbatchitems = batch.head)) {
+		oldbatchitems = batch.head;
 		batch.size = 0;
 		batch.head = NULL;
 		batch.tail = &batch.head;
-	}
 
-	cw_mutex_unlock(&cdr_batch_lock);
+		pthread_cleanup_pop(1);
 
-	if (!oldbatchitems)
-		return;
-
-	/* if configured, spawn a new thread to post these CDRs,
-	   also try to save as much as possible if we are shutting down safely */
-	if (batchscheduleronly || shutdown) {
-		if (option_debug)
-			cw_log(CW_LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
-		post_cdr(oldbatchitems);
-	} else {
-		if (cw_pthread_create(&batch_post_thread, &global_attr_detached, post_cdr, oldbatchitems)) {
-			cw_log(CW_LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
+		if (oldbatchitems)
 			post_cdr(oldbatchitems);
-		} else {
-			if (option_debug)
-				cw_log(CW_LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
-		}
 	}
+
+	return NULL;
 }
 
-static int submit_scheduled_batch(void *data)
-{
-	cw_cdr_submit_batch(0);
-
-	/* manually reschedule from this point in time */
-	cdr_sched = cw_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
-
-	return 0;
-}
-
-static void submit_unscheduled_batch(void)
-{
-	/* this is okay since we are not being called from within the scheduler */
-	if (cdr_sched > -1)
-		cw_sched_del(sched, cdr_sched);
-	/* schedule the submission to occur ASAP (1 ms) */
-	cdr_sched = cw_sched_add(sched, 1, submit_scheduled_batch, NULL);
-}
 
 void cw_cdr_detach(struct cw_cdr *cdr)
 {
-	int curr;
+	if (enabled) {
+		pthread_mutex_lock(&cdr_batch_lock);
 
-	/* maybe they disabled CDR stuff completely, so just drop it */
-	if (!enabled) {
-		if (option_debug)
-			cw_log(CW_LOG_DEBUG, "Dropping CDR !\n");
-		cw_set_flag(cdr, CW_CDR_FLAG_POST_DISABLED);
-		cw_cdr_free(cdr);
+		*batch.tail = cdr;
+		batch.tail = &cdr->batch_next;
+		batch.size++;
+		pthread_cond_signal(&cdr_batch_cond);
+
+		pthread_mutex_unlock(&cdr_batch_lock);
+
 		return;
 	}
 
-	/* post stuff immediately if we are not in batch mode, this is legacy behaviour */
-	if (!batchmode) {
-		post_cdr(cdr);
-		cw_cdr_free(cdr);
-		return;
-	}
-
-	/* otherwise, each CDR gets put into a batch list (at the end) */
-	if (option_debug)
-		cw_log(CW_LOG_DEBUG, "CDR detaching from this thread\n");
-
-	cw_mutex_lock(&cdr_batch_lock);
-
-	*batch.tail = cdr;
-	batch.tail = &cdr->batch_next;
-	curr = ++batch.size;
-
-	cw_mutex_unlock(&cdr_batch_lock);
-
-	/* if we have enough stuff to post, then do it */
-	if (curr >= (batchsize - 1))
-		submit_unscheduled_batch();
+	cw_set_flag(cdr, CW_CDR_FLAG_POSTED);
+	cw_cdr_free(cdr);
+	return;
 }
 
 
@@ -894,53 +842,16 @@ static int cdrbe_print(struct cw_object *obj, void *data)
 
 static int handle_cli_status(int fd, int argc, char *argv[])
 {
-	int cnt = 0;
-	long nextbatchtime = 0;
-
 	if (argc > 2)
 		return RESULT_SHOWUSAGE;
 
 	cw_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
-	cw_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
-	if (enabled) {
-		if (batchmode) {
-			cnt = batch.size;
-
-			if (cdr_sched > -1)
-				nextbatchtime = cw_sched_when(sched, cdr_sched);
-			cw_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
-			cw_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
-			cw_cli(fd, "CDR current batch size: %d record%s\n", cnt, (cnt != 1) ? "s" : "");
-			cw_cli(fd, "CDR maximum batch size: %d record%s\n", batchsize, (batchsize != 1) ? "s" : "");
-			cw_cli(fd, "CDR maximum batch time: %d second%s\n", batchtime, (batchtime != 1) ? "s" : "");
-			cw_cli(fd, "CDR next scheduled batch processing time: %ld second%s\n", nextbatchtime, (nextbatchtime != 1) ? "s" : "");
-		}
-
+	if (enabled)
 		cw_registry_iterate_ordered(&cdrbe_registry, cdrbe_print, &fd);
-	}
 
 	return 0;
 }
 
-static int handle_cli_submit(int fd, int argc, char *argv[])
-{
-	if (argc > 2)
-		return RESULT_SHOWUSAGE;
-
-	submit_unscheduled_batch();
-	cw_cli(fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
-
-	return 0;
-}
-
-static struct cw_clicmd cli_submit = {
-	.cmda = { "cdr", "submit", NULL },
-	.handler = handle_cli_submit,
-	.summary = "Posts all pending batched CDR data",
-	.usage =
-	"Usage: cdr submit\n"
-	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
-};
 
 static struct cw_clicmd cli_status = {
 	.cmda = { "cdr", "status", NULL },
@@ -951,139 +862,80 @@ static struct cw_clicmd cli_status = {
 	"	Displays the Call Detail Record engine system status.\n"
 };
 
+
+static void cw_cdr_engine_term(void)
+{
+	if (!pthread_equal(cdr_thread, CW_PTHREADT_NULL)) {
+		pthread_cancel(cdr_thread);
+		pthread_join(cdr_thread, NULL);
+	}
+}
+
 static struct cw_atexit cdr_atexit = {
 	.name = "CDR Engine Terminate",
 	.function = cw_cdr_engine_term,
 };
 
+
 static int do_reload(void)
 {
 	struct cw_config *config = NULL;
-	const char *enabled_value = NULL;
-	const char *batched_value = NULL;
-	const char *end_before_h_value = NULL;
-	const char *scheduleronly_value = NULL;
-	const char *batchsafeshutdown_value = NULL;
-	const char *size_value = NULL;
-	const char *time_value = NULL;
-	int cfg_size;
-	int cfg_time;
-	int was_enabled;
-	int was_batchmode;
-	int res=0;
+	const char *value = NULL;
+	int new_enabled, new_cw_end_cdr_before_h_exten;
 
-	cw_mutex_lock(&cdr_batch_lock);
-
-	batchsize = BATCH_SIZE_DEFAULT;
-	batchtime = BATCH_TIME_DEFAULT;
-	batchscheduleronly = BATCH_SCHEDULER_ONLY_DEFAULT;
-	batchsafeshutdown = BATCH_SAFE_SHUTDOWN_DEFAULT;
-	was_enabled = enabled;
-	was_batchmode = batchmode;
-	enabled = 1;
-	batchmode = 0;
-	cw_end_cdr_before_h_exten = 0;
-
-	/* don't run the next scheduled CDR posting while reloading */
-	if (cdr_sched > -1)
-		cw_sched_del(sched, cdr_sched);
+	new_enabled = 1;
+	new_cw_end_cdr_before_h_exten = 0;
 
 	if ((config = cw_config_load("cdr.conf"))) {
-		if ((enabled_value = cw_variable_retrieve(config, "general", "enable"))) {
-			enabled = cw_true(enabled_value);
-		}
-		if ((end_before_h_value = cw_variable_retrieve(config, "general", "endbeforehexten"))) {
-			cw_end_cdr_before_h_exten = cw_true(end_before_h_value);
-		}
-		if ((batched_value = cw_variable_retrieve(config, "general", "batch"))) {
-			batchmode = cw_true(batched_value);
-		}
-		if ((scheduleronly_value = cw_variable_retrieve(config, "general", "scheduleronly"))) {
-			batchscheduleronly = cw_true(scheduleronly_value);
-		}
-		if ((batchsafeshutdown_value = cw_variable_retrieve(config, "general", "safeshutdown"))) {
-			batchsafeshutdown = cw_true(batchsafeshutdown_value);
-		}
-		if ((size_value = cw_variable_retrieve(config, "general", "size"))) {
-			if (sscanf(size_value, "%d", &cfg_size) < 1)
-				cw_log(CW_LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
-			else if (cfg_size < 0)
-				cw_log(CW_LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
-			else
-				batchsize = cfg_size;
-		}
-		if ((time_value = cw_variable_retrieve(config, "general", "time"))) {
-			if (sscanf(time_value, "%d", &cfg_time) < 1)
-				cw_log(CW_LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
-			else if (cfg_time < 0)
-				cw_log(CW_LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);
-			else
-				batchtime = cfg_time;
-		}
+		if ((value = cw_variable_retrieve(config, "general", "enable")))
+			new_enabled = cw_true(value);
+		if ((value = cw_variable_retrieve(config, "general", "endbeforehexten")))
+			new_cw_end_cdr_before_h_exten = cw_true(value);
+
+		/* DEPRECATED */
+		if (cw_variable_retrieve(config, "general", "batch"))
+			cw_log(CW_LOG_NOTICE, "batch option in cdr.conf is deprecated and should be removed\n");
+		if (cw_variable_retrieve(config, "general", "safeshutdown"))
+			cw_log(CW_LOG_NOTICE, "safeshutdown option in cdr.conf is deprecated and should be removed\n");
+		if (cw_variable_retrieve(config, "general", "scheduleronly"))
+			cw_log(CW_LOG_NOTICE, "scheduleronly option in cdr.conf is deprecated and should be removed\n");
+		if (cw_variable_retrieve(config, "general", "size"))
+			cw_log(CW_LOG_NOTICE, "size option in cdr.conf is deprecated and should be removed\n");
+		if (cw_variable_retrieve(config, "general", "time"))
+			cw_log(CW_LOG_NOTICE, "time option in cdr.conf is deprecated and should be removed\n");
 	}
 
-	if (enabled && !batchmode) {
-		cw_log(CW_LOG_NOTICE, "CDR simple logging enabled.\n");
-	} else if (enabled && batchmode) {
-		cdr_sched = cw_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
-		cw_log(CW_LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n", batchsize, batchtime);
-	} else {
-		cw_log(CW_LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
-	}
+	enabled = new_enabled;
+	cw_end_cdr_before_h_exten = new_cw_end_cdr_before_h_exten;
 
-	/* if this reload enabled the CDR batch mode, create the background thread
-	   if it does not exist */
-	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (pthread_equal(cdr_thread, CW_PTHREADT_NULL))) {
-		cw_cli_register(&cli_submit);
-		cw_atexit_register(&cdr_atexit);
-		res = 0;
-	/* if this reload disabled the CDR and/or batch mode and there is a background thread,
-	   kill it */
-	}else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && !pthread_equal(cdr_thread, CW_PTHREADT_NULL)) {
-		cdr_thread = CW_PTHREADT_NULL;
-		cw_cli_unregister(&cli_submit);
-		cw_atexit_unregister(&cdr_atexit);
-		res = 0;
-		/* if leaving batch mode, then post the CDRs in the batch,
-		   and don't reschedule, since we are stopping CDR logging */
-		if (!batchmode && was_batchmode) {
-			cw_cdr_engine_term();
-		}
-	} else {
-		res = 0;
-	}
+	if (enabled)
+		cw_log(CW_LOG_NOTICE, "CDR logging enabled.\n");
+	else
+		cw_log(CW_LOG_NOTICE, "CDR logging disabled, data will be discarded.\n");
 
-	cw_mutex_unlock(&cdr_batch_lock);
 	cw_config_destroy(config);
 
-	return res;
+	return 0;
 }
+
 
 int cw_cdr_engine_init(void)
 {
-	int res;
+	int res = 0;
 
 	batch.tail = &batch.head;
 
-	sched = sched_context_create(1);
-	if (!sched) {
-		cw_log(CW_LOG_ERROR, "Unable to create schedule context.\n");
-		return -1;
-	}
+	cw_atexit_register(&cdr_atexit);
 
-	cw_cli_register(&cli_status);
-
-	res = do_reload();
+	if (!(res = cw_pthread_create(&cdr_thread, &global_attr_default, cw_cdr_submit, NULL))) {
+		cw_cli_register(&cli_status);
+		res = do_reload();
+	} else
+		cw_log(CW_LOG_ERROR, "Failed to create CDR posting thread: %s\n", strerror(res));
 
 	return res;
 }
 
-/* This actually gets called a couple of times at shutdown.  Once, before we start
-   hanging up channels, and then again, after the channel hangup timeout expires */
-void cw_cdr_engine_term(void)
-{
-	cw_cdr_submit_batch(batchsafeshutdown);
-}
 
 void cw_cdr_engine_reload(void)
 {
