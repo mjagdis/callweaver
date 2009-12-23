@@ -303,36 +303,48 @@ static struct cw_frame *process_rfc2833(struct cw_rtp *rtp, unsigned char *data,
      * If the timestamp changes during the end packets we'll be in trouble
      * but this hasn't been seen in the wild.
      */
-    samets = (timestamp == rtp->lastevent_startts || timestamp - (rtp->lastevent_startts + rtp->lastevent_duration + 40 * 8) <= 0);
+    samets = (timestamp == rtp->lastevent_startts || timestamp - rtp->lastevent_startts <= rtp->lastevent_duration + 40 * 8);
 
     /* If we have something in progress we should send it up the stack if
-     * the timestamp has changed.
+     * the this packet is not a continuation of the same event.
      */
     if (rtp->lastevent_code && !samets)
         f = send_dtmf(rtp);
-
-    /* If this packet comes after any other packet we've seen so far
-     * in this event we'll take its duration.
-     * N.B. seqnos are unsigned and wrap...
-     */
-    if (!rtp->lastevent_code || seqno - rtp->lastevent_seqno < 1000)
-    {
-        rtp->lastevent_duration = duration;
-        rtp->lastevent_seqno = seqno;
-    }
 
     /* If it's the first packet we've seen for this event (it might
      * not be the actual start packet - that might be out of order
      * or dropped) set up the event.
      */
-    if (!rtp->lastevent_code && !samets)
+    if (!samets)
     {
         static char map[] = "0123456789*#ABCDX";
         rtp->lastevent_code = (event < sizeof(map)/sizeof(map[0]) ? map[event] : '?');
+        rtp->lastevent_seqno = seqno;
         rtp->lastevent_startts = timestamp;
+        rtp->lastevent_duration = duration;
     }
-    else if (timestamp - rtp->lastevent_startts < 0) /* Changing timestamps AND packet reordering! */
-        rtp->lastevent_startts = timestamp;
+    else
+    {
+        /* If this packet comes after any other packet we've seen so far
+	 * in the current event we'll take its duration as an update to
+	 * the event duration, but still using the original start time.
+	 * If it comes before any other packet we've seen and its timestamp
+	 * is earlier than our current event start we adjust our idea of
+	 * the event start time - we are seeing both changing timestamps
+	 * and packet reordering.
+         * N.B. seqnos and timestamps are unsigned and wrap...
+         */
+        if (seqno - rtp->lastevent_seqno < 1000)
+        {
+            rtp->lastevent_duration = timestamp + duration - rtp->lastevent_startts;
+            rtp->lastevent_seqno = seqno;
+        }
+	else if (timestamp - rtp->lastevent_startts < 10000)
+        {
+            rtp->lastevent_duration += rtp->lastevent_startts - timestamp;
+            rtp->lastevent_startts = timestamp;
+        }
+    }
 
     /* If we have an event in progress and the end flag is set what
      * we know is all we need so we can send the event up the stack.
@@ -994,7 +1006,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 
     if (rtp_debug_test_addr(&sin))
     {
-        cw_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n",
+        cw_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %u, len %d)\n",
                      cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr),
                      ntohs(sin.sin_port),
                      payloadtype,
@@ -1025,7 +1037,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
                 event_end >>= 24;
                 duration = ntohl(*((unsigned int *) (data)));
                 duration &= 0xFFFF;
-                cw_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+                cw_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %u, len %d, mark %d, event %08x, end %d, duration %u) \n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
             }
             f = process_rfc2833(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, mark, timestamp);
             if (f) 
