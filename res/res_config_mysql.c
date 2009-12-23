@@ -579,7 +579,7 @@ static int parse_config (void)
 			dbport = atoi(s);
                 }
 
-		if(dbhost && !(s=cw_variable_retrieve(config, "general", "dbsock"))) {
+		if(!(s=cw_variable_retrieve(config, "general", "dbsock"))) {
                         cw_log(CW_LOG_WARNING, "MySQL RealTime: No database socket found, using '/tmp/mysql.sock' as default.\n");
                         strncpy(dbsock, "/tmp/mysql.sock", sizeof(dbsock) - 1);
                 } else {
@@ -588,7 +588,7 @@ static int parse_config (void)
 	}
 	cw_config_destroy(config);
 
-	if(dbhost) {
+	if(dbhost[0]) {
 		cw_log(CW_LOG_DEBUG, "MySQL RealTime Host: %s\n", dbhost);
 		cw_log(CW_LOG_DEBUG, "MySQL RealTime Port: %i\n", dbport);
 	} else {
@@ -615,7 +615,7 @@ static int mysql_reconnect(const char *database)
 	/* mutex lock should have been locked before calling this function. */
 
 reconnect_tryagain:
-	if((!connected) && (dbhost || dbsock) && dbuser && dbpass && my_database) {
+	if((!connected) && (dbhost[0] || dbsock[0]) && dbuser[0] && dbpass[0] && my_database[0]) {
 		if(!mysql_init(&mysql)) {
 			cw_log(CW_LOG_WARNING, "MySQL RealTime: Insufficient memory to allocate MySQL resource.\n");
 			connected = 0;
@@ -666,15 +666,15 @@ static int realtime_mysql_status(int fd, int argc, char **argv)
 	int ctime = time(NULL) - connect_time;
 
 	if(mysql_reconnect(NULL)) {
-		if(dbhost) {
+		if(dbhost[0]) {
 			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbhost, dbport);
-		} else if(dbsock) {
+		} else if(dbsock[0]) {
 			snprintf(status, 255, "Connected to %s on socket file %s", dbname, dbsock);
 		} else {
 			snprintf(status, 255, "Connected to %s@%s", dbname, dbhost);
 		}
 
-		if(dbuser && *dbuser) {
+		if(dbuser[0]) {
 			snprintf(status2, 99, " with username %s", dbuser);
 		}
 

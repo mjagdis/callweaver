@@ -2025,7 +2025,7 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 			ozz = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_FEATDMF_OZZ, "FEATDMF_OZZ");
 			cic = pbx_builtin_getvar_helper(p->owner, CW_KEYWORD_FEATDMF_CIC, "FEATDMF_CIC");
 
-			if ((!ozz && !defaultozz) || (!cic && !defaultcic)) {
+			if ((!ozz && !defaultozz[0]) || (!cic && !defaultcic[0])) {
 				cw_log(CW_LOG_WARNING, "Unable to dial channel of type feature group D MF tandem access without CIC or OZZ set\n");
 				cw_mutex_unlock(&p->lock);
 				return -1;

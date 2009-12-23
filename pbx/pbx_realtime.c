@@ -204,7 +204,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 				    exten, context, priority,
 			            app,
 				    chan->name,
-				    (!cw_strlen_zero(appdata) ? (char *)appdata : "")
+				    appdata
 			    );
 			cw_manager_event(EVENT_FLAG_CALL, "Newexten",
 				7,
@@ -213,7 +213,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 				cw_me_field("Extension",   "%s\r\n", chan->exten),
 				cw_me_field("Priority",    "%d\r\n", chan->priority),
 				cw_me_field("Application", "%s\r\n", app),
-				cw_me_field("AppData",     "%s\r\n", (appdata ? appdata : "(NULL)")),
+				cw_me_field("AppData",     "%s\r\n", appdata),
 				cw_me_field("Uniqueid",    "%s\r\n", chan->uniqueid)
 			);
 			res = cw_function_exec_str(chan, cw_hash_string(app), app, appdata, NULL, 0);

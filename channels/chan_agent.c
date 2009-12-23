@@ -437,10 +437,10 @@ static int __agent_start_monitoring(struct cw_channel *ast, struct agent_pvt *p,
 		/* substitute . for - */
 		if ((pointer = strchr(filename, '.')))
 			*pointer = '-';
-		snprintf(tmp, sizeof(tmp), "%s%s",savecallsin ? savecallsin : "", filename);
+		snprintf(tmp, sizeof(tmp), "%s%s", savecallsin, filename);
 		cw_monitor_start(ast, recordformat, tmp, needlock);
 		cw_monitor_setjoinfiles(ast, 1);
-		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix ? urlprefix : "", filename, recordformatext);
+		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix, filename, recordformatext);
 #if 0
 		cw_verbose("name is %s, link is %s\n",tmp, tmp2);
 #endif

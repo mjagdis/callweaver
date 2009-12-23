@@ -405,11 +405,11 @@ static void populate_defaults(struct cw_vm_user *vmu)
 	cw_copy_flags(vmu, (&globalflags), CW_FLAGS_ALL);	
 	if (saydurationminfo)
 		vmu->saydurationm = saydurationminfo;
-	if (callcontext)
+	if (callcontext[0])
 		cw_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
-	if (dialcontext)
+	if (dialcontext[0])
 		cw_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
-	if (exitcontext)
+	if (exitcontext[0])
 		cw_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 	if (maxmsg)
 		vmu->maxmsg = maxmsg;
@@ -684,7 +684,7 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 			/* Compare user, pass AND context */
 			if (user && *user && !strcmp(user, vmu->mailbox) &&
 				 pass && !strcmp(pass, vmu->password) &&
-				 currcontext && *currcontext && !strcmp(currcontext, vmu->context)) {
+				 *currcontext && !strcmp(currcontext, vmu->context)) {
 				/* This is the line */
 				if (rest) {
 					fprintf(configout, "%s => %s,%s\n", vmu->mailbox,newpassword,rest);

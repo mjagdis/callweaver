@@ -1506,7 +1506,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				}
 			}
 		}
-		if (announce && announcemsg) {
+		if (announce && announcemsg[0]) {
 			/* Start autoservice on the other chan */
 			res = cw_autoservice_start(chan);
 			/* Now Stream the File */
