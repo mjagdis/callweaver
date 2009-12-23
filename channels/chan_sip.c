@@ -606,12 +606,16 @@ struct sip_request {
 	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
 	unsigned int sdp_start; /*!< the line number where the SDP begins */
 	unsigned int sdp_end;	/*!< the line number where the SDP ends */
+
+	struct sip_request *next;            /*!< Next packet */
+	struct sip_pvt *owner;            /*!< Owner call */
+	int retransid;                /*!< Retransmission ID */
+	int timer_a;                /*!< SIP timer A, retransmission timer */
+
 	/* ******* stun rework of request ******** */
 	struct sip_data_line    *head_lines;
 	struct sip_data_line    *sdp_lines;
 };
-
-struct sip_pkt;
 
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
@@ -724,9 +728,11 @@ struct sip_auth {
 #define SIP_PAGE2_RT_FROMCONTACT     (1 << 4)
 #define SIP_PAGE2_DYNAMIC	     (1 << 5)	/*!< Is this a dynamic peer? */
 
-/* SIP packet flags */
-#define SIP_PKT_DEBUG        (1 << 0)    /*!< Debug this packet */
-#define SIP_PKT_WITH_TOTAG    (1 << 1)    /*!< This packet has a to-tag */
+/* SIP request flags */
+#define SIP_PKT_DEBUG        (1 << 0)    /*!< Debug this request */
+#define SIP_PKT_WITH_TOTAG    (1 << 1)    /*!< This request has a to-tag */
+#define FLAG_RESPONSE (1 << 2)
+#define FLAG_FATAL (1 << 3)
 
 static int global_rtautoclear = 120;
 
@@ -836,7 +842,7 @@ struct sip_pvt {
     struct sip_registry *registry;        /*!< If this is a REGISTER call, to which registry */
     struct cw_rtp *rtp;            /*!< RTP Session */
     struct cw_rtp *vrtp;            /*!< Video RTP session */
-    struct sip_pkt *packets;        /*!< Packets scheduled for re-transmission */
+    struct sip_request *retrans;        /*!< Packets scheduled for re-transmission */
     char *history;        /*!< History of this SIP dialog */
     size_t history_size, history_used;
     struct cw_variable *chanvars;        /*!< Channel variables to set for call */
@@ -877,28 +883,11 @@ struct sip_pvt {
 struct sip_reqresp {
     int type;
     struct sip_pvt *p;
-    char   callid[80];
-    struct sip_request req;
+    struct sip_request *req;
     int reliable;
-    int seqno;
     rfc3489_request_t *streq;
+    char callid[80];
 };
-
-#define FLAG_RESPONSE (1 << 0)
-#define FLAG_FATAL (1 << 1)
-
-/*! \brief sip packet - read in sipsock_read, transmitted in send_request */
-struct sip_pkt {
-    struct sip_pkt *next;            /*!< Next packet */
-    enum sipmethod method;                /*!< SIP method for this packet */
-    int seqno;                /*!< Sequence number */
-    unsigned int flags;            /*!< non-zero if this is a response packet (e.g. 200 OK) */
-    struct sip_pvt *owner;            /*!< Owner call */
-    int retransid;                /*!< Retransmission ID */
-    int timer_a;                /*!< SIP timer A, retransmission timer */
-    int packetlen;                /*!< Length of packet */
-    char data[0];
-};    
 
 /*! \brief Structure for SIP user data. User's place calls to us */
 struct sip_user {
@@ -1606,10 +1595,10 @@ again:
 /*! \brief  retrans_pkt: Retransmit SIP message if no answer */
 static int retrans_pkt(void *data)
 {
-    struct sip_pkt *pkt = data, **prev;
+    struct sip_request *msg = data, **prev;
 
     /* Lock channel */
-    cw_mutex_lock(&pkt->owner->lock);
+    cw_mutex_lock(&msg->owner->lock);
 
     /* It's possible we just waited while an ack was sent for a reply
      * to a previous transmission of this packet. If so the ack code
@@ -1619,37 +1608,37 @@ static int retrans_pkt(void *data)
      * looking at it.
      */
 
-    if (pkt->method != SIP_UNKNOWN
-    && ((pkt->method == SIP_INVITE && pkt->timer_a < rfc_timer_b)
-    || (pkt->method != SIP_INVITE && pkt->timer_a < RFC_TIMER_F)))
+    if (msg->method != SIP_UNKNOWN
+    && ((msg->method == SIP_INVITE && msg->timer_a < rfc_timer_b)
+    || (msg->method != SIP_INVITE && msg->timer_a < RFC_TIMER_F)))
     {
         char buf[(INET_ADDRSTRLEN > 80 ? INET_ADDRSTRLEN : 80)];
         int reschedule;
 
         /* Re-schedule using timer_a and timer_t1 */
-        if (!pkt->timer_a)
-            pkt->timer_a = 2 ;
+        if (!msg->timer_a)
+            msg->timer_a = 2 ;
         else
-            pkt->timer_a = 2 * pkt->timer_a;	/* Double each time */
+            msg->timer_a = 2 * msg->timer_a;	/* Double each time */
 
-        reschedule = pkt->timer_a * pkt->owner->timer_t1;
+        reschedule = msg->timer_a * msg->owner->timer_t1;
         /* For non-invites, a maximum of T2 (normally 4 secs  as per RFC3261) */
-        if (pkt->method != SIP_INVITE && reschedule > RFC_TIMER_T2)
+        if (msg->method != SIP_INVITE && reschedule > RFC_TIMER_T2)
             reschedule = RFC_TIMER_T2;
 
-        if (pkt->owner  &&  sip_debug_test_pvt(pkt->owner))
+        if (msg->owner && sip_debug_test_pvt(msg->owner))
         {
-            if ( sip_is_nat_needed(pkt->owner) )
-                cw_verbose("SIP TIMER: #%d: Retransmitting (NAT) to %s:%d:\n%s\n---\n", pkt->retransid, cw_inet_ntoa(buf, sizeof(buf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
+            if ( sip_is_nat_needed(msg->owner) )
+                cw_verbose("SIP TIMER: #%d: Retransmitting (NAT) to %s:%d:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->recv.sin_addr), ntohs(msg->owner->recv.sin_port), msg->data);
             else
-                cw_verbose("SIP TIMER: #%d: Retransmitting (no NAT) to %s:%d:\n%s\n---\n", pkt->retransid, cw_inet_ntoa(buf, sizeof(buf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
+                cw_verbose("SIP TIMER: #%d: Retransmitting (no NAT) to %s:%d:\n%s\n---\n", msg->retransid, cw_inet_ntoa(buf, sizeof(buf), msg->owner->sa.sin_addr), ntohs(msg->owner->sa.sin_port), msg->data);
         }
         if (sipdebug && option_debug > 3)
-            cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", pkt->retransid, sip_methods[pkt->method].text, reschedule, pkt->owner->timer_t1);
+            cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", msg->retransid, sip_methods[msg->method].text, reschedule, msg->owner->timer_t1);
 
-        append_history(pkt->owner, "%-15s %d\n", "ReTx", reschedule);
+        append_history(msg->owner, "%-15s %d\n", "ReTx", reschedule);
 
-        __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
+        __sip_xmit(msg->owner, msg->data, msg->len);
 
 	/* We reschedule ourself here rather than letting the scheduler do it
 	 * because the lock below coordinates with the acking code. Releasing
@@ -1659,8 +1648,8 @@ static int retrans_pkt(void *data)
 	 * an unwanted retransmission of a packet that we already acked a
 	 * reply for.
 	 */
-	pkt->retransid = cw_sched_modify(sched, pkt->retransid, reschedule, retrans_pkt, pkt);
-        cw_mutex_unlock(&pkt->owner->lock);
+	msg->retransid = cw_sched_modify(sched, msg->retransid, reschedule, retrans_pkt, msg);
+        cw_mutex_unlock(&msg->owner->lock);
         return 0;
     } 
 
@@ -1669,100 +1658,95 @@ static int retrans_pkt(void *data)
     /* Dequeue the packet. It is then exclusively ours even if we drop the
      * lock thus allowing an attempt to ack a late reply.
      */
-    for (prev = &pkt->owner->packets; *prev; prev = &(*prev)->next)
+    for (prev = &msg->owner->retrans; *prev; prev = &(*prev)->next)
     {
-        if (*prev == pkt)
+        if (*prev == msg)
         {
-            *prev = pkt->next;
+            *prev = msg->next;
             break;
         }
     }
 
-    if (pkt->method != SIP_UNKNOWN)
+    if (msg->method != SIP_UNKNOWN)
     {
-        if (pkt->owner && pkt->method != SIP_OPTIONS)
+        if (msg->owner && msg->method != SIP_OPTIONS)
         {
-            if (cw_test_flag(pkt, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (cw_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+            if (cw_test_flag(msg, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
+                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL)) ? "Critical" : "Non-critical", (cw_test_flag(msg, FLAG_RESPONSE)) ? "Response" : "Request");
         }
         else
         {
-            if (pkt->method == SIP_OPTIONS && sipdebug)
-                cw_log(CW_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
+            if (msg->method == SIP_OPTIONS && sipdebug)
+                cw_log(CW_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", msg->owner->callid);
         }
-        append_history(pkt->owner, "%-15s %s\n", "MaxRetries", (cw_test_flag(pkt, FLAG_FATAL) ? "(Critical)" : "(Non-critical)"));
+        append_history(msg->owner, "%-15s %s\n", "MaxRetries", (cw_test_flag(msg, FLAG_FATAL) ? "(Critical)" : "(Non-critical)"));
 
-        if (cw_test_flag(pkt, FLAG_FATAL))
+        if (cw_test_flag(msg, FLAG_FATAL))
         {
-            while (pkt->owner->owner  &&  cw_channel_trylock(pkt->owner->owner))
+            while (msg->owner->owner  &&  cw_channel_trylock(msg->owner->owner))
             {
-                cw_mutex_unlock(&pkt->owner->lock);
+                cw_mutex_unlock(&msg->owner->lock);
                 usleep(1);
-                cw_mutex_lock(&pkt->owner->lock);
+                cw_mutex_lock(&msg->owner->lock);
             }
-            if (pkt->owner->owner)
+            if (msg->owner->owner)
             {
-                cw_set_flag(pkt->owner, SIP_ALREADYGONE);
-                cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
-                cw_queue_hangup(pkt->owner->owner);
-                cw_channel_unlock(pkt->owner->owner);
+                cw_set_flag(msg->owner, SIP_ALREADYGONE);
+                cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", msg->owner->callid);
+                cw_queue_hangup(msg->owner->owner);
+                cw_channel_unlock(msg->owner->owner);
             }
             else
             {
                 /* If no channel owner, destroy now */
 	        /* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-	        if (pkt->method != SIP_OPTIONS)
-                    sip_destroy(pkt->owner);
+	        if (msg->method != SIP_OPTIONS)
+                    sip_destroy(msg->owner);
             }
         }
     }
 
-    cw_mutex_unlock(&pkt->owner->lock);
-    cw_object_put(pkt->owner);
-    free(pkt);
+    cw_mutex_unlock(&msg->owner->lock);
+    cw_object_put(msg->owner);
+    free(msg);
     return 0;
 }
 
 /*! \brief  __sip_reliable_xmit: transmit packet with retransmits */
-static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, enum sipmethod sipmethod)
+static int __sip_reliable_xmit(struct sip_pvt *p, struct sip_request **msg_p, int resp, int fatal)
 {
-    struct sip_pkt *pkt;
+	struct sip_request *msg = *msg_p;
 
-    if ((pkt = malloc(sizeof(struct sip_pkt) + len + 1)) == NULL)
-        return -1;
+	*msg_p = NULL;
 
-    pkt->next = p->packets;
-    pkt->method = sipmethod;
-    pkt->seqno = seqno;
-    pkt->flags = 0;
-    if (resp)
-    	cw_set_flag(pkt, FLAG_RESPONSE);
-    if (fatal)
-        cw_set_flag(pkt, FLAG_FATAL);
-    pkt->owner = cw_object_dup(p);
-    pkt->timer_a = 0;
-    pkt->packetlen = len;
-    memcpy(pkt->data, data, len);
-    pkt->data[len] = '\0';
+	msg->next = p->retrans;
+	p->retrans = msg;
 
-    /* Schedule retransmission */
-    /* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
-     * and to avoid sending a retransmit at the exact moment we expect the reply to arrive
-     */
-    pkt->retransid = cw_sched_add_variable(sched, (p->timer_t1 != RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : RFC_TIMER_T1), retrans_pkt, pkt, 1);
+	if (resp)
+		cw_set_flag(msg, FLAG_RESPONSE);
+	if (fatal)
+		cw_set_flag(msg, FLAG_FATAL);
 
-    if (option_debug > 3 && sipdebug)
-        cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
-    pkt->next = p->packets;
-    p->packets = pkt;
+	msg->owner = cw_object_dup(p);
+	msg->timer_a = 0;
 
-    __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);    /* Send packet */
-    if (sipmethod == SIP_INVITE)
-    {
-        /* Note this is a pending invite */
-        p->pendinginvite = seqno;
-    }
-    return 0;
+	/* Schedule retransmission */
+	/* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
+	 * and to avoid sending a retransmit at the exact moment we expect the reply to arrive
+	 */
+	msg->retransid = cw_sched_add_variable(sched, (p->timer_t1 != RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : RFC_TIMER_T1), retrans_pkt, msg, 1);
+
+	if (option_debug > 3 && sipdebug)
+		cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", msg->retransid);
+
+	__sip_xmit(p, msg->data, msg->len);
+
+	if (msg->method == SIP_INVITE) {
+		/* Note this is a pending invite */
+		p->pendinginvite = msg->seqno;
+	}
+
+	return 0;
 }
 
 
@@ -1856,14 +1840,13 @@ static int sip_cancel_destroy(struct sip_pvt *dialogue)
 /*! \brief  __sip_ack: Acknowledges receipt of a packet and stops retransmission */
 static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
 {
-    struct sip_pkt *cur, *prev = NULL;
+    struct sip_request *cur, *prev = NULL;
     int res = -1;
     int resetinvite = 0;
-    /* Just in case... */
-    char *msg;
 
     cw_mutex_lock(&p->lock);
-    cur = p->packets;
+
+    cur = p->retrans;
     while (cur)
     {
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
@@ -1891,7 +1874,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
                 if (prev)
                     prev->next = cur->next;
                 else
-                    p->packets = cur->next;
+                    p->retrans = cur->next;
 
 		cw_object_put(cur->owner);
                 free(cur);
@@ -1904,7 +1887,9 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
         prev = cur;
         cur = cur->next;
     }
+
     cw_mutex_unlock(&p->lock);
+
     cw_log(CW_LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
     return res;
 }
@@ -1912,28 +1897,28 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipm
 /* Pretend to ack all packets */
 static int __sip_pretend_ack(struct sip_pvt *p)
 {
-    struct sip_pkt *cur=NULL;
+    struct sip_request *cur = NULL;
 
-    while (p->packets)
+    while (p->retrans)
     {
-        if (cur == p->packets)
+        if (cur == p->retrans)
         {
             cw_log(CW_LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
             return -1;
         }
-        cur = p->packets;
+        cur = p->retrans;
         if (cur->method)
-            __sip_ack(p, p->packets->seqno, (cw_test_flag(p->packets, FLAG_RESPONSE)), cur->method);
+            __sip_ack(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), cur->method);
         else
         {
             /* Unknown packet type */
             char *c;
             char method[128];
-            
-            cw_copy_string(method, p->packets->data, sizeof(method));
+
+            cw_copy_string(method, p->retrans->data, sizeof(method));
             c = cw_skip_blanks(method); /* XXX what ? */
             *c = '\0';
-            __sip_ack(p, p->packets->seqno, (cw_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
+            __sip_ack(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), find_sip_method(method));
         }
     }
     return 0;
@@ -1942,10 +1927,10 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 /*! \brief  __sip_semi_ack: Acks receipt of packet, keep it around (used for provisional responses) */
 static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod)
 {
-    struct sip_pkt *cur;
+    struct sip_request *cur;
     int res = -1;
 
-    cur = p->packets;
+    cur = p->retrans;
     while (cur)
     {
         if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
@@ -2147,237 +2132,203 @@ static int if_callid_exists(char *callid)
 }
 
 /*! \brief  send_response: Transmit response on SIP request*/
-static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
+static int send_response(struct sip_pvt *p, struct sip_request **req_p, int reliable)
 {
-    char tmpmsg[80];
-    char iabuf[INET_ADDRSTRLEN];
-    int res = 0;
+	char iabuf[INET_ADDRSTRLEN];
+	int res = 0;
 
-    if (rfc3489_active  &&  p->stun_needed == 1)
-    {
-        cw_log(CW_LOG_DEBUG,"This call response %s seqno %d really needs STUN - sched %d\n",p->callid,seqno,p->stun_resreq_id);
+	if (rfc3489_active  &&  p->stun_needed == 1) {
+		struct sip_reqresp *rr;
 
-        struct sip_reqresp *rr;
-        rr = malloc(sizeof(struct sip_reqresp));
-        memset(rr, 0, sizeof(struct sip_reqresp));
-        rr->type = 1;
-        rr->reliable = reliable;
-        rr->seqno = seqno;
-        memcpy(&rr->req, req, sizeof(struct sip_request));
-        memcpy(&rr->callid, p->callid, sizeof(p->callid));
-        rr->p = p;
-        rr->p->stun_retrans_no = 0;
-        rr->streq = cw_udp_stun_bindrequest(sipsock, &stunserver_ip, NULL, NULL);
-        if (rr->streq) 
-            memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
+		cw_log(CW_LOG_DEBUG, "This call response %s seqno %d really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
 
-        if (p->rtp  &&  !cw_rtp_get_stunstate(p->rtp))
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p));
-            cw_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
-        }
-        if (p->vrtp  &&  !cw_rtp_get_stunstate(p->vrtp))
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p));
-            cw_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
-        }
-        if (p->udptl  &&  !cw_udptl_get_stunstate(p->udptl))
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
-            cw_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
-        }
-        if (rr->streq)
-        {
-            if (stundebug)
-                cw_log(CW_LOG_DEBUG,"** Sent STUN packet for response %d\n",rr->streq->req_head.id.id[0]);
-            rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);     
-            return 0;   
-        }
-        else
-        {
-            cw_log(CW_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
-        }
-    }
-    else if (p->stun_needed == 2)
-    {
-        if (stundebug)
-            cw_log(CW_LOG_DEBUG,"This transmit response has already a stun %d\n",p->stun_needed);
-        sip_rebuild_payload(p, req, 1);
-    }
-    else
-    {
-        if (stundebug)
-            cw_log(CW_LOG_DEBUG,"This transmit response has stun at %d\n",p->stun_needed);
-        sip_rebuild_payload(p, req, 0);
-    }
+		if ((rr = malloc(sizeof(struct sip_reqresp)))) {
+			rr->type = 1;
+			rr->p = cw_object_dup(p);
+			rr->req = *req_p;
+			rr->reliable = reliable;
+			memcpy(&rr->callid, p->callid, sizeof(p->callid));
+			rr->p->stun_retrans_no = 0;
+
+			if ((rr->streq = cw_udp_stun_bindrequest(sipsock, &stunserver_ip, NULL, NULL)))
+				memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
+
+			if (p->rtp && !cw_rtp_get_stunstate(p->rtp)) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p));
+				cw_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
+			}
+			if (p->vrtp && !cw_rtp_get_stunstate(p->vrtp)) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p));
+				cw_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
+			}
+			if (p->udptl && !cw_udptl_get_stunstate(p->udptl)) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+				cw_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
+			}
+
+			if (rr->streq) {
+				if (stundebug)
+					cw_log(CW_LOG_DEBUG, "** Sent STUN packet for response %d\n", rr->streq->req_head.id.id[0]);
+
+				if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr)) >= 0) {
+					*req_p = NULL;
+					return 0;
+				}
+			} else
+				cw_log(CW_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
+
+			cw_object_put(rr->p);
+			free(rr);
+		} else
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	} else if (p->stun_needed == 2) {
+		if (stundebug)
+			cw_log(CW_LOG_DEBUG, "This transmit response has already a stun %d\n", p->stun_needed);
+		sip_rebuild_payload(p, *req_p, 1);
+	} else {
+		if (stundebug)
+			cw_log(CW_LOG_DEBUG, "This transmit response has stun at %d\n", p->stun_needed);
+		sip_rebuild_payload(p, *req_p, 0);
+	}
 
 
-    if (sip_debug_test_pvt(p))
-    {
-        if ( sip_is_nat_needed(p) )
-            cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
-        else
-            cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
-    }
+	if (sip_debug_test_pvt(p)) {
+		if (sip_is_nat_needed(p))
+			cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
+		else
+			cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", (reliable ? "Reliably " : ""), cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
+	}
 
-    if (recordhistory)
-    {
-        for (res = sizeof("SIP/2.0 ") - 1; req->data[res] != '\r'; res++);
-        append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), req->cseq_len, req->data + req->cseq, res - (sizeof("SIP/2.0 ") - 1), req->data + sizeof("SIP/2.0 ") - 1);
-    }
+	if (recordhistory) {
+		for (res = sizeof("SIP/2.0 ") - 1; (*req_p)->data[res] != '\r'; res++);
+		append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), (*req_p)->cseq_len, (*req_p)->data + (*req_p)->cseq, res - (sizeof("SIP/2.0 ") - 1), (*req_p)->data + sizeof("SIP/2.0 ") - 1);
+	}
 
-    if (reliable)
-        res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1), req->method);
-    else
-        res = __sip_xmit(p, req->data, req->len);
+	sip_dealloc_headsdp_lines(*req_p);
 
-    p->stun_needed = 0;
-    sip_dealloc_headsdp_lines(req);
-    if (res > 0)
-	return 0;	
-    return res;
+	if (reliable)
+		res = __sip_reliable_xmit(p, req_p, 1, (reliable > 1));
+	else
+		res = __sip_xmit(p, (*req_p)->data, (*req_p)->len);
+
+	p->stun_needed = 0;
+
+	return (res > 0 ? 0 : res);
 }
 
 /*! \brief  send_request: Send SIP Request to the other part of the dialogue */
-static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable)
+static int send_request(struct sip_pvt *p, struct sip_request **req_p, int reliable)
 {
-    char tmpmsg[80];
-    char iabuf[INET_ADDRSTRLEN];
-    int res = 0;
+	char iabuf[INET_ADDRSTRLEN];
+	int res = 0;
 
-    if (rfc3489_active  &&  p->stun_needed == 1)
-    {
-        cw_log(CW_LOG_DEBUG, "This call request %s seqno %d really needs STUN - sched %d\n", p->callid, req->seqno, p->stun_resreq_id);
+	if (rfc3489_active && p->stun_needed == 1) {
+		struct sip_reqresp *rr;
 
-        struct sip_reqresp *rr;
-        
-        rr = malloc(sizeof(struct sip_reqresp));
-        memset(rr, 0, sizeof(struct sip_reqresp));
-        rr->type = 2;
-        rr->reliable = reliable;
-        memcpy(&rr->req, req, sizeof(struct sip_request));
-        memcpy(&rr->callid, p->callid, sizeof(p->callid));
-        rr->p = p;
-        rr->p->stun_retrans_no = 0;
-        rr->streq = cw_udp_stun_bindrequest(sipsock,&stunserver_ip,NULL,NULL);
-        if (rr->streq) 
-            memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
+		cw_log(CW_LOG_DEBUG, "This call request %s seqno %d really needs STUN - sched %d\n", p->callid, (*req_p)->seqno, p->stun_resreq_id);
 
-        if (p->rtp  &&  cw_rtp_get_stunstate(p->rtp) == 0)
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
-            cw_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
-        }
-        if (p->vrtp  &&  cw_rtp_get_stunstate(p->vrtp) == 0)
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
-            cw_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
-        }
-        if (p->udptl  &&  cw_udptl_get_stunstate(p->udptl) == 0)
-        {
-            cw_log(CW_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
-            cw_udptl_setnat(p->udptl, sip_is_nat_needed(p) );
-        }
-        if (rr->streq)
-        {
-            if (stundebug)
-                cw_log(CW_LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
-                        rr->p->stun_resreq_id=cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);     
-            return 0;   
-        }
-        else
-        {
-            cw_log(CW_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
-        }
-    }
-    else if (p->stun_needed == 2)
-    {
-        if (stundebug)
-        cw_log(CW_LOG_DEBUG,"This transmit request has already a stun %d\n",p->stun_needed);
-        sip_rebuild_payload(p,req,1);
-    }
-    else
-    {
-        if (stundebug) cw_log(CW_LOG_DEBUG,"This transmit request has stun at %d\n",p->stun_needed);
-        sip_rebuild_payload(p,req,0);
-    }
+		if ((rr = malloc(sizeof(struct sip_reqresp)))) {
+			rr->type = 2;
+			rr->p = cw_object_dup(p);
+			rr->req = *req_p;
+			rr->reliable = reliable;
+			memcpy(&rr->callid, p->callid, sizeof(p->callid));
+			rr->p->stun_retrans_no = 0;
 
-    if (sip_debug_test_pvt(p))
-    {
-        if ( sip_is_nat_needed(p) )
-            cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
-        else
-            cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), req->data);
-    }
+			if ((rr->streq = cw_udp_stun_bindrequest(sipsock, &stunserver_ip, NULL, NULL)))
+				memcpy(&rr->p->stun_transid, &rr->streq->req_head.id, sizeof(rr->p->stun_transid));
 
-    if (recordhistory)
-        append_history(p, "%-15s %d %s\n", (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), req->seqno, sip_methods[req->method].text);
+			if (p->rtp && cw_rtp_get_stunstate(p->rtp) == 0) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on RTP to %d\n", sip_is_nat_needed(p) );
+				cw_rtp_setnat(p->rtp, sip_is_nat_needed(p) );
+			}
+			if (p->vrtp && cw_rtp_get_stunstate(p->vrtp) == 0) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on VRTP to %d\n", sip_is_nat_needed(p) );
+				cw_rtp_setnat(p->vrtp, sip_is_nat_needed(p) );
+			}
+			if (p->udptl && cw_udptl_get_stunstate(p->udptl) == 0) {
+				cw_log(CW_LOG_DEBUG, "Setting NAT on UDPTL to %d\n", sip_is_nat_needed(p) );
+				cw_udptl_setnat(p->udptl, sip_is_nat_needed(p));
+			}
 
-    if (reliable && !p->peerpoke)
-        res = __sip_reliable_xmit(p, req->seqno, 0, req->data, req->len, (reliable > 1), req->method);
-    else
-        res = __sip_xmit(p, req->data, req->len);
+			if (rr->streq) {
+				if (stundebug)
+					cw_log(CW_LOG_DEBUG,"** Sent STUN packet for request %d\n",rr->streq->req_head.id.id[0]);
+				if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr))) {
+					*req_p = NULL;
+					return 0;
+				}
+			} else
+				cw_log(CW_LOG_WARNING, "STUN: couldn't send packet. Trying to revert to old externip mode.\n");
 
-    p->stun_needed=0;
-    sip_dealloc_headsdp_lines(req);
-    return res;
+			cw_object_put(rr->p);
+			free(rr);
+		} else
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	} else if (p->stun_needed == 2) {
+		if (stundebug)
+			cw_log(CW_LOG_DEBUG,"This transmit request has already a stun %d\n",p->stun_needed);
+		sip_rebuild_payload(p, *req_p, 1);
+	} else {
+		if (stundebug) cw_log(CW_LOG_DEBUG,"This transmit request has stun at %d\n",p->stun_needed);
+			sip_rebuild_payload(p, *req_p, 0);
+	}
+
+	if (sip_debug_test_pvt(p)) {
+		if (sip_is_nat_needed(p))
+			cw_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), (*req_p)->data);
+		else
+			cw_verbose("%sTransmitting (no NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), (*req_p)->data);
+	}
+
+	if (recordhistory)
+		append_history(p, "%-15s %d %s\n", (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), (*req_p)->seqno, sip_methods[(*req_p)->method].text);
+
+	sip_dealloc_headsdp_lines(*req_p);
+
+	if (reliable && !p->peerpoke)
+		res = __sip_reliable_xmit(p, req_p, 0, (reliable > 1));
+	else
+		res = __sip_xmit(p, (*req_p)->data, (*req_p)->len);
+
+	p->stun_needed = 0;
+
+	return res;
 }
 
 static int sip_resend_reqresp(void *data)
 {
-    int res = 0;
+    struct sockaddr_in msin;
     struct sip_reqresp *rr = data;    
     rfc3489_addr_t *map = NULL;
     struct sip_pvt *p = rr->p;
-    struct sockaddr_in msin;
-
-    if (!rr) 
-        return 0;
-
-    if (!if_callid_exists(rr->callid))
-    {
-        cw_log(CW_LOG_DEBUG, "REQRESP: callid %s has been destroyed in the meanwhile. \n",rr->callid);    
-            sip_dealloc_headsdp_lines(&rr->req);
-        free(data);
-        return 0;
-    }
-    if (rr->streq)
-    {
-        if (stundebug)
-            cw_log(CW_LOG_DEBUG,"** expected stun reqid %d\n",rr->streq->req_head.id.id[0]);
-    }
-    else
-    {
-        if (stundebug)
-            cw_log(CW_LOG_DEBUG,"** deleting transmission retrial 'cause stun request is not set\n");
-        rr->p->stun_needed=0;
-        sip_dealloc_headsdp_lines(&rr->req);
-        free(data);
-        return 0;
-    }
-
-    rr->p->stun_retrans_no++;
-    if (rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT)
-    {
-        if (stundebug)
-            cw_log(CW_LOG_DEBUG,"Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n",rr->p->stun_resreq_id);
-        p->stun_needed = 0;
-        sip_dealloc_headsdp_lines(&rr->req);
-        free(data);
-        return 0;
-    };
+    int res = 0;
 
     if (stundebug)
-        cw_log(CW_LOG_DEBUG,"** Trying to resend a packet after stun request. "
-                 "Type %d, seqno %d sched %d, callid %s\n",rr->type,rr->seqno,rr->p->stun_resreq_id, rr->callid);
+        cw_log(CW_LOG_DEBUG, "** expected stun reqid %d\n", rr->streq->req_head.id.id[0]);
 
-    if (p->rtp  &&  cw_rtp_get_stunstate(p->rtp) == 1)
+    rr->p->stun_retrans_no++;
+    if (rr->p->stun_retrans_no > STUN_MAX_RETRANSMIT) {
+        if (stundebug)
+            cw_log(CW_LOG_DEBUG, "Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n", rr->p->stun_resreq_id);
+        p->stun_needed = 0;
+        sip_dealloc_headsdp_lines(rr->req);
+        cw_object_put(rr->p);
+        free(rr);
+        return 0;
+    }
+
+    if (stundebug)
+        cw_log(CW_LOG_DEBUG, "** Trying to resend a packet after stun request. "
+                 "Type %d, seqno %d sched %d, callid %s\n", rr->type, rr->req->seqno, rr->p->stun_resreq_id, rr->callid);
+
+    if (p->rtp && cw_rtp_get_stunstate(p->rtp) == 1)
         cw_rtp_read(p->rtp);                /* RTP Stun search */
 
-    if (p->vrtp  &&  cw_rtp_get_stunstate(p->vrtp) == 1)
+    if (p->vrtp && cw_rtp_get_stunstate(p->vrtp) == 1)
         cw_rtp_read(p->vrtp);                /* VRTP Stun search */
 
-    if (p->udptl  &&  cw_udptl_get_stunstate(p->udptl) == 1)
+    if (p->udptl && cw_udptl_get_stunstate(p->udptl) == 1)
         cw_udptl_read(p->udptl);            /* UDPTL Stun search */
 
     map = cw_stun_find_request(&rr->streq->req_head.id);
@@ -2385,7 +2336,7 @@ static int sip_resend_reqresp(void *data)
     if (stundebug)
     {
         cw_log(CW_LOG_DEBUG,"** STUN: state - sip: %d - sdp ports: rtp:%d vrtp:%d udptl:%d \n",
-                 (!map) ? 1 : 2,
+                 (map ? 2 : 1),
                  cw_rtp_get_stunstate(p->rtp),
                  cw_rtp_get_stunstate(p->vrtp),
                  cw_udptl_get_stunstate(p->udptl));
@@ -2412,7 +2363,10 @@ static int sip_resend_reqresp(void *data)
                      cw_rtp_get_stunstate(p->rtp),
                      cw_rtp_get_stunstate(p->vrtp),
                      cw_udptl_get_stunstate(p->udptl));
-        rr->p->stun_resreq_id=cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr);
+        if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr)) < 0) {
+            cw_object_put(rr->p);
+            free(rr);
+	}
         return res;
     }
 
@@ -2423,33 +2377,32 @@ static int sip_resend_reqresp(void *data)
     if (stundebug)
         cw_log(CW_LOG_DEBUG,"** STUN rebuilding payload before sending reqresp\n");
 #endif
-    sip_rebuild_payload(rr->p, &rr->req, 1);
+    sip_rebuild_payload(rr->p, rr->req, 1);
+    sip_dealloc_headsdp_lines(rr->req);
 
-    if (rr->type == 1)
-    {
+    if (rr->type == 1) {
         if (stundebug)
             cw_log(CW_LOG_DEBUG,"** STUN Sending response after acquiring STUN\n");
         /* This is a send_response*/
         rr->p->stun_needed = 2;
-        send_response(rr->p, &rr->req, rr->reliable, rr->seqno);
-    }
-    else if (rr->type == 2)
-    {
+        send_response(rr->p, &rr->req, rr->reliable);
+    } else if (rr->type == 2) {
         if (stundebug)
             cw_log(CW_LOG_DEBUG,"** STUN Sending request after acquiring STUN\n");
         /* This is a send_request*/
         rr->p->stun_needed = 2;
         send_request(rr->p, &rr->req, rr->reliable);
-    }
-    else
-    {
+    } else {
         if (stundebug)
             cw_log(CW_LOG_DEBUG, "deleting this request of reqresp %d\n",rr->p->stun_resreq_id);
     }
 
-    sip_dealloc_headsdp_lines(&rr->req);
     stun_remove_request(&rr->streq->req_head.id);        
-    free(data);
+
+    if (rr->req)
+        free(rr->req);
+    cw_object_put(rr->p);
+    free(rr);
 
     return res;
 }
@@ -3116,7 +3069,7 @@ static void sip_registry_release(struct cw_object *obj)
 /*! \brief   sip_destroy: Execute destrucion of call structure, release memory*/
 static void sip_destroy(struct sip_pvt *dialogue)
 {
-	struct sip_pkt *cp;
+	struct sip_request *msg;
 
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
@@ -3157,8 +3110,8 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
 		cw_object_put(dialogue);
 
-	for (cp = dialogue->packets; cp; cp = cp->next)
-		if (cp->retransid > -1 && !cw_sched_del(sched, cp->retransid))
+	for (msg = dialogue->retrans; msg; msg = msg->next)
+		if (msg->retransid > -1 && !cw_sched_del(sched, msg->retransid))
 			cw_object_put(dialogue);
 
 	if (dialogue->registry) {
@@ -4678,6 +4631,7 @@ startline:
 					state = (req->data[i] == '\n' ? 0 : 4);
 					req->data[i] = '\0';
 					if (!strcasecmp(req->data + req->header[req->headers], "CSeq")) {
+						req->seqno = atol(req->data + req->header_val[req->headers]);
 						req->cseq = req->header_val[req->headers];
 						req->cseq_len = i - req->header_val[req->headers];
 					} else if (!strcasecmp(req->data + req->header[req->headers], "l") || !strcasecmp(req->data + req->header[req->headers], "Content-Length")) {
@@ -5748,6 +5702,7 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
         return -1;
     }
     req->method = SIP_RESPONSE;
+    req->seqno = orig->seqno;
     req->head_lines=NULL;
     req->sdp_lines=NULL;
     sprintf(content, "SIP/2.0 %s", resp);
@@ -5946,26 +5901,28 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod si
     return 0;
 }
 /*! \brief  __transmit_response: Base transmit response function */
-static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
+static int __transmit_response(struct sip_pvt *p, char *status, struct sip_request *req, int reliable)
 {
-    struct sip_request resp;
-    int seqno = 0;
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
 
-    if (reliable && (sscanf(req->data + req->cseq, "%d", &seqno) != 1))
-    {
-        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from \"%s\"\n", req->data + req->cseq);
-        return -1;
-    }
-    respprep(&resp, p, msg, req);
-    add_header_contentLength(&resp, 0);
-    /* If we are cancelling an incoming invite for some reason, add information
-        about the reason why we are doing this in clear text */
-    if (msg[0] != '1' && p->owner && p->owner->hangupcause)
-    {
-        add_header(&resp, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
-    }
-    add_blank_header(&resp);
-    return send_response(p, &resp, reliable, seqno);
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		respprep(msg, p, status, req);
+		add_header_contentLength(msg, 0);
+		/* If we are cancelling an incoming invite for some reason, add information
+		 * about the reason why we are doing this in clear text
+		 */
+		if (status[0] != '1' && p->owner && p->owner->hangupcause)
+			add_header(msg, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+		add_blank_header(msg);
+
+		res =  send_response(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 //TODO
@@ -6017,13 +5974,14 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 }
 
 /*! \brief  transmit_response_with_unsupported: Transmit response, no retransmits */
-static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported) 
+static int transmit_response_with_unsupported(struct sip_pvt *p, char *status, struct sip_request *req, char *unsupported) 
 {
-    struct sip_request resp;
-    respprep(&resp, p, msg, req);
-    append_date(&resp);
-    add_header(&resp, "Unsupported", unsupported, SIP_DL_DONTCARE);
-    return send_response(p, &resp, 0, 0);
+	struct sip_request tmpmsg, *msg = &tmpmsg;
+
+	respprep(msg, p, status, req);
+	append_date(msg);
+	add_header(msg, "Unsupported", unsupported, SIP_DL_DONTCARE);
+	return send_response(p, &msg, 0);
 }
 
 /*! \brief  transmit_response_reliable: Transmit response, Make sure you get a reply */
@@ -6046,47 +6004,60 @@ static void append_date(struct sip_request *req)
 }
 
 /*! \brief  transmit_response_with_date: Append date and content length before transmitting response */
-static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int transmit_response_with_date(struct sip_pvt *p, char *status, struct sip_request *req)
 {
-    struct sip_request resp;
-    respprep(&resp, p, msg, req);
-    append_date(&resp);
-    add_header_contentLength(&resp, 0);
-    add_blank_header(&resp);
-    return send_response(p, &resp, 0, 0);
+	struct sip_request tmpmsg, *msg = &tmpmsg;
+
+	respprep(msg, p, status, req);
+	append_date(msg);
+	add_header_contentLength(msg, 0);
+	add_blank_header(msg);
+	return send_response(p, &msg, 0);
 }
 
 /*! \brief  transmit_response_with_allow: Append Accept header, content length before transmitting response */
-static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
+static int transmit_response_with_allow(struct sip_pvt *p, char *status, struct sip_request *req, int reliable)
 {
-    struct sip_request resp;
-    respprep(&resp, p, msg, req);
-    add_header(&resp, "Accept", "application/sdp", SIP_DL_DONTCARE);
-    add_header_contentLength(&resp, 0);
-    add_blank_header(&resp);
-    return send_response(p, &resp, reliable, 0);
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
+
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		respprep(msg, p, status, req);
+		add_header(msg, "Accept", "application/sdp", SIP_DL_DONTCARE);
+		add_header_contentLength(msg, 0);
+		add_blank_header(msg);
+
+		res = send_response(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /* transmit_response_with_auth: Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable, char *header, int stale)
+static int transmit_response_with_auth(struct sip_pvt *p, char *status, struct sip_request *req, char *randdata, int reliable, char *header, int stale)
 {
-    struct sip_request resp;
-    char tmp[512];
-    int seqno = 0;
+	char tmp[512];
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
 
-    if (reliable && (sscanf(req->data + req->cseq, "%d", &seqno) != 1))
-    {
-        cw_log(CW_LOG_WARNING, "Unable to determine sequence number from \"%s\"\n", req->data + req->cseq);
-        return -1;
-    }
-    /* Stale means that they sent us correct authentication, but 
-       based it on an old challenge (nonce) */
-    snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
-    respprep(&resp, p, msg, req);
-    add_header(&resp, header, tmp, SIP_DL_DONTCARE);
-    add_header_contentLength(&resp, 0);
-    add_blank_header(&resp);
-    return send_response(p, &resp, reliable, seqno);
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		respprep(msg, p, status, req);
+		/* Stale means that they sent us correct authentication, but based it on an old challenge (nonce) */
+		snprintf(tmp, sizeof(tmp), "Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", global_realm, randdata, stale ? ", stale=true" : "");
+		add_header(msg, header, tmp, SIP_DL_DONTCARE);
+		add_header_contentLength(msg, 0);
+		add_blank_header(msg);
+
+		res = send_response(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  add_text: Add text body to SIP message */
@@ -6616,52 +6587,50 @@ static void copy_request(struct sip_request *dst, struct sip_request *src)
 }
 
 /*! \brief  transmit_response_with_sdp: Used for 200 OK and 183 early media */
-static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
+static int transmit_response_with_sdp(struct sip_pvt *p, char *status, struct sip_request *req, int reliable)
 {
-    struct sip_request resp;
-    int seqno;
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
 
-    if (sscanf(req->data + req->cseq, "%d", &seqno) != 1)
-    {
-        cw_log(CW_LOG_WARNING, "Unable to get seqno from \"%s\"\n", req->data + req->cseq);
-        return -1;
-    }
-    respprep(&resp, p, msg, req);
-    if (p->rtp)
-    {
-        cw_rtp_offered_from_local(p->rtp, 0);
-	try_suggested_sip_codec(p);	
-        add_sdp(&resp, p);
-    }
-    else
-    {
-        cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
-    }
-    return send_response(p, &resp, retrans, seqno);
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		respprep(msg, p, status, req);
+		if (p->rtp) {
+			cw_rtp_offered_from_local(p->rtp, 0);
+			try_suggested_sip_codec(p);
+			add_sdp(msg, p);
+		} else
+			cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
+
+		res =  send_response(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_response_with_t38_sdp: Used for 200 OK and 183 early media */
-static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans)
+static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *status, struct sip_request *req, int reliable)
 {
-    struct sip_request resp;
-    int seqno;
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
 
-    if (sscanf(req->data + req->cseq, "%d", &seqno) != 1)
-    {
-        cw_log(CW_LOG_WARNING, "Unable to get seqno from \"%s\"\n", req->data + req->cseq);
-        return -1;
-    }
-    respprep(&resp, p, msg, req);
-    if (p->udptl)
-    {
-        cw_udptl_offered_from_local(p->udptl, 0);
-        add_t38_sdp(&resp, p);
-    }
-    else
-    {
-        cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
-    }
-    return send_response(p, &resp, retrans, seqno);
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		respprep(msg, p, status, req);
+		if (p->udptl) {
+			cw_udptl_offered_from_local(p->udptl, 0);
+			add_t38_sdp(msg, p);
+		} else
+			cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
+
+		res =  send_response(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 
@@ -6673,35 +6642,43 @@ static int transmit_response_with_t38_sdp(struct sip_pvt *p, char *msg, struct s
 */
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
-    struct sip_request req;
-    if (cw_test_flag(p, SIP_REINVITE_UPDATE))
-        reqprep(&req, p, SIP_UPDATE, 0, 1);
-    else 
-        reqprep(&req, p, SIP_INVITE, 0, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		if (cw_test_flag(p, SIP_REINVITE_UPDATE))
+			reqprep(msg, p, SIP_UPDATE, 0, 1);
+		else
+			reqprep(msg, p, SIP_INVITE, 0, 1);
     
-    add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
-    if (sipdebug)
-        add_header(&req, "X-callweaver-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
-    cw_rtp_offered_from_local(p->rtp, 1);
-    add_sdp(&req, p);
-    /* Use this as the basis */
-    copy_request(&p->initreq, &req);
-    parse_request(&p->initreq);
-    if (sip_debug_test_pvt(p))
-        cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    p->lastinvite = p->ocseq;
-    cw_set_flag(p, SIP_OUTGOING);
+		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
+		if (sipdebug)
+			add_header(msg, "X-callweaver-info", "SIP re-invite (RTP bridge)", SIP_DL_DONTCARE);
+		cw_rtp_offered_from_local(p->rtp, 1);
+		add_sdp(msg, p);
+		/* Use this as the basis */
+		copy_request(&p->initreq, msg);
+		parse_request(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		p->lastinvite = p->ocseq;
+		cw_set_flag(p, SIP_OUTGOING);
 
-    cw_log(CW_LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
-    if (t38udptlsupport  &&  p->udptl )
-    {
-        cw_rtp_set_active(p->rtp, 0);
-    	cw_udptl_set_active(p->udptl, 1);
-        p->udptl_active = 1;
-	cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
-    }
+		cw_log(CW_LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
+		if (t38udptlsupport  &&  p->udptl ) {
+			cw_rtp_set_active(p->rtp, 0);
+			cw_udptl_set_active(p->udptl, 1);
+			p->udptl_active = 1;
+			cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
+		}
 
-    return send_request(p, &req, 1);
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return -1;
 }
 
 /*! \brief  transmit_reinvite_with_t38_sdp: Transmit reinvite with T38 SDP */
@@ -6712,25 +6689,35 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 */
 static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 {
-    struct sip_request req;
-    if (cw_test_flag(p, SIP_REINVITE_UPDATE))
-        reqprep(&req, p, SIP_UPDATE, 0, 1);
-    else 
-        reqprep(&req, p, SIP_INVITE, 0, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		if (cw_test_flag(p, SIP_REINVITE_UPDATE))
+			reqprep(msg, p, SIP_UPDATE, 0, 1);
+		else
+			reqprep(msg, p, SIP_INVITE, 0, 1);
     
-    add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
-    if (sipdebug)
-        add_header(&req, "X-callweaver-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
-    cw_udptl_offered_from_local(p->udptl, 1);
-    add_t38_sdp(&req, p);
-    /* Use this as the basis */
-    copy_request(&p->initreq, &req);
-    parse_request(&p->initreq);
-    if (sip_debug_test_pvt(p))
-        cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    p->lastinvite = p->ocseq;
-    cw_set_flag(p, SIP_OUTGOING);
-    return send_request(p, &req, 1);
+		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
+		if (sipdebug)
+			add_header(msg, "X-callweaver-info", "SIP re-invite (T38 switchover)", SIP_DL_DONTCARE);
+		cw_udptl_offered_from_local(p->udptl, 1);
+		add_t38_sdp(msg, p);
+		/* Use this as the basis */
+		copy_request(&p->initreq, msg);
+		parse_request(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		p->lastinvite = p->ocseq;
+		cw_set_flag(p, SIP_OUTGOING);
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  extract_uri: Check Contact: URI of SIP message */
@@ -7019,285 +7006,275 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
 /*! \brief  transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it */
 static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp, int init)
 {
-    struct sip_request req;
-    
-    req.method = sipmethod;
-    if (init)
-    {
-        /* Bump branch even on initial requests */
-        p->branch ^= cw_random();
-        build_via(p, p->via, sizeof(p->via));
-        if (init > 1)
-            initreqprep(&req, p, sipmethod);
-        else
-            reqprep(&req, p, sipmethod, 0, 1);
-    }
-    else
-        reqprep(&req, p, sipmethod, 0, 1);
-        
-    if (p->options && p->options->auth)
-        add_header(&req, p->options->authheader, p->options->auth, SIP_DL_DONTCARE);
-    append_date(&req);
-    if (sipmethod == SIP_REFER)
-    {
-        /* Call transfer */
-        if (!cw_strlen_zero(p->refer_to))
-            add_header(&req, "Refer-To", p->refer_to, SIP_DL_DONTCARE);
-        if (!cw_strlen_zero(p->referred_by))
-            add_header(&req, "Referred-By", p->referred_by, SIP_DL_DONTCARE);
-    }
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		msg->method = sipmethod;
+		if (init) {
+			/* Bump branch even on initial requests */
+			p->branch ^= cw_random();
+			build_via(p, p->via, sizeof(p->via));
+			if (init > 1)
+				initreqprep(msg, p, sipmethod);
+			else
+				reqprep(msg, p, sipmethod, 0, 1);
+		} else
+			reqprep(msg, p, sipmethod, 0, 1);
+
+		if (p->options && p->options->auth)
+			add_header(msg, p->options->authheader, p->options->auth, SIP_DL_DONTCARE);
+		append_date(msg);
+		if (sipmethod == SIP_REFER) {
+			/* Call transfer */
+			if (!cw_strlen_zero(p->refer_to))
+				add_header(msg, "Refer-To", p->refer_to, SIP_DL_DONTCARE);
+			if (!cw_strlen_zero(p->referred_by))
+				add_header(msg, "Referred-By", p->referred_by, SIP_DL_DONTCARE);
+		}
 #ifdef OSP_SUPPORT
-    if (req.method != SIP_OPTIONS && p->options && p->options->osptoken && !cw_strlen_zero(p->options->osptoken->value))
-    {
-        cw_log(CW_LOG_DEBUG, "Adding OSP Token: %s\n", p->options->osptoken->value);
-        add_header(&req, "P-OSP-Auth-Token", p->options->osptoken->value, SIP_DL_DONTCARE);
-    }
+		if (sipmethod != SIP_OPTIONS && p->options && p->options->osptoken && !cw_strlen_zero(p->options->osptoken->value)) {
+			cw_log(CW_LOG_DEBUG, "Adding OSP Token: %s\n", p->options->osptoken->value);
+			add_header(msg, "P-OSP-Auth-Token", p->options->osptoken->value, SIP_DL_DONTCARE);
+		}
 #endif
-    if (p->options && p->options->distinctive_ring && !cw_strlen_zero(p->options->distinctive_ring->value))
-    {
-        add_header(&req, "Alert-Info", p->options->distinctive_ring->value, SIP_DL_DONTCARE);
-    }
-    add_header(&req, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
-    if (p->owner)
-    {
-        char buf[] = "SIPADDHEADER0\000";
-        struct cw_object *obj;
-        int i = 1;
+		if (p->options && p->options->distinctive_ring && !cw_strlen_zero(p->options->distinctive_ring->value))
+			add_header(msg, "Alert-Info", p->options->distinctive_ring->value, SIP_DL_DONTCARE);
 
-        while ((obj = cw_registry_find(&p->owner->vars, 1, cw_hash_var_name(buf), buf))) {
-            struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-            char *headdup = cw_strdupa(var->value);
-            char *content, *end;
+		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 
-            cw_object_put_obj(obj);
+		if (p->owner) {
+			char buf[] = "SIPADDHEADER0\000";
+			struct cw_object *obj;
+			int i = 1;
 
-            /* Strip of the starting " (if it's there) */
-            if (*headdup == '"')
-                 headdup++;
-            if ((content = strchr(headdup, ':')))
-            {
-                *content = '\0';
-                content++;    /* Move pointer ahead */
-                /* Skip white space */
-                while (*content == ' ')
-                      content++;
-                /* Strip the ending " (if it's there) */
-                end = content + strlen(content) - 1;
-                if (*end == '"')
-                    *end = '\0';
+			while ((obj = cw_registry_find(&p->owner->vars, 1, cw_hash_var_name(buf), buf))) {
+				struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
+				char *headdup = cw_strdupa(var->value);
+				char *content, *end;
 
-                add_header(&req, headdup, content, SIP_DL_DONTCARE);
+				cw_object_put_obj(obj);
 
-                if (sipdebug)
-                    cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
-            }
+				/* Strip of the starting " (if it's there) */
+				if (*headdup == '"')
+					headdup++;
+				if ((content = strchr(headdup, ':'))) {
+					*content = '\0';
+					content++;    /* Move pointer ahead */
+					/* Skip white space */
+					while (*content == ' ')
+						content++;
+					/* Strip the ending " (if it's there) */
+					end = content + strlen(content) - 1;
+					if (*end == '"')
+						*end = '\0';
 
-            sprintf(buf + sizeof(buf) - 2, "%.2d", i++);
-        }
-    }
-    if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT))
-    {
-        cw_udptl_offered_from_local(p->udptl, 1);
-        cw_log(CW_LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-        add_t38_sdp(&req, p);
-    }
-    else if (sdp  &&  p->rtp)
-    {
-        cw_rtp_offered_from_local(p->rtp, 1);
-        add_sdp(&req, p);
-    }
-    else
-    {
-        add_header_contentLength(&req, 0);
-        add_blank_header(&req);
-    }
+					add_header(msg, headdup, content, SIP_DL_DONTCARE);
 
-    if (!p->initreq.headers)
-    {
-        /* Use this as the basis */
-        copy_request(&p->initreq, &req);
-        parse_request(&p->initreq);
-        if (sip_debug_test_pvt(p))
-            cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    }
-    p->lastinvite = p->ocseq;
-    return send_request(p, &req, (init ? 2 : 1));
+					if (sipdebug)
+						cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
+				}
+
+				sprintf(buf + sizeof(buf) - 2, "%.2d", i++);
+			}
+		}
+		if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT)) {
+			cw_udptl_offered_from_local(p->udptl, 1);
+			cw_log(CW_LOG_DEBUG, "T38 is in state %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+			add_t38_sdp(msg, p);
+		} else if (sdp  &&  p->rtp) {
+			cw_rtp_offered_from_local(p->rtp, 1);
+			add_sdp(msg, p);
+		} else {
+			add_header_contentLength(msg, 0);
+			add_blank_header(msg);
+		}
+
+		if (!p->initreq.headers) {
+			/* Use this as the basis */
+			copy_request(&p->initreq, msg);
+			parse_request(&p->initreq);
+			if (sip_debug_test_pvt(p))
+				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		}
+		p->lastinvite = p->ocseq;
+
+		res = send_request(p, &msg, (init ? 2 : 1));
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_state_notify: Used in the SUBSCRIBE notification subsystem -*/
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout)
 {
-    char tmp[4000], from[256], to[256];
-    char *t = tmp, *c, *a, *mfrom, *mto;
-    size_t maxbytes = sizeof(tmp);
-    struct sip_request req;
-    char hint[CW_MAX_EXTENSION];
-    char *statestring = "terminated";
-    const struct cfsubscription_types *subscriptiontype;
-    enum state { NOTIFY_OPEN, NOTIFY_INUSE, NOTIFY_CLOSED } local_state = NOTIFY_OPEN;
-    char *pidfstate = "--";
-    char *pidfnote= "Ready";
+	char tmp[4000], from[256], to[256];
+	char hint[CW_MAX_EXTENSION];
+	char *t = tmp, *c, *a, *mfrom, *mto;
+	size_t maxbytes = sizeof(tmp);
+	struct sip_request *msg;
+	char *statestring = "terminated";
+	const struct cfsubscription_types *subscriptiontype;
+	enum state { NOTIFY_OPEN, NOTIFY_INUSE, NOTIFY_CLOSED } local_state = NOTIFY_OPEN;
+	char *pidfstate = "--";
+	char *pidfnote= "Ready";
+	int res = -1;
 
-    memset(from, 0, sizeof(from));
-    memset(to, 0, sizeof(to));
-    memset(tmp, 0, sizeof(tmp));
+	if ((msg = malloc(sizeof(*msg)))) {
+		switch (state) {
+			case (CW_EXTENSION_RINGING | CW_EXTENSION_INUSE):
+				if (global_notifyringing)
+					statestring = "early";
+				else
+					statestring = "confirmed";
+				local_state = NOTIFY_INUSE;
+				pidfstate = "busy";
+				pidfnote = "Ringing";
+				break;
+			case CW_EXTENSION_RINGING:
+				statestring = "early";
+				local_state = NOTIFY_INUSE;
+				pidfstate = "busy";
+				pidfnote = "Ringing";
+				break;
+			case CW_EXTENSION_INUSE:
+				statestring = "confirmed";
+				local_state = NOTIFY_INUSE;
+				pidfstate = "busy";
+				pidfnote = "On the phone";
+				break;
+			case CW_EXTENSION_BUSY:
+				statestring = "confirmed";
+				local_state = NOTIFY_CLOSED;
+				pidfstate = "busy";
+				pidfnote = "On the phone";
+				break;
+			case CW_EXTENSION_UNAVAILABLE:
+				statestring = "confirmed";
+				local_state = NOTIFY_CLOSED;
+				pidfstate = "away";
+				pidfnote = "Unavailable";
+				break;
+			case CW_EXTENSION_NOT_INUSE:
+			default:
+				/* Default setting */
+				break;
+		}
 
-    switch (state)
-    {
-    case (CW_EXTENSION_RINGING | CW_EXTENSION_INUSE):
-        if (global_notifyringing)
-            statestring = "early";
-        else
-            statestring = "confirmed";
-        local_state = NOTIFY_INUSE;
-        pidfstate = "busy";
-        pidfnote = "Ringing";
-        break;
-    case CW_EXTENSION_RINGING:
-        statestring = "early";
-        local_state = NOTIFY_INUSE;
-        pidfstate = "busy";
-        pidfnote = "Ringing";
-        break;
-    case CW_EXTENSION_INUSE:
-        statestring = "confirmed";
-        local_state = NOTIFY_INUSE;
-        pidfstate = "busy";
-        pidfnote = "On the phone";
-        break;
-    case CW_EXTENSION_BUSY:
-        statestring = "confirmed";
-        local_state = NOTIFY_CLOSED;
-        pidfstate = "busy";
-        pidfnote = "On the phone";
-        break;
-    case CW_EXTENSION_UNAVAILABLE:
-        statestring = "confirmed";
-        local_state = NOTIFY_CLOSED;
-        pidfstate = "away";
-        pidfnote = "Unavailable";
-        break;
-    case CW_EXTENSION_NOT_INUSE:
-    default:
-        /* Default setting */
-        break;
-    }
-
-    subscriptiontype = find_subscription_type(p->subscribed);
+		subscriptiontype = find_subscription_type(p->subscribed);
     
-    /* Check which device/devices we are watching  and if they are registered */
-    if (cw_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten))
-    {
-        /* If they are not registered, we will override notification and show no availability */
-        if (cw_device_state(hint) == CW_DEVICE_UNAVAILABLE)
-        {
-            local_state = NOTIFY_CLOSED;
-            pidfstate = "away";
-            pidfnote = "Not online";
-        }
-    }
+		/* Check which device/devices we are watching  and if they are registered */
+		if (cw_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten)) {
+			/* If they are not registered, we will override notification and show no availability */
+			if (cw_device_state(hint) == CW_DEVICE_UNAVAILABLE) {
+				local_state = NOTIFY_CLOSED;
+				pidfstate = "away";
+				pidfnote = "Not online";
+			}
+		}
 
-    cw_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
-    c = get_in_brackets(from);
-    if (strncasecmp(c, "sip:", 4))
-    {
-        cw_log(CW_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
-        return -1;
-    }
-    if ((a = strchr(c, ';')))
-        *a = '\0';
-    mfrom = c;
+		cw_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
+		c = get_in_brackets(from);
+		if (strncasecmp(c, "sip:", 4)) {
+			cw_log(CW_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+			return -1;
+		}
+		if ((a = strchr(c, ';')))
+			*a = '\0';
+		mfrom = c;
 
-    cw_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
-    c = get_in_brackets(to);
-    if (strncasecmp(c, "sip:", 4))
-    {
-        cw_log(CW_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
-        return -1;
-    }
-    if ((a = strchr(c, ';')))
-        *a = '\0';
-    mto = c;
+		cw_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
+		c = get_in_brackets(to);
+		if (strncasecmp(c, "sip:", 4)) {
+			cw_log(CW_LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+			return -1;
+		}
+		if ((a = strchr(c, ';')))
+			*a = '\0';
+		mto = c;
 
-    reqprep(&req, p, SIP_NOTIFY, 0, 1);
+		reqprep(msg, p, SIP_NOTIFY, 0, 1);
 
-    
-    add_header(&req, "Event", subscriptiontype->event, SIP_DL_DONTCARE);
-    add_header(&req, "Content-Type", subscriptiontype->mediatype, SIP_DL_DONTCARE);
-    switch(state)
-    {
-    case CW_EXTENSION_DEACTIVATED:
-        if (p->subscribed == TIMEOUT)
-        {
-            add_header(&req, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
-        }
-        else
-        {
-            add_header(&req, "Subscription-State", "terminated;reason=probation", SIP_DL_DONTCARE);
-            add_header(&req, "Retry-After", "60", SIP_DL_DONTCARE);
-        }
-        break;
-    case CW_EXTENSION_REMOVED:
-        add_header(&req, "Subscription-State", "terminated;reason=noresource", SIP_DL_DONTCARE);
-        break;
-    default:
-        if (p->expiry)
-            add_header(&req, "Subscription-State", "active", SIP_DL_DONTCARE);
-        else    /* Expired */
-            add_header(&req, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
-    }
-    switch (p->subscribed)
-    {
-    case XPIDF_XML:
-    case CPIM_PIDF_XML:
-        cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
-        cw_build_string(&t, &maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
-        cw_build_string(&t, &maxbytes, "<presence>\n");
-        cw_build_string(&t, &maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
-        cw_build_string(&t, &maxbytes, "<atom id=\"%s\">\n", p->exten);
-        cw_build_string(&t, &maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
-        cw_build_string(&t, &maxbytes, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
-        cw_build_string(&t, &maxbytes, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
-        cw_build_string(&t, &maxbytes, "</address>\n</atom>\n</presence>\n");
-        break;
-    case PIDF_XML: /* Eyebeam supports this format */
-        cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-        cw_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
-        cw_build_string(&t, &maxbytes, "<pp:person><status>\n");
-        if (pidfstate[0] != '-')
-            cw_build_string(&t, &maxbytes, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
-        cw_build_string(&t, &maxbytes, "</status></pp:person>\n");
-        cw_build_string(&t, &maxbytes, "<note>%s</note>\n", pidfnote); /* Note */
-        cw_build_string(&t, &maxbytes, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
-        cw_build_string(&t, &maxbytes, "<contact priority=\"1\">%s</contact>\n", mto);
-        if (pidfstate[0] == 'b') /* Busy? Still open ... */
-            cw_build_string(&t, &maxbytes, "<status><basic>open</basic></status>\n");
-        else
-            cw_build_string(&t, &maxbytes, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
-        cw_build_string(&t, &maxbytes, "</tuple>\n</presence>\n");
-        break;
-    case DIALOG_INFO_XML: /* SNOM subscribes in this format */
-        cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
-        cw_build_string(&t, &maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mto);
-        if ((state & CW_EXTENSION_RINGING) && global_notifyringing)
-            cw_build_string(&t, &maxbytes, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
-        else
-            cw_build_string(&t, &maxbytes, "<dialog id=\"%s\">\n", p->exten);
-        cw_build_string(&t, &maxbytes, "<state>%s</state>\n", statestring);
-        cw_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");
-        break;
-    case NONE:
-    default:
-        break;
-    }
+		add_header(msg, "Event", subscriptiontype->event, SIP_DL_DONTCARE);
+		add_header(msg, "Content-Type", subscriptiontype->mediatype, SIP_DL_DONTCARE);
+		switch(state) {
+			case CW_EXTENSION_DEACTIVATED:
+				if (p->subscribed == TIMEOUT)
+					add_header(msg, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
+				else {
+					add_header(msg, "Subscription-State", "terminated;reason=probation", SIP_DL_DONTCARE);
+					add_header(msg, "Retry-After", "60", SIP_DL_DONTCARE);
+				}
+				break;
+			case CW_EXTENSION_REMOVED:
+				add_header(msg, "Subscription-State", "terminated;reason=noresource", SIP_DL_DONTCARE);
+				break;
+			default:
+				if (p->expiry)
+					add_header(msg, "Subscription-State", "active", SIP_DL_DONTCARE);
+				else    /* Expired */
+					add_header(msg, "Subscription-State", "terminated;reason=timeout", SIP_DL_DONTCARE);
+		}
+		switch (p->subscribed) {
+			case XPIDF_XML:
+			case CPIM_PIDF_XML:
+				cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
+				cw_build_string(&t, &maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
+				cw_build_string(&t, &maxbytes, "<presence>\n");
+				cw_build_string(&t, &maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+				cw_build_string(&t, &maxbytes, "<atom id=\"%s\">\n", p->exten);
+				cw_build_string(&t, &maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
+				cw_build_string(&t, &maxbytes, "<status status=\"%s\" />\n", (local_state ==  NOTIFY_OPEN) ? "open" : (local_state == NOTIFY_INUSE) ? "inuse" : "closed");
+				cw_build_string(&t, &maxbytes, "<msnsubstatus substatus=\"%s\" />\n", (local_state == NOTIFY_OPEN) ? "online" : (local_state == NOTIFY_INUSE) ? "onthephone" : "offline");
+				cw_build_string(&t, &maxbytes, "</address>\n</atom>\n</presence>\n");
+				break;
+			case PIDF_XML: /* Eyebeam supports this format */
+				cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+				cw_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
+				cw_build_string(&t, &maxbytes, "<pp:person><status>\n");
+				if (pidfstate[0] != '-')
+					cw_build_string(&t, &maxbytes, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
+				cw_build_string(&t, &maxbytes, "</status></pp:person>\n");
+				cw_build_string(&t, &maxbytes, "<note>%s</note>\n", pidfnote); /* Note */
+				cw_build_string(&t, &maxbytes, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
+				cw_build_string(&t, &maxbytes, "<contact priority=\"1\">%s</contact>\n", mto);
+				if (pidfstate[0] == 'b') /* Busy? Still open ... */
+					cw_build_string(&t, &maxbytes, "<status><basic>open</basic></status>\n");
+				else
+					cw_build_string(&t, &maxbytes, "<status><basic>%s</basic></status>\n", (local_state != NOTIFY_CLOSED) ? "open" : "closed");
+				cw_build_string(&t, &maxbytes, "</tuple>\n</presence>\n");
+				break;
+			case DIALOG_INFO_XML: /* SNOM subscribes in this format */
+				cw_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
+				cw_build_string(&t, &maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mto);
+				if ((state & CW_EXTENSION_RINGING) && global_notifyringing)
+					cw_build_string(&t, &maxbytes, "<dialog id=\"%s\" direction=\"recipient\">\n", p->exten);
+				else
+					cw_build_string(&t, &maxbytes, "<dialog id=\"%s\">\n", p->exten);
+				cw_build_string(&t, &maxbytes, "<state>%s</state>\n", statestring);
+				cw_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");
+				break;
+			case NONE:
+			default:
+				break;
+		}
 
-    if (t > tmp + sizeof(tmp))
-        cw_log(CW_LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
+		if (t > tmp + sizeof(tmp))
+			cw_log(CW_LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
-    add_header_contentLength(&req, strlen(tmp));
-    add_line(&req, tmp, SIP_DL_DONTCARE);
+		add_header_contentLength(msg, strlen(tmp));
+		add_line(msg, tmp, SIP_DL_DONTCARE);
 
-    return send_request(p, &req, 1);
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_notify_with_mwi: Notify user of messages waiting in voicemail */
@@ -7308,49 +7285,55 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
  */
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten)
 {
-    struct sip_request req;
-    char tmp[500];
-    char *t = tmp;
-    size_t maxbytes = sizeof(tmp);
+	char tmp[500];
+	struct sip_request *msg;
+	char *t = tmp;
+	size_t maxbytes = sizeof(tmp);
+	int res = -1;
 
-    initreqprep(&req, p, SIP_NOTIFY);
-    add_header(&req, "Event", "message-summary", SIP_DL_DONTCARE);
-    add_header(&req, "Content-Type", default_notifymime, SIP_DL_DONTCARE);
+	if ((msg = malloc(sizeof(*msg)))) {
+		initreqprep(msg, p, SIP_NOTIFY);
+		add_header(msg, "Event", "message-summary", SIP_DL_DONTCARE);
+		add_header(msg, "Content-Type", default_notifymime, SIP_DL_DONTCARE);
 
-    add_header_contentLength(&req, strlen(tmp));
+		add_header_contentLength(msg, strlen(tmp));
 
-    snprintf(t, maxbytes, "Messages-Waiting: %s", newmsgs ? "yes" : "no");
-    add_line(&req, tmp, SIP_DL_DONTCARE);
-    snprintf(t, maxbytes, "Message-Account: sip:%s@%s\r\n", !cw_strlen_zero(vmexten) ? vmexten : global_vmexten, p->fromdomain);
-    add_line(&req, tmp, SIP_DL_DONTCARE);
-    snprintf(t, maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
-    add_line(&req, tmp, SIP_DL_DONTCARE);
+		snprintf(t, maxbytes, "Messages-Waiting: %s", newmsgs ? "yes" : "no");
+		add_line(msg, tmp, SIP_DL_DONTCARE);
+		snprintf(t, maxbytes, "Message-Account: sip:%s@%s\r\n", !cw_strlen_zero(vmexten) ? vmexten : global_vmexten, p->fromdomain);
+		add_line(msg, tmp, SIP_DL_DONTCARE);
+		snprintf(t, maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
+		add_line(msg, tmp, SIP_DL_DONTCARE);
 
-    if (!p->initreq.headers)
-    {
-        /* Use this as the basis */
-        copy_request(&p->initreq, &req);
-        parse_request(&p->initreq);
-        if (sip_debug_test_pvt(p))
-            cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    }
+		if (!p->initreq.headers) {
+			/* Use this as the basis */
+			copy_request(&p->initreq, msg);
+			parse_request(&p->initreq);
+			if (sip_debug_test_pvt(p))
+				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		}
 
-    return send_request(p, &req, 1);
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_sip_request: Transmit SIP request */
-static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
+static int transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 {
-    if (!p->initreq.headers)
-    {
-        /* Use this as the basis */
-        copy_request(&p->initreq, req);
-        parse_request(&p->initreq);
-        if (sip_debug_test_pvt(p))
-            cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    }
+	if (!p->initreq.headers) {
+		/* Use this as the basis */
+		copy_request(&p->initreq, req);
+		parse_request(&p->initreq);
+		if (sip_debug_test_pvt(p))
+			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	}
 
-    return send_request(p, req, 0);
+	return send_request(p, &req, 0);
 }
 
 /*! \brief  transmit_notify_with_sipfrag: Notify a transferring party of the status of trasnfer */
@@ -7360,28 +7343,36 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
  */
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 {
-    struct sip_request req;
-    char tmp[20];
-    reqprep(&req, p, SIP_NOTIFY, 0, 1);
-    snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
-    add_header(&req, "Event", tmp, SIP_DL_DONTCARE);
-    add_header(&req, "Subscription-state", "terminated;reason=noresource", SIP_DL_DONTCARE);
-    add_header(&req, "Content-Type", "message/sipfrag;version=2.0", SIP_DL_DONTCARE);
+	char tmp[20];
+	struct sip_request *msg;
+	int res = -1;
 
-    strcpy(tmp, "SIP/2.0 200 OK");
-    add_header_contentLength(&req, strlen(tmp));
-    add_line(&req, tmp, SIP_DL_DONTCARE);
+	if ((msg = malloc(sizeof(*msg)))) {
+		reqprep(msg, p, SIP_NOTIFY, 0, 1);
+		snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
+		add_header(msg, "Event", tmp, SIP_DL_DONTCARE);
+		add_header(msg, "Subscription-state", "terminated;reason=noresource", SIP_DL_DONTCARE);
+		add_header(msg, "Content-Type", "message/sipfrag;version=2.0", SIP_DL_DONTCARE);
 
-    if (!p->initreq.headers)
-    {
-        /* Use this as the basis */
-        copy_request(&p->initreq, &req);
-        parse_request(&p->initreq);
-        if (sip_debug_test_pvt(p))
-            cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    }
+		strcpy(tmp, "SIP/2.0 200 OK");
+		add_header_contentLength(msg, strlen(tmp));
+		add_line(msg, tmp, SIP_DL_DONTCARE);
 
-    return send_request(p, &req, 1);
+		if (!p->initreq.headers) {
+			/* Use this as the basis */
+			copy_request(&p->initreq, msg);
+			parse_request(&p->initreq);
+			if (sip_debug_test_pvt(p))
+				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+		}
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 static char *regstate2str(int regstate)
@@ -7493,14 +7484,14 @@ static int sip_reg_timeout(void *data)
 /*! \brief  transmit_register: Transmit register to SIP proxy or UA */
 static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, char *auth, char *authheader)
 {
-    struct sip_request req;
     char from[256];
     char to[256];
     char tmp[80];
     char via[80];
     char addr[80];
+    struct sip_request *msg;
     struct sip_pvt *p;
-    int res;
+    int res = -1;
 
     /* exit if we are already in process with this registrar ?*/
     if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT)))
@@ -7650,63 +7641,69 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
     p->branch ^= cw_random();
 
-    memset(&req, 0, sizeof(req));
-    init_req(&req, sipmethod, addr);
+    if ((msg = malloc(sizeof(*msg)))) {
+        memset(msg, 0, sizeof(*msg));
+        init_req(msg, sipmethod, addr);
 
-    /* Add to CSEQ */
-    snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, sip_methods[sipmethod].text);
-    req.seqno = p->ocseq = r->ocseq;
+        /* Add to CSEQ */
+        snprintf(tmp, sizeof(tmp), "%u %s", ++r->ocseq, sip_methods[sipmethod].text);
+        msg->seqno = p->ocseq = r->ocseq;
 
-    build_via(p, via, sizeof(via));
-    add_header(&req, "Via", via, SIP_DL_HEAD_VIA);
-    add_header(&req, "From", from, SIP_DL_DONTCARE);
-    add_header(&req, "To", to, SIP_DL_DONTCARE);
-    add_header(&req, "Call-ID", p->callid, SIP_DL_HEAD_CALLID);
-    add_header(&req, "CSeq", tmp, SIP_DL_DONTCARE);
-    add_header(&req, "User-Agent", default_useragent, SIP_DL_DONTCARE);
-    add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
+        build_via(p, via, sizeof(via));
+        add_header(msg, "Via", via, SIP_DL_HEAD_VIA);
+        add_header(msg, "From", from, SIP_DL_DONTCARE);
+        add_header(msg, "To", to, SIP_DL_DONTCARE);
+        add_header(msg, "Call-ID", p->callid, SIP_DL_HEAD_CALLID);
+        add_header(msg, "CSeq", tmp, SIP_DL_DONTCARE);
+        add_header(msg, "User-Agent", default_useragent, SIP_DL_DONTCARE);
+        add_header(msg, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
 
-    
-    if (auth)     /* Add auth header */
-        add_header(&req, authheader, auth, SIP_DL_DONTCARE);
-    else if (!cw_strlen_zero(r->nonce))
-    {
-        char digest[1024];
+        if (auth)     /* Add auth header */
+            add_header(msg, authheader, auth, SIP_DL_DONTCARE);
+        else if (!cw_strlen_zero(r->nonce))
+        {
+            char digest[1024];
 
-        /* We have auth data to reuse, build a digest header! */
-        if (sipdebug)
-            cw_log(CW_LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
-        cw_copy_string(p->realm, r->realm, sizeof(p->realm));
-        cw_copy_string(p->nonce, r->nonce, sizeof(p->nonce));
-        cw_copy_string(p->domain, r->domain, sizeof(p->domain));
-        cw_copy_string(p->opaque, r->opaque, sizeof(p->opaque));
-        cw_copy_string(p->qop, r->qop, sizeof(p->qop));
-        p->noncecount = r->noncecount++;
+            /* We have auth data to reuse, build a digest header! */
+            if (sipdebug)
+                cw_log(CW_LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
+            cw_copy_string(p->realm, r->realm, sizeof(p->realm));
+            cw_copy_string(p->nonce, r->nonce, sizeof(p->nonce));
+            cw_copy_string(p->domain, r->domain, sizeof(p->domain));
+            cw_copy_string(p->opaque, r->opaque, sizeof(p->opaque));
+            cw_copy_string(p->qop, r->qop, sizeof(p->qop));
+            p->noncecount = r->noncecount++;
 
-        memset(digest,0,sizeof(digest));
-        if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-            add_header(&req, "Authorization", digest, SIP_DL_DONTCARE);
-        else
-            cw_log(CW_LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
-    
+            memset(digest,0,sizeof(digest));
+            if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
+                add_header(msg, "Authorization", digest, SIP_DL_DONTCARE);
+            else
+                cw_log(CW_LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
+        }
+
+        snprintf(tmp, sizeof(tmp), "%d", default_expiry);
+        add_header(msg, "Expires", tmp, SIP_DL_DONTCARE);
+        add_header(msg, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
+        add_header(msg, "Event", "registration", SIP_DL_DONTCARE);
+        add_header_contentLength(msg, 0);
+        add_blank_header(msg);
+        copy_request(&p->initreq, msg);
+        parse_request(&p->initreq);
+
+        if (sip_debug_test_pvt(p))
+            cw_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+
+        r->regstate = (auth ? REG_STATE_AUTHSENT : REG_STATE_REGSENT);
+        r->regattempts++;    /* Another attempt */
+
+        if (option_debug > 3)
+            cw_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
+
+        res = send_request(p, &msg, 2);
+
+        if (msg)
+            free(msg);
     }
-
-    snprintf(tmp, sizeof(tmp), "%d", default_expiry);
-    add_header(&req, "Expires", tmp, SIP_DL_DONTCARE);
-    add_header(&req, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
-    add_header(&req, "Event", "registration", SIP_DL_DONTCARE);
-    add_header_contentLength(&req, 0);
-    add_blank_header(&req);
-    copy_request(&p->initreq, &req);
-    parse_request(&p->initreq);
-    if (sip_debug_test_pvt(p))
-        cw_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-    r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
-    r->regattempts++;    /* Another attempt */
-    if (option_debug > 3)
-        cw_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
-
-    res = send_request(p, &req, 2);
 
     /* set up a timeout */
     if (auth == NULL)
@@ -7724,129 +7721,171 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 /*! \brief  transmit_message_with_text: Transmit text with SIP MESSAGE method */
 static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 {
-    struct sip_request req;
-    reqprep(&req, p, SIP_MESSAGE, 0, 1);
-    add_text(&req, text);
-    return send_request(p, &req, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		reqprep(msg, p, SIP_MESSAGE, 0, 1);
+		add_text(msg, text);
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_refer: Transmit SIP REFER message */
 static int transmit_refer(struct sip_pvt *p, const char *dest)
 {
-    struct sip_request req;
-    char from[256];
-    char *of, *c;
-    char referto[256];
+	char from[256];
+	char referto[256];
+	struct sip_request *msg;
+	char *of, *c;
+	int res = -1;
 
-    if (cw_test_flag(p, SIP_OUTGOING)) 
-        of = get_header(&p->initreq, "To");
-    else
-        of = get_header(&p->initreq, "From");
-    cw_copy_string(from, of, sizeof(from));
-    of = get_in_brackets(from);
-    cw_copy_string(p->from,of,sizeof(p->from));
-    if (strncasecmp(of, "sip:", 4))
-    {
-        cw_log(CW_LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
-    }
-    else
-        of += 4;
-    /* Get just the username part */
-    if ((c = strchr(dest, '@')))
-    {
-        c = NULL;
-    }
-    else if ((c = strchr(of, '@')))
-    {
-        *c = '\0';
-        c++;
-    }
-    if (c)
-    {
-        snprintf(referto, sizeof(referto), "<sip:%s@%s>", dest, c);
-    }
-    else
-    {
-        snprintf(referto, sizeof(referto), "<sip:%s>", dest);
-    }
+	if (cw_test_flag(p, SIP_OUTGOING))
+		of = get_header(&p->initreq, "To");
+	else
+		of = get_header(&p->initreq, "From");
+	cw_copy_string(from, of, sizeof(from));
+	of = get_in_brackets(from);
+	cw_copy_string(p->from, of, sizeof(p->from));
+	if (strncasecmp(of, "sip:", 4))
+		cw_log(CW_LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
+	else
+		of += 4;
+	/* Get just the username part */
+	if ((c = strchr(dest, '@')))
+		c = NULL;
+	else if ((c = strchr(of, '@'))) {
+		*c = '\0';
+		c++;
+	}
+	if (c)
+		snprintf(referto, sizeof(referto), "<sip:%s@%s>", dest, c);
+	else
+		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
 
-    /* save in case we get 407 challenge */
-    cw_copy_string(p->refer_to, referto, sizeof(p->refer_to));
-    cw_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
+	/* save in case we get 407 challenge */
+	cw_copy_string(p->refer_to, referto, sizeof(p->refer_to));
+	cw_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
 
-    reqprep(&req, p, SIP_REFER, 0, 1);
-    add_header(&req, "Refer-To", referto, SIP_DL_DONTCARE);
-    if (!cw_strlen_zero(p->our_contact))
-        add_header(&req, "Referred-By", p->our_contact, SIP_DL_DONTCARE);
-    add_blank_header(&req);
-    return send_request(p, &req, 1);
+	if ((msg = malloc(sizeof(*msg)))) {
+		reqprep(msg, p, SIP_REFER, 0, 1);
+		add_header(msg, "Refer-To", referto, SIP_DL_DONTCARE);
+		if (!cw_strlen_zero(p->our_contact))
+			add_header(msg, "Referred-By", p->our_contact, SIP_DL_DONTCARE);
+		add_blank_header(msg);
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_info_with_digit: Send SIP INFO dtmf message, see Cisco documentation on cisco.co
 m */
 static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int duration)
 {
-    struct sip_request req;
-    reqprep(&req, p, SIP_INFO, 0, 1);
-    add_digit(&req, digit, duration);
-    return send_request(p, &req, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		reqprep(msg, p, SIP_INFO, 0, 1);
+		add_digit(msg, digit, duration);
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_info_with_vidupdate: Send SIP INFO with video update request */
 static int transmit_info_with_vidupdate(struct sip_pvt *p)
 {
-    struct sip_request req;
-    reqprep(&req, p, SIP_INFO, 0, 1);
-    add_vidupdate(&req);
-    return send_request(p, &req, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if ((msg = malloc(sizeof(*msg)))) {
+		reqprep(msg, p, SIP_INFO, 0, 1);
+		add_vidupdate(msg);
+
+		res = send_request(p, &msg, 1);
+
+		if (msg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_request: transmit generic SIP request */
 static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int reliable, int newbranch)
 {
-    struct sip_request resp;
-    reqprep(&resp, p, sipmethod, seqno, newbranch);
-    add_header_contentLength(&resp, 0);
-    add_blank_header(&resp);
-    return send_request(p, &resp, reliable);
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
+
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		reqprep(msg, p, sipmethod, seqno, newbranch);
+		add_header_contentLength(msg, 0);
+		add_blank_header(msg);
+
+		res = send_request(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 /*! \brief  transmit_request_with_auth: Transmit SIP request, auth added */
 static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int reliable, int newbranch)
 {
-    struct sip_request resp;
+	struct sip_request tmpmsg, *msg;
+	int res = -1;
 
-    reqprep(&resp, p, sipmethod, seqno, newbranch);
-    if (*p->realm)
-    {
-        char digest[1024];
+	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
+		reqprep(msg, p, sipmethod, seqno, newbranch);
+		if (*p->realm) {
+			char digest[1024];
 
-        memset(digest, 0, sizeof(digest));
-        if (!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-        {
-            if (p->options && p->options->auth_type == PROXY_AUTH)
-                add_header(&resp, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
-            else if (p->options && p->options->auth_type == WWW_AUTH)
-                add_header(&resp, "Authorization", digest, SIP_DL_DONTCARE);
-            else    /* Default, to be backwards compatible (maybe being too careful, but leaving it for now) */
-                add_header(&resp, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
-        }
-        else
-            cw_log(CW_LOG_WARNING, "No authentication available for call %s\n", p->callid);
-    }
-    /* If we are hanging up and know a cause for that, send it in clear text to make
-        debugging easier. */
-    if (sipmethod == SIP_BYE)
-    {
-        if (p->owner && p->owner->hangupcause)
-        {
-            add_header(&resp, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
-        }
-    }
+			memset(digest, 0, sizeof(digest));
+			if (!build_reply_digest(p, sipmethod, digest, sizeof(digest))) {
+				if (p->options && p->options->auth_type == PROXY_AUTH)
+					add_header(msg, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
+				else if (p->options && p->options->auth_type == WWW_AUTH)
+					add_header(msg, "Authorization", digest, SIP_DL_DONTCARE);
+				else    /* Default, to be backwards compatible (maybe being too careful, but leaving it for now) */
+					add_header(msg, "Proxy-Authorization", digest, SIP_DL_DONTCARE);
+			} else
+				cw_log(CW_LOG_WARNING, "No authentication available for call %s\n", p->callid);
+		}
+			/* If we are hanging up and know a cause for that, send it in clear text to make
+		    debugging easier. */
+		if (sipmethod == SIP_BYE) {
+			if (p->owner && p->owner->hangupcause)
+				add_header(msg, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+		}
 
-    add_header_contentLength(&resp, 0);
-    add_blank_header(&resp);
-    return send_request(p, &resp, reliable);
+		add_header_contentLength(msg, 0);
+		add_blank_header(msg);
+		res = send_request(p, &msg, reliable);
+
+		if (msg && msg != &tmpmsg)
+			free(msg);
+	}
+
+	return res;
 }
 
 static void destroy_association(struct sip_peer *peer)
@@ -16900,17 +16939,26 @@ static const char siposd_description[] = ""
  * Cloned version of sendtext with extra paramters used by sip_osd
  */
 static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *disp) {
-	struct sip_request req;
 	struct sip_pvt *p = ast->tech_pvt;
-	int res = 0;
-	if (!p) return -1;
-	if (cw_strlen_zero(text)) return 0;
-	reqprep(&req, p, SIP_MESSAGE, 0, 1);
-	add_header(&req, "Content-Type", "text/plain", SIP_DL_DONTCARE);
-	add_header(&req, "Content-Disposition", disp, SIP_DL_DONTCARE );
-	add_header_contentLength(&req, strlen(text));
-	add_line(&req, text, SIP_DL_DONTCARE);
-	return send_request(p, &req, 1);
+	struct sip_request *msg;
+	int res = -1;
+
+	if (p) {
+		res = 0;
+		if (cw_strlen_zero(text)) {
+			res = -1;
+			if ((msg = malloc(sizeof(*msg)))) {
+				reqprep(msg, p, SIP_MESSAGE, 0, 1);
+				add_header(msg, "Content-Type", "text/plain", SIP_DL_DONTCARE);
+				add_header(msg, "Content-Disposition", disp, SIP_DL_DONTCARE );
+				add_header_contentLength(msg, strlen(text));
+				add_line(msg, text, SIP_DL_DONTCARE);
+				res = send_request(p, &msg, 1);
+			}
+		}
+	}
+
+	return res;
 }
 
 /*
