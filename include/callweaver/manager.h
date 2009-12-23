@@ -63,17 +63,10 @@
 
 struct manager_event {
 	struct cw_object obj;
-	const char *event;
-	int category;
-	char *prefix;			/*!< The AMI prefix consisting of Event and Privilege lines.
-					 *   This is immediately followed by (with no null terminator) by the formatted data
-					 */
 	char *data;			/*!< The AMI formatted event data */
-	int len;			/*!< The total length of the formatted message *including* the prefix */
+	int len;			/*!< The total length of the formatted message */
 	size_t count;			/*!< The number of key/value pairs in this event */
-	int map[0];			/*!< Offset to the start of key and value strings relative to data
-					 *   (the prefix key/value pairs are not included in the map)
-					 */
+	int map[0];			/*!< Offset to the start of key and value strings relative to data */
 };
 
 
@@ -250,23 +243,22 @@ static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
 	cw_manager_event(category, event, count, \
 		__VA_ARGS__ \
 	); \
-	int map[(count << 1) + 1] = { 0 }; \
-	cw_manager_event_func(category, event, count, map, \
-		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_FMT, __VA_ARGS__) "%s", \
-		CW_CPP_CAT(CW_CPP_ITERATE_, count)(0, CW_ME_ARGS, __VA_ARGS__) \
+	int map[((count + 1) << 1) + 1] = { 0 }; \
+	cw_manager_event_func(category, count + 1, map, \
+		CW_ME_FMT_I(0, "Event", "%s", event) \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(1, CW_ME_FMT, __VA_ARGS__) "%s", \
+		CW_ME_ARGS_I(0, "Event", "%s", event) \
+		CW_CPP_CAT(CW_CPP_ITERATE_, count)(1, CW_ME_ARGS, __VA_ARGS__) \
 		"" \
 	); \
    })
 
    /*! \brief send a callweaver manager event
     *      \param category	Event category, matches manager authorization
-    *      \param event	Event name
     *      \param contents	Contents of event
     */
-   extern CW_API_PUBLIC void cw_manager_event_func(int category, const char *event, size_t count, int map[], const char *fmt, ...)
-	__attribute__ ((format (printf, 5,6)));
-#else
-#  define cw_manager_event	compiled_with_CW_DEBUG_MAN_EVENT_therefore_unlinkable
+   extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
+	__attribute__ ((format (printf, 4,5)));
 #endif
 
 

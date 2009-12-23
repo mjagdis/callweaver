@@ -1598,7 +1598,7 @@ static void *manager_session_ami_read(void *data)
 
 int manager_session_ami(struct mansession *sess, const struct manager_event *event)
 {
-	return cw_write_all(sess->fd, event->prefix, event->len);
+	return cw_write_all(sess->fd, event->data, event->len);
 }
 
 
@@ -1807,7 +1807,6 @@ struct manager_event_args {
 	int category;
 	size_t count;
 	struct manager_event *me;
-	const char *event;
 	int *map;
 	const char *fmt;
 	va_list ap;
@@ -1831,30 +1830,18 @@ static int make_event(struct manager_event_args *args)
 
 	if ((args->me = malloc(sizeof(struct manager_event) + sizeof(args->me->map[0]) * ((args->count << 1) + 1) + alloc))) {
 again:
-		args->me->prefix = (typeof (args->me->prefix))&args->me->map[(args->count << 1) + 1];
+		args->me->data = (typeof (args->me->data))&args->me->map[(args->count << 1) + 1];
 
 		/* FIXME: only ancient libcs have *printf functions that return -1 if the
 		 * buffer isn't big enough. If we can even compile with such a beast at
 		 * all we should have a compile time check for this.
 		 */
 
-		used = snprintf(args->me->prefix, alloc, "Event: %s\r\nPrivilege: ", args->event);
+		va_copy(aq, args->ap);
+		used = vsnprintf(args->me->data, alloc, args->fmt, aq);
+		va_end(aq);
 		if (used < 0)
 			used = alloc + 255;
-		used += snprintf_authority(args->me->prefix + used, (used < alloc ? alloc - used : 0), args->category);
-		if (alloc - used > 2)
-			memcpy(args->me->prefix + used, "\r\n", sizeof("\r\n") - 1);
-		used += 2;
-
-		args->me->data = args->me->prefix + used;
-
-		va_copy(aq, args->ap);
-		n = vsnprintf(args->me->prefix + used, (used < alloc ? alloc - used : 0), args->fmt, aq);
-		va_end(aq);
-		if (n < 0)
-			used = alloc + 255;
-		else
-			used +=n;
 
 		if (args->map[((args->count - 1) << 1) + 1] - args->map[((args->count - 1) << 1) + 0] - 2 == sizeof("Message") - 1
 		&& !memcmp(args->me->data + args->map[(args->count - 1) << 1], "Message", sizeof("Message") - 1)) {
@@ -1866,13 +1853,11 @@ again:
 		}
 
 		if (used + n <= alloc)
-			memcpy(args->me->prefix + used, s, n);
+			memcpy(args->me->data + used, s, n);
 		used += n - 1;
 
 		if (used < alloc) {
 			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
-			args->me->event = args->event;
-			args->me->category = args->category;
 			args->me->count = args->count;
 			args->me->len = used;
 			args->me->obj.release = manager_event_free;
@@ -1907,14 +1892,13 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	return args->ret;
 }
 
-void cw_manager_event_func(int category, const char *event, size_t count, int map[], const char *fmt, ...)
+void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
 {
 	struct manager_event_args args = {
 		.ret = 0,
 		.count = count,
 		.me = NULL,
 		.category = category,
-		.event = event,
 		.map = map,
 		.fmt = fmt,
 	};

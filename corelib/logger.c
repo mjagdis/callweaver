@@ -142,9 +142,10 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 	int i, j, n, level = 0;
 	int res = 0;
 
-	for (i = 0; i < event->count; i++) {
-		if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 != sizeof("Message") - 1
-		|| strncmp(event->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
+	/* The first key-value pair will always be "Event: Log" so we can ignore that here */
+	for (i = 1; i < event->count; i++) {
+		if (event->map[(i << 1) + 1] - event->map[(i << 1) + 0] - 2 != sizeof("Message") - 1
+		|| memcmp(event->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
 			for (j = 0; j < arraysize(keys); j++) {
 				if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 == keys[j].l
 				&& !strncmp(event->data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
