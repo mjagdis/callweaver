@@ -589,7 +589,6 @@ struct sip_data_line {
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
-	unsigned int rlPart1; 		/*!< SIP Method Name or "SIP/2.0" protocol version */
 	unsigned int rlPart2; 		/*!< The Request URI or Response Status */
 	int len;		/*!< Length */
 	enum sipmethod method;		/*!< Method of this request */
@@ -4689,7 +4688,6 @@ done:
 	if (!req->headers)
 		return -1;
 
-	req->rlPart1 = req->header[0];
 	j = req->header[0];
 
 	while (req->data[j] && !isspace(req->data[j])) j++;
@@ -14253,7 +14251,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     }
     /* Get the command XXX */
 
-    cmd = req->data + req->rlPart1;
+    cmd = req->data + req->header[0];
 
     /* Save useragent of the client */
     useragent = get_header(req, "User-Agent");
@@ -14502,7 +14500,7 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 		}
 
 		if (!parse_request(&req)) {
-			req.method = find_sip_method(req.data + req.rlPart1);
+			req.method = find_sip_method(req.data + req.header[0]);
 
 			if (cw_test_flag(&req, SIP_PKT_DEBUG))
 				cw_verbose("--- (%d headers %d lines)%s ---\n", req.headers, req.lines, (req.headers + req.lines == 0) ? " Nat keepalive" : "");
