@@ -588,7 +588,8 @@ struct sip_data_line {
 struct sip_request {
 	enum sipmethod method;		/*!< Method of this request */
 	unsigned int uriresp; 		/*!< The Request URI or Response Status */
-	int seqno;		/*!< Outgoing sequence number */
+	int seqno;			/*!< Sequence number according to CSeq header */
+	enum sipmethod cseq_method;	/*!< Method according to CSeq header */
 	unsigned int cseq;	/*!< Offset of CSeq value in the data */
 	unsigned int cseq_len;	/*!< Length of CSeq value in the data */
 	int headers;		/*!< # of SIP Headers */
@@ -1191,9 +1192,6 @@ static unsigned int dialogue_hash(struct sip_pvt *dialogue)
 	for (p = dialogue->callid; *p; p++)
 		hash = cw_hash_add(hash, *p);
 
-	for (p = dialogue->tag; *p; p++)
-		hash = cw_hash_add(hash, *p);
-
 	for (p = dialogue->theirtag; *p; p++)
 		hash = cw_hash_add(hash, *p);
 
@@ -1201,22 +1199,24 @@ static unsigned int dialogue_hash(struct sip_pvt *dialogue)
 }
 
 
-static int dialogue_qsort_compare_by_name(const void *a, const void *b)
+static int dialogue_qsort_compare_by_name_and_theirtag(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
 	const struct cw_object * const *objp_b = b;
 	const struct sip_pvt *dialogue_a = container_of(*objp_a, struct sip_pvt, obj);
 	const struct sip_pvt *dialogue_b = container_of(*objp_b, struct sip_pvt, obj);
+	int ret;
 
-	return strcasecmp(dialogue_a->callid, dialogue_b->callid);
+	if (!(ret = strcmp(dialogue_a->callid, dialogue_b->callid)))
+		ret = strcmp(dialogue_a->theirtag, dialogue_b->theirtag);
+
+	return ret;
 }
 
 struct dialogue_key {
 	char *callid;
-	struct {
-		char *buf;
-		int len;
-	} tag[2];
+	char *tag;
+	int taglen;
 };
 
 static int dialogue_object_match(struct cw_object *obj, const void *pattern)
@@ -1225,13 +1225,12 @@ static int dialogue_object_match(struct cw_object *obj, const void *pattern)
 	const struct dialogue_key *key = pattern;
 
 	return !strcmp(dialogue->callid, key->callid)
-		&& dialogue->tag_len == key->tag[0].len && !strncmp(dialogue->tag, key->tag[0].buf, key->tag[0].len)
-		&& dialogue->theirtag_len == key->tag[1].len && !strncmp(dialogue->theirtag, key->tag[1].buf, key->tag[1].len);
+		&& dialogue->theirtag_len == key->taglen && !strncmp(dialogue->theirtag, key->tag, key->taglen);
 }
 
 struct cw_registry dialogue_registry = {
 	.name = "SIP dialogue",
-	.qsort_compare = dialogue_qsort_compare_by_name,
+	.qsort_compare = dialogue_qsort_compare_by_name_and_theirtag,
 	.match = dialogue_object_match,
 };
 
@@ -1959,11 +1958,9 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, enum sipmethod
     cur = p->retrans;
     while (cur)
     {
-        if ((cur->seqno == seqno) && ((cw_test_flag(cur, FLAG_RESPONSE)) == resp)
-            &&
-            ((cw_test_flag(cur, FLAG_RESPONSE)) || 
-             ((!cur->data[sip_methods[sipmethod].len] || isspace(cur->data[sip_methods[sipmethod].len]))
-	       && !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len))))
+        if (cur->seqno == seqno && cw_test_flag(cur, FLAG_RESPONSE) == resp
+        && (cw_test_flag(cur, FLAG_RESPONSE)
+	    || !strncasecmp(sip_methods[sipmethod].text, cur->data, sip_methods[sipmethod].len)))
         {
             /* this is our baby */
             if (cur->retransid > -1)
@@ -1989,9 +1986,8 @@ struct parse_request_state {
 	int limited;
 	int content_length;
 	int callid;
-	struct {
-		int start, len;
-	} tag[2];
+	int tag;
+	int taglen;
 };
 
 static inline void parse_request_init(struct parse_request_state *pstate, struct sip_request *req)
@@ -4371,12 +4367,12 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 /*! \brief  find_call: Connect incoming SIP message to current dialog or create new dialog structure */
 /*               Called by handle_request, sipsock_read */
-static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout, const enum sipmethod intended_method)
+static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_request *req, struct sockaddr_in *sin, struct sockaddr_in *sout)
 {
 	char iabuf[INET_ADDRSTRLEN];
 	struct dialogue_key key;
 	struct cw_object *obj;
-	struct sip_pvt *dialogue;
+	struct sip_pvt *dialogue, *n_dialogue;
 	unsigned int hash, hash_generic;
 	char *p;
 	int i;
@@ -4386,110 +4382,184 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 	while (*p)
 		hash_generic = cw_hash_add(hash_generic, *(p++));
 
-	key.tag[0].buf = p = req->data + pstate->tag[0].start;
-	key.tag[0].len = pstate->tag[0].len;
-	for (i = pstate->tag[0].len; i; i--)
-		hash_generic = cw_hash_add(hash_generic, *(p++));
-
 	hash = hash_generic;
-	key.tag[1].buf = p = req->data + pstate->tag[1].start;
-	key.tag[1].len = pstate->tag[1].len;
-	for (i = pstate->tag[1].len; i; i--)
+	key.tag = p = req->data + pstate->tag;
+	key.taglen = pstate->taglen;
+	for (i = pstate->taglen; i; i--)
 		hash = cw_hash_add(hash, *(p++));
 
-	/* Look for the full call id, our tag, their tag */
+	/* Look for the full call id, [our tag], their tag
+	 * Note: we don't include our tag because we only ever have one tag per call
+	 */
+	dialogue = NULL;
 	if ((obj = cw_registry_find(&dialogue_registry, 1, hash, &key))) {
 		dialogue = container_of(obj, struct sip_pvt, obj);
 		cw_mutex_lock(&dialogue->lock);
-		return dialogue;
-	}
-
-	/* If this is a response we may still have an open dialogue that isn't
-	 * bound to a particular remote party (i.e. we don't have their tag)
-	 * so look for call id, our tag only (i.e. ignoring their tag)
-	 */
-	if (req->method == SIP_RESPONSE) {
-		key.tag[1].len = 0;
-		dialogue = NULL;
+	} else if (req->method == SIP_RESPONSE) {
+		/* If this is a response we may still have an open dialogue that isn't
+		 * bound to a particular remote party (i.e. we don't have their tag)
+		 * so look for call id only (ignoring their tag)
+		 */
+		key.taglen = 0;
 		if ((obj = cw_registry_find(&dialogue_registry, 1, hash_generic, &key))) {
 			dialogue = container_of(obj, struct sip_pvt, obj);
 			cw_mutex_lock(&dialogue->lock);
-
-			/* If they gave us a tag set it now - but only allow one remote party to claim the dialogue! */
-			if (!dialogue->theirtag_len) {
-				if (pstate->tag[1].len) {
-					if (pstate->tag[1].len < sizeof(dialogue->theirtag) - 1) {
-						cw_registry_del(&dialogue_registry, dialogue->reg_entry);
-						memcpy(dialogue->theirtag, req->data + pstate->tag[1].start, (dialogue->theirtag_len = pstate->tag[1].len));
-						dialogue->theirtag[pstate->tag[1].len] = '\0';
-						dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
-						return dialogue;
-					}
-
-					cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->tag[1].len, sizeof(dialogue->theirtag), pstate->tag[1].len, req->data + pstate->tag[1].start);
-					transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "500 Server internal error");
-					sip_destroy(dialogue);
-					return NULL;
-				}
-			}
-
-			/* Stolen from under us! */
-			cw_mutex_unlock(&dialogue->lock);
-			cw_object_put(dialogue);
-			dialogue = NULL;
 		}
-
-		/* FIXME: If there is a forking proxy in the way the reason we can't match
-		 * this message to a dialogue may be because some other response has already
-		 * matched and set the remote party's tag. In this case we should really
-		 * be sending a CANCEL or BYE?
-		 */
-		transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
-		return NULL;
 	}
 
-	/* If there is no "our" tag specified and this is a suitable request we need
-	 * to create a dialogue.
-	 */
-	if (!pstate->tag[0].len && sip_methods[intended_method].can_create == 1) {
-		if (pstate->tag[1].len < sizeof(dialogue->theirtag) - 1) {
-			if ((dialogue = sip_alloc(req->data + pstate->callid, sin, 1, intended_method))) {
-				memcpy(dialogue->theirtag, req->data + pstate->tag[1].start, (dialogue->theirtag_len = pstate->tag[1].len));
-				dialogue->theirtag[pstate->tag[1].len] = '\0';
-				dialogue->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(dialogue), &dialogue->obj);
+	if (req->method == SIP_RESPONSE) {
+		if (dialogue) {
+			/* Acknowledge whatever it is destined for */
+			if (*(req->data + req->uriresp) == '1') /* Provisional response */
+				__sip_semi_ack(dialogue, req->seqno, 0, req->cseq_method);
+			else
+				__sip_ack(dialogue, req->seqno, 0, req->cseq_method);
 
-				cw_object_dup(dialogue);
-				cw_mutex_lock(&dialogue->lock);
-				return dialogue;
-			} else {
-				if (option_debug > 3)
-					cw_log(CW_LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
-				transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "500 Server internal error");
+			/* If the message is out of sequence we have nothing more to do */
+			if (req->seqno != dialogue->ocseq) {
+				/* If the dialogue doesn't have a tag but the message does we've forked.
+				 * FIXME: We SHOULD create a new dialogue, chain it with the old and
+				 * cancel all but one when something produces a non-provisional
+				 * response. But for now we just take the first responder.
+				 */
+				if (!dialogue->theirtag_len && pstate->taglen) {
+					if (recordhistory)
+						append_history(dialogue, "%-15s %s - %s (tag \"%.*s\")\n", "Rx", req->data + req->cseq, req->data + req->uriresp, pstate->taglen, pstate->tag);
+
+					if (pstate->taglen < sizeof(dialogue->theirtag) - 1) {
+						if ((n_dialogue = malloc(sizeof(*n_dialogue)))) {
+							memcpy(n_dialogue, dialogue, sizeof(*n_dialogue));
+
+							if ((n_dialogue->history = malloc(dialogue->history_size))) {
+								memcpy(n_dialogue->history, dialogue->history, dialogue->history_used);
+								/* Reset things that shouldn't be copied */
+								cw_object_init(n_dialogue, CW_OBJECT_CURRENT_MODULE, 1);
+								cw_mutex_init(&n_dialogue->lock);
+								n_dialogue->timer_t1 = RFC_TIMER_T1;
+								n_dialogue->refer_call = NULL;
+								n_dialogue->route = NULL;
+								n_dialogue->peerauth = NULL;
+								n_dialogue->rpid = NULL;
+								n_dialogue->rpid_from = NULL;
+								n_dialogue->vad = NULL;
+								n_dialogue->rtp = NULL;
+								n_dialogue->vrtp = NULL;
+								n_dialogue->retrans = NULL;
+								n_dialogue->history = NULL;
+								n_dialogue->history_size = 0;
+								n_dialogue->history_used = 0;
+								n_dialogue->chanvars = NULL;
+								n_dialogue->options = NULL;
+								n_dialogue->udptl = NULL;
+								n_dialogue->vadtx = NULL;
+								/* n_dialogue->sa ? */
+								/* n_dialogue->redirip ? */
+								/* n_dialogue->vredirip ? */
+								/* FIXME: n_diaogue->owner should be a dup'd reference?
+								 * How do we handle dialogue cancellation without
+								 * taking the call down if a different leg answers?
+								 */
+
+								memcpy(n_dialogue->theirtag, req->data + pstate->tag, (dialogue->theirtag_len = pstate->taglen));
+								n_dialogue->theirtag[pstate->taglen] = '\0';
+
+
+								n_dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &n_dialogue->obj);
+
+								/* Increment the sequence number on the untagged dialogue so that
+								 * any more responses are considered old and ignored. Then schedule
+								 * its destruction.
+								 */
+								dialogue->ocseq++;
+								sip_scheddestroy(dialogue, -1);
+
+								cw_mutex_unlock(&dialogue->lock);
+								cw_mutex_lock(&n_dialogue->lock);
+								dialogue = n_dialogue;
+							} else {
+								free(n_dialogue);
+								n_dialogue = NULL;
+							}
+						}
+
+						if (!n_dialogue) {
+							cw_log(CW_LOG_ERROR, "Out of memory!\n");
+							sip_scheddestroy(dialogue, -1);
+							cw_mutex_unlock(&dialogue->lock);
+							dialogue = NULL;
+						}
+					} else {
+						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->taglen, sizeof(dialogue->theirtag), pstate->taglen, req->data + pstate->tag);
+							transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
+						sip_scheddestroy(dialogue, -1);
+						cw_mutex_unlock(&dialogue->lock);
+						dialogue = NULL;
+					}
+				} else if (recordhistory && dialogue)
+					append_history(dialogue, "%-15s %s - %s\n", "Rx", req->data + req->cseq, req->data + req->uriresp);
 			}
 		} else {
-			cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->tag[1].len, sizeof(dialogue->theirtag), pstate->tag[1].len, req->data + pstate->tag[1].start);
-			transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "500 Server internal error");
+			/* FIXME: If there is a forking proxy in the way the reason we can't match
+			 * this message to a dialogue may be because some other response has already
+			 * matched and set the remote party's tag. In this case we should really
+			 * be sending a CANCEL or BYE?
+			 */
+			transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "481 Call leg/transaction does not exist");
 		}
-	} else if (sip_methods[intended_method].can_create == 2) {
-		char *response;
 
-		/* In theory, can create dialog. We don't support it */
-		if (intended_method == SIP_PRACK || intended_method == SIP_UNKNOWN)
-			response = "501 Method not implemented";
-		else if (intended_method == SIP_REFER)
-			response = "603 Declined (no dialog)";
-		else if (intended_method == SIP_NOTIFY)
-			response = "489 Bad event";
-		else
-			response = "481 Call leg/transaction does not exist";
-
-		transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "603 Declined (no dialog)");
-	} else {
-		if (intended_method != SIP_ACK)
-			transmit_response_using_temp(req->data + pstate->callid, sin, 1, intended_method, req, "481 Call leg/transaction does not exist");
+		return dialogue;
 	}
 
-	return NULL;
+	/* If we didn't find a dialogue for this request we create one if it makes sense */
+	if (!dialogue) {
+		if (sip_methods[req->method].can_create == 1) {
+			if (pstate->taglen < sizeof(dialogue->theirtag) - 1) {
+				if ((dialogue = sip_alloc(req->data + pstate->callid, sin, 1, req->method))) {
+					memcpy(dialogue->theirtag, req->data + pstate->tag, (dialogue->theirtag_len = pstate->taglen));
+					dialogue->theirtag[pstate->taglen] = '\0';
+					dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
+
+					cw_object_dup(dialogue);
+					cw_mutex_lock(&dialogue->lock);
+					return dialogue;
+				} else {
+					if (option_debug > 3)
+						cw_log(CW_LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+					transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
+				}
+			} else {
+				cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->taglen, sizeof(dialogue->theirtag), pstate->taglen, req->data + pstate->tag);
+				transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
+			}
+		} else {
+			char *response = NULL;
+
+			if (sip_methods[req->method].can_create == 2) {
+				/* In theory, can create dialog. We don't support it */
+				switch (req->method) {
+					case SIP_UNKNOWN:
+					case SIP_PRACK:
+						response = "501 Method not implemented";
+						break;
+					case SIP_REFER:
+						response = "603 Declined (no dialog)";
+						break;
+					case SIP_NOTIFY:
+						response = "489 Bad event";
+						break;
+					default:
+						response = "481 Call leg/transaction does not exist";
+						break;
+				}
+			} else if (req->method != SIP_ACK)
+				response = "481 Call leg/transaction does not exist";
+
+			if (response)
+				transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, response);
+		}
+	}
+
+	return dialogue;
 }
 
 /*! \brief  sip_register: Parse register=> line in sip.conf and add to registry */
@@ -4682,25 +4752,29 @@ static int parse_request(struct parse_request_state *state, struct sip_request *
 					req->data[state->i] = '\0';
 				state->state = 3;
 				if (req->headers < arraysize(req->header)) {
-					if (!strcasecmp(req->data + req->header[req->headers], "Call-id")) {
+					if (!strcasecmp(req->data + req->header[req->headers], "Call-id") || !strcasecmp(req->data + req->header[req->headers], "i")) {
 						state->callid = req->header_val[req->headers];
 					} else if (!strcasecmp(req->data + req->header[req->headers], "CSeq")) {
-						req->seqno = atol(req->data + req->header_val[req->headers]);
+						if (sscanf(req->data + req->header_val[req->headers], "%d %n", &req->seqno, &j)) {
+							req->cseq_method = find_sip_method(req->data + req->header_val[req->headers] + j);
+						} else
+							req->method = SIP_UNKNOWN;
 						req->cseq = req->header_val[req->headers];
 						req->cseq_len = state->i - req->header_val[req->headers];
 					} else if (!strcasecmp(req->data + req->header[req->headers], "l") || !strcasecmp(req->data + req->header[req->headers], "Content-Length")) {
 						state->content_length = atol(req->data + req->header_val[req->headers]);
-					} else if (!(j = strcasecmp(req->data + req->header[req->headers], "From")) || !strcasecmp(req->data + req->header[req->headers], "To")) {
+					} else if ((req->method != SIP_RESPONSE
+						&& (!strcasecmp(req->data + req->header[req->headers], "From") || !strcasecmp(req->data + req->header[req->headers], "f")))
+					|| (req->method == SIP_RESPONSE
+						&& (!strcasecmp(req->data + req->header[req->headers], "To") || !strcasecmp(req->data + req->header[req->headers], "t"))
+						)
+					) {
 						char *p;
 
-						if (req->method != SIP_RESPONSE)
-							j = !j;
-						if (j) j = 1;
-						p = req->data + req->header_val[req->headers];
-						if ((p = strcasestr(p, ";tag="))) {
+						if ((p = strcasestr(req->data + req->header_val[req->headers], ";tag="))) {
 							p += sizeof(";tag=") - 1;
-							state->tag[j].start = p - req->data;
-							for (state->tag[j].len = 0; p[state->tag[j].len] && p[state->tag[j].len] != ';'; state->tag[j].len++);
+							state->tag = p - req->data;
+							for (state->taglen = 0; p[state->taglen] && p[state->taglen] != ';'; state->taglen++);
 						}
 					} else if (!strcasecmp(req->data + req->header[req->headers], "Warning")) {
 						if (!strncmp(req->data + req->header_val[req->headers], "392 ", 4)) {
@@ -9081,9 +9155,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(struct dialogue_key *key)
 	hash = 0;
 	for (p = key->callid; *p; p++)
 		hash = cw_hash_add(hash, *p);
-	for (p = key->tag[0].buf; *p; p++)
-		hash = cw_hash_add(hash, *p);
-	for (p = key->tag[1].buf; *p; p++)
+	for (p = key->tag; *p; p++)
 		hash = cw_hash_add(hash, *p);
 
 	while ((obj = cw_registry_find(&dialogue_registry, 1, hash, key))) {
@@ -9172,23 +9244,18 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
             char *p;
 
             replace_key.callid = cw_strdupa(ptr + 9);
-            replace_key.tag[0].buf = replace_key.tag[1].buf = NULL;
-            replace_key.tag[0].len = replace_key.tag[1].len = 0;
+            replace_key.tag = NULL;
+            replace_key.taglen = 0;
 
             cw_uri_decode(replace_key.callid);
 
             for (p = replace_key.callid; (ptr = strchr(p, ';')); p = ptr + 1) {
                 *ptr = '\0';
-                if (!strcasecmp(p, "to-tag="))
-                    replace_key.tag[1].buf = p + sizeof("to-tag=") - 1;
-                else if (!strcasecmp(p, "from-tag="))
-                    replace_key.tag[0].buf = p + sizeof("from-tag=") - 1;
+                if (!strcasecmp(p, "to-tag=")) {
+                    replace_key.tag = p + sizeof("to-tag=") - 1;
+                    replace_key.taglen = (int)(ptr - p);
+		}
             }
-
-            if (replace_key.tag[0].buf)
-                replace_key.tag[0].len = strlen(replace_key.tag[0].buf);
-            if (replace_key.tag[1].buf)
-                replace_key.tag[1].len = strlen(replace_key.tag[1].buf);
         }
     }
     
@@ -9236,7 +9303,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
         }
         else
         {
-            cw_log(CW_LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s from_tag= %s to_tag= %s'.  Both legs must reside on CallWeaver box to transfer at this time.\n", replace_key.callid, replace_key.tag[0].buf, replace_key.tag[1].buf);
+            cw_log(CW_LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s tag= %s'.  Both legs must reside on CallWeaver box to transfer at this time.\n", replace_key.callid, replace_key.tag);
             /* XXX The refer_to could contain a call on an entirely different machine, requiring an 
                   INVITE with a replaces header -anthm XXX */
             /* The only way to find out is to use the dialplan - oej */
@@ -12779,7 +12846,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 }
 
 /*! \brief  handle_response: Handle SIP response in dialogue */
-static void handle_response(struct sip_pvt *p, struct sip_request *req, int ignore, int seqno)
+static void handle_response(struct sip_pvt *p, struct sip_request *req, int ignore)
 {
     char iabuf[INET_ADDRSTRLEN];
     char *msg;
@@ -12809,27 +12876,13 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     if (owner) 
         owner->hangupcause = hangup_sip2cause(resp);
 
-    /* Acknowledge whatever it is destined for */
-    if ((resp >= 100) && (resp <= 199))
-        __sip_semi_ack(p, seqno, 0, sipmethod);
-    else
-        __sip_ack(p, seqno, 0, sipmethod);
-
-#if 0
-    /* FIXME: can their tag really change midway? */
-    /* Get their tag if we haven't already */
-    if (cw_strlen_zero(p->theirtag) || (resp >= 200))
-    {
-        gettag(req, "To", p->theirtag, sizeof(p->theirtag));
-    }
-#endif
     if (p->peerpoke)
     {
         /* We don't really care what the response is, just that it replied back. 
            Well, as long as it's not a 100 response...  since we might
            need to hang around for something more "definitive" */
 
-        res = handle_response_peerpoke(p, resp, req, ignore, seqno, sipmethod);
+        res = handle_response_peerpoke(p, resp, req, ignore, req->seqno, sipmethod);
     }
     else if (cw_test_flag(p, SIP_OUTGOING))
     {
@@ -12844,15 +12897,15 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         {
         case 100:    /* 100 Trying */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             break;
         case 183:    /* 183 Session Progress */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             break;
         case 180:    /* 180 Ringing */
             if (sipmethod == SIP_INVITE) 
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             break;
         case 200:    /* 200 OK */
             p->authtries = 0;    /* Reset authentication counter */
@@ -12879,11 +12932,11 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, req->seqno);
 	    } else if (sipmethod == SIP_BYE) {
 		/* Ok, we're ready to go */
 		sip_destroy(p);
@@ -12892,11 +12945,11 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 401: /* Not www-authorized on SIP method */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -12907,11 +12960,11 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 403: /* Forbidden - we failed authentication */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -12921,11 +12974,11 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 404: /* Not found */
             if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (owner)
                 cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
@@ -12933,7 +12986,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 407: /* Proxy auth required */
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER)
             {
@@ -12949,7 +13002,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (p->registry && sipmethod == SIP_REGISTER)
             {
-                res = handle_response_register(p, resp, req, ignore, seqno);
+                res = handle_response_register(p, resp, req, ignore, req->seqno);
             }
             else
             {
@@ -12959,17 +13012,17 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             break;
 	case 487:
 	    if (sipmethod == SIP_INVITE)
-		handle_response_invite(p, resp, req, ignore, seqno);
+		handle_response_invite(p, resp, req, ignore, req->seqno);
 	    break;
         case 491: /* Pending */
             if (sipmethod == SIP_INVITE)
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             else
                 cw_log(CW_LOG_WARNING, "Host '%s' does not implement '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
         case 501: /* Not Implemented */
             if (sipmethod == SIP_INVITE)
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             else
                 cw_log(CW_LOG_WARNING, "Host '%s' does not implement '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
             break;
@@ -13034,7 +13087,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
                 }
                 /* ACK on invite */
                 if (sipmethod == SIP_INVITE) 
-                    transmit_request(p, SIP_ACK, seqno, 0, 0);
+                    transmit_request(p, SIP_ACK, req->seqno, 0, 0);
                 cw_set_flag(p, SIP_ALREADYGONE);    
                 if (!p->owner)
                     sip_destroy(p);
@@ -13069,7 +13122,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         case 200:
             if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             else if (sipmethod == SIP_CANCEL)
             {
@@ -13106,14 +13159,14 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             }
             else if (sipmethod == SIP_INVITE)
             {
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             break;
         case 481:    /* Call leg does not exist */
             if (sipmethod == SIP_INVITE)
             {
                 /* Re-invite failed */
-                handle_response_invite(p, resp, req, ignore, seqno);
+                handle_response_invite(p, resp, req, ignore, req->seqno);
             }
             break;
         default:    /* Errors without handlers */
@@ -14273,30 +14326,11 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
     char *useragent;
-    int seqno;
     int ignore=0;
     int res = 0;
     char iabuf[INET_ADDRSTRLEN];
     int debug = sip_debug_test_pvt(p);
     int error = 0;
-
-    /* Must have Cseq */
-    if (cw_strlen_zero(req->data + req->cseq))
-    {
-        cw_log(CW_LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
-        error = 1;
-    }
-    if (!error && sscanf(req->data + req->cseq, "%d", &seqno) != 1)
-    {
-        cw_log(CW_LOG_ERROR, "No seqno in \"%s\". Dropping incomplete message.\n", req->data + req->cseq);
-        error = 1;
-    }
-    if (error)
-    {
-        if (!p->initreq.header)    /* New call */
-            sip_destroy(p);
-        return -1;
-    }
 
     /* Save useragent of the client */
     useragent = get_header(req, "User-Agent");
@@ -14315,19 +14349,19 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             sip_destroy(p);
             return 0;
         }
-        else if (p->ocseq && (p->ocseq < seqno))
+        else if (p->ocseq && (p->ocseq < req->seqno))
         {
-            cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
+            cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", req->seqno, p->ocseq);
             return -1;
         }
-        else if (p->ocseq && (p->ocseq != seqno))
+        else if (p->ocseq && (p->ocseq != req->seqno))
         {
             /* ignore means "don't do anything with it" but still have to 
                respond appropriately  */
             ignore=1;
         }
         else
-            handle_response(p, req, ignore, seqno);
+            handle_response(p, req, ignore);
 
         return 0;
     }
@@ -14340,36 +14374,36 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     if (option_debug > 2)
         cw_log(CW_LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, p->method, req->data);
 
-    if (p->icseq && (p->icseq > seqno))
+    if (p->icseq && (p->icseq > req->seqno))
     {
         if (req->method == SIP_ACK) 
         {
-            __sip_ack(p, seqno, FLAG_RESPONSE, -1); /* Stop retransmissions of whatever's being ACKed */
+            __sip_ack(p, req->seqno, FLAG_RESPONSE, -1); /* Stop retransmissions of whatever's being ACKed */
             return 0;
         }
         else
         {
 	    if (option_debug)
-    	        cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
+                cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", req->seqno, p->icseq);
     	    transmit_response(p, "503 Server error", req);    /* We must respond according to RFC 3261 sec 12.2 */
             return -1;
         }
     }
-    else if (p->icseq && (p->icseq == seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| cw_test_flag(p, SIP_ALREADYGONE)))
+    else if (p->icseq && (p->icseq == req->seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| cw_test_flag(p, SIP_ALREADYGONE)))
     {
         /* ignore means "don't do anything with it" but still have to 
            respond appropriately.  We do this if we receive a repeat of
            the last sequence number  */
         ignore = 2;
         if (option_debug > 2)
-            cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
+            cw_log(CW_LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, req->seqno);
     }
         
-    if (seqno >= p->icseq)
+    if (req->seqno >= p->icseq)
         /* Next should follow monotonically (but not necessarily 
            incrementally -- thanks again to the genius authors of SIP --
            increasing */
-        p->icseq = seqno;
+        p->icseq = req->seqno;
 
     snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", req->data);
 
@@ -14408,10 +14442,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         res = handle_request_options(p, req, debug);
         break;
     case SIP_INVITE:
-        res = handle_request_invite(p, req, debug, ignore, seqno, sin);
+        res = handle_request_invite(p, req, debug, ignore, req->seqno, sin);
         break;
     case SIP_REFER:
-        res = handle_request_refer(p, req, debug, ignore, seqno, nounlock);
+        res = handle_request_refer(p, req, debug, ignore, req->seqno, nounlock);
         break;
     case SIP_CANCEL:
         res = handle_request_cancel(p, req, debug, ignore);
@@ -14423,7 +14457,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         res = handle_request_message(p, req, debug, ignore);
         break;
     case SIP_SUBSCRIBE:
-        res = handle_request_subscribe(p, req, debug, ignore, sin, seqno);
+        res = handle_request_subscribe(p, req, debug, ignore, sin, req->seqno);
         break;
     case SIP_REGISTER:
         res = handle_request_register(p, req, debug, ignore, sin);
@@ -14450,10 +14484,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         break;
     case SIP_ACK:
         /* Make sure we don't ignore this */
-        if (seqno == p->pendinginvite)
+        if (req->seqno == p->pendinginvite)
         {
             p->pendinginvite = 0;
-            __sip_ack(p, seqno, FLAG_RESPONSE, -1);
+            __sip_ack(p, req->seqno, FLAG_RESPONSE, -1);
             if (!cw_strlen_zero(get_header(req, "Content-Type")))
             {
                 if (process_sdp(p, req))
@@ -14552,7 +14586,7 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 
 			lockretry = 100;
 retrylock:
-			if ((p = find_call(&pstate, &req, &sin, &sout, req.method))) {
+			if ((p = find_call(&pstate, &req, &sin, &sout))) {
 				/* Go ahead and lock the owner if it has one -- we may need it */
 				if (p->owner && cw_channel_trylock(p->owner)) {
 					cw_log(CW_LOG_DEBUG, "Failed to grab lock, trying again...\n");
@@ -14571,9 +14605,6 @@ retrylock:
 				}
 
 				memcpy(&p->recv, &sin, sizeof(p->recv));
-
-				if (recordhistory)
-					append_history(p, "%-15s %s - %s\n", "Rx", req.data + req.cseq, req.data + req.uriresp);
 
 				nounlock = 0;
 
