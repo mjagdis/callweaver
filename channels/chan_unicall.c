@@ -3083,6 +3083,11 @@ void handle_uc_event(uc_t *uc, void *user_data, uc_event_t *ev)
     /*endswitch*/
 }
 
+static void unicall_mutex_unlock(void *mutex)
+{
+	cw_mutex_unlock(mutex);
+}
+
 static void *do_monitor(void *data)
 {
     unicall_pvt_t *i;
@@ -3113,7 +3118,7 @@ static void *do_monitor(void *data)
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
         /* Lock the interface list */
-        pthread_cleanup_push(cw_mutex_unlock_func, &iflock);
+        pthread_cleanup_push(unicall_mutex_unlock, &iflock);
         cw_mutex_lock(&iflock);
 
         /*endif*/

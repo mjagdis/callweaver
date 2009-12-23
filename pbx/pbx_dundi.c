@@ -2133,6 +2133,11 @@ static void *network_thread(void *ignore)
 	return NULL;
 }
 
+static void dundi_mutex_unlock(void *mutex)
+{
+	cw_mutex_unlock(mutex);
+}
+
 static void *process_precache(void *ign)
 {
 	struct dundi_precache_queue *qe;
@@ -2147,7 +2152,7 @@ static void *process_precache(void *ign)
 		time(&now);
 		run = 0;
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &pclock);
+		pthread_cleanup_push(dundi_mutex_unlock, &pclock);
 		cw_mutex_lock(&pclock);
 
 		if (pcq) {

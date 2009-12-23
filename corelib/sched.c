@@ -246,6 +246,12 @@ long cw_sched_when(struct sched_context *con,int id)
 }
 
 
+static void sched_mutex_unlock(void *mutex)
+{
+	cw_mutex_unlock(mutex);
+}
+
+
 static void *service_thread(void *data)
 {
 	struct timeval now;
@@ -254,7 +260,7 @@ static void *service_thread(void *data)
 	int res;
 
 	cw_mutex_lock(&con->lock);
-	pthread_cleanup_push(cw_mutex_unlock_func, &con->lock);
+	pthread_cleanup_push(sched_mutex_unlock, &con->lock);
 
 	/* We schedule all events which are going to expire within 1ms.
 	 * We only care about millisecond accuracy anyway, so this will

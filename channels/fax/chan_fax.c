@@ -410,6 +410,12 @@ static void faxmodem_thread_cleanup(void *obj)
 }
 
 
+static void faxmodem_mutex_unlock(void *mutex)
+{
+	cw_mutex_unlock(mutex);
+}
+
+
 /*! Initialize the given fax modem then loop continuously handling input from
  * the DTE until we are cancelled.
  */
@@ -524,7 +530,7 @@ static void *faxmodem_thread(void *obj)
 		pthread_testcancel();
 		pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-		pthread_cleanup_push(cw_mutex_unlock_func, &fm->lock);
+		pthread_cleanup_push(faxmodem_mutex_unlock, &fm->lock);
 		cw_mutex_lock(&fm->lock);
 
 		if ((ret == -1 && errno != EINTR) || (ret == 1 && fm->pfd.revents & (POLLHUP | POLLERR | POLLNVAL))) {
