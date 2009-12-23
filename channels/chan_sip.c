@@ -14792,13 +14792,12 @@ static int handle_message(void *data)
 				memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
 				handle_response(dialogue, req, (dialogue->ocseq && (dialogue->ocseq != req->seqno)));
 			}
-		} else {
-			/* FIXME: If there is a forking proxy in the way the reason we can't match
-			 * this message to a dialogue may be because some other response has already
-			 * matched and set the remote party's tag. In this case should we really
-			 * be sending a CANCEL or BYE?
-			 * FIXME: If we got a 481 is it right to respond to it with a 481? Where does it end?
+		} else if (found) {
+			/* We found the call ID but the tags didn't match. Maybe there's a
+			 * forking proxy in the way and the call has already been claimed
+			 * by something else?
 			 */
+			/* FIXME: we SHOULD send a CANCEL or BYE here? */
 			transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "481 Call leg/transaction does not exist");
 		}
 	} else {
@@ -14859,11 +14858,11 @@ static int handle_message(void *data)
 					transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, response);
 			}
 		} else if (!dialogue && req->method != SIP_ACK) {
-			/* FIXME: If there is a forking proxy in the way the reason we can't match
-			 * this message to a dialogue may be because some other response has already
-			 * matched and set the remote party's tag. In this case should we really
-			 * be sending a CANCEL or BYE?
+			/* We found the call ID but the tags didn't match. Maybe there's a
+			 * forking proxy in the way and the call has already been claimed
+			 * by something else?
 			 */
+			/* FIXME: we SHOULD send a CANCEL or BYE here? */
 			transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "481 Call leg/transaction does not exist");
 		}
 
