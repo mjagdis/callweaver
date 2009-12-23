@@ -4546,8 +4546,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
     p->branch = cw_random();    
     make_our_tag(p);
-    /* Start with 101 instead of 1 */
-    p->ocseq = 101;
+    p->ocseq = 1;
 
     //cw_log(CW_LOG_DEBUG,"Sip Alloc ... (globalnat %d) \n", useglobal_nat);
 
@@ -4711,7 +4710,7 @@ static int sip_register(char *value, int lineno)
     reg->refresh = default_expiry;
     reg->portno = porta ? atoi(porta) : 0;
     reg->callid_valid = 0;
-    reg->ocseq = 101;
+    reg->ocseq = 1;
 
     reg->next = NULL;
     cw_mutex_lock(&sip_reload_lock);
@@ -6195,7 +6194,7 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
     }
     dialogue.branch = cw_random();
     make_our_tag(&dialogue);
-    dialogue.ocseq = 101;
+    dialogue.ocseq = 1;
 
     if (useglobal_nat && sin)
     {
