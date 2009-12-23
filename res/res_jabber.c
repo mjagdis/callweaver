@@ -48,7 +48,6 @@
 #define JABBER_RECORD_SEPERATOR "\n\n"
 #define JABBER_DYNAMIC 
 
-CW_MUTEX_DEFINE_STATIC(global_lock);
 CW_MUTEX_DEFINE_STATIC(port_lock);
 CW_MUTEX_DEFINE_STATIC(callid_lock);
 
@@ -1947,8 +1946,6 @@ static int unload_module(void)
 static void init_globals(int do_free) 
 {
 	if (do_free) {
-		cw_mutex_lock(&global_lock);
-		/*******************LOCK*********************/
 		g_free_if_exists(globals.master);
 		g_free_if_exists(globals.server);
 		g_free_if_exists(globals.login);
@@ -1956,8 +1953,6 @@ static void init_globals(int do_free)
 		g_free_if_exists(globals.resource);
 		g_free_if_exists(globals.media_ip);
 		g_free_if_exists(globals.event_master);
-		/*******************LOCK*********************/
-		cw_mutex_unlock(&global_lock);
 	}
 
 	memset(&globals, 0, sizeof(globals));
