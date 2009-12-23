@@ -133,6 +133,18 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define CALLERID_UNKNOWN    "Unknown"
 
 
+/*! The maximum size a call history buffer is allowed to grow to.
+ * Once it reached this size older entries will be discarded to make
+ * space for new entries.
+ */
+#define HISTORY_MAX_SIZE	1024
+
+/*! How much a call history buffer grows each time it fills up (until
+ * the maximum size above is reached).
+ * This must be a power of 2.
+ */
+#define HISTORY_CHUNK_SIZE	256
+
 
 #define DEFAULT_MAXMS        2000        /* Must be faster than 2 seconds by default */
 #define DEFAULT_FREQ_OK        60 * 1000    /* How often to check for the host to be up */
@@ -635,12 +647,6 @@ static CW_LIST_HEAD_STATIC(domain_list, domain);    /*!< The SIP domain list */
 
 int allow_external_domains;        /*!< Accept calls to external SIP domains? */
 
-/*! \brief sip_history: Structure for saving transactions within a SIP dialog */
-struct sip_history {
-    char event[80];
-    struct sip_history *next;
-};
-
 /*! \brief sip_auth: Creadentials for authentication to other SIP services */
 struct sip_auth {
     char realm[CW_MAX_EXTENSION];  /*!< Realm in which these credentials are valid */
@@ -831,7 +837,8 @@ struct sip_pvt {
     struct cw_rtp *rtp;            /*!< RTP Session */
     struct cw_rtp *vrtp;            /*!< Video RTP session */
     struct sip_pkt *packets;        /*!< Packets scheduled for re-transmission */
-    struct sip_history *history;        /*!< History of this SIP dialog */
+    char *history;        /*!< History of this SIP dialog */
+    size_t history_size, history_used;
     struct cw_variable *chanvars;        /*!< Channel variables to set for call */
     struct sip_invite_param *options;    /*!< Options for INVITE */
 
@@ -1255,6 +1262,9 @@ static void dialogue_release(struct cw_object *obj)
 	if (dialogue->chanvars)
 		cw_variables_destroy(dialogue->chanvars);
 
+	if (dialogue->history)
+		free(dialogue->history);
+
 	cw_mutex_destroy(&dialogue->lock);
 	free(dialogue);
 }
@@ -1554,48 +1564,50 @@ static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct si
     return res;
 }
 
+
 /*! \brief  append_history: Append to SIP dialog history */
 /*    Always returns 0 */
-static int append_history(struct sip_pvt *p, const char *event, const char *data)
-{
-    struct sip_history *hist;
-    struct sip_history *prev;
-    char *c;
+static int append_history(struct sip_pvt *p, const char *fmt, ...) __attribute__ ((format (printf, 2,3)));
 
-    if (!recordhistory  ||  !p)
-        return 0;
-    if(!(hist = malloc(sizeof(struct sip_history))))
-    {
-        cw_log(CW_LOG_WARNING, "Can't allocate memory for history\n");
-        return 0;
-    }
-    memset(hist, 0, sizeof(struct sip_history));
-    snprintf(hist->event, sizeof(hist->event), "%-15s %s", event, data);
-    /* Trim up nicely */
-    c = hist->event;
-    while (*c)
-    {
-        if ((*c == '\r')  ||  (*c == '\n'))
-        {
-            *c = '\0';
-            break;
-        }
-        c++;
-    }
-    /* Enqueue into history */
-    prev = p->history;
-    if (prev)
-    {
-        while (prev->next)
-            prev = prev->next;
-        prev->next = hist;
-    }
-    else
-    {
-        p->history = hist;
-    }
-    return 0;
+static int append_history(struct sip_pvt *p, const char *fmt, ...)
+{
+	va_list ap, aq;
+	char *c;
+	int n, res = -1;
+
+	va_start(ap, fmt);
+
+again:
+	va_copy(aq, ap);
+	n = vsnprintf(p->history + p->history_used, p->history_size - p->history_used, fmt, aq);
+	va_end(aq);
+
+	if (n < p->history_size - p->history_used) {
+		p->history_used += n;
+		res = 0;
+	} else {
+		if (p->history_size < HISTORY_MAX_SIZE) {
+			n = (p->history_size + n + (HISTORY_CHUNK_SIZE - 1)) & (~(HISTORY_CHUNK_SIZE - 1));
+			if ((c = realloc(p->history, n))) {
+				p->history_size = n;
+				p->history = c;
+				goto again;
+			}
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		}
+
+		if (p->history && n < p->history_used && (c = strchr(p->history + n - 1, '\n'))) {
+			p->history_used -= (size_t)(c - p->history) + 1;
+			memmove(p->history, c + 1, p->history_used + 1);
+			goto again;
+		}
+	}
+
+	va_end(ap);
+
+	return res;
 }
+
 
 /*! \brief  retrans_pkt: Retransmit SIP message if no answer */
 static int retrans_pkt(void *data)
@@ -1641,8 +1653,7 @@ static int retrans_pkt(void *data)
         if (sipdebug && option_debug > 3)
             cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", pkt->retransid, sip_methods[pkt->method].text, reschedule, pkt->owner->timer_t1);
 
-        snprintf(buf, sizeof(buf), "ReTx %d", reschedule);
-        append_history(pkt->owner, buf, pkt->data);
+        append_history(pkt->owner, "%-15s %d\n", "ReTx", reschedule);
 
         __sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
 
@@ -1685,8 +1696,8 @@ static int retrans_pkt(void *data)
             if (pkt->method == SIP_OPTIONS && sipdebug)
                 cw_log(CW_LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
         }
-        append_history(pkt->owner, "MaxRetries", (cw_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
-         
+        append_history(pkt->owner, "%-15s %s\n", "MaxRetries", (cw_test_flag(pkt, FLAG_FATAL) ? "(Critical)" : "(Non-critical)"));
+
         if (cw_test_flag(pkt, FLAG_FATAL))
         {
             while (pkt->owner->owner  &&  cw_channel_trylock(pkt->owner->owner))
@@ -1774,13 +1785,13 @@ static int __sip_autodestruct(void *data)
 	if (dialogue->subscribed) {
 		transmit_state_notify(dialogue, CW_EXTENSION_DEACTIVATED, 1, 1, 1);    /* Send first notification */
 		dialogue->subscribed = NONE;
-		append_history(dialogue, "Subscribestatus", "timeout");
+		append_history(dialogue, "%-15s %s\n", "Subscribestatus", "timeout");
 		cw_mutex_unlock(&dialogue->lock);
 		return 10000;    /* Reschedule this destruction so that we know that it's gone */
 	}
 
 	cw_log(CW_LOG_DEBUG, "Auto destroying call '%s'\n", dialogue->callid);
-	append_history(dialogue, "AutoDestroy", "");
+	append_history(dialogue, "AutoDestroy\n");
 
 	if (dialogue->owner) {
 		cw_log(CW_LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", dialogue->callid);
@@ -1822,10 +1833,8 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
 
-	if (recordhistory) {
-		snprintf(tmp, sizeof(tmp), "%d ms", ms);
-		append_history(dialogue, "SchedDestroy", tmp);
-	}
+	if (recordhistory)
+		append_history(dialogue, "%-15s %dms\n", "SchedDestroy", ms);
 
 	if (dialogue->autokillid > -1) {
 		if (!cw_sched_del(sched, dialogue->autokillid))
@@ -1841,7 +1850,7 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 static int sip_cancel_destroy(struct sip_pvt *dialogue)
 {
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid)) {
-		append_history(dialogue, "CancelDestroy", "");
+		append_history(dialogue, "CancelDestroy\n");
 		cw_object_put(dialogue);
 		dialogue->autokillid = -1;
 	}
@@ -2220,8 +2229,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
     if (recordhistory)
     {
         for (res = sizeof("SIP/2.0 ") - 1; req->data[res] != '\r'; res++);
-        snprintf(tmpmsg, sizeof(tmpmsg), "%.*s - %.*s", req->cseq_len, req->data + req->cseq, res, req->data + sizeof("SIP/2.0 ") - 1);
-        append_history(p, (reliable ? "TxRespRel" : "TxResp"), tmpmsg);
+        append_history(p, "%-15s %.*s - %.*s\n", (reliable ? "TxRespRel" : "TxResp"), req->cseq_len, req->data + req->cseq, res - (sizeof("SIP/2.0 ") - 1), req->data + sizeof("SIP/2.0 ") - 1);
     }
 
     if (reliable)
@@ -2309,10 +2317,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
     }
 
     if (recordhistory)
-    {
-        snprintf(tmpmsg, sizeof(tmpmsg), "%d %s", req->seqno, sip_methods[req->method].text);
-        append_history(p, (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), tmpmsg);
-    }
+        append_history(p, "%-15s %d %s\n", (reliable && !p->peerpoke ? "TxReqRel" : "TxReq"), req->seqno, sip_methods[req->method].text);
 
     if (reliable && !p->peerpoke)
         res = __sip_reliable_xmit(p, req->seqno, 0, req->data, req->len, (reliable > 1), req->method);
@@ -5350,7 +5355,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     /* Manager Hold and Unhold events must be generated, if necessary */
     if (sin.sin_addr.s_addr && !sendonly)
     {
-        append_history(p, "Unhold", req->data);
+        append_history(p, "Unhold\n");
 
         if (callevents && cw_test_flag(p, SIP_CALL_ONHOLD))
         {
@@ -5366,7 +5371,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     else
     {            
         /* No address for RTP, we're on hold */
-        append_history(p, "Hold", req->data);
+        append_history(p, "Hold\n");
 
         if (callevents && !cw_test_flag(p, SIP_CALL_ONHOLD))
         {
@@ -5974,7 +5979,6 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method, struct sip_request *req, char *msg)
 {
     struct sip_pvt *p = alloca(sizeof(struct sip_pvt));
-    struct sip_history *hist = NULL;
 
     memset(p, 0, sizeof(struct sip_pvt));
 
@@ -6005,10 +6009,8 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
 
     __transmit_response(p, msg, req, 0);
 
-    while ((hist = p->history)) {
-    	p->history = p->history->next;
-    	free(hist);
-    }
+    if (p->history)
+        free(p->history);
 
     return 0;
 }
@@ -7433,12 +7435,8 @@ static int sip_reregister(void *data)
     struct sip_registry *r = data;
     pthread_t tid;
 
-    if (r->dialogue && recordhistory) {
-        char tmp[80];
-    
-        snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
-        append_history(r->dialogue, "RegistryRenew", tmp);
-    }
+    if (r->dialogue && recordhistory)
+        append_history(r->dialogue, "%-15s Account: %s@%s\n", "RegistryRenew", r->username, r->hostname);
 
     if (sipdebug)
         cw_log(CW_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
@@ -7550,12 +7548,10 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             return 0;
         }
         make_our_tag(p->tag, sizeof(p->tag));    /* create a new local tag for every register attempt */
+
         if (recordhistory)
-        {
-            char tmp[80];
-            snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
-            append_history(p, "RegistryInit", tmp);
-        }
+            append_history(p, "%-15s Account: %s@%s\n", "RegistryInit", r->username, r->hostname);
+
         /* Find address to hostname */
         if (create_addr(p, r->hostname))
         {
@@ -8623,7 +8619,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
         cw_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == CW_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
         p->stateid = -1;
         p->subscribed = NONE;
-        append_history(p, "Subscribestatus", state == CW_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated");
+        append_history(p, "%-15s %s\n", "Subscribestatus", (state == CW_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated"));
         break;
     default:    /* Tell user */
         p->laststate = state;
@@ -11170,8 +11166,6 @@ static int sip_show_history_one(struct cw_object *obj, void *data)
 {
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
 	struct sip_show_history_args *args = data;
-	struct sip_history *hist;
-	int x;
 
 	if (!strncasecmp(dialogue->callid, args->prefix, args->prefix_len)) {
 		cw_cli(args->fd, "\n");
@@ -11181,13 +11175,9 @@ static int sip_show_history_one(struct cw_object *obj, void *data)
 		else
 			cw_cli(args->fd, "  * SIP Call\n");
 
-		if ((hist = dialogue->history)) {
-			x = 1;
-			while (hist) {
-				cw_cli(args->fd, "%d. %s\n", x++, hist->event);
-				hist = hist->next;
-			}
-		} else
+		if (dialogue->history)
+			cw_cli(args->fd, "%s", dialogue->history);
+		else
 			cw_cli(args->fd, "Call '%s' has no history\n", dialogue->callid);
 
 		args->found++;
@@ -11221,32 +11211,21 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+
 /*! \brief  dump_history: Dump SIP history to debug log file at end of 
   lifespan for SIP dialog */
 void sip_dump_history(struct sip_pvt *dialogue)
 {
-	struct sip_history *hist;
-	int x;
-
-	cw_log(CW_LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialogue->callid);
-
 	if (dialogue->subscribed)
 		cw_log(CW_LOG_DEBUG, "  * Subscription\n");
 	else
 		cw_log(CW_LOG_DEBUG, "  * SIP Call\n");
 
-	x = 0;
-	while ((hist = dialogue->history)) {
-		dialogue->history = dialogue->history->next;
-		x++;
-		cw_log(CW_LOG_DEBUG, "  %d. %s\n", x, hist->event);
-		free(hist);
-	}
-
-	if (!x)
+	if (dialogue->history)
+		cw_log(CW_LOG_DEBUG, "%s", dialogue->history);
+	else
 		cw_log(CW_LOG_DEBUG, "Call '%s' has no history\n", dialogue->callid);
 
-	cw_log(CW_LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialogue->callid);
 }
 
 /*! \brief  handle_request_info: Receive SIP INFO Message */
@@ -11576,12 +11555,10 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
              /* No old challenge */
         return -1;
     }
+
     if (recordhistory)
-    {
-        char tmp[80];
-        snprintf(tmp, sizeof(tmp), "Try: %d", p->authtries);
-        append_history(p, "RegistryAuth", tmp);
-    }
+        append_history(p, "%-15s Try: %d\n", "RegistryAuth", p->authtries);
+
      if (sip_debug_test_pvt(p) && p->registry)
          cw_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
     return transmit_register(p->registry, SIP_REGISTER, digest, respheader); 
@@ -14167,7 +14144,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         {
             transmit_response(p, "200 OK", req);
             transmit_state_notify(p, firststate, 1, 1, 0);    /* Send first notification */
-            append_history(p, "Subscribestatus", cw_extension_state2str(firststate));
+            if (recordhistory)
+                append_history(p, "%-15s %s\n", "Subscribestatus", cw_extension_state2str(firststate));
 
 	    /* remove any old subscription from this peer for the same exten/context,
 	       as the peer has obviously forgotten about it and it's wasteful to wait
@@ -14523,12 +14501,8 @@ retrylock:
 
 				memcpy(&p->recv, &sin, sizeof(p->recv));
 
-				if (recordhistory) {
-					char tmp[80];
-					/* This is a response, note what it was for */
-					snprintf(tmp, sizeof(tmp), "%s - %s", req.data + req.cseq, req.data + req.rlPart2);
-					append_history(p, "Rx", tmp);
-				}
+				if (recordhistory)
+					append_history(p, "%-15s %s - %s\n", "Rx", req.data + req.cseq, req.data + req.rlPart2);
 
 				nounlock = 0;
 
