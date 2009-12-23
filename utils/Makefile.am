@@ -15,9 +15,10 @@ genkeywords_CFLAGS	= -I$(top_srcdir)/include $(AM_CFLAGS)
 
 if USE_NEWT
     cwutils_PROGRAMS += cwman
-    cwman_CFLAGS = $(AM_CFLAGS) @SSL_CFLAGS@
+    cwman_CFLAGS = $(AM_CFLAGS)
     cwman_SOURCES = cwman.c ${top_srcdir}/corelib/utils.c
-    cwman_LDADD = -lnewt @SSL_LIBS@
+    cwman_LDFLAGS = @OPENSSL_LDFLAGS@
+    cwman_LDADD = -lnewt @OPENSSL_LIBS@
 endif USE_NEWT
 
 if WANT_SMSQ

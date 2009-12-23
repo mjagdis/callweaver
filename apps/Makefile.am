@@ -244,9 +244,9 @@ if WANT_OSP
 if WANT_APP_OSPLOOKUP
 cwmod_LTLIBRARIES			+= app_osplookup.la
 app_osplookup_la_SOURCES		= app_osplookup.c
-app_osplookup_la_CFLAGS			= $(AM_CFLAGS) ${SSL_CFLAGS}
-app_osplookup_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@
-app_osplookup_la_LIBADD			= ${SSL_LIBS} @CALLWEAVER_LIB@
+app_osplookup_la_CFLAGS			= $(AM_CFLAGS)
+app_osplookup_la_LDFLAGS		= -module -avoid-version @NO_UNDEFINED@ @OPENSSL_LDFLAGS@
+app_osplookup_la_LIBADD			= @OPENSSL_LIBS@ @CALLWEAVER_LIB@
 endif WANT_APP_OSPLOOKUP
 endif WANT_OSP
 

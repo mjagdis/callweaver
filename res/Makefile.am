@@ -86,9 +86,9 @@ endif WANT_RES_CONFIG_ODBC
 if WANT_OSP
 cwmod_LTLIBRARIES	+= res_osp.la
 res_osp_la_SOURCES	= res_osp.c
-res_osp_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
-res_osp_la_CFLAGS	= $(AM_CFLAGS) @OSP_CFLAGS@ @SSL_CFLAGS@
-res_osp_la_LIBADD	= @OSP_LIBS@ @SSL_LIBS@ @CALLWEAVER_LIB@  
+res_osp_la_CFLAGS	= $(AM_CFLAGS) @OSP_CFLAGS@
+res_osp_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@ @OPENSSL_LDFLAGS@
+res_osp_la_LIBADD	= @OSP_LIBS@ @OPENSSL_LIBS@ @CALLWEAVER_LIB@
 endif WANT_OSP
 
 if WANT_RES_JS

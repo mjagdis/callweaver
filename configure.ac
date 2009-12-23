@@ -1062,10 +1062,7 @@ AM_CONDITIONAL([WANT_SRTP],[test "${enable_srtp}" = "yes"])
 
 dnl ##########################################################################
 
-AC_ARG_WITH([ssl],
-       [AC_HELP_STRING([--with-ssl=PATH],[Location of OpenSSL installation])],,[withval=""])
-
-CHECK_SSL
+AX_CHECK_OPENSSL
 
 
 dnl ##########################################################################

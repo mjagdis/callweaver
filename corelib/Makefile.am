@@ -92,14 +92,14 @@ CORE_CFLAGS 	+= -fomit-frame-pointer
 endif
 CORE_CFLAGS	+= -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
 CORE_CFLAGS	+= @SQLITE3_THREADSAFE_CFLAGS@ -I$(top_builddir)/include -I$(top_srcdir) -I$(top_srcdir)/include $(AM_CFLAGS) 
-CORE_CFLAGS	+= @SSL_CFLAGS@
 
-CORE_LIBS	=  -lvale -lspandsp -ltiff $(LIBLTDL) @SSL_LIBS@
+CORE_LDFLAGS	= @OPENSSL_LDFLAGS@
+
+CORE_LIBS	=  -lvale -lspandsp -ltiff $(LIBLTDL) @OPENSSL_LIBS@
 CORE_LIBS	+= @SQLITE3_THREADSAFE_LIBS@
 CORE_LIBS 	+= ${top_builddir}/stdtime/libtime.la 
 CORE_LIBS 	+= ${top_builddir}/corelib/jitterbuffer/libcwjb.la
 CORE_LIBS	+= -lreadline
-CORE_LIBS	+= -lssl -lcrypto
 
 if HAVE_LIBCAP
 CORE_LIBS	+= -lcap
