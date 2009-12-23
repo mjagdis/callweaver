@@ -117,6 +117,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyringing = yes		; Notify subscriptions on RINGING state
 
 ;timer_t1 = 500			; Default RTT estimate in ms (RFC3261 requires 500ms)
+                                ; (This option may also be specified as "rtt")
 ;timer_t2 = 4000		; Maximum retransmit interval for non-INVITEs in ms (RFC3261 requires 4s)
 				; You may wish to change these if you need to traverse high latency
 				; networks (such as over satellite links). However you should note
@@ -327,6 +328,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             port
 ;                             qualify
 ;                             defaultip
+;                             timer_t1
+;                             rtt
+;                             timer_t2
 ;                             rtptimeout
 ;                             rtpholdtimeout
 ;                             sendrpid

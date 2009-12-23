@@ -763,7 +763,8 @@ struct sip_pvt {
     cw_group_t pickupgroup;        /*!< Pickup group */
     int lastinvite;                /*!< Last Cseq of invite */
     unsigned int flags;            /*!< SIP_ flags */    
-    int timer_t1;                /*!< SIP timer T1, ms rtt */
+    int timer_t1;                /*!< SIP timer T1, ms (current RTT estimate) */
+    int timer_t2;                /*!< SIP RFC timer T2, ms (maximum transmit interval for non-INVITES) */
     unsigned int sipoptions;        /*!< Supported SIP sipoptions on the other end */
     int capability;                /*!< Special capability (codec) */
     int jointcapability;            /*!< Supported capability at both ends (codecs ) */
@@ -985,7 +986,8 @@ struct sip_peer {
     /* Qualification */
     struct sip_pvt *dialogue;        /*!<  Dialogue pointer */
     int pokeexpire;            /*!<  When to expire poke (qualify= checking) */
-    int lastms;            /*!<  How long last response took (in ms), or -1 for no response */
+    int timer_t1;            /*!<  How long last response took (in ms), or -1 for no response */
+    int timer_t2;            /*!< SIP RFC timer T2, ms (maximum transmit interval for non-INVITES) */
     int maxms;            /*!<  Max ms we will accept for the host to be up, 0 to not monitor */
     int noanswer;         /*!<  How many noanswers we have had in a row */
     struct timeval ps;        /*!<  Ping send time */
@@ -1895,8 +1897,8 @@ static int retrans_pkt(void *data)
 
         reschedule = msg->timer_a * msg->owner->timer_t1;
         /* For non-invites, a maximum of T2 (normally 4 secs  as per RFC3261) */
-        if (msg->method != SIP_INVITE && reschedule > rfc_timer_t2)
-            reschedule = rfc_timer_t2;
+        if (msg->method != SIP_INVITE && reschedule > msg->owner->timer_t2)
+            reschedule = msg->owner->timer_t2;
 
         if (msg->owner && sip_debug_test_pvt(msg->owner))
         {
@@ -2006,7 +2008,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, struct sip_request **msg_p, in
 	/* Note: The first retransmission is at last RTT plus a bit to allow for (some) jitter
 	 * and to avoid sending a retransmit at the exact moment we expect the reply to arrive
 	 */
-	msg->retransid = cw_sched_add_variable(sched, (p->timer_t1 != rfc_timer_t1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : rfc_timer_t1), retrans_pkt, msg, 1);
+	msg->retransid = cw_sched_add_variable(sched, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), retrans_pkt, msg, 1);
 
 	if (option_debug > 3 && sipdebug)
 		cw_log(CW_LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", msg->retransid);
@@ -3070,7 +3072,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 
     if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr)
         &&
-        (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms))))
+        (!peer->maxms || ((peer->timer_t1 >= 0)  && (peer->timer_t1 <= peer->maxms))))
     {
         if (peer->addr.sin_addr.s_addr)
         {
@@ -3150,14 +3152,15 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
     r->maxtime = peer->maxms;
     r->callgroup = peer->callgroup;
     r->pickupgroup = peer->pickupgroup;
-    /* Set timer T1 to RTT for this peer (if known by qualify=) */
-    if (peer->maxms && peer->lastms)
-	r->timer_t1 = peer->lastms;
     if ((cw_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833) || (cw_test_flag(r, SIP_DTMF) == SIP_DTMF_AUTO))
         r->noncodeccapability |= CW_RTP_DTMF;
     else
         r->noncodeccapability &= ~CW_RTP_DTMF;
     cw_copy_string(r->context, peer->context,sizeof(r->context));
+
+    r->timer_t1 = peer->timer_t1;
+    r->timer_t2 = peer->timer_t2;
+
     r->rtptimeout = peer->rtptimeout;
     r->rtpholdtimeout = peer->rtpholdtimeout;
     r->rtpkeepalive = peer->rtpkeepalive;
@@ -4531,6 +4534,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     memset(&p->stun_transid, 0, sizeof(p->stun_transid));
 
     p->timer_t1 = rfc_timer_t1;
+    p->timer_t2 = rfc_timer_t2;
 
 #ifdef OSP_SUPPORT
     p->osphandle = -1;
@@ -8592,7 +8596,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
         p->fullcontact[0] = '\0';
         p->useragent[0] = '\0';
         p->sipoptions = 0;
-        p->lastms = 0;
 
         if (option_verbose > 3)
             cw_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
@@ -8670,6 +8673,14 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     else
         p->expire = -1;
     pvt->expiry = expiry;
+
+    /* If we are qualifying the RTT estimate starts at the default until we know better.
+     * N.B. Yes, we could use whatever we had previously but dynamic peers are likely
+     * to move elsewhere on the network. That's the point of dynamic peers!
+     */
+    if (p->maxms)
+        p->timer_t1 = rfc_timer_t1;
+
     snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
     if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
         cw_db_put("SIP/Registry", p->name, data);
@@ -10048,8 +10059,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
             /* Copy callingpres only if the RPID did not indicate any privacy/screening parameters */
             if (p->callingpres == 0)
                 p->callingpres = peer->callingpres;
-            if (peer->maxms && peer->lastms)
-                p->timer_t1 = peer->lastms;
+
+            p->timer_t1 = peer->timer_t1;
+	    p->timer_t2 = peer->timer_t2;
+
             if (cw_test_flag(peer, SIP_INSECURE_INVITE))
             {
                 /* Pretend there is no required authentication */
@@ -10300,40 +10313,21 @@ static char *nat2str(int nat)
     }
 }
 
-/*! \brief  peer_status: Report Peer status in character string */
-/*     returns 1 if peer is online, -1 if unmonitored */
-static int peer_status(struct sip_peer *peer, char *status, int statuslen)
+/*! \brief  peer_status: Report Peer status as text */
+static const char *peer_status(struct sip_peer *peer)
 {
-    int res = 0;
-    
-    if (peer->maxms)
-    {
-        if (peer->lastms < 0)
-        {
-            cw_copy_string(status, "UNREACHABLE", statuslen);
-        }
-        else if (peer->lastms > peer->maxms)
-        {
-            snprintf(status, statuslen, "LAGGED (%d ms)", peer->lastms);
-            res = 1;
-        }
-        else if (peer->lastms)
-        {
-            snprintf(status, statuslen, "OK (%d ms)", peer->lastms);
-            res = 1;
-        }
-        else
-        {
-            cw_copy_string(status, "UNKNOWN", statuslen);
-        }
-    }
-    else
-    { 
-        cw_copy_string(status, "Unmonitored", statuslen);
-        /* Checking if port is 0 */
-        res = -1;
-    }
-    return res;
+	const char *status = "Unmonitored";
+
+	if (peer->maxms) {
+		if (peer->timer_t1 < 0)
+			status = "UNREACHABLE";
+		else if (peer->timer_t1 > peer->maxms)
+			status = "LAGGED";
+		else
+			status = "OK";
+	}
+
+	return status;
 }
 
 
@@ -10433,8 +10427,8 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 }
 
 
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-12s %-d\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-12s %-7s\n"
 
 struct _sip_show_peers_args {
 	int fd;
@@ -10453,8 +10447,6 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 	struct _sip_show_peers_args *args = data;
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
-        char status[20] = "";
-        char pstatus;
 
 	if (!args->havepattern || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
 		if (!cw_strlen_zero(peer->username) && !args->s)
@@ -10462,11 +10454,10 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 		else
 			cw_copy_string(name, peer->name, sizeof(name));
 
-		pstatus = peer_status(peer, status, sizeof(status));
-		if (pstatus && peer->addr.sin_addr.s_addr)
-			args->peers_online++;
-		else
+		if ((peer->maxms && peer->timer_t1 < 0) || !peer->addr.sin_addr.s_addr)
 			args->peers_offline++;
+		else
+			args->peers_online++;
 
 		if (!args->s) {
 			/* Normal CLI list */
@@ -10476,7 +10467,7 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
 				peer->ha ? " A " : "   ",       /* permit/deny */
 				ntohs(peer->addr.sin_port),
-				status);
+				peer_status(peer), peer->timer_t1);
 		} else {    /* Manager format */
 			/* The names here need to be the same as other channels */
 			cw_cli(args->fd,
@@ -10489,7 +10480,8 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 				"Dynamic: %s\r\n"
 				"Natsupport: %s\r\n"
 				"ACL: %s\r\n"
-				"Status: %s\r\n\r\n",
+				"Status: %s\r\n"
+				"RTT: %dms\r\n\r\n",
 				args->idtext,
 				peer->name,
 				peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "-none-",
@@ -10497,7 +10489,7 @@ static int _sip_show_peers_one(struct cw_object *obj, void *data)
 				cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no",  /* Dynamic or not? */
 				(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",    /* NAT=yes? */
 				peer->ha ? "yes" : "no",       /* permit/deny */
-				status);
+				peer_status(peer), peer->timer_t1);
 		}
 
 		args->total_peers++;
@@ -10543,7 +10535,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 
 	/* Normal list? */
 	if (!s)
-		cw_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
+		cw_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status", "RTT(ms)");
 
 	cw_registry_iterate_ordered(&peerbyname_registry, _sip_show_peers_one, &args);
 
@@ -10855,7 +10847,6 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 
 static int _sip_show_peer(int type, int fd, struct mansession *s, struct message *m, int argc, char *argv[])
 {
-    char status[30] = "";
     char cbuf[256];
     char iabuf[INET_ADDRSTRLEN];
     struct sip_peer *peer;
@@ -10955,9 +10946,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 
         cw_cli(fd, ")\n");
 
-        cw_cli(fd, "  Status       : ");
-        peer_status(peer, status, sizeof(status));
-        cw_cli(fd, "%s\n",status);
+        cw_cli(fd, "  Status       : %s\n", peer_status(peer));
+        cw_cli(fd, "  RTT          : %dms\n", peer->timer_t1);
         cw_cli(fd, "  Useragent    : %s\n", peer->useragent);
         cw_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
         if (peer->chanvars)
@@ -11031,11 +11021,10 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
         }
 
         cw_cli(fd, "\r\n");
-        cw_cli(fd, "Status: ");
-        peer_status(peer, status, sizeof(status));
-        cw_cli(fd, "%s\r\n", status);
-         cw_cli(fd, "SIP-Useragent: %s\r\n", peer->useragent);
-         cw_cli(fd, "Reg-Contact : %s\r\n", peer->fullcontact);
+        cw_cli(fd, "Status: %s\r\n", peer_status(peer));
+        cw_cli(fd, "RTT: %dms\r\n", peer->timer_t1);
+        cw_cli(fd, "SIP-Useragent: %s\r\n", peer->useragent);
+        cw_cli(fd, "Reg-Contact : %s\r\n", peer->fullcontact);
         if (peer->chanvars)
         {
             for (v = peer->chanvars;  v;  v = v->next)
@@ -12424,7 +12413,10 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
     }
     else  if (!strcasecmp(argv[1], "status"))
     {
-        peer_status(peer, buf, len);
+        if (peer->maxms && peer->timer_t1 >= 0)
+	    snprintf(buf, len, "%s (%d ms)", peer_status(peer), peer->timer_t1);
+        else
+	    snprintf(buf, len, "%s", peer_status(peer));
     }
     else  if (!strcasecmp(argv[1], "language"))
     {
@@ -13099,7 +13091,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
         if (pingtime < 1)
             pingtime = 1;
         peer->noanswer = 0;
-        if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
+        if ((peer->timer_t1 < 0)  || (peer->timer_t1 > peer->maxms))
         {
             if (pingtime <= peer->maxms)
             {
@@ -13109,7 +13101,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
                 newstate = 1;
             }
         }
-        else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms))
+        else if ((peer->timer_t1 > 0) && (peer->timer_t1 <= peer->maxms))
         {
             if (pingtime > peer->maxms)
             {
@@ -13119,9 +13111,9 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
                 newstate = 2;
             }
         }
-        if (!peer->lastms)
+        if (!peer->timer_t1)
             statechanged = 1;
-        peer->lastms = pingtime;
+        peer->timer_t1 = pingtime;
         if (statechanged)
         {
             cw_device_state_changed("SIP/%s", peer->name);
@@ -13142,7 +13134,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
         if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
             /* Try again eventually */
             peer->pokeexpire = cw_sched_add(sched,
-                ((peer->lastms < 0 || peer->lastms > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
+                ((peer->timer_t1 < 0 || peer->timer_t1 > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
                 sip_poke_peer, peer);
         } else
             cw_object_put(peer);
@@ -15148,11 +15140,11 @@ static int sip_poke_noanswer(void *data)
     if (peer->noanswer < 3)
         peer->noanswer++;
 
-    if (peer->noanswer == 3 && peer->lastms > -1) {
+    if (peer->noanswer == 3 && peer->timer_t1 > -1) {
 	if (option_verbose > 3)
-		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->lastms);
+		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->timer_t1);
         manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
-        peer->lastms = -1;
+        peer->timer_t1 = -1;
         cw_device_state_changed("SIP/%s", peer->name);
     }
 
@@ -15231,7 +15223,7 @@ static void *sip_poke_peer_thread(void *data)
                 peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
             } else {
                 cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-                peer->pokeexpire = cw_sched_add(sched, rfc_timer_t1, sip_poke_peer, peer);
+                peer->pokeexpire = cw_sched_add(sched, peer->timer_t1, sip_poke_peer, peer);
 	    }
         } else {
             peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
@@ -15300,7 +15292,7 @@ static int sip_devicestate(void *data)
         {
             /* we have an address for the peer */
             /* if qualify is turned on, check the status */
-            if (p->maxms  &&  (p->lastms > p->maxms))
+            if (p->maxms  &&  (p->timer_t1 > p->maxms))
             {
                 res = CW_DEVICE_UNAVAILABLE;
             }
@@ -15967,22 +15959,21 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     struct cw_flags peerflags = {(0)};
     struct cw_flags mask = {(0)};
 
-    if ((peer = calloc(1, sizeof(struct sip_peer)))) {
-        if (realtime)
-            rpeerobjs++;
-        else
-            speerobjs++;
-
-        cw_object_init(peer, NULL, 1);
-        peer->obj.release = sip_peer_release;
-
-        peer->expire = -1;
-        peer->pokeexpire = -1;
-        peer->lastms = -1;
-    } else {
-            cw_log(CW_LOG_WARNING, "Can't allocate SIP peer memory\n");
-            return NULL;
+    if (!(peer = calloc(1, sizeof(struct sip_peer)))) {
+        cw_log(CW_LOG_WARNING, "Can't allocate SIP peer memory\n");
+        return NULL;
     }
+
+    if (realtime)
+        rpeerobjs++;
+    else
+        speerobjs++;
+
+    cw_object_init(peer, NULL, 1);
+    peer->obj.release = sip_peer_release;
+
+    peer->expire = -1;
+    peer->pokeexpire = -1;
 
     peer->lastmsgssent = -1;
     if (name)
@@ -16021,6 +16012,7 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     peer->addr.sin_family = AF_INET;
     cw_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
     peer->capability = global_capability;
+    peer->timer_t2 = rfc_timer_t2;
     peer->rtptimeout = global_rtptimeout;
     peer->rtpholdtimeout = global_rtpholdtimeout;
     while (v)
@@ -16189,6 +16181,14 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         {
             cw_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
         }
+        else if (!strcasecmp(v->name, "rtt") || !strcasecmp(v->name, "timer_t1"))
+        {
+            peer->timer_t1 = atoi(v->value);
+        }
+        else if (!strcasecmp(v->name, "timer_t2"))
+        {
+            peer->timer_t2 = atoi(v->value);
+        }
         else if (!strcasecmp(v->name, "rtptimeout"))
         {
             if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0))
@@ -16263,8 +16263,13 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         }
     }
     cw_copy_flags(peer, &peerflags, mask.flags);
+
+    if (!peer->timer_t1)
+        peer->timer_t1 = rfc_timer_t1;
+
     if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && !cw_test_flag(peer, SIP_REALTIME))
         reg_source_db(peer);
+
     cw_free_ha(oldha);
 
     peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
@@ -16540,7 +16545,7 @@ static int reload_config(void)
         {
             autocreatepeer = cw_true(v->value);
         }
-        else if (!strcasecmp(v->name, "timer_t1"))
+        else if (!strcasecmp(v->name, "rtt") || !strcasecmp(v->name, "timer_t1"))
         {
             rfc_timer_t1 = atoi(v->value);
         }
