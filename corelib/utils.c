@@ -856,7 +856,7 @@ int cw_mutex_lock_debug(cw_mutex_t *t, int canlog, const char *filename, int lin
 					mutex_name, delay);
 				if (t->tinfo) {
 					show_locks(canlog, t);
-					if (t->tinfo->mutex_name)
+					if (t->tinfo && t->tinfo->mutex_name)
 						debug_mutex_log("    blocking on %s at %s:%d %s\n", t->tinfo->mutex_name, t->tinfo->file, t->tinfo->lineno, t->tinfo->function);
 					else
 						debug_mutex_log("    not blocking on a mutex\n");
