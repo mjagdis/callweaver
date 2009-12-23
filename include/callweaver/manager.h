@@ -249,7 +249,7 @@ static __inline__ char *cw_me_field(const char *key, const char *fmt, ...)
 		CW_CPP_CAT(CW_CPP_ITERATE_, count)(1, CW_ME_FMT, __VA_ARGS__) "%s", \
 		CW_ME_ARGS_I(0, "Event", "%s", event) \
 		CW_CPP_CAT(CW_CPP_ITERATE_, count)(1, CW_ME_ARGS, __VA_ARGS__) \
-		"" \
+		"\r\n" \
 	); \
    })
 

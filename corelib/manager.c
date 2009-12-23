@@ -1843,19 +1843,6 @@ again:
 		if (used < 0)
 			used = alloc + 255;
 
-		if (args->map[((args->count - 1) << 1) + 1] - args->map[((args->count - 1) << 1) + 0] - 2 == sizeof("Message") - 1
-		&& !memcmp(args->me->data + args->map[(args->count - 1) << 1], "Message", sizeof("Message") - 1)) {
-			s = "--END MESSAGE--\r\n\r\n";
-			n = sizeof("--END MESSAGE--\r\n\r\n");
-		} else {
-			s = "\r\n";
-			n = sizeof("\r\n");
-		}
-
-		if (used + n <= alloc)
-			memcpy(args->me->data + used, s, n);
-		used += n - 1;
-
 		if (used < alloc) {
 			memcpy(args->me->map, args->map, ((args->count << 1) + 1) * sizeof(args->me->map[0]));
 			args->me->count = args->count;

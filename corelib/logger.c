@@ -164,12 +164,9 @@ static int logger_manager_session(struct mansession *sess, const struct manager_
 			}
 
 			p = event->data + event->map[(i << 1) + 1] + 2;
-			j = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2;
+			j = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2 - (sizeof("--END MESSAGE--\r\n") - 1);
 			while (j > 0) {
 				n = strcspn(p, "\r\n");
-
-				if (n == sizeof("--END MESSAGE--") - 1 && !memcmp(p, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1))
-					break;
 
 				if (sess->addr.sa.sa_family == AF_PATHNAME) {
 					if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
@@ -674,7 +671,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 			cw_me_field("File",      "%s",      file),
 			cw_me_field("Line",      "%d",      line),
 			cw_me_field("Function",  "%s",      function),
-			cw_me_field("Message",   "\r\n%s",  msg)
+			cw_me_field("Message",   "\r\n%s\r\n--END MESSAGE--",  msg)
 		);
 	} else {
 		/* 
