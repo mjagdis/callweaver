@@ -173,8 +173,12 @@ struct cw_conf_user
     struct volume listen;
 };
 
-#define ADMINFLAG_MUTED (1 << 1)    /* User is muted */
-#define ADMINFLAG_KICKME (1 << 2)    /* User is kicked */
+static int audio_buffers;         /* The number of audio buffers to be allocated on pseudo channels when in a conference */
+
+#define DEFAULT_AUDIO_BUFFERS 32  /* each buffer is 20ms, so this is 640ms total */
+
+#define ADMINFLAG_MUTED (1 << 1)  /* User is muted */
+#define ADMINFLAG_KICKME (1 << 2) /* User is kicked */
 #define MEETME_DELAYDETECTTALK         300
 #define MEETME_DELAYDETECTENDTALK     1000
 
@@ -260,14 +264,20 @@ static char *istalking(int x)
         return "(not talking)";
 }
 
-static int careful_write(int fd, unsigned char *data, int len)
+static int careful_write(int fd, unsigned char *data, int len, int block)
 {
     int res;
     int x;
     while (len)
     {
-        x = DAHDI_IOMUX_WRITE | DAHDI_IOMUX_SIGEVENT;
-        res = ioctl(fd, DAHDI_IOMUX, &x);
+        if (block)
+        {
+            x = DAHDI_IOMUX_WRITE | DAHDI_IOMUX_SIGEVENT;
+            res = ioctl(fd, DAHDI_IOMUX, &x);
+        }
+        else
+            res = 0;
+
         if (res >= 0)
             res = write(fd, data, len);
         if (res < 1)
@@ -422,7 +432,7 @@ static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int s
         len = 0;
     }
     if (data)
-        careful_write(conf->fd, data, len);
+        careful_write(conf->fd, data, len, 1);
     cw_mutex_unlock(&conflock);
     if (!res)
         cw_autoservice_stop(chan);
@@ -741,9 +751,22 @@ static struct cw_clicmd cli_conf = {
 	.generator = complete_confcmd,
 };
 
-static void conf_flush(int fd)
+static void conf_flush(int fd, struct cw_channel *chan)
 {
     int x;
+
+    /* read any frames that may be waiting on the channel and throw them away */
+    if (chan) {
+        struct cw_frame *f;
+
+        /* when no frames are available, this will wait for 1 millisecond maximum */
+        while (cw_waitfor(chan, 1)) {
+            if ((f = cw_read(chan)))
+                cw_fr_free(f);
+        }
+    }
+
+    /* flush any data sitting in the pseudo channel */
     x = DAHDI_FLUSH_ALL;
     if (ioctl(fd, DAHDI_FLUSH, &x))
         cw_log(CW_LOG_WARNING, "Error flushing channel\n");
@@ -1029,7 +1052,7 @@ dahdiretry:
         bi.bufsize = CONF_SIZE/2;
         bi.txbufpolicy = DAHDI_POLICY_IMMEDIATE;
         bi.rxbufpolicy = DAHDI_POLICY_IMMEDIATE;
-        bi.numbufs = 4;
+        bi.numbufs = audio_buffers;
         if (ioctl(fd, DAHDI_SET_BUFINFO, &bi))
         {
             cw_log(CW_LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
@@ -1117,7 +1140,7 @@ dahdiretry:
             if (!(confflags & CONFFLAG_WAITMARKED) || (conf->markedusers >= 1))
                 conf_play(chan, conf, ENTER);
     }
-    conf_flush(fd);
+    conf_flush(fd, chan);
     cw_mutex_unlock(&conflock);
     if (confflags & CONFFLAG_OGI)
     {
@@ -1397,8 +1420,7 @@ dahdiretry:
                     }
                     if (using_pseudo)
                     {
-                        /* Carefully write */
-                        careful_write(fd, f->data, f->datalen);
+                        careful_write(fd, f->data, f->datalen, 0);
                     }
                 }
                 else if ((f->frametype == CW_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT))
@@ -1627,7 +1649,7 @@ dahdiretry:
                         cw_mutex_unlock(&conflock);
                         goto outrun;
                     }
-                    conf_flush(fd);
+                    conf_flush(fd, chan);
                 }
                 else if (option_debug)
                 {
@@ -1967,8 +1989,7 @@ static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
             memset(map, 0, sizeof(map));
 
             cw_mutex_lock(&conflock);
-            cnf = confs;
-            while (cnf)
+            for (cnf = confs; cnf; cnf = cnf->next)
             {
                 if (sscanf(cnf->confno, "%d", &confno_int) == 1)
                 {
@@ -1976,7 +1997,6 @@ static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
                     if (confno_int >= 0 && confno_int < 1024)
                         map[confno_int]++;
                 }
-                cnf = cnf->next;
             }
             cw_mutex_unlock(&conflock);
 
@@ -2044,7 +2064,7 @@ static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
             /* Select first conference number not in use */
             if (cw_strlen_zero(confno) && dynamic)
             {
-                for (i=0;i<1024;i++)
+                for (i = 0; i < arraysize(map); i++)
                 {
                     if (!map[i])
                     {
@@ -2374,6 +2394,33 @@ static void *recordthread(void *args)
     pthread_exit(0);
 }
 
+
+static void load_config(void)
+{
+	struct cw_config *cfg;
+	char *val;
+
+	audio_buffers = DEFAULT_AUDIO_BUFFERS;
+
+	if (!(cfg = cw_config_load("meetme.conf")))
+		return;
+
+	if ((val = cw_variable_retrieve(cfg, "general", "audiobuffers"))) {
+		if ((sscanf(val, "%d", &audio_buffers) != 1)) {
+			cw_log(CW_LOG_WARNING, "audiobuffers setting must be a number, not '%s'\n", val);
+			audio_buffers = DEFAULT_AUDIO_BUFFERS;
+		} else if ((audio_buffers < DAHDI_DEFAULT_NUM_BUFS) || (audio_buffers > DAHDI_MAX_NUM_BUFS)) {
+			cw_log(CW_LOG_WARNING, "audiobuffers setting must be between %d and %d\n", DAHDI_DEFAULT_NUM_BUFS, DAHDI_MAX_NUM_BUFS);
+			audio_buffers = DEFAULT_AUDIO_BUFFERS;
+		}
+		if (audio_buffers != DEFAULT_AUDIO_BUFFERS)
+			cw_log(CW_LOG_NOTICE, "Audio buffers per channel set to %d\n", audio_buffers);
+	}
+
+	cw_config_destroy(cfg);
+}
+
+
 static int unload_module(void)
 {
     int res = 0;
@@ -2387,6 +2434,8 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+    load_config();
+
     cw_cli_register(&cli_show_confs);
     cw_cli_register(&cli_conf);
     app3 = cw_register_function(name3, admin_exec, synopsis3, syntax3, descrip3);
@@ -2395,5 +2444,11 @@ static int load_module(void)
     return 0;
 }
 
+static int reload_module(void)
+{
+	load_config();
+	return 0;
+}
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
+
+MODULE_INFO(load_module, reload_module, unload_module, NULL, tdesc)
