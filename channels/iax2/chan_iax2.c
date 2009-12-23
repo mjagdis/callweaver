@@ -4799,7 +4799,6 @@ static int iax2_register(char *value, int lineno)
 	char *porta;
 	char *stringp=NULL;
 	
-	struct cw_hostent ahp; struct hostent *hp;
 	if (!value)
 		return -1;
 	cw_copy_string(copy, value, sizeof(copy));
@@ -7190,8 +7189,8 @@ static void *network_thread(void *ignore)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
-	int res, count;
 	struct iax_frame *f, *freeme;
+	int count;
 
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -7376,7 +7375,6 @@ static void *async_get_ip_handler(void *data)
 int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const char *value, const char *service)
 {
 	pthread_t tid;
-	pthread_attr_t attr;
 	struct async_get_ip_args *args;
 	int ret = -1;
 

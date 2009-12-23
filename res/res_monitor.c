@@ -348,7 +348,6 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 
 static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char tmp[256];
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;

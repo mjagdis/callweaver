@@ -237,9 +237,8 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 static int group_show_channels(int fd, int argc, char *argv[])
 {
 	regex_t regexbuf;
-	struct cw_channel *chan = NULL;
 	struct cw_group_info *gi = NULL;
-	int numchans;
+	int numchans = 0;
 	int havepattern;
 
 	if (argc < 3 || argc > 4)

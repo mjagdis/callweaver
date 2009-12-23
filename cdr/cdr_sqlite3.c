@@ -222,7 +222,7 @@ static int sqlite_log(struct cw_cdr *submission)
 	struct tm tm;
 	struct cw_cdr *batch, *cdrset, *cdr;
 	int startlen, answerlen, endlen;
-	int res, res2;
+	int res;
 
 	pthread_mutex_lock(&sqlite3_lock);
 

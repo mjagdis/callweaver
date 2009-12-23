@@ -387,7 +387,7 @@ static struct cw_config *config_mysql(const char *database, const char *table, c
 	MYSQL_ROW row;
 	my_ulonglong num_rows;
 	struct cw_variable *new_v;
-	struct cw_category *cur_cat;
+	struct cw_category *cur_cat = NULL;
 	char sql[250] = "";
 	char last[80] = "";
 	int last_cat_metric = 0;

@@ -65,8 +65,6 @@ static const char muxmon_descrip[] =
     "";
 
 
-CW_MUTEX_DEFINE_STATIC(modlock);
-
 struct muxmon
 {
     struct cw_channel *chan;
@@ -112,8 +110,6 @@ static __inline__ int db_to_scaling_factor(int db)
 
 static void stopmon(struct cw_channel *chan, struct cw_channel_spy *spy) 
 {
-    int count = 0;
-
     if (chan)
     {
 	cw_channel_lock(chan);

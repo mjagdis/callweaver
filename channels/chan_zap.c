@@ -2248,7 +2248,7 @@ static int dahdi_call(struct cw_channel *cw, char *rdest)
 			} else if (!strcasecmp(var->value, "UNKNOWN")) {
 				prilocaldialplan = PRI_UNKNOWN;
 			} else {
-				cw_log(CW_LOG_WARNING, "Unable to determine local PRI type of number '%s', using instead '%s'\n", x, ton2str(prilocaldialplan));
+				cw_log(CW_LOG_WARNING, "Unable to determine local PRI type of number '%s', using instead '%s'\n", var->value, ton2str(prilocaldialplan));
 			}
 			cw_object_put(var);
 		}
@@ -8988,7 +8988,6 @@ static int start_pri(struct dahdi_pri *pri)
 
 static void complete_span_helper(int fd, char *argv[], int lastarg, int lastarg_len, int rpos)
 {
-	char tmp[50];
 	int span = 1;
 
 	if (lastarg == rpos) {
@@ -9797,7 +9796,6 @@ static int action_dahdishowchannels(struct mansession *s, struct message *m)
 				"Context: %s\r\n"
 				"DND: %s\r\n"
 				"Alarm: %s\r\n"
-				"%s"
 				"ActionID: %s"
 				"\r\n",
 				action,

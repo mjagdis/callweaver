@@ -556,7 +556,6 @@ static u_char *cw_var_channel_types_table(struct variable *vp, oid *name, size_t
     const struct cw_channel_tech *tech = NULL;
     struct cw_variable *channel_types, *next;
     static unsigned long long_ret;
-    struct cw_channel *chan;
     u_long i;
 
     if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))

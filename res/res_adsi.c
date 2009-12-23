@@ -161,8 +161,8 @@ static int __adsi_transmit_messages(struct cw_channel *chan, unsigned char **msg
 	uint8_t cas_buf[MAX_CALLERID_SIZE]; /* Actually only need enough for CAS - <250ms */
 	adsi_tx_state_t adsi;
 	void *mem = NULL;
-	uint8_t *buf;
-	int16_t *lin;
+	uint8_t *buf = NULL;
+	int16_t *lin = NULL;
 	int pos = 0, res;
 	int x;
 	int start=0;

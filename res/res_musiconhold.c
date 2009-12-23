@@ -260,7 +260,6 @@ static struct cw_frame *moh_files_generator(struct cw_channel *chan, void *data,
 {
 	struct moh_files_state *state = data;
 	struct cw_frame *f = NULL;
-	int res = 0;
 
 	state->sample_queue += samples;
 
@@ -438,7 +437,6 @@ static int spawn_custom_command(struct mohclass *class)
 static void monitor_custom_command_cleanup(void *data)
 {
 	struct mohclass *class = data;
-	struct mohdata *moh;
 
 	if (class->pid) {
 		if (option_debug)

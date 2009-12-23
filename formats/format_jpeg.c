@@ -49,7 +49,6 @@ static const char desc[] = "JPEG (Joint Picture Experts Group) Image Format";
 
 static struct cw_frame *jpeg_read_image(int fd, int len)
 {
-    static char src[] = "JPEG Read";
     struct cw_frame *fr;
     int res;
 

@@ -189,7 +189,7 @@ static void sms_release(struct cw_channel *chan, void *data)
     return;
 }
 
-int add_tm(sms_t *h)
+static void add_tm(sms_t *h)
 {
     uint8_t tx_msg[256];
     int tx_len;
@@ -209,16 +209,15 @@ int add_tm(sms_t *h)
 
 static void put_adsi_msg_prot2(void *user_data, const uint8_t *msg, int len)
 {
-    int i;
-    int l;
-    uint8_t field_type;
-    const uint8_t *field_body;
-    int field_len;
     uint8_t body[256];
     uint8_t tx_msg[256];
+    const uint8_t *field_body;
+    sms_t *h;
+    int l;
+    uint8_t field_type;
+    int field_len;
     int tx_len;
     int file;
-    sms_t *h;
 
     cw_log(CW_LOG_DEBUG, "Good message received (%d bytes)\n", len);
 

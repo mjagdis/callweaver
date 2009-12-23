@@ -1044,9 +1044,8 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 	struct dundi_mapping *cur;
 	int mapcount;
 	int skipfirst = 0;
-	
 	pthread_t lookupthread;
-	pthread_attr_t attr;
+
 	totallen = sizeof(struct dundi_query_state);
 	/* Count matching map entries */
 	mapcount = 0;
@@ -4449,7 +4448,7 @@ static void build_peer(dundi_eid *eid, struct cw_variable *v, int *globalpcmode)
 static int dundi_helper(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *data, int flag)
 {
 	struct dundi_result results[MAX_RESULTS];
-	struct cw_var_t *var;
+	struct cw_var_t *var = NULL;
 	int res;
 	int x;
 	int found = 0;
@@ -4511,7 +4510,7 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 {
 	char req[1024];
 	struct dundi_result results[MAX_RESULTS];
-	struct cw_var_t *var;
+	struct cw_var_t *var = NULL;
 	int res;
 	int x=0;
 

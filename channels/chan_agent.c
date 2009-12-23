@@ -1699,7 +1699,6 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	struct localuser *u;
 	struct cw_var_t *var;
 	char *errmsg;
-	char *tmpoptions = NULL;
 	char *context = NULL;
 	char *filename = "agent-loginok";
 	int tries = 0;

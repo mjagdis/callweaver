@@ -240,15 +240,13 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	int res;
-
 	cw_cdrbe_register(&cdrbe);
 
 	parse_config();
 	
 	pgsql_reconnect();
 
-	return res;
+	return 0;
 }
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, desc)

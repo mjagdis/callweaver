@@ -289,8 +289,7 @@ static void nconference_admin_complete(int fd, char *argv[], int lastarg, int la
 	int x = 0;
 	struct cw_conference *cnf 	= NULL;
 	struct cw_conf_member *usr 	= NULL;
-	char usrno[50] 			= "";
-	
+
 	if (lastarg == 1) {
 		/* Command */
 		for (x = 0; x < arraysize(cmds); x++) {

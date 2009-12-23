@@ -339,9 +339,7 @@ static int local_call(struct cw_channel *ast, char *dest)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;
-	struct cw_var_t *varptr = NULL, *new;
-	size_t len, namelen;
-	
+
 	cw_mutex_lock(&p->lock);
 	if (p->owner->cid.cid_num)
 		p->chan->cid.cid_num = strdup(p->owner->cid.cid_num);

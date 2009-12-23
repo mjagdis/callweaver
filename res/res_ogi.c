@@ -842,7 +842,6 @@ static int handle_setextension(struct cw_channel *chan, OGI *ogi, int argc, char
 
 static int handle_setpriority(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	int pri;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
 

@@ -326,7 +326,7 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	int l;
 	int res;
 	PGresult *PGSQLres;
-	int id,id1,i,j,fnd;
+	int id,id1,i,j;
 	int *lalares=NULL;
 	int nres;
 	struct cw_object *obj;

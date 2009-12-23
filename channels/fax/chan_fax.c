@@ -225,7 +225,7 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 #endif
 
 	if (write(fm->pfd.fd, buf, len) != len) {
-		cw_log(CW_LOG_ERROR, "%s: DTE overrun - failed to write all of %ld bytes\n", fm->devlink, len);
+		cw_log(CW_LOG_ERROR, "%s: DTE overrun - failed to write all of %lu bytes\n", fm->devlink, (unsigned long)len);
 		tcflush(fm->pfd.fd, TCOFLUSH);
 	}
 

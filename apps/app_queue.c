@@ -2833,7 +2833,7 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
 static int update_queue_member(char *queuename, char *interface, int penalty, int paused, int dump)
 {
 	struct cw_call_queue *q;
-	struct member *last_member, *look;
+	struct member *last_member;
 	int res = RES_NOSUCHQUEUE;
 
 	cw_mutex_lock(&qlock);

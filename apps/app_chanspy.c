@@ -48,7 +48,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/keywords.h"
 
-CW_MUTEX_DEFINE_STATIC(modlock);
 
 #define CW_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;

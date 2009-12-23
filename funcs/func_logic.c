@@ -90,7 +90,7 @@ static int builtin_function_exists(struct cw_channel *chan, int argc, char **arg
 static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	struct cw_timing timing;
-	char *s, *q, **a;
+	char *s, *q, **a = NULL;
 	int i, n, l, first;
 
 	/* First argument is "<timespec ? ..." */
@@ -159,7 +159,7 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 
 static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *s, *q, **a;
+	char *s, *q, **a = NULL;
 	int i, n, l, first;
 
 	static int deprecation_warning = 0;

@@ -1368,7 +1368,6 @@ static int pbx_capi_call(struct cw_channel *c, char *idest)
 	int CLIR;
 	int callernplan = 0;
 	int use_defaultcid = 0;
-	const char *p;
 	char *osa = NULL;
 	char *dsa = NULL;
 	char callingsubaddress[CW_MAX_EXTENSION];

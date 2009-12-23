@@ -497,7 +497,7 @@ static int pbx_builtin_dtimeout(struct cw_channel *chan, int argc, char **argv, 
 
 static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char *value;
+	char *value = NULL;
 
 	if (argc < 1) {
 		cw_log(CW_LOG_WARNING, "Set requires at least one variable name/value pair.\n");

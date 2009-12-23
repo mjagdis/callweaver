@@ -86,6 +86,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/udpfromto.h"
 #include "callweaver/stun.h"
 #include "callweaver/keywords.h"
+#include "callweaver/indications.h"
 
 #ifdef OSP_SUPPORT
 #include "callweaver/astosp.h"
@@ -2085,8 +2086,6 @@ static int __sip_autodestruct(void *data)
 /*! \brief  sip_scheddestroy: Schedule destruction of SIP call */
 static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 {
-	char tmp[80];
-
 	if (ms < 0) {
 #if SIP_ASSUME_SYMMETRIC
 		/* Although timer B is configurable that sets the retransmit interval
@@ -3046,7 +3045,7 @@ static struct sip_user *realtime_user(const char *username)
 static struct sip_user *find_user(const char *name, int realtime)
 {
 	struct cw_object *obj;
-	struct sip_user *user;
+	struct sip_user *user = NULL;
 
 	if ((obj = cw_registry_find(&userbyname_registry, 1, cw_hash_string(name), name)))
 		user = container_of(obj, struct sip_user, obj);
@@ -4154,6 +4153,7 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
      if ( res1 != res2 )
          return CW_BRIDGE_RETRY;
 
+     return CW_BRIDGE_FAILED;
 }
 
 /*! \brief  sip_new: Initiate a call in the SIP channel */
@@ -4498,7 +4498,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 
 static void make_our_tag(struct sip_pvt *p)
 {
-    p->tag_len = snprintf(p->tag, sizeof(p->tag), "%08x", cw_random());
+    p->tag_len = snprintf(p->tag, sizeof(p->tag), "%08lx", cw_random());
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
@@ -7648,7 +7648,6 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 static void *__sip_do_register(void *data)
 {
     struct sip_registry *r = data;
-    int res;
 
     transmit_register(r, SIP_REGISTER, NULL, NULL);
 
@@ -8778,7 +8777,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
     }
     else if (cw_strlen_zero(randdata) || cw_strlen_zero(authtoken))
     {
-        snprintf(randdata, randlen, "%08x", cw_random());
+        snprintf(randdata, randlen, "%08lx", cw_random());
         transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
         /* Schedule auto destroy in 15 seconds */
         sip_scheddestroy(p, -1);
@@ -8790,7 +8789,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
         char a1_hash[2 * CW_MAX_BINARY_MD_SIZE + 1];
         char a2_hash[2 * CW_MAX_BINARY_MD_SIZE + 1];
         char *ua_hash = NULL;
-        int ua_hash_len;
+        int ua_hash_len = 0;
         char *usednonce = randdata;
         int usednonce_len = randlen;
 
@@ -8872,7 +8871,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
         /* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
         if (strlen(randdata) != usednonce_len || strncasecmp(randdata, usednonce, usednonce_len))
         {
-            snprintf(randdata, randlen, "%08x", cw_random());
+            snprintf(randdata, randlen, "%08lx", cw_random());
             if (ua_hash && strlen(a1_hash) == ua_hash_len && !strncasecmp(ua_hash, a1_hash, ua_hash_len))
             {
                 if (sipdebug)
@@ -8938,7 +8937,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 */
 static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, int reliable)
 {
-	snprintf(randdata, randlen, "%08x", cw_random());
+	snprintf(randdata, randlen, "%08lx", cw_random());
 	transmit_response_with_auth(p, "401 Unauthorized", req, randdata, reliable, "WWW-Authenticate", 0);
 }
 
@@ -12005,7 +12004,7 @@ static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char* di
     else
         snprintf(uri, sizeof(uri), "sip:%s@%s",p->username, cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 
-    snprintf(cnonce, sizeof(cnonce), "%08x", cw_random());
+    snprintf(cnonce, sizeof(cnonce), "%08lx", cw_random());
 
      /* Check if we have separate auth credentials */
      if ((auth = find_realm_authentication(authl, p->realm)))
@@ -14541,7 +14540,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
     int ignore = 0;
     int res = 0;
     int debug = sip_debug_test_pvt(p);
-    int error = 0;
 
     /* New SIP request coming in
        (could be new request in existing SIP dialog as well...)
@@ -14720,7 +14718,6 @@ static int handle_message(void *data)
 	struct cw_object *obj;
 	struct sip_request *req = data;
 	struct sip_pvt *dialogue;
-	char *useragent;
 	unsigned int hash;
 	char *p;
 	int found, i;
@@ -14904,7 +14901,6 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	struct sockaddr_in sa_to;
 	struct parse_request_state pstate;
 	socklen_t sa_from_len, sa_to_len;
-	int res;
 
 	if (req)
 		memset(req, 0, sizeof(*req));
@@ -15085,7 +15081,6 @@ static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
 	} else
 		args->fastrestart = 1;
 
-out:
 	return 0;
 }
 
@@ -15094,10 +15089,6 @@ static void *do_monitor(void *data)
 {
     struct do_monitor_dialogue_args args;
     struct cw_io_rec sipsock_read_id;
-    struct sip_pvt *sip;
-    struct sip_peer *peer = NULL;
-    int lastpeernum = -1;
-    int curpeernum;
     int reloading;
     int res;
 
@@ -17527,8 +17518,7 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
     char varbuf[128];
     struct cw_var_t *var;
     int no = 0;
-    int ok = 0;
-    
+
     if (argc < 1 || !argv[0][0])
         return cw_function_syntax(sipaddheader_syntax);
 

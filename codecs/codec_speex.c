@@ -180,7 +180,7 @@ static void *speextolin_new(void)
     return tmp;
 }
 
-static struct cw_frame *speextolin_sample(void)
+static struct cw_frame *speextolin_sample(int *index)
 {
     static struct cw_frame f;
 
