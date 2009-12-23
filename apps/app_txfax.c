@@ -238,38 +238,13 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose) {
+static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char *source_file, int calling_party, int verbose) {
     struct cw_var_t 	*var;
-    struct cw_frame 	*inf = NULL;
-    int 		ready = 1,
-			res = 0;
-    uint64_t now;
-    uint64_t passage;
-    int old_policy;
-    struct sched_param old_sp;
-    t30_state_t *t30;
-    t38_core_state_t *t38_core;
 
-    memset(t38, 0, sizeof(*t38));
-
-    if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
-    {
-        cw_log(CW_LOG_WARNING, "Unable to start T.38 termination.\n");
-        return -1;
-    }
-    t30 = t38_terminal_get_t30_state(t38);
-    t38_core = t38_terminal_get_t38_core_state(t38);
-
-    span_log_set_message_handler(&t38->logging, span_message);
     span_log_set_message_handler(&t30->logging, span_message);
-    span_log_set_message_handler(&t38_core->logging, span_message);
 
     if (verbose)
-    {
-        span_log_set_level(&t38->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
         span_log_set_level(&t30->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&t38_core->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-    }
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSTATIONID, "LOCALSTATIONID"))) {
         t30_set_tx_ident(t30, var->value);
@@ -305,10 +280,48 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
         t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
     }
 
+    /* Support for different image sizes && resolutions*/
     t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
                                      | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
     t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
                                      | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
+
+    return verbose;
+}
+/*- End of function --------------------------------------------------------*/
+
+static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose) {
+    struct cw_frame 	*inf = NULL;
+    int 		ready = 1,
+			res = 0;
+    uint64_t now;
+    uint64_t passage;
+    int old_policy;
+    struct sched_param old_sp;
+    t30_state_t *t30;
+    t38_core_state_t *t38_core;
+
+    memset(t38, 0, sizeof(*t38));
+
+    if (t38_terminal_init(t38, calling_party, t38_tx_packet_handler, chan) == NULL)
+    {
+        cw_log(CW_LOG_WARNING, "Unable to start T.38 termination.\n");
+        return -1;
+    }
+
+    t30 = t38_terminal_get_t30_state(t38);
+    t38_core = t38_terminal_get_t38_core_state(t38);
+
+    fax_set_common(chan, t30, source_file, calling_party, verbose);
+
+    span_log_set_message_handler(&t38->logging, span_message);
+    span_log_set_message_handler(&t38_core->logging, span_message);
+
+    if (verbose)
+    {
+        span_log_set_level(&t38->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+        span_log_set_level(&t38_core->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+    }
 
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
     pthread_setschedparam(pthread_self(), SCHED_RR, &global_sched_param_rr);
@@ -354,7 +367,6 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 /*- End of function --------------------------------------------------------*/
 
 static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose) {
-    struct cw_var_t 	*var;
     struct cw_frame 	*inf = NULL;
     struct cw_frame 	outf, *fout;
     int 		ready = 1,
@@ -378,53 +390,16 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
         cw_log(CW_LOG_WARNING, "Unable to start FAX\n");
         return -1;
     }
+
     fax_set_transmit_on_idle(fax, TRUE);
     t30 = fax_get_t30_state(fax);
+
+    fax_set_common(chan, t30, source_file, calling_party, verbose);
+
     span_log_set_message_handler(&fax->logging, span_message);
-    span_log_set_message_handler(&t30->logging, span_message);
+
     if (verbose)
-    {
         span_log_set_level(&fax->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-        span_log_set_level(&t30->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
-    }
-    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSTATIONID, "LOCALSTATIONID"))) {
-        t30_set_tx_ident(t30, var->value);
-	cw_object_put(var);
-    }
-    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALSUBADDRESS, "LOCALSUBADDRESS"))) {
-        t30_set_tx_sub_address(t30, var->value);
-	cw_object_put(var);
-    }
-    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LOCALHEADERINFO, "LOCALHEADERINFO"))) {
-        t30_set_tx_page_header_info(t30, var->value);
-	cw_object_put(var);
-    }
-    t30_set_tx_file(t30, source_file, -1, -1);
-    //t30_set_phase_b_handler(t30, phase_b_handler, chan);
-    //t30_set_phase_d_handler(t30, phase_d_handler, chan);
-    t30_set_phase_e_handler(t30, phase_e_handler, chan);
-
-    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_V17, "FAX_DISABLE_V17"))) {
-        t30_set_supported_modems(t30, T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-        cw_object_put(var);
-    } else
-        t30_set_supported_modems(t30, T30_SUPPORT_V17 | T30_SUPPORT_V29 | T30_SUPPORT_V27TER);
-
-    if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DISABLE_ECM, "FAX_DISABLE_ECM"))) {
-        cw_log(CW_LOG_DEBUG, "Disabling ECM mode\n");
-        t30_set_ecm_capability(t30, FALSE);
-        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION);
-        cw_object_put(var);
-    } else {
-        t30_set_ecm_capability(t30, TRUE);
-        t30_set_supported_compressions(t30, T30_SUPPORT_T4_1D_COMPRESSION | T30_SUPPORT_T4_2D_COMPRESSION | T30_SUPPORT_T6_COMPRESSION);
-    }
-
-    /* Support for different image sizes && resolutions*/
-    t30_set_supported_image_sizes(t30, T30_SUPPORT_US_LETTER_LENGTH | T30_SUPPORT_US_LEGAL_LENGTH | T30_SUPPORT_UNLIMITED_LENGTH
-                                     | T30_SUPPORT_215MM_WIDTH | T30_SUPPORT_255MM_WIDTH | T30_SUPPORT_303MM_WIDTH);
-    t30_set_supported_resolutions(t30, T30_SUPPORT_STANDARD_RESOLUTION | T30_SUPPORT_FINE_RESOLUTION | T30_SUPPORT_SUPERFINE_RESOLUTION
-                                     | T30_SUPPORT_R8_RESOLUTION | T30_SUPPORT_R16_RESOLUTION);
 
     /* This is the main loop */
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
