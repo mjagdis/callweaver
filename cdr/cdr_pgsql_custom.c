@@ -171,49 +171,57 @@ static int pgsql_reconnect(void)
 	return -1;
 }
 
-static int pgsql_log(struct cw_cdr *cdr)
+static int pgsql_log(struct cw_cdr *batch)
 {
 	char sql_insert_cmd[2048];
 	char sql_tmp_cmd[1024];
 	struct cw_channel *chan;
 	PGresult *res;
-
-
-	cw_log(CW_LOG_DEBUG,"Inserting a CDR record.\n");
+	struct cw_cdr *cdrset, *cdr;
+	int ret = -1;
 
 	if ((chan = cw_channel_alloc(0, NULL))) {
-		snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
-
-		chan->cdr = cdr;
-		pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
-
-		cw_channel_free(chan);
-
-		cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
-
-		/* check if database connection is still good */
-		if (!pgsql_reconnect()) {
-			cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
-			return -1;
-		}
-
 		cw_mutex_lock(&pgsql_lock);
-		res = PQexec(conn, sql_insert_cmd);
 
-		if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-			cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
-			cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
-			PQclear(res);
-			cw_mutex_unlock(&pgsql_lock);
-			return -1;
+		while ((cdrset = batch)) {
+			batch = batch->batch_next;
+
+			while ((cdr = cdrset)) {
+				cdrset = cdrset->next;
+
+				snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
+
+				chan->cdr = cdr;
+				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+
+				cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
+
+				/* check if database connection is still good */
+				if (!pgsql_reconnect()) {
+					cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+					goto out;
+				}
+
+				res = PQexec(conn, sql_insert_cmd);
+
+				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+					cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
+					cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+					PQclear(res);
+					goto out;
+				}
+
+				PQclear(res);
+			}
 		}
 
-		PQclear(res);
+out:
 		cw_mutex_unlock(&pgsql_lock);
-		return 0;
+		cw_channel_free(chan);
+		ret = 0;
 	}
 
-	return -1;
+	return ret;
 }
 
 

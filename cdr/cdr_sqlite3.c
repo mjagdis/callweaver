@@ -124,60 +124,69 @@ static struct sqlite3 *db = NULL;
 static sqlite3_stmt *sql;
 
 
-static int sqlite_log(struct cw_cdr *cdr)
+static int sqlite_log(struct cw_cdr *batch)
 {
 	char startstr[80], answerstr[80], endstr[80];
 	struct tm tm;
 	time_t t;
+	struct cw_cdr *cdrset, *cdr;
 	int startlen, answerlen, endlen;
 	int res;
 
 	if (!db)
 		return;
 
-	t = cdr->start.tv_sec;
-	localtime_r(&t, &tm);
-	startlen = strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
-
-	t = cdr->answer.tv_sec;
-	localtime_r(&t, &tm);
-	answerlen = strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
-
-	t = cdr->end.tv_sec;
-	localtime_r(&t, &tm);
-	endlen = strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
-
 	pthread_mutex_lock(&sqlite3_lock);
 
-	sqlite3_reset(sql);
-	sqlite3_bind_text(sql, 1, cdr->clid, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 2, cdr->src, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 3, cdr->dst, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 4, cdr->dcontext, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 5, cdr->channel, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 6, cdr->dstchannel, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 7, cdr->lastapp, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 8, cdr->lastdata, -1, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 9, startstr, startlen, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 10, answerstr, answerlen, SQLITE_STATIC);
-	sqlite3_bind_text(sql, 11, endstr, endlen, SQLITE_STATIC);
-	sqlite3_bind_int(sql, 12, cdr->duration);
-	sqlite3_bind_int(sql, 13, cdr->billsec);
-	sqlite3_bind_int(sql, 14, cdr->disposition);
-	sqlite3_bind_int(sql, 15, cdr->amaflags);
-	sqlite3_bind_text(sql, 16, cdr->accountcode, -1, SQLITE_STATIC);
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
+
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
+
+			t = cdr->start.tv_sec;
+			localtime_r(&t, &tm);
+			startlen = strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
+
+			t = cdr->answer.tv_sec;
+			localtime_r(&t, &tm);
+			answerlen = strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
+
+			t = cdr->end.tv_sec;
+			localtime_r(&t, &tm);
+			endlen = strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+
+			sqlite3_reset(sql);
+			sqlite3_bind_text(sql, 1, cdr->clid, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 2, cdr->src, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 3, cdr->dst, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 4, cdr->dcontext, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 5, cdr->channel, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 6, cdr->dstchannel, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 7, cdr->lastapp, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 8, cdr->lastdata, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 9, startstr, startlen, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 10, answerstr, answerlen, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 11, endstr, endlen, SQLITE_STATIC);
+			sqlite3_bind_int(sql, 12, cdr->duration);
+			sqlite3_bind_int(sql, 13, cdr->billsec);
+			sqlite3_bind_int(sql, 14, cdr->disposition);
+			sqlite3_bind_int(sql, 15, cdr->amaflags);
+			sqlite3_bind_text(sql, 16, cdr->accountcode, -1, SQLITE_STATIC);
 #if LOG_UNIQUEID
-	sqlite3_bind_text(sql, 17, cdr->uniqueid, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 17, cdr->uniqueid, -1, SQLITE_STATIC);
 #endif
 #if LOG_USERFIELD
-	sqlite3_bind_text(sql, 18, cdr->userfield, -1, SQLITE_STATIC);
+			sqlite3_bind_text(sql, 18, cdr->userfield, -1, SQLITE_STATIC);
 #endif
 
-	while ((res = sqlite3_step(sql)) == SQLITE_BUSY || res == SQLITE_LOCKED)
-		usleep(10);
+			while ((res = sqlite3_step(sql)) == SQLITE_BUSY || res == SQLITE_LOCKED)
+				usleep(10);
 
-	if (res != SQLITE_DONE)
-		cw_log(CW_LOG_ERROR, "sqlite3_step failed with error code %d\n", res);
+			if (res != SQLITE_DONE)
+				cw_log(CW_LOG_ERROR, "sqlite3_step failed with error code %d\n", res);
+		}
+	}
 
 	pthread_mutex_unlock(&sqlite3_lock);
 	return 0;

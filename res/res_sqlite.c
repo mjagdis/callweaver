@@ -876,12 +876,13 @@ static struct cw_config *config_sqlite(const char *database, const char *table, 
 }
 
 
-static int sqlite_log(struct cw_cdr *cdr)
+static int sqlite_log(struct cw_cdr *batch)
 {
 	char startstr[80], answerstr[80], endstr[80];
 	struct tm tm;
 	time_t t;
 	sqlite3 *db;
+	struct cw_cdr *cdrset, *cdr;
 	char *sql;
 	char *zErr;
 	int res = 0;
@@ -890,75 +891,84 @@ static int sqlite_log(struct cw_cdr *cdr)
 	if (!db)
 		return -1;
 
-	t = cdr->start.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-	t = cdr->answer.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
 
-	t = cdr->end.tv_sec;
-	localtime_r(&t, &tm);
-	strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+			t = cdr->start.tv_sec;
+			localtime_r(&t, &tm);
+			strftime(startstr, sizeof(startstr), DATE_FORMAT, &tm);
 
-	zErr = NULL;
-	sql = sqlite3_mprintf(
-		"INSERT INTO %q ("
-			"clid,src,dst,dcontext,"
-			"channel,dstchannel,lastapp,lastdata, "
-			"start,answer,end,"
-			"duration,billsec,disposition,amaflags, "
-			"accountcode"
-#ifdef LOG_UNIQUEID
-			",uniqueid"
-#endif
-#ifdef LOG_USERFIELD
-			",userfield"
-#endif
-		") VALUES ("
-			"'%q', '%q', '%q', '%q', "
-			"'%q', '%q', '%q', '%q', "
-			"'%q', '%q', '%q', "
-			"%d, %d, %d, %d, "
-			"'%q'"
-#ifdef LOG_UNIQUEID
-			",'%q'"
-#endif
-#ifdef LOG_USERFIELD
-			",'%q'"
-#endif
-		")",
-			cdr_table,
-			cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
-			cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
-			startstr, answerstr, endstr,
-			cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
-			cdr->accountcode
-#ifdef LOG_UNIQUEID
-			,cdr->uniqueid
-#endif
-#ifdef LOG_USERFIELD
-			,cdr->userfield
-#endif
-	);
+			t = cdr->answer.tv_sec;
+			localtime_r(&t, &tm);
+			strftime(answerstr, sizeof(answerstr), DATE_FORMAT, &tm);
 
-	if (sql) {
-		zErr = NULL;
-		while ((res = sqlite3_exec(db, sql, NULL, NULL, &zErr)) == SQLITE_BUSY || res == SQLITE_LOCKED) {
-			sqlite3_free(zErr);
+			t = cdr->end.tv_sec;
+			localtime_r(&t, &tm);
+			strftime(endstr, sizeof(endstr), DATE_FORMAT, &tm);
+
 			zErr = NULL;
-		}
+			sql = sqlite3_mprintf(
+				"INSERT INTO %q ("
+					"clid,src,dst,dcontext,"
+					"channel,dstchannel,lastapp,lastdata, "
+					"start,answer,end,"
+					"duration,billsec,disposition,amaflags, "
+					"accountcode"
+#ifdef LOG_UNIQUEID
+					",uniqueid"
+#endif
+#ifdef LOG_USERFIELD
+					",userfield"
+#endif
+				") VALUES ("
+					"'%q', '%q', '%q', '%q', "
+					"'%q', '%q', '%q', '%q', "
+					"'%q', '%q', '%q', "
+					"%d, %d, %d, %d, "
+					"'%q'"
+#ifdef LOG_UNIQUEID
+					",'%q'"
+#endif
+#ifdef LOG_USERFIELD
+					",'%q'"
+#endif
+				")",
+					cdr_table,
+					cdr->clid, cdr->src, cdr->dst, cdr->dcontext,
+					cdr->channel, cdr->dstchannel, cdr->lastapp, cdr->lastdata,
+					startstr, answerstr, endstr,
+					cdr->duration, cdr->billsec, cdr->disposition, cdr->amaflags,
+					cdr->accountcode
+#ifdef LOG_UNIQUEID
+					,cdr->uniqueid
+#endif
+#ifdef LOG_USERFIELD
+					,cdr->userfield
+#endif
+			);
 
-		if (zErr) {
-			cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
-			sqlite3_free(zErr);
+			if (sql) {
+				zErr = NULL;
+				while ((res = sqlite3_exec(db, sql, NULL, NULL, &zErr)) == SQLITE_BUSY || res == SQLITE_LOCKED) {
+					sqlite3_free(zErr);
+					zErr = NULL;
+				}
+
+				if (zErr) {
+					cw_log(CW_LOG_ERROR, "cdr_sqlite: %s\n", zErr);
+					sqlite3_free(zErr);
+				}
+			} else
+				cw_log(CW_LOG_ERROR, "malloc failed, good luck!\n");
 		}
-	} else
-		cw_log(CW_LOG_ERROR, "malloc failed, good luck!\n");
+	}
 
 	sqlite3_close(db);
 	db = NULL;
+
 	return 0;
 }
 

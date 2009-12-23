@@ -216,34 +216,44 @@ static int writefile(char *s, char *acc)
 }
 
 
-static int csv_log(struct cw_cdr *cdr)
+static int csv_log(struct cw_cdr *batch)
 {
 	/* Make sure we have a big enough buf */
 	char buf[1024];
 	char csvmaster[CW_CONFIG_MAX_PATH];
 	FILE *mf;
+	struct cw_cdr *cdrset, *cdr;
 
-	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
+
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
+
+			snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 #if 0
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cw_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif
-	if (build_csv_record(buf, sizeof(buf), cdr)) {
-		cw_log(CW_LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
-	} else {
-		/* because of the absolutely unconditional need for the
-		   highest reliability possible in writing billing records,
-		   we open write and close the log file each time */
-		if ((mf = fopen(csvmaster, "a"))) {
-			fputs(buf, mf);
-			fclose(mf);
-		} else
-			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
+			if (build_csv_record(buf, sizeof(buf), cdr)) {
+				cw_log(CW_LOG_WARNING, "Unable to create CSV record in %d bytes.  CDR not recorded!\n", (int)sizeof(buf));
+			} else {
+				/* because of the absolutely unconditional need for the
+				   highest reliability possible in writing billing records,
+				   we open write and close the log file each time */
+				if ((mf = fopen(csvmaster, "a"))) {
+					fputs(buf, mf);
+					fclose(mf);
+				} else
+					cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", csvmaster, strerror(errno));
 
-		if (!cw_strlen_zero(cdr->accountcode)) {
-			if (writefile(buf, cdr->accountcode))
-				cw_log(CW_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
+				if (!cw_strlen_zero(cdr->accountcode)) {
+					if (writefile(buf, cdr->accountcode))
+						cw_log(CW_LOG_WARNING, "Unable to write CSV record to account file '%s' : %s\n", cdr->accountcode, strerror(errno));
+				}
+			}
 		}
 	}
+
 	return 0;
 }
 

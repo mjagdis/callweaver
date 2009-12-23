@@ -101,31 +101,40 @@ static int load_config(int reload)
 
 
 
-static int custom_log(struct cw_cdr *cdr)
+static int custom_log(struct cw_cdr *batch)
 {
 	/* Make sure we have a big enough buf */
 	char buf[2048];
 	struct cw_channel *chan;
 	FILE *mf;
+	struct cw_cdr *cdrset, *cdr;
 
-	/* Abort if no master file is specified */
-	if (cw_strlen_zero(master))
-		return 0;
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-	if ((chan = cw_channel_alloc(0, NULL))) {
-		chan->cdr = cdr;
-		pbx_substitute_variables(chan, &chan->vars, format, buf, sizeof(buf));
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
 
-		cw_channel_free(chan);
+			/* Abort if no master file is specified */
+			if (cw_strlen_zero(master))
+				return 0;
 
-		/* because of the absolutely unconditional need for the
-		   highest reliability possible in writing billing records,
-		   we open write and close the log file each time */
-		if ((mf = fopen(master, "a"))) {
-			fputs(buf, mf);
-			fclose(mf);
-		} else
-			cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+			if ((chan = cw_channel_alloc(0, NULL))) {
+				chan->cdr = cdr;
+				pbx_substitute_variables(chan, &chan->vars, format, buf, sizeof(buf));
+
+				cw_channel_free(chan);
+
+				/* because of the absolutely unconditional need for the
+				   highest reliability possible in writing billing records,
+				   we open write and close the log file each time */
+				if ((mf = fopen(master, "a"))) {
+					fputs(buf, mf);
+					fclose(mf);
+				} else
+					cw_log(CW_LOG_ERROR, "Unable to re-open master file %s : %s\n", master, strerror(errno));
+			}
+		}
 	}
 
 	return 0;

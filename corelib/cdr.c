@@ -71,16 +71,11 @@ int cw_end_cdr_before_h_exten;
 char cw_default_accountcode[CW_MAX_ACCOUNT_CODE] = "";
 
 
-struct cw_cdr_batch_item {
-	struct cw_cdr *cdr;
-	struct cw_cdr_batch_item *next;
-};
-
-static struct cw_cdr_batch {
+static struct {
 	int size;
-	struct cw_cdr_batch_item *head;
-	struct cw_cdr_batch_item *tail;
-} *batch = NULL;
+	struct cw_cdr *head;
+	struct cw_cdr **tail;
+} batch;
 
 static struct sched_context *sched;
 static int cdr_sched = -1;
@@ -99,9 +94,6 @@ static int batchscheduleronly;
 static int batchsafeshutdown;
 
 CW_MUTEX_DEFINE_STATIC(cdr_batch_lock);
-
-/* these are used to wake up the CDR thread when there's work to do */
-CW_MUTEX_DEFINE_STATIC(cdr_pending_lock);
 
 
 struct cw_cdr *cw_cdr_dup(struct cw_cdr *cdr) 
@@ -329,24 +321,29 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 }
 
 
-void cw_cdr_free(struct cw_cdr *cdr)
+void cw_cdr_free(struct cw_cdr *batch)
 {
+	struct cw_cdr *cdr, *next;
 	char *chan;
-	struct cw_cdr *next; 
 
-	while (cdr) {
-		next = cdr->next;
-		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (!cw_test_flag(cdr, CW_CDR_FLAG_POSTED) && !cw_test_flag(cdr, CW_CDR_FLAG_POST_DISABLED))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
-		if (cw_tvzero(cdr->end))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (cw_tvzero(cdr->start))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+	while ((cdr = batch)) {
+		batch = batch->batch_next;
 
-		cw_registry_destroy(&cdr->vars);
-		free(cdr);
-		cdr = next;
+		while (cdr) {
+			next = cdr->next;
+
+			chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (!cw_test_flag(cdr, CW_CDR_FLAG_POSTED) && !cw_test_flag(cdr, CW_CDR_FLAG_POST_DISABLED))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
+			if (cw_tvzero(cdr->end))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+			if (cw_tvzero(cdr->start))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+
+			cw_registry_destroy(&cdr->vars);
+			free(cdr);
+			cdr = next;
+		}
 	}
 }
 
@@ -703,30 +700,36 @@ int cw_cdr_amaflags2int(const char *flag)
 static int post_cdrbe(struct cw_object *obj, void *data)
 {
 	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
-	struct cw_cdr *cdr = data;
+	struct cw_cdr *batch = data;
 
-	cdrbe->handler(cdr);
+	cdrbe->handler(batch);
 	return 0;
 }
 
-static void post_cdr(struct cw_cdr *cdr)
+static void post_cdr(struct cw_cdr *submission)
 {
+	struct cw_cdr *batch, *cdrset, *cdr;
 	char *chan;
 
-	while (cdr) {
-		chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (cw_test_flag(cdr, CW_CDR_FLAG_POSTED))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (cw_tvzero(cdr->end))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (cw_tvzero(cdr->start))
-			cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
-		cw_set_flag(cdr, CW_CDR_FLAG_POSTED);
+	batch = submission;
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-		cw_registry_iterate(&cdrbe_registry, post_cdrbe, cdr);
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
 
-		cdr = cdr->next;
+			chan = !cw_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
+			if (cw_test_flag(cdr, CW_CDR_FLAG_POSTED))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
+			if (cw_tvzero(cdr->end))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
+			if (cw_tvzero(cdr->start))
+				cw_log(CW_LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
+			cw_set_flag(cdr, CW_CDR_FLAG_POSTED);
+		}
 	}
+
+	cw_registry_iterate(&cdrbe_registry, post_cdrbe, submission);
 }
 
 void cw_cdr_reset(struct cw_cdr *cdr, int flags)
@@ -783,71 +786,38 @@ struct cw_cdr *cw_cdr_append(struct cw_cdr *cdr, struct cw_cdr *newcdr)
 	return ret;
 }
 
-/* Don't call without cdr_batch_lock */
-static void reset_batch(void)
-{
-	batch->size = 0;
-	batch->head = NULL;
-	batch->tail = NULL;
-}
-
-/* Don't call without cdr_batch_lock */
-static int init_batch(void)
-{
-	/* This is the single meta-batch used to keep track of all CDRs during the entire life of the program */
-	batch = malloc(sizeof(*batch));
-	if (!batch) {
-		cw_log(CW_LOG_WARNING, "CDR: out of memory while trying to handle batched records, data will most likely be lost\n");
-		return -1;
-	}
-
-	reset_batch();
-
-	return 0;
-}
-
-static void *do_batch_backend_process(void *data)
-{
-	struct cw_cdr_batch_item *processeditem;
-	struct cw_cdr_batch_item *batchitem = data;
-
-	/* Push each CDR into storage mechanism(s) and free all the memory */
-	while (batchitem) {
-		post_cdr(batchitem->cdr);
-		cw_cdr_free(batchitem->cdr);
-		processeditem = batchitem;
-		batchitem = batchitem->next;
-		free(processeditem);
-	}
-
-	return NULL;
-}
 
 static void cw_cdr_submit_batch(int shutdown)
 {
-	struct cw_cdr_batch_item *oldbatchitems = NULL;
+	struct cw_cdr *oldbatchitems;
 	pthread_t batch_post_thread = CW_PTHREADT_NULL;
 
-	/* if there's no batch, or no CDRs in the batch, then there's nothing to do */
-	if (!batch || !batch->head)
-		return;
-
 	/* move the old CDRs aside, and prepare a new CDR batch */
+	oldbatchitems = NULL;
+
 	cw_mutex_lock(&cdr_batch_lock);
-	oldbatchitems = batch->head;
-	reset_batch();
+
+	if ((oldbatchitems = batch.head)) {
+		batch.size = 0;
+		batch.head = NULL;
+		batch.tail = &batch.head;
+	}
+
 	cw_mutex_unlock(&cdr_batch_lock);
+
+	if (!oldbatchitems)
+		return;
 
 	/* if configured, spawn a new thread to post these CDRs,
 	   also try to save as much as possible if we are shutting down safely */
 	if (batchscheduleronly || shutdown) {
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
-		do_batch_backend_process(oldbatchitems);
+		post_cdr(oldbatchitems);
 	} else {
-		if (cw_pthread_create(&batch_post_thread, &global_attr_detached, do_batch_backend_process, oldbatchitems)) {
+		if (cw_pthread_create(&batch_post_thread, &global_attr_detached, post_cdr, oldbatchitems)) {
 			cw_log(CW_LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
-			do_batch_backend_process(oldbatchitems);
+			post_cdr(oldbatchitems);
 		} else {
 			if (option_debug)
 				cw_log(CW_LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
@@ -857,13 +827,11 @@ static void cw_cdr_submit_batch(int shutdown)
 
 static int submit_scheduled_batch(void *data)
 {
-	cw_mutex_lock(&cdr_pending_lock);
 	cw_cdr_submit_batch(0);
-	cw_mutex_unlock(&cdr_pending_lock);
 
 	/* manually reschedule from this point in time */
 	cdr_sched = cw_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
-	/* returning zero so the scheduler does not automatically reschedule */
+
 	return 0;
 }
 
@@ -878,7 +846,6 @@ static void submit_unscheduled_batch(void)
 
 void cw_cdr_detach(struct cw_cdr *cdr)
 {
-	struct cw_cdr_batch_item *newtail;
 	int curr;
 
 	/* maybe they disabled CDR stuff completely, so just drop it */
@@ -901,30 +868,12 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "CDR detaching from this thread\n");
 
-	/* we'll need a new tail for every CDR */
-	newtail = malloc(sizeof(*newtail));
-	if (!newtail) {
-		cw_log(CW_LOG_WARNING, "CDR: out of memory while trying to detach, will try in this thread instead\n");
-		post_cdr(cdr);
-		cw_cdr_free(cdr);
-		return;
-	}
-	memset(newtail, 0, sizeof(*newtail));
-
-	/* don't traverse a whole list (just keep track of the tail) */
 	cw_mutex_lock(&cdr_batch_lock);
-	if (!batch)
-		init_batch();
-	if (!batch->head) {
-		/* new batch is empty, so point the head at the new tail */
-		batch->head = newtail;
-	} else {
-		/* already got a batch with something in it, so just append a new tail */
-		batch->tail->next = newtail;
-	}
-	newtail->cdr = cdr;
-	batch->tail = newtail;
-	curr = batch->size++;
+
+	*batch.tail = cdr;
+	batch.tail = &cdr->batch_next;
+	curr = ++batch.size;
+
 	cw_mutex_unlock(&cdr_batch_lock);
 
 	/* if we have enough stuff to post, then do it */
@@ -955,8 +904,8 @@ static int handle_cli_status(int fd, int argc, char *argv[])
 	cw_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
 	if (enabled) {
 		if (batchmode) {
-			if (batch)
-				cnt = batch->size;
+			cnt = batch.size;
+
 			if (cdr_sched > -1)
 				nextbatchtime = cw_sched_when(sched, cdr_sched);
 			cw_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
@@ -1114,6 +1063,8 @@ int cw_cdr_engine_init(void)
 {
 	int res;
 
+	batch.tail = &batch.head;
+
 	sched = sched_context_create(1);
 	if (!sched) {
 		cw_log(CW_LOG_ERROR, "Unable to create schedule context.\n");
@@ -1123,11 +1074,6 @@ int cw_cdr_engine_init(void)
 	cw_cli_register(&cli_status);
 
 	res = do_reload();
-	if (res) {
-		cw_mutex_lock(&cdr_batch_lock);
-		res = init_batch();
-		cw_mutex_unlock(&cdr_batch_lock);
-	}
 
 	return res;
 }

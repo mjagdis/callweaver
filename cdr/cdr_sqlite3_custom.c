@@ -148,47 +148,56 @@ static int do_escape(char *to, const char *from)
         return 0;
 }
 
-static int sqlite3_log(struct cw_cdr *cdr)
+static int sqlite3_log(struct cw_cdr *batch)
 {
+	char sql_insert_cmd[2048];
 	struct cw_channel *chan;
+	struct cw_cdr *cdrset, *cdr;
 	char *sql_cmd;
+	char *sql_tmp_cmd;
 	char *zErr;
 	int count;
 	int res = 0;
 
 	if ((chan = cw_channel_alloc(0, NULL))) {
-		char *sql_tmp_cmd;
-		char sql_insert_cmd[2048] = "";
-		sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
-		chan->cdr = cdr;
-		pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
-		sqlite3_free(sql_tmp_cmd);
-		sql_cmd = alloca(strlen(sql_insert_cmd) * 2 + 1);
-		do_escape(sql_cmd, sql_insert_cmd);
+		cw_mutex_lock(&lock);
+
+		while ((cdrset = batch)) {
+			batch = batch->batch_next;
+
+			while ((cdr = cdrset)) {
+				cdrset = cdrset->next;
+
+				sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
+				chan->cdr = cdr;
+				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+				sqlite3_free(sql_tmp_cmd);
+				sql_cmd = alloca(strlen(sql_insert_cmd) * 2 + 1);
+				do_escape(sql_cmd, sql_insert_cmd);
+
+				for (count = 0; count < 5; count++) {
+					zErr = NULL;
+					res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
+
+					if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
+						break;
+
+					if (zErr)
+						sqlite3_free(zErr);
+
+					usleep(200);
+				}
+
+				if (zErr) {
+					cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
+					sqlite3_free(zErr);
+				}
+			}
+		}
+
+		cw_mutex_unlock(&lock);
 		cw_channel_free(chan);
 	}
-
-	cw_mutex_lock(&lock);
-
-	for (count = 0; count < 5; count++) {
-		zErr = NULL;
-		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
-
-		if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-			break;
-
-		if (zErr)
-			sqlite3_free(zErr);
-
-		usleep(200);
-	}
-
-	if (zErr) {
-		cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
-		sqlite3_free(zErr);
-	}
-
-	cw_mutex_unlock(&lock);
 
 	return res;
 }

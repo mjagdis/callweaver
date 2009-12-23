@@ -76,124 +76,135 @@ static SQLHENV	ODBC_env = SQL_NULL_HANDLE;	/* global ODBC Environment */
 static SQLHDBC	ODBC_con;			/* global ODBC Connection Handle */
 static SQLHSTMT	ODBC_stmt;			/* global ODBC Statement Handle */
 
-static int odbc_log(struct cw_cdr *cdr)
+static int odbc_log(struct cw_cdr *batch)
 {
+	unsigned char sqlcmd[2048];
+	unsigned char ODBC_msg[200], ODBC_stat[10];
+	char timestr[128];
+	struct tm tm;
+	struct cw_cdr *cdrset, *cdr;
 	SQLINTEGER ODBC_err;
 	short int ODBC_mlen;
 	int ODBC_res;
-	unsigned char ODBC_msg[200], ODBC_stat[10];
-	unsigned char sqlcmd[2048] = "";
-	char timestr[128];
 	int res = 0;
-	struct tm tm;
-
-	if (usegmtime) 
-		gmtime_r(&cdr->start.tv_sec,&tm);
-	else
-		localtime_r(&cdr->start.tv_sec,&tm);
 
 	cw_mutex_lock(&odbc_lock);
-	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-	memset(sqlcmd,0,2048);
-	if (loguniqueid) {
-		snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
-		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
-		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
-	} else {
-		snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
-		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
-		"duration,billsec,disposition,amaflags,accountcode) "
-		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
-	}
 
-	if (!connected) {
-		res = odbc_init();
-		if (res < 0) {
-			connected = 0;
-			cw_mutex_unlock(&odbc_lock);
-			return 0;
-		}				
-	}
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-	ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
 
-	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);	
-		connected = 0;
-		cw_mutex_unlock(&odbc_lock);
-		return 0;
-	}
+			if (usegmtime)
+				gmtime_r(&cdr->start.tv_sec,&tm);
+			else
+				localtime_r(&cdr->start.tv_sec,&tm);
 
-	/* We really should only have to do this once.  But for some
-	   strange reason if I don't it blows holes in memory like
-	   like a shotgun.  So we just do this so its safe. */
+			strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
-	ODBC_res = SQLPrepare(ODBC_stmt, sqlcmd, SQL_NTS);
-	
-	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
-		SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
-		SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
-		connected = 0;
-		cw_mutex_unlock(&odbc_lock);
-		return 0;
-	}
-
-	SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dcontext), 0, cdr->dcontext, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->channel), 0, cdr->channel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
-	if (dispositionstring)
-		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cw_cdr_disp2str(cdr->disposition)) + 1, 0, cw_cdr_disp2str(cdr->disposition), 0, NULL);
-	else
-		SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
-	SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
-
-	if (loguniqueid) {
-		SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
-		SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
-	}
-
-	if (connected) {
-		res = odbc_do_query();
-		if (res < 0) {
-			if (option_verbose > 10)		
-				cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
-			res = odbc_init();
-			if (option_verbose > 10)
-				cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
-			if (res < 0) {
-				if (option_verbose > 10)
-					cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
-				connected = 0;
+			if (loguniqueid) {
+				snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
+				"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
+				"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
+				"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
 			} else {
+				snprintf((char *) sqlcmd,sizeof(sqlcmd),"INSERT INTO %s "
+				"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
+				"duration,billsec,disposition,amaflags,accountcode) "
+				"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", table);
+			}
+
+			if (!connected) {
+				res = odbc_init();
+				if (res < 0) {
+					connected = 0;
+					cw_mutex_unlock(&odbc_lock);
+					return 0;
+				}
+			}
+
+			ODBC_res = SQLAllocHandle(SQL_HANDLE_STMT, ODBC_con, &ODBC_stmt);
+
+			if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
 				if (option_verbose > 10)
-					cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
+					cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Failure in AllocStatement %d\n", ODBC_res);
+				SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+				SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+				connected = 0;
+				cw_mutex_unlock(&odbc_lock);
+				return 0;
+			}
+
+			/* We really should only have to do this once.  But for some
+			   strange reason if I don't it blows holes in memory like
+			   like a shotgun.  So we just do this so its safe. */
+
+			ODBC_res = SQLPrepare(ODBC_stmt, sqlcmd, SQL_NTS);
+
+			if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
+				if (option_verbose > 10)
+					cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Error in PREPARE %d\n", ODBC_res);
+				SQLGetDiagRec(SQL_HANDLE_DBC, ODBC_con, 1, ODBC_stat, &ODBC_err, ODBC_msg, 100, &ODBC_mlen);
+				SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+				connected = 0;
+				cw_mutex_unlock(&odbc_lock);
+				return 0;
+			}
+
+			SQLBindParameter(ODBC_stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(timestr), 0, &timestr, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->clid), 0, cdr->clid, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->src), 0, cdr->src, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dst), 0, cdr->dst, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dcontext), 0, cdr->dcontext, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->channel), 0, cdr->channel, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->dstchannel), 0, cdr->dstchannel, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastapp), 0, cdr->lastapp, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->lastdata), 0, cdr->lastdata, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 10, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->duration, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 11, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->billsec, 0, NULL);
+			if (dispositionstring)
+				SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(cw_cdr_disp2str(cdr->disposition)) + 1, 0, cw_cdr_disp2str(cdr->disposition), 0, NULL);
+			else
+				SQLBindParameter(ODBC_stmt, 12, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->disposition, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 13, SQL_PARAM_INPUT, SQL_C_SLONG, SQL_INTEGER, 0, 0, &cdr->amaflags, 0, NULL);
+			SQLBindParameter(ODBC_stmt, 14, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->accountcode), 0, cdr->accountcode, 0, NULL);
+
+			if (loguniqueid) {
+				SQLBindParameter(ODBC_stmt, 15, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->uniqueid), 0, cdr->uniqueid, 0, NULL);
+				SQLBindParameter(ODBC_stmt, 16, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, sizeof(cdr->userfield), 0, cdr->userfield, 0, NULL);
+			}
+
+			if (connected) {
 				res = odbc_do_query();
 				if (res < 0) {
 					if (option_verbose > 10)
 						cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
+					res = odbc_init();
+					if (option_verbose > 10)
+						cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Reconnecting to dsn %s\n", dsn);
+					if (res < 0) {
+						if (option_verbose > 10)
+							cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: %s has gone away!\n", dsn);
+						connected = 0;
+					} else {
+						if (option_verbose > 10)
+							cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Trying Query again!\n");
+						res = odbc_do_query();
+						if (res < 0) {
+							if (option_verbose > 10)
+								cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
+						}
+					}
 				}
+			} else {
+				if (option_verbose > 10)
+					cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 			}
+			SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
 		}
-	} else {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: Query FAILED Call not logged!\n");
 	}
-	SQLFreeHandle(SQL_HANDLE_STMT, ODBC_stmt);
+
 	cw_mutex_unlock(&odbc_lock);
 	return 0;
 }

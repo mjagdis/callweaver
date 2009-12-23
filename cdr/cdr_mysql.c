@@ -114,118 +114,126 @@ static struct cw_clicmd cdr_mysql_status_cli = {
 	.usage = cdr_mysql_status_help,
 };
 
-static int mysql_log(struct cw_cdr *cdr)
+static int mysql_log(struct cw_cdr *batch)
 {
-	struct tm tm;
-	char *userfielddata = NULL;
 	char sqlcmd[2048], timestr[128];
+	struct tm tm;
 	char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
-	int retries = 5;
+	char *userfielddata = NULL;
 #ifdef MYSQL_LOGUNIQUEID
 	char *uniqueid = NULL;
 #endif
+	struct cw_cdr *cdrset, *cdr;
+	int retries = 5;
 
 	cw_mutex_lock(&mysql_lock);
 
-	memset(sqlcmd, 0, 2048);
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-	localtime_r(&cdr->start.tv_sec, &tm);
-	strftime(timestr, 128, DATE_FORMAT, &tm);
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
+
+			localtime_r(&cdr->start.tv_sec, &tm);
+			strftime(timestr, 128, DATE_FORMAT, &tm);
 
 db_reconnect:
-	if ((!connected) && (dbserver || dbsock) && dbuser && password && dbname && dbtable ) {
-		/* Attempt to connect */
-		mysql_init(&mysql);
-		/* Add option to quickly timeout the connection */
-		if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
-			cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
-		}
-		if (mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {
-			connected = 1;
-			connect_time = time(NULL);
-			records = 0;
-		} else {
-			cw_log(CW_LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", dbserver);
-			connected = 0;
-		}
-	} else {
-		/* Long connection - ping the server */
-		int error;
-		if ((error = mysql_ping(&mysql))) {
-			connected = 0;
-			records = 0;
-			switch (error) {
-				case CR_SERVER_GONE_ERROR:
-				case CR_SERVER_LOST:
-					cw_log(CW_LOG_ERROR, "cdr_mysql: Server has gone away. Attempting to reconnect.\n");
-					break;
-				default:
-					cw_log(CW_LOG_ERROR, "cdr_mysql: Unknown connection error: (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+			if ((!connected) && (dbserver || dbsock) && dbuser && password && dbname && dbtable ) {
+				/* Attempt to connect */
+				mysql_init(&mysql);
+				/* Add option to quickly timeout the connection */
+				if (timeout && mysql_options(&mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&timeout)!=0) {
+					cw_log(CW_LOG_ERROR, "cdr_mysql: mysql_options returned (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+				}
+				if (mysql_real_connect(&mysql, dbserver, dbuser, password, dbname, dbport, dbsock, 0)) {
+					connected = 1;
+					connect_time = time(NULL);
+					records = 0;
+				} else {
+					cw_log(CW_LOG_ERROR, "cdr_mysql: cannot connect to database server %s.\n", dbserver);
+					connected = 0;
+				}
+			} else {
+				/* Long connection - ping the server */
+				int error;
+				if ((error = mysql_ping(&mysql))) {
+					connected = 0;
+					records = 0;
+					switch (error) {
+						case CR_SERVER_GONE_ERROR:
+						case CR_SERVER_LOST:
+							cw_log(CW_LOG_ERROR, "cdr_mysql: Server has gone away. Attempting to reconnect.\n");
+							break;
+						default:
+							cw_log(CW_LOG_ERROR, "cdr_mysql: Unknown connection error: (%d) %s\n", mysql_errno(&mysql), mysql_error(&mysql));
+					}
+					retries--;
+					if (retries)
+						goto db_reconnect;
+					else
+						cw_log(CW_LOG_ERROR, "cdr_mysql: Retried to connect fives times, giving up.\n");
+				}
 			}
-			retries--;
-			if (retries)
-				goto db_reconnect;
-			else
-				cw_log(CW_LOG_ERROR, "cdr_mysql: Retried to connect fives times, giving up.\n");
+
+			/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
+			/* WARNING: This code previously used mysql_real_escape_string, but the use of said function
+			   requires an active connection to a database.  If we are not connected, then this function
+			    cannot be used.  This is a problem since we need to store off the SQL statement into our
+			   spool file for later restoration.
+			   So the question is, what's the best way to handle this?  This works for now.
+			*/
+			clid = alloca(strlen(cdr->clid) * 2 + 1);
+			mysql_escape_string(clid, cdr->clid, strlen(cdr->clid));
+			dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
+			mysql_escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+			channel = alloca(strlen(cdr->channel) * 2 + 1);
+			mysql_escape_string(channel, cdr->channel, strlen(cdr->channel));
+			dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
+			mysql_escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+			lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
+			mysql_escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+			lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
+			mysql_escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+#ifdef MYSQL_LOGUNIQUEID
+			uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
+			mysql_escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+#endif
+			if (userfield) {
+				userfielddata = alloca(strlen(cdr->userfield) * 2 + 1);
+				mysql_escape_string(userfielddata, cdr->userfield, strlen(cdr->userfield));
+			}
+
+			cw_log(CW_LOG_DEBUG, "cdr_mysql: inserting a CDR record.\n");
+
+			if (userfield && userfielddata) {
+#ifdef MYSQL_LOGUNIQUEID
+				sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid, userfielddata);
+#else
+				sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, userfielddata);
+#endif
+			} else {
+#ifdef MYSQL_LOGUNIQUEID
+				sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid);
+#else
+				sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode);
+#endif
+			}
+	
+			cw_log(CW_LOG_DEBUG, "cdr_mysql: SQL command as follows: %s\n", sqlcmd);
+	
+			if (connected) {
+				if (mysql_real_query(&mysql, sqlcmd, strlen(sqlcmd))) {
+					cw_log(CW_LOG_ERROR, "mysql_cdr: Failed to insert into database: (%d) %s", mysql_errno(&mysql), mysql_error(&mysql));
+					mysql_close(&mysql);
+					connected = 0;
+				} else {
+					records++;
+					totalrecords++;
+				}
+			}
 		}
 	}
 
-	/* Maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
-	/* WARNING: This code previously used mysql_real_escape_string, but the use of said function
-	   requires an active connection to a database.  If we are not connected, then this function
-	    cannot be used.  This is a problem since we need to store off the SQL statement into our
-	   spool file for later restoration.
-	   So the question is, what's the best way to handle this?  This works for now.
-	*/
-	clid = alloca(strlen(cdr->clid) * 2 + 1);
-	mysql_escape_string(clid, cdr->clid, strlen(cdr->clid));
-	dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
-	mysql_escape_string(dcontext, cdr->dcontext, strlen(cdr->dcontext));
-	channel = alloca(strlen(cdr->channel) * 2 + 1);
-	mysql_escape_string(channel, cdr->channel, strlen(cdr->channel));
-	dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
-	mysql_escape_string(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-	lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
-	mysql_escape_string(lastapp, cdr->lastapp, strlen(cdr->lastapp));
-	lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
-	mysql_escape_string(lastdata, cdr->lastdata, strlen(cdr->lastdata));
-#ifdef MYSQL_LOGUNIQUEID
-	uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
-	mysql_escape_string(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
-#endif
-	if (userfield) {
-		userfielddata = alloca(strlen(cdr->userfield) * 2 + 1);
-		mysql_escape_string(userfielddata, cdr->userfield, strlen(cdr->userfield));
-	}
-
-	cw_log(CW_LOG_DEBUG, "cdr_mysql: inserting a CDR record.\n");
-
-	if (userfield && userfielddata) {
-#ifdef MYSQL_LOGUNIQUEID
-		sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid, userfielddata);
-#else
-		sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, userfielddata);
-#endif
-	} else {
-#ifdef MYSQL_LOGUNIQUEID
-		sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid);
-#else
-		sprintf(sqlcmd, "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s')", dbtable, timestr, clid, cdr->src, cdr->dst, dcontext, channel, dstchannel, lastapp, lastdata, cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode);
-#endif
-	}
-	
-	cw_log(CW_LOG_DEBUG, "cdr_mysql: SQL command as follows: %s\n", sqlcmd);
-	
-	if (connected) {
-		if (mysql_real_query(&mysql, sqlcmd, strlen(sqlcmd))) {
-			cw_log(CW_LOG_ERROR, "mysql_cdr: Failed to insert into database: (%d) %s", mysql_errno(&mysql), mysql_error(&mysql));
-			mysql_close(&mysql);
-			connected = 0;
-		} else {
-			records++;
-			totalrecords++;
-		}
-	}
 	cw_mutex_unlock(&mysql_lock);
 	return 0;
 }

@@ -83,55 +83,64 @@ static void loadconfigurationfile(void)
 	cw_config_destroy(cfg);
 }
 
-static int manager_log(struct cw_cdr *cdr)
+static int manager_log(struct cw_cdr *batch)
 {
-	time_t t;
-	struct tm timeresult;
 	char strStartTime[80] = "";
 	char strAnswerTime[80] = "";
 	char strEndTime[80] = "";
+	struct tm timeresult;
+	time_t t;
+	struct cw_cdr *cdrset, *cdr;
 	
 	if (!enablecdr)
 		return 0;
 
-	t = cdr->start.tv_sec;
-	localtime_r(&t, &timeresult);
-	strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
+
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
+
+			t = cdr->start.tv_sec;
+			localtime_r(&t, &timeresult);
+			strftime(strStartTime, sizeof(strStartTime), DATE_FORMAT, &timeresult);
 	
-	if (cdr->answer.tv_sec)	{
-    		t = cdr->answer.tv_sec;
-    		localtime_r(&t, &timeresult);
-		strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
+			if (cdr->answer.tv_sec)	{
+				t = cdr->answer.tv_sec;
+				localtime_r(&t, &timeresult);
+				strftime(strAnswerTime, sizeof(strAnswerTime), DATE_FORMAT, &timeresult);
+			}
+
+			t = cdr->end.tv_sec;
+			localtime_r(&t, &timeresult);
+			strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
+
+			manager_event(EVENT_FLAG_CALL, "Cdr",
+			    "AccountCode: %s\r\n"
+			    "Source: %s\r\n"
+			    "Destination: %s\r\n"
+			    "DestinationContext: %s\r\n"
+			    "CallerID: %s\r\n"
+			    "Channel: %s\r\n"
+			    "DestinationChannel: %s\r\n"
+			    "LastApplication: %s\r\n"
+			    "LastData: %s\r\n"
+			    "StartTime: %s\r\n"
+			    "AnswerTime: %s\r\n"
+			    "EndTime: %s\r\n"
+			    "Duration: %d\r\n"
+			    "BillableSeconds: %d\r\n"
+			    "Disposition: %s\r\n"
+			    "AMAFlags: %s\r\n"
+			    "UniqueID: %s\r\n"
+			    "UserField: %s\r\n",
+			    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
+			    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
+			    cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition),
+			    cw_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
+		}
 	}
 
-	t = cdr->end.tv_sec;
-	localtime_r(&t, &timeresult);
-	strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
-
-	manager_event(EVENT_FLAG_CALL, "Cdr",
-	    "AccountCode: %s\r\n"
-	    "Source: %s\r\n"
-	    "Destination: %s\r\n"
-	    "DestinationContext: %s\r\n"
-	    "CallerID: %s\r\n"
-	    "Channel: %s\r\n"
-	    "DestinationChannel: %s\r\n"
-	    "LastApplication: %s\r\n"
-	    "LastData: %s\r\n"
-	    "StartTime: %s\r\n"
-	    "AnswerTime: %s\r\n"
-	    "EndTime: %s\r\n"
-	    "Duration: %d\r\n"
-	    "BillableSeconds: %d\r\n"
-	    "Disposition: %s\r\n"
-	    "AMAFlags: %s\r\n"
-	    "UniqueID: %s\r\n"
-	    "UserField: %s\r\n",
-	    cdr->accountcode, cdr->src, cdr->dst, cdr->dcontext, cdr->clid, cdr->channel,
-	    cdr->dstchannel, cdr->lastapp, cdr->lastdata, strStartTime, strAnswerTime, strEndTime,
-	    cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), 
-	    cw_cdr_flags2str(cdr->amaflags), cdr->uniqueid, cdr->userfield);
-	    	
 	return 0;
 }
 

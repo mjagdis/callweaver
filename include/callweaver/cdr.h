@@ -99,6 +99,7 @@ struct cw_cdr {
 	struct cw_registry vars;
 
 	struct cw_cdr *next;
+	struct cw_cdr *batch_next;
 };
 
 struct cw_cdrbe {

@@ -144,64 +144,76 @@ static int pgsql_reconnect(void)
 	return -1;
 }
 
-static int pgsql_log(struct cw_cdr *cdr)
+static int pgsql_log(struct cw_cdr *batch)
 {
-	PGresult *res;
-	struct tm tm;
 	char sql[2048] = "";
 	char timestr[128];
+	struct tm tm;
+	PGresult *res;
 	char *clid=NULL, *dcontext=NULL, *channel=NULL, *dstchannel=NULL, *lastapp=NULL, *lastdata=NULL;
 	char *uniqueid=NULL, *userfield=NULL;
-
-	localtime_r(&cdr->start.tv_sec, &tm);
-	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
-
-	/* maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
-	clid = alloca(strlen(cdr->clid) * 2 + 1);
-	PQescapeString(clid, cdr->clid, strlen(cdr->clid));
-	dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
-	PQescapeString(dcontext, cdr->dcontext, strlen(cdr->dcontext));
-	channel = alloca(strlen(cdr->channel) * 2 + 1);
-	PQescapeString(channel, cdr->channel, strlen(cdr->channel));
-	dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
-	PQescapeString(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
-	lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
-	PQescapeString(lastapp, cdr->lastapp, strlen(cdr->lastapp));
-	lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
-	PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
-	uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
-	PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
-	userfield = alloca(strlen(cdr->userfield) * 2 + 1);
-	PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
-
-	cw_log(CW_LOG_DEBUG,"Inserting a CDR record.\n");
-
-	snprintf(sql, sizeof(sql), "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,"
-		"lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES"
-		" ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%d,%d,'%s',%d,'%s','%s','%s')",
-		table, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,
-		cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid, userfield);
-
-	cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql);
-
-	/* check if database connection is still good */
-	if (!pgsql_reconnect()) {
-		cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
-		return -1;
-	}
+	struct cw_cdr *cdrset, *cdr;
 
 	cw_mutex_lock(&pgsql_lock);
-	res = PQexec(conn, sql);
 
-	if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-		cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
-		cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
-		PQclear(res);
-		cw_mutex_unlock(&pgsql_lock);
-		return -1;
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
+
+		while ((cdr = cdrset)) {
+			cdrset = cdrset->next;
+
+			localtime_r(&cdr->start.tv_sec, &tm);
+			strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
+
+			/* maximum space needed would be if all characters needed to be escaped, plus a trailing NULL */
+			clid = alloca(strlen(cdr->clid) * 2 + 1);
+			PQescapeString(clid, cdr->clid, strlen(cdr->clid));
+			dcontext = alloca(strlen(cdr->dcontext) * 2 + 1);
+			PQescapeString(dcontext, cdr->dcontext, strlen(cdr->dcontext));
+			channel = alloca(strlen(cdr->channel) * 2 + 1);
+			PQescapeString(channel, cdr->channel, strlen(cdr->channel));
+			dstchannel = alloca(strlen(cdr->dstchannel) * 2 + 1);
+			PQescapeString(dstchannel, cdr->dstchannel, strlen(cdr->dstchannel));
+			lastapp = alloca(strlen(cdr->lastapp) * 2 + 1);
+			PQescapeString(lastapp, cdr->lastapp, strlen(cdr->lastapp));
+			lastdata = alloca(strlen(cdr->lastdata) * 2 + 1);
+			PQescapeString(lastdata, cdr->lastdata, strlen(cdr->lastdata));
+			uniqueid = alloca(strlen(cdr->uniqueid) * 2 + 1);
+			PQescapeString(uniqueid, cdr->uniqueid, strlen(cdr->uniqueid));
+			userfield = alloca(strlen(cdr->userfield) * 2 + 1);
+			PQescapeString(userfield, cdr->userfield, strlen(cdr->userfield));
+
+			cw_log(CW_LOG_DEBUG,"Inserting a CDR record.\n");
+
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (calldate,clid,src,dst,dcontext,channel,dstchannel,"
+				"lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES"
+				" ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%d,%d,'%s',%d,'%s','%s','%s')",
+				table, timestr, clid, cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,
+				cdr->duration, cdr->billsec, cw_cdr_disp2str(cdr->disposition), cdr->amaflags, cdr->accountcode, uniqueid, userfield);
+
+			cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql);
+
+			/* check if database connection is still good */
+			if (!pgsql_reconnect()) {
+				cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+				cw_mutex_unlock(&pgsql_lock);
+				return -1;
+			}
+
+			res = PQexec(conn, sql);
+
+			if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+				cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
+				cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+				PQclear(res);
+				cw_mutex_unlock(&pgsql_lock);
+				return -1;
+			}
+
+			PQclear(res);
+		}
 	}
 
-	PQclear(res);
 	cw_mutex_unlock(&pgsql_lock);
 	return 0;
 }
