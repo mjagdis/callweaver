@@ -38,6 +38,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
+#include "callweaver/indications.h"
 
 static const char tdesc[] = "Digital Milliwatt (mu-law) Test Application";
 
