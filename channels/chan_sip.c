@@ -1192,9 +1192,6 @@ static unsigned int dialogue_hash(struct sip_pvt *dialogue)
 	for (p = dialogue->callid; *p; p++)
 		hash = cw_hash_add(hash, *p);
 
-	for (p = dialogue->theirtag; *p; p++)
-		hash = cw_hash_add(hash, *p);
-
 	return hash;
 }
 
@@ -1224,8 +1221,7 @@ static int dialogue_object_match(struct cw_object *obj, const void *pattern)
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
 	const struct dialogue_key *key = pattern;
 
-	return !strcmp(dialogue->callid, key->callid)
-		&& dialogue->theirtag_len == key->taglen && !strncmp(dialogue->theirtag, key->tag, key->taglen);
+	return !strcmp(dialogue->callid, key->callid);
 }
 
 struct cw_registry dialogue_registry = {
@@ -4372,38 +4368,32 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 	char iabuf[INET_ADDRSTRLEN];
 	struct dialogue_key key;
 	struct cw_object *obj;
-	struct sip_pvt *dialogue, *n_dialogue;
-	unsigned int hash, hash_generic;
+	struct sip_pvt *dialogue;
+	unsigned int hash;
 	char *p;
-	int i;
+	int found, i;
 
-	hash_generic = 0;
+	hash = 0;
 	key.callid = p = req->data + pstate->callid;
 	while (*p)
-		hash_generic = cw_hash_add(hash_generic, *(p++));
-
-	hash = hash_generic;
-	key.tag = p = req->data + pstate->tag;
-	key.taglen = pstate->taglen;
-	for (i = pstate->taglen; i; i--)
 		hash = cw_hash_add(hash, *(p++));
 
-	/* Look for the full call id, [our tag], their tag
-	 * Note: we don't include our tag because we only ever have one tag per call
-	 */
+	found = 0;
 	dialogue = NULL;
 	if ((obj = cw_registry_find(&dialogue_registry, 1, hash, &key))) {
+		found = 1;
 		dialogue = container_of(obj, struct sip_pvt, obj);
+
 		cw_mutex_lock(&dialogue->lock);
-	} else if (req->method == SIP_RESPONSE) {
-		/* If this is a response we may still have an open dialogue that isn't
-		 * bound to a particular remote party (i.e. we don't have their tag)
-		 * so look for call id only (ignoring their tag)
+
+		/* If the dialogue already knows their tag the tag in the
+		 * message must match. If we don't have their tag yet any
+		 * message from any potential fork is valid.
 		 */
-		key.taglen = 0;
-		if ((obj = cw_registry_find(&dialogue_registry, 1, hash_generic, &key))) {
-			dialogue = container_of(obj, struct sip_pvt, obj);
-			cw_mutex_lock(&dialogue->lock);
+		if (dialogue->theirtag_len && (dialogue->theirtag_len != pstate->taglen || memcmp(dialogue->theirtag, req->data + pstate->tag, dialogue->theirtag_len))) {
+cw_log(CW_LOG_NOTICE, "... but wrong their tag\n");
+			cw_mutex_unlock(&dialogue->lock);
+			dialogue = NULL;
 		}
 	}
 
@@ -4417,91 +4407,40 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 
 			/* If the message is out of sequence we have nothing more to do */
 			if (req->seqno != dialogue->ocseq) {
-				/* If the dialogue doesn't have a tag but the message does we've forked.
-				 * FIXME: We SHOULD create a new dialogue, chain it with the old and
-				 * cancel all but one when something produces a non-provisional
-				 * response. But for now we just take the first responder.
+				if (recordhistory)
+					append_history(dialogue, "%-15s %s - %s (tag \"%.*s\")\n", "Rx", req->data + req->cseq, req->data + req->uriresp, pstate->taglen, req->data + pstate->tag);
+
+				/* If we have no tag and this is a non-provisional
+				 * response we save the tag now.
+				 * FIXME: If there is SDP maybe we should set the tag too so we claim
+				 * the call for whatever early media is being sent? But that causes
+				 * other legs to be abandonned. Maybe we don't want that. Imagine some
+				 * automated queue system that wants to keep saying how important the
+				 * call is while trying to find someone to take it while, at the same
+				 * time, there is a phone registered and ringing in parallel with it.
+				 * Currently there are problems if more than one leg wants to send
+				 * early media but the above will probably work. If we claim the call
+				 * as soon as we see SDP only the first leg that offers early media
+				 * will ever have a chance of taking the call.
 				 */
-				if (!dialogue->theirtag_len && pstate->taglen) {
-					if (recordhistory)
-						append_history(dialogue, "%-15s %s - %s (tag \"%.*s\")\n", "Rx", req->data + req->cseq, req->data + req->uriresp, pstate->taglen, pstate->tag);
-
+				if (!dialogue->theirtag_len && *(req->data + req->uriresp) != '1' && pstate->taglen) {
 					if (pstate->taglen < sizeof(dialogue->theirtag) - 1) {
-						if ((n_dialogue = malloc(sizeof(*n_dialogue)))) {
-							memcpy(n_dialogue, dialogue, sizeof(*n_dialogue));
+						memcpy(dialogue->theirtag, req->data + pstate->tag, (dialogue->theirtag_len = pstate->taglen));
+						dialogue->theirtag[pstate->taglen] = '\0';
 
-							if ((n_dialogue->history = malloc(dialogue->history_size))) {
-								memcpy(n_dialogue->history, dialogue->history, dialogue->history_used);
-								/* Reset things that shouldn't be copied */
-								cw_object_init(n_dialogue, CW_OBJECT_CURRENT_MODULE, 1);
-								cw_mutex_init(&n_dialogue->lock);
-								n_dialogue->timer_t1 = RFC_TIMER_T1;
-								n_dialogue->refer_call = NULL;
-								n_dialogue->route = NULL;
-								n_dialogue->peerauth = NULL;
-								n_dialogue->rpid = NULL;
-								n_dialogue->rpid_from = NULL;
-								n_dialogue->vad = NULL;
-								n_dialogue->rtp = NULL;
-								n_dialogue->vrtp = NULL;
-								n_dialogue->retrans = NULL;
-								n_dialogue->history = NULL;
-								n_dialogue->history_size = 0;
-								n_dialogue->history_used = 0;
-								n_dialogue->chanvars = NULL;
-								n_dialogue->options = NULL;
-								n_dialogue->udptl = NULL;
-								n_dialogue->vadtx = NULL;
-								/* n_dialogue->sa ? */
-								/* n_dialogue->redirip ? */
-								/* n_dialogue->vredirip ? */
-								/* FIXME: n_diaogue->owner should be a dup'd reference?
-								 * How do we handle dialogue cancellation without
-								 * taking the call down if a different leg answers?
-								 */
-
-								memcpy(n_dialogue->theirtag, req->data + pstate->tag, (dialogue->theirtag_len = pstate->taglen));
-								n_dialogue->theirtag[pstate->taglen] = '\0';
-
-
-								n_dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &n_dialogue->obj);
-
-								/* Increment the sequence number on the untagged dialogue so that
-								 * any more responses are considered old and ignored. Then schedule
-								 * its destruction.
-								 */
-								dialogue->ocseq++;
-								sip_scheddestroy(dialogue, -1);
-
-								cw_mutex_unlock(&dialogue->lock);
-								cw_mutex_lock(&n_dialogue->lock);
-								dialogue = n_dialogue;
-							} else {
-								free(n_dialogue);
-								n_dialogue = NULL;
-							}
-						}
-
-						if (!n_dialogue) {
-							cw_log(CW_LOG_ERROR, "Out of memory!\n");
-							sip_scheddestroy(dialogue, -1);
-							cw_mutex_unlock(&dialogue->lock);
-							dialogue = NULL;
-						}
 					} else {
 						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->taglen, sizeof(dialogue->theirtag), pstate->taglen, req->data + pstate->tag);
-							transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
+						transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
 						sip_scheddestroy(dialogue, -1);
 						cw_mutex_unlock(&dialogue->lock);
 						dialogue = NULL;
 					}
-				} else if (recordhistory && dialogue)
-					append_history(dialogue, "%-15s %s - %s\n", "Rx", req->data + req->cseq, req->data + req->uriresp);
+				}
 			}
 		} else {
 			/* FIXME: If there is a forking proxy in the way the reason we can't match
 			 * this message to a dialogue may be because some other response has already
-			 * matched and set the remote party's tag. In this case we should really
+			 * matched and set the remote party's tag. In this case should we really
 			 * be sending a CANCEL or BYE?
 			 */
 			transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "481 Call leg/transaction does not exist");
@@ -4510,8 +4449,18 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 		return dialogue;
 	}
 
-	/* If we didn't find a dialogue for this request we create one if it makes sense */
-	if (!dialogue) {
+	/* If we found a dialogue and this is an ACK we stop retransmissions of the
+	 * relevant non-provisional response
+	 */
+	if (dialogue) {
+		if (req->method == SIP_ACK)
+			__sip_ack(dialogue, req->seqno, FLAG_RESPONSE, -1);
+	} else if (!found) {
+		/* Nothing is known about this call so we create it if it makes sense */
+		/* FIXME: If the message contains something purporting to be our tag
+		 * at this point we should ignore it rather than create the call.
+		 * I think...
+		 */
 		if (sip_methods[req->method].can_create == 1) {
 			if (pstate->taglen < sizeof(dialogue->theirtag) - 1) {
 				if ((dialogue = sip_alloc(req->data + pstate->callid, sin, 1, req->method))) {
@@ -4557,6 +4506,13 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 			if (response)
 				transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, response);
 		}
+	} else if (!dialogue) {
+		/* FIXME: If there is a forking proxy in the way the reason we can't match
+		 * this message to a dialogue may be because some other response has already
+		 * matched and set the remote party's tag. In this case should we really
+		 * be sending a CANCEL or BYE?
+		 */
+		transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "481 Call leg/transaction does not exist");
 	}
 
 	return dialogue;
@@ -14618,13 +14574,6 @@ retrylock:
 
 				cw_mutex_unlock(&p->lock);
 				cw_object_put(p);
-			} else {
-				/* FIXME: If there is a forking proxy in the way the reason we can't match
-				 * this message to a dialogue may be because some other response has already
-				 * matched and set the remote party's tag. In this case we should really
-				 * be sending a CANCEL or BYE?
-				 */
-				transmit_response_using_temp(req.data + pstate.callid, &sin, 1, req.method, &req, "481 Call leg/transaction does not exist");
 			}
 		}
 	}
