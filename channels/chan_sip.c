@@ -469,8 +469,6 @@ static int global_mwitime = DEFAULT_MWITIME;    /*!< Time between MWI checks for
 static int usecnt =0;
 CW_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-CW_MUTEX_DEFINE_STATIC(rand_lock);
-
 /*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 CW_MUTEX_DEFINE_STATIC(netlock);
