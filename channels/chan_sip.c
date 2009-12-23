@@ -477,9 +477,6 @@ static int global_allowguest = 1;    /*!< allow unauthenticated users/peers to c
 #define DEFAULT_MWITIME 10
 static int global_mwitime = DEFAULT_MWITIME;    /*!< Time between MWI checks for peers */
 
-static int usecnt =0;
-CW_MUTEX_DEFINE_STATIC(usecnt_lock);
-
 
 /*! \brief This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -3387,10 +3384,6 @@ static int sip_hangup(struct cw_channel *ast)
     p->owner = NULL;
     ast->tech_pvt = NULL;
 
-    cw_mutex_lock(&usecnt_lock);
-    usecnt--;
-    cw_mutex_unlock(&usecnt_lock);
-
     /* Do not destroy this pvt until we have timeout or
        get an answer to the BYE or INVITE/CANCEL 
        If we get no answer during retransmit period, drop the call anyway.
@@ -3949,7 +3942,6 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
     if (!cw_strlen_zero(i->musicclass))
         cw_copy_string(tmp->musicclass, i->musicclass, sizeof(tmp->musicclass));
     i->owner = tmp;
-//    cw_mutex_lock(&usecnt_lock);
     cw_copy_string(tmp->context, i->context, sizeof(tmp->context));
     cw_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 
@@ -3993,10 +3985,6 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
         cw_hangup(tmp);
         tmp = NULL;
     }
-
-    cw_mutex_lock(&usecnt_lock);
-    usecnt++;
-    cw_mutex_unlock(&usecnt_lock);
 
     return tmp;
 }
@@ -13308,7 +13296,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 }
 
 /*! \brief  handle_request_invite: Handle incoming INVITE request */
-static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin, int *recount)
+static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, struct sockaddr_in *sin)
 {
     int res = 1;
     struct cw_channel *c = NULL;
@@ -13474,7 +13462,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             make_our_tag(p->tag, sizeof(p->tag));
             /* First invitation */
             c = sip_new(p, CW_STATE_DOWN, cw_strlen_zero(p->username)  ?  NULL  :  p->username);
-            *recount = 1;
             /* Save Record-Route for any later requests we make on this dialogue */
             build_route(p, req, 0);
             if (c)
@@ -14216,7 +14203,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 
 /*! \brief  handle_request: Handle SIP requests (methods) */
 /*      this is where all incoming requests go first   */
-static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
+static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *nounlock)
 {
     /* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
        relatively static */
@@ -14368,7 +14355,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
         res = handle_request_options(p, req, debug);
         break;
     case SIP_INVITE:
-        res = handle_request_invite(p, req, debug, ignore, seqno, sin, recount);
+        res = handle_request_invite(p, req, debug, ignore, seqno, sin);
         break;
     case SIP_REFER:
         res = handle_request_refer(p, req, debug, ignore, seqno, nounlock);
@@ -14447,7 +14434,6 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	socklen_t len, leno;
 	int res;
 	int nounlock;
-	int recount = 0;
 	unsigned int lockretry;
 
 	len = sizeof(sin);
@@ -14537,7 +14523,7 @@ retrylock:
 
 				nounlock = 0;
 
-				if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
+				if (handle_request(p, &req, &sin, &nounlock) == -1) {
 					/* Request failed */
 					cw_log(CW_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
 				}
