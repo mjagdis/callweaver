@@ -29,6 +29,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+#include "callweaver/app.h"
+#include "callweaver/dsp.h"
 #include "callweaver/pbx.h"
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
@@ -98,12 +100,7 @@ static uint64_t nowis(void)
 #endif
     return now;
 }
-
 /*- End of function --------------------------------------------------------*/
-
-/* *****************************************************************************
-	MEMBER GENERATOR
-   ****************************************************************************/
 
 struct faxgen_state {
     fax_state_t *fax;
@@ -115,22 +112,20 @@ static void *faxgen_alloc(struct cw_channel *chan, void *params)
 {
     struct faxgen_state *fgs;
 
-    cw_log(CW_LOG_DEBUG,"Allocating fax generator\n");
+    cw_log(CW_LOG_DEBUG, "Allocating fax generator\n");
     if ((fgs = malloc(sizeof(*fgs)))) {
         fgs->fax = params;
     }
     return fgs;
 }
-
 /*- End of function --------------------------------------------------------*/
 
 static void faxgen_release(struct cw_channel *chan, void *data)
 {
-    cw_log(CW_LOG_DEBUG,"Releasing fax generator\n");
+    cw_log(CW_LOG_DEBUG, "Releasing fax generator\n");
     free(data);
     return;
 }
-
 /*- End of function --------------------------------------------------------*/
 
 static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int samples)
@@ -141,8 +136,8 @@ static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int
     cw_fr_init_ex(&fgs->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 
     samples = (samples <= MAX_BLOCK_SIZE)  ?  samples  :  MAX_BLOCK_SIZE;
-    len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*CW_FRIENDLY_OFFSET], samples);
-    if (len) {
+    if ((len = fax_tx(fgs->fax, (int16_t *) &fgs->buf[2*CW_FRIENDLY_OFFSET], samples)))
+    {
         fgs->f.datalen = len*sizeof(int16_t);
         fgs->f.samples = len;
         fgs->f.data = &fgs->buf[2*CW_FRIENDLY_OFFSET];
@@ -151,6 +146,7 @@ static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int
 
     return &fgs->f;
 }
+/*- End of function --------------------------------------------------------*/
 
 static struct cw_generator faxgen = 
 {
@@ -159,7 +155,6 @@ static struct cw_generator faxgen =
 	generate: 	faxgen_generate,
 };
 
-/*- End of function --------------------------------------------------------*/
 
 static void phase_e_handler(t30_state_t *s, void *user_data, int result)
 {
@@ -295,7 +290,7 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *source_file, int calling_party,int verbose) {
+static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const char *source_file, int calling_party,int verbose) {
     struct cw_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
@@ -371,7 +366,7 @@ static int txfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *s
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_file, int calling_party,int verbose) {
+static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *source_file, int calling_party,int verbose) {
     struct cw_frame 	*inf = NULL;
     struct cw_frame 	outf, *fout;
     int 		ready = 1,
@@ -384,6 +379,11 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
+#if 0
+    struct cw_frame *dspf = NULL;
+    struct cw_dsp *dsp = NULL;
+#endif
+    uint64_t voice_frames;
     int old_policy;
     struct sched_param old_sp;
     t30_state_t *t30;
@@ -396,8 +396,8 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
         return -1;
     }
 
-    fax_set_transmit_on_idle(fax, TRUE);
     t30 = fax_get_t30_state(fax);
+    fax_set_transmit_on_idle(fax, TRUE);
 
     verbose = fax_set_common(chan, t30, source_file, calling_party, verbose);
 
@@ -405,6 +405,28 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     if (verbose)
         span_log_set_level(&fax->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
+
+    if (calling_party)
+    {
+        voice_frames = 0;
+    }
+    else
+    {
+#if 0
+        /* Initializing the DSP */
+        if ((dsp = cw_dsp_new()) = NULL)
+        {
+            cw_log(cw_LOG_WARNING, "Unable to allocate DSP!\n");
+        }
+        else
+        {
+            cw_dsp_set_threshold(dsp, 256);
+            cw_dsp_set_deatures(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+            cw_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+        }
+#endif
+        voice_frames = 1;
+    }
 
     /* This is the main loop */
     pthread_getschedparam(pthread_self(), &old_policy, &old_sp);
@@ -414,7 +436,6 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     while (ready && ready_to_talk(chan))
     {
-    
 	if (chan->t38_status == T38_NEGOTIATED)
 	    break;
 
@@ -434,7 +455,43 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
 	/* We got a frame */
         if (inf->frametype == CW_FRAME_VOICE) {
+#if 0
+            if (dsp)
+            {
+                if ((dspf = cw_frdup(inf)))
+                    dspf = cw_dsp_process(chan, dsp, dspf);
 
+                if (dspf)
+                {
+                    if (dspf->frametype == CW_FRAME_DTMF)
+                    {
+                        if (dspf->subclass == 'f')
+                        {
+                            cw_log(CW_LOG_DEBUG, "Fax detected in TxFax !!!\n");
+                            cw_app_request_t38(chan);
+                            /* Prevent any further attempts to negotiate T.38 */
+                            cw_dsp_free(dsp);
+                            dsp = NULL;
+                        }
+                    }
+                    cw_fr_free(dspf);
+                    dspf = NULL;
+                }
+            }
+#else
+            if (voice_frames)
+            {
+                /* Wait a little before trying to switch to T.38, as some things don't seem
+                 * to like entirely missing the audio.
+                 */
+                if (++voice_frames == 100)
+                {
+                    cw_log(CW_LOG_DEBUG, "Requesting T.38 negotiation in TxFax !!!\n");
+                    cw_app_request_t38(chan);
+                    voice_frames = 0;
+                }
+            }
+#endif
 	    received_frames ++;
 
             if (fax_rx(fax, inf->data, inf->samples))
@@ -454,28 +511,13 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
                 }
                 cw_fr_free(fout);
             }
-	    else
-	    {
-	    	len = samples;
-    		cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-    		outf.datalen = len*sizeof(int16_t);
-    		outf.samples = len;
-    		outf.data = &buf[CW_FRIENDLY_OFFSET];
-    		outf.offset = CW_FRIENDLY_OFFSET;
-    		memset(&buf[CW_FRIENDLY_OFFSET],0,outf.datalen);
-    		fout = &outf;
-    		if (cw_write(chan, &fout) < 0)
-    		{
-        	    cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-		    break;
-    		}
-    		cw_fr_free(fout);
-	    }
         }
-	else {
-	    if ((nowis() - begin) > 1000000) {
+	else
+        {
+	    if ((nowis() - begin) > 1000000)
+            {
 		if (received_frames < 20 ) { // just to be sure we have had no frames ...
-		    cw_log(CW_LOG_WARNING,"Switching to generator mode\n");
+		    cw_log(CW_LOG_WARNING, "Switching to generator mode\n");
 		    generator_mode = 1;
 		    break;
 		}
@@ -491,9 +533,11 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
     }
 
     if (generator_mode) {
-	// This is activated when we don't receive any frame for
-	// X seconds (see above)... we are probably on ZAP or talking without UDPTL to
-	// another callweaver box
+	/* This is activated when we don't receive any frame for X seconds (see above)... */
+#if 0
+        if (dsp)
+            cw_dsp_reset(dsp);
+#endif
 	cw_generator_activate(chan, &chan->generator, &faxgen, fax);
 
 	while (ready && ready_to_talk(chan)) {
@@ -516,7 +560,42 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
     	    }
 
 	    /* We got a frame */
-    	    if (inf->frametype == CW_FRAME_VOICE) {
+            if (inf->frametype == CW_FRAME_VOICE)
+            {
+#if 0
+                if (dsp)
+                {
+                    if ((dspf = cw_frdup(inf)))
+                        dspf = cw_dsp_process(chan, dsp, dspf);
+
+	            if (dspf)
+                    {
+                        if (dspf->frametype == CW_FRAME_DTMF)
+                        {
+                            if (dspf->subclass == 'f')
+                            {
+                                cw_log(CW_LOG_DEBUG, "Fax detected in TxFax !!!\n");
+                                cw_app_request_t38(chan);
+                                /* Prevent any further attempts to negotiate T.38 */
+                                cw_dsp_free(dsp);
+                                dsp = NULL;
+		            }
+		        }
+                        cw_fr_free(dspf);
+                        dspf = NULL;
+	            }
+                }
+#else
+                if (voice_frames)
+                {
+                    if (++voice_frames == 100)
+                    {
+                        cw_log(CW_LOG_DEBUG, "Requesting T.38 negotiation in TxFax !!!\n");
+                        cw_app_request_t38(chan);
+                        voice_frames = 0;
+                    }
+                }
+#endif
         	if (fax_rx(fax, inf->data, inf->samples)) {
 		    ready = 0;
                     break;
@@ -537,6 +616,10 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, char *source_f
 
     pthread_setschedparam(pthread_self(), old_policy, &old_sp);
 
+#if 0
+    if (dsp)
+        cw_dsp_free(dsp);
+#endif
     return ready;
 }
 /*- End of function --------------------------------------------------------*/
@@ -545,8 +628,9 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
+    t30_state_t *t30;
 
-    char *source_file;
+    const char *file_name;
     int res = 0;
     int ready;
 
@@ -559,7 +643,6 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     int original_write_fmt;
 
     signed char sc;
-    t30_state_t *t30;
 
     /* Basic initial checkings */
 
@@ -591,7 +674,7 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     calling_party = FALSE;
     verbose = FALSE;
 
-    source_file = argv[0];
+    file_name = argv[0];
 
     while (argv++, --argc) {
         if (strcmp("caller", argv[0]) == 0)
@@ -667,17 +750,16 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     {
         if (ready && chan->t38_status != T38_NEGOTIATED) {
 	    t30 = fax_get_t30_state(&fax);
-	    ready = txfax_audio(chan, &fax, source_file, calling_party, verbose);
+	    ready = txfax_audio(chan, &fax, file_name, calling_party, verbose);
 	}
 
         if (ready && chan->t38_status == T38_NEGOTIATED) {
 	    t30 = t38_terminal_get_t30_state(&t38);
-	    ready = txfax_t38(chan, &t38, source_file, calling_party, verbose);
+	    ready = txfax_t38(chan, &t38, file_name, calling_party, verbose);
 	}
 
 	if (chan->t38_status != T38_NEGOTIATING)
 	    ready = FALSE; // 1 loop is enough. This could be useful if we want to turn from udptl to RTP later.
-
     }
 
     t30_terminate(t30);
@@ -688,7 +770,6 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     /* Maybe we should restore gain and echo cancel settings here? */
 
     /* Restoring initial channel formats. */
-
     if (original_read_fmt != CW_FORMAT_SLINEAR)
     {
         if ((res = cw_set_read_format(chan, original_read_fmt)))

@@ -119,6 +119,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
     int running = RUNNING;
     struct cw_dsp *dsp_cng = NULL;
     struct cw_dsp *dsp_ced = NULL;
+    struct cw_dsp *dspx;
 
     if ((dsp_cng = cw_dsp_new()) == NULL)
     {
@@ -147,7 +148,7 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
 
-//cw_log(CW_LOG_NOTICE, "br: t38 status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+        //cw_log(CW_LOG_NOTICE, "br: t38 status: [%d,%d]\n", chan->t38_status, peer->t38_status);
 
         if ((active = cw_waitfor_n(channels, 2, &timeout)))
         {
@@ -155,24 +156,26 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
             if ((f = cw_read(active)))
             {
 
-                if (dsp_ced  &&  dsp_cng)
+                if (dsp_ced  ||  dsp_cng)
                     fr2 = cw_frdup(f);
                 else
                     fr2 = NULL;
 
                 f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
-		
-    		if ((chan->t38_status == T38_NEGOTIATING) || (peer->t38_status == T38_NEGOTIATING)) {
-		/*  TODO 
-		    This is a very BASIC method to mute a channel. It should be improved
-		    and we should send EMPTY frames (not just avoid sending them) 
-		*/
-//AGX: variable not defined in TRUNK:                    if (option_debug > 5)
-		        cw_log(CW_LOG_NOTICE, "channels are muted.\n");
+
+                if ((chan->t38_status == T38_NEGOTIATING) || (peer->t38_status == T38_NEGOTIATING))
+                {
+                    /*  TODO
+                     * This is a very BASIC method to mute a channel. It should be improved
+                     * and we should send EMPTY frames (not just avoid sending them)
+                     */
+                    cw_log(CW_LOG_NOTICE, "channels are muted.\n");
 		}
-		else
+                else
+		{
             	    cw_write(inactive, &f);
-		    
+		}
+
                 clean_frame(f);
                 channels[0] = inactive;
                 channels[1] = active;
@@ -180,34 +183,33 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
                 if (active == chan)
                 {
                     /* Look for FAX CNG tone */
-                    if (fr2  &&  dsp_cng)
-                    {
-                        if ((fr2 = cw_dsp_process(active, dsp_cng, fr2)))
-                        {
-                            if (fr2->frametype == CW_FRAME_DTMF)
-                            {
-                                if (fr2->subclass == 'f')
-                                {
-                                    cw_log(CW_LOG_DEBUG, "FAX CNG detected in T38 Gateway !!!\n");
-                                    request_t38(chan, peer);
-                                }
-                            }
-                        }
-                    }
+                    dspx = dsp_cng;
                 }
                 else
                 {
                     /* Look for FAX CED tone or V.21 preamble */
-                    if (fr2  &&  dsp_ced)
+                    dspx = dsp_ced;
+                }
+                if (dspx && fr2)
+                {
+                    if ((fr2 = cw_dsp_process(active, dspx, fr2)))
                     {
-                        if ((fr2 = cw_dsp_process(active, dsp_ced, fr2)))
+                        if (fr2->frametype == CW_FRAME_DTMF)
                         {
-                            if (fr2->frametype == CW_FRAME_DTMF)
+                            if (fr2->subclass == 'f' || fr2->subclass == 'F')
                             {
-                                if (fr2->subclass == 'F')
+                                cw_log(CW_LOG_DEBUG, "FAX %s tone detected in T38 gateway!!!\n", (fr2->subclass == 'f' ? "CNG" : "CED"));
+                                request_t38(chan, peer);
+                                /* Prevent any further attempts to negotiate T.38 */
+                                if (dsp_cng)
                                 {
-                                    cw_log(CW_LOG_DEBUG, "FAX CED detected in T38 Gateway !!!\n");
-                                    request_t38(chan, peer);
+                                    cw_dsp_free(dsp_cng);
+                                    dsp_cng = NULL;
+                                }
+                                if (dsp_ced)
+                                {
+                                    cw_dsp_free(dsp_ced);
+                                    dsp_ced = NULL;
                                 }
                             }
                         }
@@ -354,12 +356,12 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
     while (running == RUNNING  &&  (running = ready_to_talk(channels[0], channels[1])))
     {
-//cw_log(CW_LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
+        //cw_log(CW_LOG_NOTICE, "gw: t38status: [%d,%d]\n", chan->t38_status, peer->t38_status);
         if ( 
             (chan->t38_status == T38_NEGOTIATED) 
          && (peer->t38_status == T38_NEGOTIATED)
         ) {
-            cw_log(CW_LOG_DEBUG, "Stop gateway-ing frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
+            cw_log(CW_LOG_DEBUG, "Stop gatewaying frames (both channels are in t38 mode). [ %d,%d]\n", chan->t38_status, peer->t38_status);
             running = RUNNING;
             break;
         }

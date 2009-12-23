@@ -331,7 +331,7 @@ static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char 
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *file, int calling_party,int verbose) {
+static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, const char *file, int calling_party,int verbose) {
     struct cw_frame 	*inf = NULL;
     int 		ready = 1,
 			res = 0;
@@ -398,23 +398,18 @@ static int rxfax_t38(struct cw_channel *chan, t38_terminal_state_t *t38, char *f
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, int calling_party, int verbose) {
-    struct cw_frame 	*inf = NULL,
-			*dspf = NULL;
-    struct cw_frame 	outf, *fout;
-    int 		ready = 1,
-			samples = 0,
-			res = 0,
-			len = 0,
-			generator_mode = 0;
-    uint64_t		begin = 0,
-			received_frames = 0;
-
-    struct cw_dsp *dsp = NULL;
-    t30_state_t *t30;
-
+static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *file, int calling_party, int verbose) {
     uint8_t __buf[sizeof(uint16_t)*MAX_BLOCK_SIZE + 2*CW_FRIENDLY_OFFSET];
+    struct cw_frame outf, *fout;
     uint8_t *buf = __buf + CW_FRIENDLY_OFFSET;
+    struct cw_frame *inf = NULL;
+#if 0
+    struct cw_frame *dspf = NULL;
+    struct cw_dsp *dsp = NULL;
+#endif
+    t30_state_t *t30;
+    uint64_t begin = 0, received_frames = 0, voice_frames;
+    int ready = 1, samples = 0, res = 0, len = 0, generator_mode = 0;
 
     memset(fax, 0, sizeof(*fax));
 
@@ -433,14 +428,22 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
     if (verbose)
         span_log_set_level(&fax->logging, SPAN_LOG_SHOW_SEVERITY | SPAN_LOG_SHOW_PROTOCOL | SPAN_LOG_FLOW);
 
-    /* Initializing the DSP */
+    if (calling_party)
+        voice_frames = 0;
+    else
+    {
+#if 0
+        /* Initializing the DSP */
 
-    if ( !( dsp = cw_dsp_new() ) )
-        cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
-    else {
-	cw_dsp_set_threshold(dsp, 256); 
-	cw_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
-	cw_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+        if ( !( dsp = cw_dsp_new() ) )
+            cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
+        else {
+	    cw_dsp_set_threshold(dsp, 256);
+	    cw_dsp_set_features(dsp, DSP_FEATURE_DTMF_DETECT | DSP_FEATURE_FAX_CNG_DETECT);
+	    cw_dsp_digitmode(dsp, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
+        }
+#endif
+	voice_frames = 1;
     }
 
     /* This is the main loop */
@@ -468,26 +471,45 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 
 	/* We got a frame */
         if (inf->frametype == CW_FRAME_VOICE) {
-	    received_frames ++;
-
-            if ((dspf = cw_frdup(inf)))
-                dspf = cw_dsp_process(chan, dsp, dspf);
-
-	    if (dspf && dspf->frametype == CW_FRAME_DTMF)
+#if 0
+            if (dsp)
             {
-                if (dspf->subclass == 'f')
+                if ((dspf = cw_frdup(inf)))
+                    dspf = cw_dsp_process(chan, dsp, dspf);
+
+	        if (dspf)
                 {
-    		    cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
-        	    cw_app_request_t38(chan);
+                    if (dspf->frametype == CW_FRAME_DTMF)
+                    {
+                        if (dspf->subclass == 'f')
+                        {
+                            cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
+                            cw_app_request_t38(chan);
+                            /* Prevent any further attempts to negotiate T.38 */
+                            cw_free_dsp(dsp);
+                            dsp = NULL;
+                        }
+	            }
+                    cw_fr_free(dspf);
+                    dspf = NULL;
 	        }
-	    }
+            }
+#else
+            if (voice_frames)
+            {
+                /* Wait a little before trying to switch to T.38m as some things don't seem
+                 * to like entirely missing the audio.
+                 */
+                if (++voice_frames == 100)
+                {
+                    cw_log(CW_LOG_DEBUG, "Requesting T.38 negotiation in RxFax !!!\n");
+                    cw_app_request_t38(chan);
+                    voice_frames = 0;
+                }
+            }
+#endif
+	    received_frames++;
  
-            if (dspf  &&  (inf != dspf)) {
-                cw_fr_free(dspf);
-                dspf = NULL;
-	    }
-
-
             if (fax_rx(fax, inf->data, inf->samples))
                     break;
 
@@ -505,27 +527,14 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
                 }
                 cw_fr_free(fout);
             }
-	    else 
-	    {
-	        len = samples;
-                cw_fr_init_ex(&outf, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
-                outf.datalen = len*sizeof(int16_t);
-                outf.samples = len;
-                outf.data = &buf[CW_FRIENDLY_OFFSET];
-                outf.offset = CW_FRIENDLY_OFFSET;
-	        memset(&buf[CW_FRIENDLY_OFFSET], 0, outf.datalen);
-	        fout = &outf;
-                if (cw_write(chan, &fout) < 0)
-                {
-                    cw_log(CW_LOG_WARNING, "Unable to write frame to channel; %s\n", strerror(errno));
-                    break;
-                }
-                cw_fr_free(fout);
-	    }
         }
-	else {
-	    if ( (nowis() - begin) > 1000000 ) {
-		if (received_frames < 20 ) { // just to be sure we have had no frames ...
+	else
+        {
+	    if ( (nowis() - begin) > 1000000 )
+            {
+		if (received_frames < 20 )
+                {
+                    /* Just to be sure we have had no frames ... */
 		    cw_log(CW_LOG_NOTICE,"Switching to generator mode\n");
 		    generator_mode = 1;
 		    break;
@@ -540,14 +549,14 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
         cw_fr_free(inf);
 	inf = NULL;
     }
-    // This is activated when we don't receive any frame for
-    // X seconds (see above)... we are probably on ZAP or talking without UDPTL to
-    // another callweaver box
 
-    if (generator_mode) {
+    if (generator_mode)
+    {
+        /* This is activated when we don't receive any frame for X seconds (see above)... */
+#if 0
 	if (dsp)
 	    cw_dsp_reset(dsp);
-
+#endif
 	cw_generator_activate(chan, &chan->generator, &faxgen, fax);
 
 	while (ready && ready_to_talk(chan)) {
@@ -571,24 +580,40 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 
 	    /* We got a frame */
     	    if (inf->frametype == CW_FRAME_VOICE) {
-    	        if ((dspf = cw_frdup(inf)))
-        	        dspf = cw_dsp_process(chan, dsp, dspf);
+#if 0
+                if (dsp)
+                {
+                    if ((dspf = cw_frdup(inf)))
+                        dspf = cw_dsp_process(chan, dsp, dspf);
 
-	        if (dspf && dspf->frametype == CW_FRAME_DTMF)
-    	        {
-        	    if (dspf->subclass == 'f')
-        	    {
-    		        cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
-        	        cw_app_request_t38(chan);
-		    }
-	        }
- 
-    	        if (dspf  &&  (inf != dspf)) {
-        	    cw_fr_free(dspf);
-        	    dspf = NULL;
-	        }
-
-
+	            if (dspf)
+                    {
+                        if (dspf->frametype == CW_FRAME_DTMF)
+                        {
+                            if (dspf->subclass == 'f')
+                            {
+                                cw_log(CW_LOG_DEBUG, "Fax detected in RxFax !!!\n");
+                                cw_app_request_t38(chan);
+                                /* Prevent any further attempts to negotiate T.38 */
+                                cw_dsp_free(dsp);
+                                dsp = NULL;
+		            }
+		        }
+                        cw_fr_free(dspf);
+                        dspf = NULL;
+	            }
+                }
+#else
+                if (voice_frames)
+                {
+                    if (++voice_frames == 100)
+                    {
+                        cw_log(CW_LOG_DEBUG, "Requesting T.38 negotiation in RxFax !!!\n");
+                        cw_app_request_t38(chan);
+                        voice_frames = 0;
+                    }
+                }
+#endif
         	if (fax_rx(fax, inf->data, inf->samples)) {
 		    ready = 0;
                     break;
@@ -607,6 +632,10 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, char *file, in
 	cw_generator_deactivate(&chan->generator);
 
     }
+#if 0
+    if (dsp)
+        cw_dsp_free(dsp);
+#endif
 
     return ready;
 }
@@ -618,8 +647,8 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     t38_terminal_state_t t38;
     t30_state_t *t30;
 
+    const char *file_name;
     int res = 0;
-    char target_file[256];
     int ready;
 
     int calling_party;
@@ -661,7 +690,7 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     calling_party = FALSE;
     verbose = FALSE;
 
-    cw_copy_string(target_file, argv[0], sizeof(target_file));
+    file_name = argv[0];
 
     while (argv++, --argc) {
 	    if (!strcmp(argv[0], "caller"))
@@ -734,12 +763,12 @@ static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     {
         if (ready && chan->t38_status != T38_NEGOTIATED) {
 	    t30 = fax_get_t30_state(&fax);
-	    ready = rxfax_audio(chan, &fax, target_file, calling_party, verbose);
+	    ready = rxfax_audio(chan, &fax, file_name, calling_party, verbose);
 	}
 
         if (ready && chan->t38_status == T38_NEGOTIATED) {
 	    t30 = t38_terminal_get_t30_state(&t38);
-	    ready = rxfax_t38(chan, &t38, target_file, calling_party, verbose);
+	    ready = rxfax_t38(chan, &t38, file_name, calling_party, verbose);
 	}
 
 	if (chan->t38_status != T38_NEGOTIATING)
