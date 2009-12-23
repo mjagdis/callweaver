@@ -41,7 +41,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static void *random_app;
 static const char random_name[] = "Random";
 static const char random_synopsis[] = "Conditionally branches, based upon a probability";
-static const char random_syntax[] = "Random([probability]:[[context, ]extension, ]priority)";
+static const char random_syntax[] = "Random(probability, [[context, ]extension, ]priority)";
 static const char random_descrip[] =
 "Conditionally branches, based upon a probability\n"
 "  probability := INTEGER in the range 1 to 100\n";
@@ -54,14 +54,16 @@ static int random_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	char *s, *context, *exten;
 	int probint;
 	
-	if (argc < 1 || argc > 3)
+	if (argc < 1 || argc > 4)
 		return cw_function_syntax(random_syntax);
 
 	LOCAL_USER_ADD(u);
 
+	probint = atoi(argv[0]);
+
 	if ((s = strchr(argv[0], ':'))) {
-		probint = atoi(argv[0]);
 		argv[0] = s + 1;
+		argc--;
 	}
 
 	/* FIXME: is this really what was intended? */
