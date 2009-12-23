@@ -23,6 +23,9 @@
 #ifndef _CALLWEAVER_CHANNEL_H
 #define _CALLWEAVER_CHANNEL_H
 
+#include <sys/poll.h>
+#include <unistd.h>
+#include <setjmp.h>
 #include <stdarg.h>
 
 #include "callweaver/object.h"
@@ -30,14 +33,6 @@
 #include "callweaver/frame.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/config.h"
-
-#include <unistd.h>
-#include <setjmp.h>
-#ifdef POLLCOMPAT 
-#include "callweaver/poll-compat.h"
-#else
-#include <sys/poll.h>
-#endif
 
 #include "callweaver/generic_jb.h"
 

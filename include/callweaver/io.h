@@ -23,11 +23,8 @@
 #ifndef _CALLWEAVER_IO_H
 #define _CALLWEAVER_IO_H
 
-#ifdef POLLCOMPAT
-#include "callweaver/poll-compat.h"
-#else
 #include <sys/poll.h>		/* For POLL* constants */
-#endif
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
