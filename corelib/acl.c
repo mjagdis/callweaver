@@ -68,10 +68,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/srv.h"
 
-#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
-CW_MUTEX_DEFINE_STATIC(routeseq_lock);
-#endif
-
 struct cw_ha {
 	/* Host access rule */
 	struct in_addr netaddr;
