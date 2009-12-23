@@ -58,7 +58,7 @@
 
 
 #ifdef DO_CRASH
-#  define CRASH do { *((int *)(0)) = 1; } while(0)
+#  define CRASH do { sleep(1); *((int *)(0)) = 1; } while(0)
 #else
 #  define CRASH do { } while(0)
 #endif
