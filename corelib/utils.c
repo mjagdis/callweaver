@@ -1333,16 +1333,13 @@ int cw_utils_init(void)
 	global_sched_param_default.sched_priority = 0;
 	global_sched_param_rr.sched_priority = 50;
 
-	pthread_mutexattr_init(&global_mutexattr_errorcheck);
-	pthread_mutexattr_init(&global_mutexattr_recursive);
 	pthread_mutexattr_init(&global_mutexattr_simple);
-#ifdef PTHREAD_MUTEX_RECURSIVE
-	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_ERRORCHECK);
+
+	pthread_mutexattr_init(&global_mutexattr_errorcheck);
+	pthread_mutexattr_settype(&global_mutexattr_errorcheck, PTHREAD_MUTEX_ERRORCHECK);
+
+	pthread_mutexattr_init(&global_mutexattr_recursive);
 	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE);
-#else /* old LinuxThreads? */
-	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_ERRORCHECK_NP);
-	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE_NP);
-#endif
 
 	pthread_attr_init(&global_attr_default);
 	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);
