@@ -622,12 +622,8 @@ struct sip_request {
 	unsigned int cseq;	/*!< Offset of CSeq value in the data */
 	unsigned int cseq_len;	/*!< Length of CSeq value in the data */
 	int headers;		/*!< # of SIP Headers */
-	unsigned int header[SIP_MAX_HEADERS];
-	unsigned int header_val[SIP_MAX_HEADERS];
 	int lines;		/*!< Body Content */
-	unsigned int line[SIP_MAX_LINES];
 	int len;		/*!< Length */
-	char data[SIP_MAX_PACKET];
 	int debug;		/*!< Debug flag for this packet */
 	unsigned int flags;	/*!< SIP_PKT Flags for this packet */
 	unsigned int sdp_start; /*!< the line number where the SDP begins */
@@ -641,6 +637,11 @@ struct sip_request {
 	/* ******* stun rework of request ******** */
 	struct sip_data_line    *head_lines;
 	struct sip_data_line    *sdp_lines;
+
+	unsigned int header[SIP_MAX_HEADERS];
+	unsigned int header_val[SIP_MAX_HEADERS];
+	unsigned int line[SIP_MAX_LINES];
+	char data[SIP_MAX_PACKET];
 };
 
 /*! \brief Parameters to the transmit_invite function */
@@ -1090,7 +1091,7 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
-static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int inc, int reliable, int newbranch);
+static int transmit_ack(struct sip_pvt *p, struct sip_request *req, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmethod, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sendsdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
@@ -4684,7 +4685,6 @@ static struct sip_pvt *find_call(struct parse_request_state *pstate, struct sip_
 		 * message from any potential fork is valid.
 		 */
 		if (dialogue->theirtag_len && (dialogue->theirtag_len != pstate->taglen || memcmp(dialogue->theirtag, req->data + pstate->tag, dialogue->theirtag_len))) {
-cw_log(CW_LOG_NOTICE, "... but wrong their tag\n");
 			cw_mutex_unlock(&dialogue->lock);
 			dialogue = NULL;
 		}
@@ -4692,14 +4692,8 @@ cw_log(CW_LOG_NOTICE, "... but wrong their tag\n");
 
 	if (req->method == SIP_RESPONSE) {
 		if (dialogue) {
-			/* Acknowledge whatever it is destined for */
-			if (*(req->data + req->uriresp) == '1') /* Provisional response */
-				__sip_semi_ack(dialogue, req->seqno, 0, req->cseq_method);
-			else
-				__sip_ack(dialogue, req->seqno, 0, req->cseq_method);
-
-			/* If the message is out of sequence we have nothing more to do */
-			if (req->seqno != dialogue->ocseq) {
+			/* If the message is out of sequence we have nothing more to do here */
+			if (req->seqno == dialogue->ocseq) {
 				if (recordhistory)
 					append_history(dialogue, "%-15s %s - %s (tag \"%.*s\")\n", "Rx", req->data + req->cseq, req->data + req->uriresp, pstate->taglen, req->data + pstate->tag);
 
@@ -4720,7 +4714,6 @@ cw_log(CW_LOG_NOTICE, "... but wrong their tag\n");
 					if (pstate->taglen < sizeof(dialogue->theirtag) - 1) {
 						memcpy(dialogue->theirtag, req->data + pstate->tag, (dialogue->theirtag_len = pstate->taglen));
 						dialogue->theirtag[pstate->taglen] = '\0';
-
 					} else {
 						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %d, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), pstate->taglen, sizeof(dialogue->theirtag), pstate->taglen, req->data + pstate->tag);
 						transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "500 Server internal error");
@@ -4735,6 +4728,7 @@ cw_log(CW_LOG_NOTICE, "... but wrong their tag\n");
 			 * this message to a dialogue may be because some other response has already
 			 * matched and set the remote party's tag. In this case should we really
 			 * be sending a CANCEL or BYE?
+			 * FIXME: If we got a 481 is it right to respond to it with a 481? Where does it end?
 			 */
 			transmit_response_using_temp(req->data + pstate->callid, sin, 1, req->method, req, "481 Call leg/transaction does not exist");
 		}
@@ -6216,9 +6210,8 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 }
 
 /*! \brief  reqprep: Initialize a SIP request response packet */
-static int reqprep(struct sip_request *req, struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int newbranch)
+static int reqprep(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, enum sipmethod sipmethod, int seqno, int newbranch)
 {
-    struct sip_request *orig = &p->initreq;
     char stripped[80];
     char tmp[80];
     char newto[256];
@@ -7067,9 +7060,9 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 
 	if ((msg = malloc(sizeof(*msg)))) {
 		if (cw_test_flag(p, SIP_REINVITE_UPDATE))
-			reqprep(msg, p, SIP_UPDATE, 0, 1);
+			reqprep(p, msg, &p->initreq, SIP_UPDATE, 0, 1);
 		else
-			reqprep(msg, p, SIP_INVITE, 0, 1);
+			reqprep(p, msg, &p->initreq, SIP_INVITE, 0, 1);
     
 		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 		if (sipdebug)
@@ -7116,9 +7109,9 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 
 	if ((msg = malloc(sizeof(*msg)))) {
 		if (cw_test_flag(p, SIP_REINVITE_UPDATE))
-			reqprep(msg, p, SIP_UPDATE, 0, 1);
+			reqprep(p, msg, &p->initreq, SIP_UPDATE, 0, 1);
 		else
-			reqprep(msg, p, SIP_INVITE, 0, 1);
+			reqprep(p, msg, &p->initreq, SIP_INVITE, 0, 1);
     
 		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 		if (sipdebug)
@@ -7442,9 +7435,9 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 			if (init > 1)
 				initreqprep(msg, p, sipmethod);
 			else
-				reqprep(msg, p, sipmethod, 0, 1);
+				reqprep(p, msg, &p->initreq, sipmethod, 0, 1);
 		} else
-			reqprep(msg, p, sipmethod, 0, 1);
+			reqprep(p, msg, &p->initreq, sipmethod, 0, 1);
 
 		if (p->options && p->options->auth)
 			add_header(msg, p->options->authheader, p->options->auth, SIP_DL_DONTCARE);
@@ -7620,7 +7613,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 			*a = '\0';
 		mto = c;
 
-		reqprep(msg, p, SIP_NOTIFY, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_NOTIFY, 0, 1);
 
 		add_header(msg, "Event", subscriptiontype->event, SIP_DL_DONTCARE);
 		add_header(msg, "Content-Type", subscriptiontype->mediatype, SIP_DL_DONTCARE);
@@ -7772,7 +7765,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
-		reqprep(msg, p, SIP_NOTIFY, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_NOTIFY, 0, 1);
 		snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 		add_header(msg, "Event", tmp, SIP_DL_DONTCARE);
 		add_header(msg, "Subscription-state", "terminated;reason=noresource", SIP_DL_DONTCARE);
@@ -8150,7 +8143,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
-		reqprep(msg, p, SIP_MESSAGE, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_MESSAGE, 0, 1);
 		add_text(msg, text);
 
 		res = send_request(p, &msg, 1);
@@ -8199,7 +8192,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	cw_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
 
 	if ((msg = malloc(sizeof(*msg)))) {
-		reqprep(msg, p, SIP_REFER, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_REFER, 0, 1);
 		add_header(msg, "Refer-To", referto, SIP_DL_DONTCARE);
 		if (!cw_strlen_zero(p->our_contact))
 			add_header(msg, "Referred-By", p->our_contact, SIP_DL_DONTCARE);
@@ -8222,7 +8215,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int 
 	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
-		reqprep(msg, p, SIP_INFO, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_INFO, 0, 1);
 		add_digit(msg, digit, duration);
 
 		res = send_request(p, &msg, 1);
@@ -8241,7 +8234,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
-		reqprep(msg, p, SIP_INFO, 0, 1);
+		reqprep(p, msg, &p->initreq, SIP_INFO, 0, 1);
 		add_vidupdate(msg);
 
 		res = send_request(p, &msg, 1);
@@ -8254,21 +8247,19 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 }
 
 /*! \brief  transmit_request: transmit generic SIP request */
-static int transmit_request(struct sip_pvt *p, enum sipmethod sipmethod, int seqno, int reliable, int newbranch)
+static int transmit_ack(struct sip_pvt *p, struct sip_request *req, int newbranch)
 {
-	struct sip_request tmpmsg, *msg;
-	int res = -1;
+	struct sip_request tmpmsg, *msg = &tmpmsg;
+	int res;
 
-	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
-		reqprep(msg, p, sipmethod, seqno, newbranch);
-		add_header_contentLength(msg, 0);
-		add_blank_header(msg);
+	reqprep(p, msg, req, SIP_ACK, req->seqno, newbranch);
+	add_header_contentLength(msg, 0);
+	add_blank_header(msg);
 
-		res = send_request(p, &msg, reliable);
+	res = send_request(p, &msg, 0);
 
-		if (msg && msg != &tmpmsg)
-			free(msg);
-	}
+	if (msg && msg != &tmpmsg)
+		free(msg);
 
 	return res;
 }
@@ -8280,7 +8271,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmetho
 	int res = -1;
 
 	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
-		reqprep(msg, p, sipmethod, seqno, newbranch);
+		reqprep(p, msg, &p->initreq, sipmethod, seqno, newbranch);
 		if (*p->realm) {
 			char digest[1024];
 
@@ -12886,14 +12877,14 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
                 cw_set_flag(p, SIP_PENDINGBYE);    
         }
         /* If I understand this right, the branch is different for a non-200 ACK only */
-        transmit_request(p, SIP_ACK, seqno, 0, 1);
+        transmit_ack(p, req, 1);
         cw_set_flag(p, SIP_CAN_BYE);
         check_pendings(p);
         break;
     case 407: /* Proxy authentication */
     case 401: /* Www auth */
         /* First we ACK */
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         if (p->options)
             p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
 
@@ -12919,7 +12910,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
         break;
     case 403: /* Forbidden */
         /* First we ACK */
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         cw_log(CW_LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
         if (!ignore && p->owner)
             cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
@@ -12927,7 +12918,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
         sip_destroy(p);
         break;
     case 404: /* Not found */
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         if (p->owner && !ignore)
             cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
         cw_set_flag(p, SIP_ALREADYGONE);    
@@ -12935,13 +12926,13 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
     case 481: /* Call leg does not exist */
         /* Could be REFER or INVITE */
         cw_log(CW_LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         break;
     case 487: /* Cancelled transaction */
 		/* We have sent CANCEL on an outbound INVITE 
            This transaction is already scheduled to be killed by sip_hangup().
 		*/
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         if (p->owner && !ignore)
         	cw_queue_hangup(p->owner);
         else if (!ignore)
@@ -12953,7 +12944,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
            We should support the retry-after at some point */
         break;
     case 501: /* Not implemented */
-        transmit_request(p, SIP_ACK, seqno, 0, 0);
+        transmit_ack(p, req, 0);
         if (p->owner)
             cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
         break;
@@ -13178,7 +13169,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 
 #ifdef VOCAL_DATA_HACK
         if (sipmethod == SIP_INVITE)
-            transmit_request(p, SIP_ACK, seqno, 0, 0);
+            transmit_ack(p, req, 0);
 #endif
         sip_destroy(p);
 
@@ -13208,6 +13199,12 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->data + req->uriresp);
         return;
     }
+
+    /* Cease retransmissions of whatever the response is to */
+    if (*(req->data + req->uriresp) == '1') /* Provisional response */
+        __sip_semi_ack(p, req->seqno, 0, req->cseq_method);
+    else
+        __sip_ack(p, req->seqno, 0, req->cseq_method);
 
     /* More SIP ridiculousness, we have to ignore bogus contacts in 100 etc responses */
     if (resp == 200 || (resp >= 300 && resp <= 399))
@@ -13435,7 +13432,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
                 }
                 /* ACK on invite */
                 if (sipmethod == SIP_INVITE) 
-                    transmit_request(p, SIP_ACK, req->seqno, 0, 0);
+                    transmit_ack(p, req, 0);
                 cw_set_flag(p, SIP_ALREADYGONE);    
                 if (!p->owner)
                     sip_destroy(p);
@@ -13459,7 +13456,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         }
     }
     else
-    {    
+    {
         /* Responses to OUTGOING SIP requests on INCOMING calls 
            get handled here. As well as out-of-call message responses */
         if (req->debug)
@@ -14697,19 +14694,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             sip_destroy(p);
             return 0;
         }
-        else if (p->ocseq && (p->ocseq < req->seqno))
+
+        if (p->ocseq && (p->ocseq < req->seqno))
         {
             cw_log(CW_LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", req->seqno, p->ocseq);
             return -1;
         }
-        else if (p->ocseq && (p->ocseq != req->seqno))
-        {
-            /* ignore means "don't do anything with it" but still have to 
-               respond appropriately  */
-            ignore=1;
-        }
-        else
-            handle_response(p, req, ignore);
+
+        handle_response(p, req, (p->ocseq && (p->ocseq != req->seqno)));
 
         return 0;
     }
@@ -17388,7 +17380,7 @@ static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *d
 		if (cw_strlen_zero(text)) {
 			res = -1;
 			if ((msg = malloc(sizeof(*msg)))) {
-				reqprep(msg, p, SIP_MESSAGE, 0, 1);
+				reqprep(p, msg, &p->initreq, SIP_MESSAGE, 0, 1);
 				add_header(msg, "Content-Type", "text/plain", SIP_DL_DONTCARE);
 				add_header(msg, "Content-Disposition", disp, SIP_DL_DONTCARE );
 				add_header_contentLength(msg, strlen(text));
