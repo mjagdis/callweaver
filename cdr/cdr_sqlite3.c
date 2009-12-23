@@ -57,7 +57,14 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
+
 #include <sqlite3.h>
+
+/* Before about 3.4.0 the _v2 interface was either non-existent or buggy */
+#if SQLITE_VERSION_NUMBER < 3004000
+#  define sqlite3_prepare_v2 sqlite3_prepare
+#endif
+
 
 #define LOG_UNIQUEID	0
 #define LOG_USERFIELD	0
