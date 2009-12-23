@@ -77,6 +77,8 @@ struct rtpPayloadType
 	int code;
 };
 
+struct cw_srtp;
+
 struct cw_rtp
 {
     udp_state_t *rtp_sock_info;
@@ -122,8 +124,7 @@ struct cw_rtp
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
 #ifdef ENABLE_SRTP
-	srtp_t srtp;
-	rtp_generate_key_cb key_cb;
+	struct cw_srtp *srtp;
 #endif
 };
 
@@ -208,49 +209,91 @@ void cw_rtp_reload(void);
 
 extern CW_API_PUBLIC int cw_rtp_set_framems(struct cw_rtp *rtp, int ms);
 
-#ifdef ENABLE_SRTP
+
+struct cw_srtp_policy;
+
+struct cw_srtp_cb {
+	int (*no_ctx)(struct cw_rtp *rtp, unsigned long ssrc, void *data);
+};
+
+struct cw_srtp_res {
+	int (*create)(struct cw_srtp **srtp, struct cw_rtp *rtp,
+		      struct cw_srtp_policy *policy);
+	void (*destroy)(struct cw_srtp *srtp);
+	int (*add_stream)(struct cw_srtp *srtp, struct cw_srtp_policy *policy);
+	void (*set_cb)(struct cw_srtp *srtp,
+		       const struct cw_srtp_cb *cb, void *data);
+	int (*unprotect)(struct cw_srtp *srtp, void *buf, int *size);
+	int (*protect)(struct cw_srtp *srtp, void **buf, size_t *size);
+	int (*get_random)(unsigned char *key, size_t len);
+};
 
 /* Crypto suites */
-#define CW_AES_CM_128_HMAC_SHA1_80 1
-#define CW_AES_CM_128_HMAC_SHA1_32 2
-#define CW_F8_128_HMAC_SHA1_80     3
+enum cw_srtp_suite {
+	CW_AES_CM_128_HMAC_SHA1_80 = 1,
+	CW_AES_CM_128_HMAC_SHA1_32 = 2,
+	CW_F8_128_HMAC_SHA1_80     = 3
+};
 
-#define MIKEY_SRTP_EALG_NULL     0
-#define MIKEY_SRTP_EALG_AESCM    1
-#define MIKEY_SRTP_AALG_NULL     0
-#define MIKEY_SRTP_AALG_SHA1HMAC 1
+enum cw_srtp_ealg {
+	CW_MIKEY_SRTP_EALG_NULL    = 0,
+	CW_MIKEY_SRTP_EALG_AESCM   = 1
+};
 
-typedef struct cw_policy cw_policy_t;
-typedef int (*rtp_generate_key_cb)(struct cw_rtp *rtp,
-                                   uint32_t ssrc,
-                                   void *data);
+enum cw_srtp_aalg {
+	CW_MIKEY_SRTP_AALG_NULL     = 0,
+	CW_MIKEY_SRTP_AALG_SHA1HMAC = 1
+};
 
-extern CW_API_PUBLIC unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp);
-extern CW_API_PUBLIC void cw_rtp_set_generate_key_cb(struct cw_rtp *rtp,
-				  rtp_generate_key_cb cb);
-extern CW_API_PUBLIC int cw_rtp_add_policy(struct cw_rtp *rtp, cw_policy_t *policy);
-extern CW_API_PUBLIC cw_policy_t *cw_policy_alloc(void);
-extern CW_API_PUBLIC int cw_policy_set_suite(cw_policy_t *policy, int suite);
-extern CW_API_PUBLIC int cw_policy_set_master_key(cw_policy_t *policy,
+struct cw_srtp_policy_res {
+	struct cw_srtp_policy *(*alloc)(void);
+	void (*destroy)(struct cw_srtp_policy *policy);
+	int (*set_suite)(struct cw_srtp_policy *policy,
+			 enum cw_srtp_suite suite);
+	int (*set_master_key)(struct cw_srtp_policy *policy,
 			      const unsigned char *key, size_t key_len,
 			      const unsigned char *salt, size_t salt_len);
-extern CW_API_PUBLIC int cw_policy_set_encr_alg(cw_policy_t *policy, int ealg);
-extern CW_API_PUBLIC int cw_policy_set_auth_alg(cw_policy_t *policy, int aalg);
-extern CW_API_PUBLIC void cw_policy_set_encr_keylen(cw_policy_t *policy, int ekeyl);
-extern CW_API_PUBLIC void cw_policy_set_auth_keylen(cw_policy_t *policy, int akeyl);
-extern CW_API_PUBLIC void cw_policy_set_srtp_auth_taglen(cw_policy_t *policy, int autht);
-extern CW_API_PUBLIC void cw_policy_set_srtp_encr_enable(cw_policy_t *policy, int enable);
-extern CW_API_PUBLIC void cw_policy_set_srtcp_encr_enable(cw_policy_t *policy, int enable);
-extern CW_API_PUBLIC void cw_policy_set_srtp_auth_enable(cw_policy_t *policy, int enable);
-extern CW_API_PUBLIC void cw_policy_set_ssrc(cw_policy_t *policy,
-                          struct cw_rtp *rtp, 
-			              uint32_t ssrc,
-                          int inbound);
-    
-extern CW_API_PUBLIC void cw_policy_destroy(cw_policy_t *policy);
-extern CW_API_PUBLIC int cw_get_random(unsigned char *key, size_t len);
+	int (*set_encr_alg)(struct cw_srtp_policy *policy,
+			    enum cw_srtp_ealg  ealg);
+	int (*set_auth_alg)(struct cw_srtp_policy *policy,
+			    enum cw_srtp_aalg aalg);
+	void (*set_encr_keylen)(struct cw_srtp_policy *policy, int ekeyl);
+	void (*set_auth_keylen)(struct cw_srtp_policy *policy, int akeyl);
+	void (*set_srtp_auth_taglen)(struct cw_srtp_policy *policy, int autht);
+	void (*set_srtp_encr_enable)(struct cw_srtp_policy *policy, int enable);
+	void (*set_srtcp_encr_enable)(struct cw_srtp_policy *policy, int enable);
+	void (*set_srtp_auth_enable)(struct cw_srtp_policy *policy, int enable);
+	void (*set_ssrc)(struct cw_srtp_policy *policy, unsigned long ssrc,
+			 int inbound);
+};
 
-#endif	/* ENABLE_SRTP */
+
+#ifdef ENABLE_SRTP
+extern CW_API_PUBLIC int cw_rtp_register_srtp(struct cw_srtp_res *srtp_res, struct cw_srtp_policy_res *policy_res);
+
+extern CW_API_PUBLIC int cw_rtp_unregister_srtp(struct cw_srtp_res *srtp_res, struct cw_srtp_policy_res *policy_res);
+
+extern CW_API_PUBLIC int cw_srtp_is_registered(void);
+
+extern CW_API_PUBLIC unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_set_srtp_cb(struct cw_rtp *rtp, const struct cw_srtp_cb *cb, void *data);
+extern CW_API_PUBLIC int cw_rtp_add_srtp_policy(struct cw_rtp *rtp, struct cw_srtp_policy *policy);
+extern CW_API_PUBLIC struct cw_srtp_policy *cw_srtp_policy_alloc(void);
+extern CW_API_PUBLIC int cw_srtp_policy_set_suite(struct cw_srtp_policy *policy, enum cw_srtp_suite suite);
+extern CW_API_PUBLIC int cw_srtp_policy_set_master_key(struct cw_srtp_policy *policy, const unsigned char *key, size_t key_len, const unsigned char *salt, size_t salt_len);
+extern CW_API_PUBLIC int cw_srtp_policy_set_encr_alg(struct cw_srtp_policy *policy, enum cw_srtp_ealg ealg);
+extern CW_API_PUBLIC int cw_srtp_policy_set_auth_alg(struct cw_srtp_policy *policy, enum cw_srtp_aalg aalg);
+extern CW_API_PUBLIC void cw_srtp_policy_set_encr_keylen(struct cw_srtp_policy *policy, int ekeyl);
+extern CW_API_PUBLIC void cw_srtp_policy_set_auth_keylen(struct cw_srtp_policy *policy, int akeyl);
+extern CW_API_PUBLIC void cw_srtp_policy_set_srtp_auth_taglen(struct cw_srtp_policy *policy, int autht);
+extern CW_API_PUBLIC void cw_srtp_policy_set_srtp_encr_enable(struct cw_srtp_policy *policy, int enable);
+extern CW_API_PUBLIC void cw_srtp_policy_set_srtcp_encr_enable(struct cw_srtp_policy *policy, int enable);
+extern CW_API_PUBLIC void cw_srtp_policy_set_srtp_auth_enable(struct cw_srtp_policy *policy, int enable);
+extern CW_API_PUBLIC void cw_srtp_policy_set_ssrc(struct cw_srtp_policy *policy, unsigned long ssrc, int inbound);
+
+extern CW_API_PUBLIC void cw_srtp_policy_destroy(struct cw_srtp_policy *policy);
+extern CW_API_PUBLIC int cw_srtp_get_random(unsigned char *key, size_t len);
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

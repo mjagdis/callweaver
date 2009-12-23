@@ -109,6 +109,19 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define DEFAULT_REGISTRATION_TIMEOUT    20
 #define DEFAULT_MAX_FORWARDS    "70"
 
+#ifdef ENABLE_SRTP
+#  define SRTP_MASTER_LEN	30
+#  define SRTP_MASTERKEY_LEN	16
+#  define SRTP_MASTERSALT_LEN	(SRTP_MASTER_LEN - SRTP_MASTERKEY_LEN)
+#  define SRTP_MASTER_LEN64	((SRTP_MASTER_LEN * 8 + 5) / 6 + 1)
+
+struct sip_srtp {
+	char *a_crypto;
+	unsigned char local_key[SRTP_MASTER_LEN];
+	char local_key64[SRTP_MASTER_LEN64];
+};
+#endif
+
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS    15    /* How long before expiry do we reregister */
@@ -847,6 +860,10 @@ struct sip_pvt {
     struct cw_variable *chanvars;        /*!< Channel variables to set for call */
     struct sip_invite_param *options;    /*!< Options for INVITE */
 
+#ifdef ENABLE_SRTP
+    struct sip_srtp *srtp;
+#endif
+
     struct cw_jb_conf jbconf;
 
     char ruri[256];                /*!< REAL Original requested URI */
@@ -1105,6 +1122,233 @@ static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct si
 static int sip_poke_peer(void *data);
 
 
+#ifdef ENABLE_SRTP
+/*
+ * SRTP sdescriptions
+ * Specified in: draft-ietf-mmusic-sdescriptions-12.txt
+ */
+
+static struct sip_srtp *sip_srtp_alloc(void)
+{
+	struct sip_srtp *srtp = malloc(sizeof(*srtp));
+
+	memset(srtp, 0, sizeof(*srtp));
+	return srtp;
+}
+
+static void sip_srtp_destroy(struct sip_srtp *srtp)
+{
+	free(srtp->a_crypto);
+	srtp->a_crypto = NULL;
+}
+
+
+static int setup_crypto(struct sip_pvt *p)
+{
+	if (!cw_srtp_is_registered())
+		return -1;
+
+	p->srtp = sip_srtp_alloc();
+	if (!p->srtp)
+		return -1;
+
+	if (cw_srtp_get_random(p->srtp->local_key,
+				sizeof(p->srtp->local_key)) < 0) {
+		sip_srtp_destroy(p->srtp);
+		p->srtp = NULL;
+		return -1;
+	}
+
+	cw_base64encode(p->srtp->local_key64, p->srtp->local_key,
+			 SRTP_MASTER_LEN, sizeof(p->srtp->local_key64));
+	return 0;
+}
+
+static int set_crypto_policy(struct cw_srtp_policy *policy,
+			     int suite_val, const unsigned char *master_key,
+			     unsigned long ssrc, int inbound)
+{
+	const unsigned char *master_salt = NULL;
+	master_salt = master_key + SRTP_MASTERKEY_LEN;
+	if (cw_srtp_policy_set_master_key(policy,
+					   master_key, SRTP_MASTERKEY_LEN,
+					   master_salt, SRTP_MASTERSALT_LEN) < 0)
+		return -1;
+
+
+	if (cw_srtp_policy_set_suite(policy, suite_val)) {
+		cw_log(CW_LOG_WARNING, "Could not set remote SRTP suite\n");
+		return -1;
+	}
+
+	cw_srtp_policy_set_ssrc(policy, ssrc, inbound);
+
+	return 0;
+}
+
+static int activate_crypto(struct sip_pvt *p, int suite_val,
+			   unsigned char *remote_key)
+{
+	struct cw_srtp_policy *local_policy = NULL;
+	struct cw_srtp_policy *remote_policy = NULL;
+	int res = -1;
+	struct sip_srtp *srtp = p->srtp;
+
+	if (!srtp)
+		return -1;
+
+	local_policy = cw_srtp_policy_alloc();
+	if (!local_policy)
+		goto err;
+
+	remote_policy = cw_srtp_policy_alloc();
+	if (!remote_policy) {
+		goto err;
+	}
+
+	if (set_crypto_policy(local_policy, suite_val, srtp->local_key,
+			      cw_rtp_get_ssrc(p->rtp), 0) < 0)
+		goto err;
+
+	if (set_crypto_policy(remote_policy, suite_val, remote_key, 0, 1) < 0)
+		goto err;
+
+	if (cw_rtp_add_srtp_policy(p->rtp, local_policy)) {
+		cw_log(CW_LOG_WARNING, "Could not set local SRTP policy\n");
+		goto err;
+	}
+
+	if (cw_rtp_add_srtp_policy(p->rtp, remote_policy)) {
+		cw_log(CW_LOG_WARNING, "Could not set remote SRTP policy\n");
+		goto err;
+	}
+
+
+	cw_log(CW_LOG_DEBUG, "SRTP policy activated\n");
+	res = 0;
+
+err:
+	if (local_policy)
+		cw_srtp_policy_destroy(local_policy);
+
+	if (remote_policy)
+		cw_srtp_policy_destroy(remote_policy);
+	return res;
+}
+
+static int process_crypto(struct sip_pvt *p, const char *attr)
+{
+	char *str = NULL;
+	char *name = NULL;
+	char *tag = NULL;
+	char *suite = NULL;
+	char *key_params = NULL;
+	char *key_param = NULL;
+	char *session_params = NULL;
+	char *key_salt = NULL;
+	char *lifetime = NULL;
+	int found = 0;
+	int attr_len = strlen(attr);
+	int key_len = 0;
+	unsigned char remote_key[SRTP_MASTER_LEN];
+	int suite_val = 0;
+	struct sip_srtp *srtp = p->srtp;
+
+	if (!cw_srtp_is_registered())
+		return -1;
+
+	/* Crypto already accepted */
+	if (srtp && srtp->a_crypto)
+		return -1;
+
+	str = strdupa(attr);
+
+	name = strsep(&str, ":");
+	tag = strsep(&str, " ");
+	suite = strsep(&str, " ");
+	key_params = strsep(&str, " ");
+	session_params = strsep(&str, " ");
+
+	if (!tag || !suite) {
+		cw_log(CW_LOG_WARNING, "Unrecognized a=%s", attr);
+		return -1;
+	}
+
+	if (session_params) {
+		cw_log(CW_LOG_WARNING, "Unsupported crypto parameters: %s",
+			session_params);
+		return -1;
+	}
+
+	if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_80")) {
+		suite_val = CW_AES_CM_128_HMAC_SHA1_80;
+	} else if (!strcmp(suite, "AES_CM_128_HMAC_SHA1_32")) {
+		suite_val = CW_AES_CM_128_HMAC_SHA1_32;
+	} else {
+		cw_log(CW_LOG_WARNING, "Unsupported crypto suite: %s",
+			suite);
+		return -1;
+	}
+
+	while ((key_param = strsep(&key_params, ";"))) {
+		char *method = NULL;
+		char *info = NULL;
+
+		method = strsep(&key_param, ":");
+		info = strsep(&key_param, ";");
+
+		if (!strcmp(method, "inline")) {
+			key_salt = strsep(&info, "|");
+			lifetime = strsep(&info, "|");
+
+			if (lifetime) {
+				cw_log(CW_LOG_NOTICE, "Crypto life time unsupported: %s\n",
+					attr);
+				continue;
+			}
+
+/* 			if (info || strncmp(lifetime, "2^", 2)) { */
+/* 				cw_log(CW_LOG_NOTICE, "MKI unsupported: %s\n", */
+/* 					attr); */
+/* 				continue; */
+/* 			} */
+
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found) {
+		cw_log(CW_LOG_NOTICE, "SRTP crypto offer not acceptable\n");
+		return -1;
+	}
+
+	if (!srtp) {
+		setup_crypto(p);
+		srtp = p->srtp;
+	}
+
+	key_len = cw_base64decode(remote_key, key_salt, sizeof(remote_key));
+	if (key_len != SRTP_MASTER_LEN) {
+		cw_log(CW_LOG_WARNING, "SRTP sdescriptions key %d != %d\n",
+			key_len, SRTP_MASTER_LEN);
+		return -1;
+	}
+
+	if (activate_crypto(p, suite_val, remote_key) < 0)
+		return -1;
+
+	srtp->a_crypto = malloc(attr_len+11);
+	snprintf(srtp->a_crypto, attr_len+10,
+		// "a=crypto:%s %s inline:%s\r\n",
+		 "a=crypto:%s %s inline:%s",
+		 tag, suite, srtp->local_key64);
+
+	return 0;
+}
+#endif
+
+
 static int peerbyname_qsort_compare_by_name(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
@@ -1268,6 +1512,11 @@ static void dialogue_release(struct cw_object *obj)
 
 	if (dialogue->history)
 		free(dialogue->history);
+
+#ifdef ENABLE_SRTP
+	if (dialogue->srtp)
+		sip_srtp_destroy(dialogue->srtp);
+#endif
 
 	cw_mutex_destroy(&dialogue->lock);
 	free(dialogue);
@@ -3007,8 +3256,6 @@ static int auto_congest(void *data)
 }
 
 
-
-
 /*! \brief  sip_call: Initiate SIP call from PBX 
  *      used from the dial() application      */
 static int sip_call(struct cw_channel *ast, char *dest)
@@ -3033,6 +3280,24 @@ static int sip_call(struct cw_channel *ast, char *dest)
         p->options->vxml_url = container_of(obj, struct cw_var_t, obj);
     if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_SIP_URI_OPTIONS, "SIP_URI_OPTIONS")))
         p->options->uri_options = container_of(obj, struct cw_var_t, obj);
+
+#ifdef ENABLE_SRTP
+    if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_SIP_SRTP_SDES, "SIP_SRTP_SDES"))) {
+        if (cw_true(container_of(obj, struct cw_var_t, obj)->value)) {
+            if (!cw_srtp_is_registered()) {
+                cw_log(CW_LOG_WARNING, "SIP_SRTP_SDES set but SRTP is not available\n");
+                return -1;
+            }
+
+            if (!p->srtp) {
+                if (setup_crypto(p) < 0) {
+                    cw_log(CW_LOG_WARNING, "SIP SRTP sdes setup failed\n");
+                    return -1;
+                }
+            }
+        }
+    }
+#endif
 
     if ((obj = cw_registry_find(&ast->vars, 1, CW_KEYWORD_T38CALL, "T38CALL"))) {
         cw_object_put_obj(obj);
@@ -4900,6 +5165,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     int sendonly = 0;
     int x,y;
     int debug=sip_debug_test_pvt(p);
+#ifdef ENABLE_SRTP
+    int secure_audio = 0;
+#endif
     int ec_found;
     int udptlportno = -1;
     int peert38capability = 0;
@@ -4939,12 +5207,28 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     cw_set_flag(p, SIP_NOVIDEO);    
     while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0')
     {
+        char protocol[5] = "";
         int found = 0;
-        
-        if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 2)
-            ||
-            (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1))
-        {
+
+        len = -1;
+        if ((sscanf(m, "audio %d/%d RTP/%4s %n", &x, &y, protocol, &len) == 3)
+        || (sscanf(m, "audio %d RTP/%4s %n", &x, protocol, &len) == 2)) {
+            if (!strcmp(protocol, "SAVP")) {
+#ifdef ENABLE_SRTP
+                secure_audio = 1;
+#else
+                continue;
+#endif
+            } else if (strcmp(protocol, "AVP")) {
+                cw_log(CW_LOG_WARNING, "Unknown SDP media protocol in offer: %s\n", protocol);
+                continue;
+            }
+
+            if (len < 0) {
+                cw_log(CW_LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
+                continue;
+            }
+
             found = 1;
             portno = x;
             /* Scan through the RTP payload types specified in a "m=" line: */
@@ -5019,8 +5303,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         if (p->vrtp)
             cw_rtp_pt_clear(p->vrtp);  /* Must be cleared in case no m=video line exists */
 
+#ifdef ENABLE_SRTP
+        len = -1;
+#endif
         if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1))
         {
+#ifdef ENABLE_SRTP
+            if (len < 0) {
+                cw_log(CW_LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
+                continue;
+            }
+#endif
             found = 1;
             cw_clear_flag(p, SIP_NOVIDEO);    
             vportno = x;
@@ -5146,6 +5439,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
             sendonly = 1;
             continue;
         }
+#ifdef ENABLE_SRTP
+        if (!strncasecmp(a, "crypto:", 7)) {
+            process_crypto(p, a);
+            continue;
+        }
+#endif
         if (!strcasecmp(a, "sendrecv"))
               sendonly = 0;
         if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
@@ -5157,6 +5456,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
         if (p->vrtp)
             cw_rtp_set_rtpmap_type(p->vrtp, codec, "video", mimeSubtype);
     }
+#ifdef ENABLE_SRTP
+    if (secure_audio && !(p->srtp && p->srtp->a_crypto))
+    {
+        cw_log(CW_LOG_WARNING, "Can't provide secure audio requested in SDP offer\n");
+        return -2;
+    }
+#endif
     if (udptlportno != -1)
     {
         /* Scan through the a= lines for T38 attributes and set appropriate fileds */
@@ -6430,14 +6736,20 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     char m_video[256];
     //char a_audio[1024];
     char a_video[1024];
+#ifdef ENABLE_SRTP
+    char crypto_buf[128];
+    const char *a_crypto = NULL;
+    struct sip_srtp *srtp = p->srtp;
+#endif
     char iabuf[INET_ADDRSTRLEN];
+    const char *protocol = NULL;
     int x;
     int rtp_code;
     int capability;
     struct sockaddr_in dest;
     struct sockaddr_in vdest = { 0, };
     int debug;
-    
+
     debug = sip_debug_test_pvt(p);
 
     len = 0;
@@ -6497,8 +6809,25 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
             cw_verbose("Video is at %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));    
     }
 
+    protocol = "AVP";
+#ifdef ENABLE_SRTP
+    if (srtp) {
+        if (srtp->a_crypto) {
+            a_crypto = srtp->a_crypto;
+        } else {
+            const char *crypto_suite = "AES_CM_128_HMAC_SHA1_80";
+            snprintf(crypto_buf, sizeof(crypto_buf), "a=crypto:1 %s inline:%s", crypto_suite, srtp->local_key64);
+            a_crypto = crypto_buf;
+        }
+    }
+
+    if (a_crypto)
+        protocol = "SAVP";
+#endif
+
     /* We break with the "recommendation" and send our IP, in order that our
        peer doesn't have to cw_gethostbyname() us */
+
     add_header(resp, "Content-Type", "application/sdp", SIP_DL_DONTCARE);
     add_header_contentLength(resp, len);
 
@@ -6513,7 +6842,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     snprintf(t, sizeof(t), "t=0 0");
     add_line(resp, t, SIP_DL_DONTCARE);
 
-    snprintf(m_audio, sizeof(m_audio), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+    snprintf(m_audio, sizeof(m_audio), "m=audio %d RTP/%s", ntohs(dest.sin_port), protocol);
     snprintf(m_video, sizeof(m_video), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 
     /* Prefer the codec we were requested to use, first, no matter what */
@@ -6586,6 +6915,12 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
     add_line(resp, m_audio, SIP_DL_SDP_M_AUDIO);
     alreadysent=0;
+
+#ifdef ENABLE_SRTP
+    if (a_crypto)
+        add_line(resp, a_crypto, SIP_DL_DONTCARE);
+#endif
+
     /* **************************************************************************** */
     /* Prefer the codec we were requested to use, first, no matter what */
     if (capability & p->prefcodec)
@@ -6844,11 +7179,11 @@ static void build_contact(struct sip_pvt *p)
     /* Construct Contact: header */
     if (p->stun_needed)
         // If we are using stun, let's preserve the port information.
-        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d;transport=udp>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
 
     else {
         if (p->ourport != 5060)    // Needs to be 5060, according to the RFC
-        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d;transport=udp>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
         else
         snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
     }

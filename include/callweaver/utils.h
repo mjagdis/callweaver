@@ -44,7 +44,7 @@
 #  define offsetof(type, member) ((size_t) &((type *)0)->member)
 #endif
 
-#define container_of(ptr, type, member) (type *)((size_t)(ptr) - offsetof(type, member))
+#define container_of(ptr, type, member) ((type *)((size_t)(ptr) - offsetof(type, member)))
 
 
 #ifdef __GNUC__

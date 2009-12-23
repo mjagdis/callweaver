@@ -94,6 +94,7 @@ struct {
 	{ "SIP_CODEC", 0 },
 	{ "T38_DISABLE", 0 },
 	{ "TRANSFER_CONTEXT", 0 },
+	{ "SIP_SRTP_SDES", 0 },
 
 	// ---------------------------------------------------------------------------
 	// chan_unicall variables

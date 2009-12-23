@@ -26,6 +26,14 @@ res_ogi_la_SOURCES 		= res_ogi.c
 res_ogi_la_LDFLAGS 		= -module -avoid-version @NO_UNDEFINED@
 res_ogi_la_LIBADD		= @CALLWEAVER_LIB@  
 
+if WANT_SRTP
+cwmod_LTLIBRARIES	+= res_srtp.la
+res_srtp_la_SOURCES	= res_srtp.c
+res_srtp_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
+res_srtp_la_LIBADD	= -lsrtp @CALLWEAVER_LIB@
+res_srtp_la_CFLAGS	= $(AM_CFLAGS)
+endif WANT_SRTP
+
 if WANT_RES_SQLITE
 cwmod_LTLIBRARIES	+= res_sqlite.la
 res_sqlite_la_SOURCES	= res_sqlite.c

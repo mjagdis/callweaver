@@ -36,9 +36,6 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#ifdef ENABLE_SRTP
-#include <srtp/srtp.h>
-#endif
 #include <vale/rfc3489.h>
 #include <vale/udp.h>
 
@@ -97,14 +94,12 @@ static int nochecksums = 0;
 #define FLAG_NAT_INACTIVE           (0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN    (1 << 1)
 
-#ifdef ENABLE_SRTP
-struct cw_policy
-{
-    srtp_policy_t sp;
-};
-#endif
-
 static struct cw_rtp_protocol *protos = NULL;
+
+#ifdef ENABLE_SRTP
+struct cw_srtp_res *g_srtp_res;
+struct cw_srtp_policy_res *g_policy_res;
+#endif
 
 struct rtp_codec_table
 {
@@ -398,300 +393,6 @@ static struct cw_frame *process_rfc3389(struct cw_rtp *rtp, unsigned char *data,
     return f;
 }
 
-#ifdef ENABLE_SRTP
-static const char *srtp_errstr(int err)
-{
-    switch (err)
-    {
-    case err_status_ok:
-        return "nothing to report";
-    case err_status_fail:
-        return "unspecified failure";
-    case err_status_bad_param:
-        return "unsupported parameter";
-    case err_status_alloc_fail:
-        return "couldn't allocate memory";
-    case err_status_dealloc_fail:
-        return "couldn't deallocate properly";
-    case err_status_init_fail:
-        return "couldn't initialize";
-    case err_status_terminus:
-        return "can't process as much data as requested";
-    case err_status_auth_fail:
-        return "authentication failure";
-    case err_status_cipher_fail:
-        return "cipher failure";
-    case err_status_replay_fail:
-        return "replay check failed (bad index)";
-    case err_status_replay_old:
-        return "replay check failed (index too old)";
-    case err_status_algo_fail:
-        return "algorithm failed test routine";
-    case err_status_no_such_op:
-        return "unsupported operation";
-    case err_status_no_ctx:
-        return "no appropriate context found";
-    case err_status_cant_check:
-        return "unable to perform desired validation";
-    case err_status_key_expired:
-        return "can't use key any more";
-    default:
-        return "unknown";
-    }
-}
-
-/*
-  cw_policy_t
-*/
-static void srtp_event_cb(srtp_event_data_t *data)
-{
-    switch (data->event)
-    {
-    case event_ssrc_collision:
-        if (option_debug  ||  rtpdebug)
-        {
-            cw_log(CW_LOG_DEBUG, "SSRC collision ssrc:%u dir:%d\n",
-                     ntohl(data->stream->ssrc),
-                     data->stream->direction);
-        }
-        break;
-    case event_key_soft_limit:
-        if (option_debug  ||  rtpdebug)
-            cw_log(CW_LOG_DEBUG, "event_key_soft_limit\n");
-        break;
-    case event_key_hard_limit:
-        if (option_debug  ||  rtpdebug)
-            cw_log(CW_LOG_DEBUG, "event_key_hard_limit\n");
-        break;
-    case event_packet_index_limit:
-        if (option_debug  ||  rtpdebug)
-            cw_log(CW_LOG_DEBUG, "event_packet_index_limit\n");
-        break;
-    }
-}
-
-unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp)
-{
-    return rtp->ssrc;
-}
-
-void cw_rtp_set_generate_key_cb(struct cw_rtp *rtp,
-                                  rtp_generate_key_cb cb)
-{
-    rtp->key_cb = cb;
-}
-
-void cw_policy_set_ssrc(cw_policy_t *policy,
-                          struct cw_rtp *rtp, 
-                          uint32_t ssrc,
-                          int inbound)
-{
-    if (ssrc == 0  &&  !inbound  &&  rtp)
-        ssrc = rtp->ssrc;
-
-    if (ssrc)
-    {
-        policy->sp.ssrc.type = ssrc_specific;
-        policy->sp.ssrc.value = ssrc;
-    }
-    else
-    {
-        policy->sp.ssrc.type = inbound  ?  ssrc_any_inbound  :  ssrc_any_outbound;
-    }
-}
-
-int cw_rtp_add_policy(struct cw_rtp *rtp, cw_policy_t *policy)
-{
-    int res = 0;
-
-    cw_log(CW_LOG_NOTICE, "Adding SRTP policy: %d %d %d %d %d %d\n",
-           policy->sp.rtp.cipher_type,
-           policy->sp.rtp.cipher_key_len,
-           policy->sp.rtp.auth_type,
-           policy->sp.rtp.auth_key_len,
-           policy->sp.rtp.auth_tag_len,
-           policy->sp.rtp.sec_serv);
-
-    if (!rtp->srtp)
-        res = srtp_create(&rtp->srtp, &policy->sp);
-    else
-        res = srtp_add_stream(rtp->srtp, &policy->sp);
-
-    if (res != err_status_ok)
-    {
-        cw_log(CW_LOG_WARNING, "SRTP policy: %s\n", srtp_errstr(res));
-        return -1;
-    }
-
-    return 0;
-}
-
-cw_policy_t *cw_policy_alloc()
-{
-    cw_policy_t *tmp;
-
-    if ((tmp = malloc(sizeof(cw_policy_t))) == NULL)
-        return NULL;
-    memset(tmp, 0, sizeof(cw_policy_t));
-    return tmp;
-}
-
-void cw_policy_destroy(cw_policy_t *policy)
-{
-    if (policy->sp.key)
-    {
-        free(policy->sp.key);
-        policy->sp.key = NULL;
-    }
-    free(policy);
-}
-
-static int policy_set_suite(crypto_policy_t *p, int suite)
-{
-    switch (suite)
-    {
-    case CW_AES_CM_128_HMAC_SHA1_80:
-        p->cipher_type = AES_128_ICM;
-        p->cipher_key_len = 30;
-        p->auth_type = HMAC_SHA1;
-        p->auth_key_len = 20;
-        p->auth_tag_len = 10;
-        p->sec_serv = sec_serv_conf_and_auth;
-        return 0;
-    case CW_AES_CM_128_HMAC_SHA1_32:
-        p->cipher_type = AES_128_ICM;
-        p->cipher_key_len = 30;
-        p->auth_type = HMAC_SHA1;
-        p->auth_key_len = 20;
-        p->auth_tag_len = 4;
-        p->sec_serv = sec_serv_conf_and_auth;
-        return 0;
-    default:
-        cw_log(CW_LOG_ERROR, "Invalid crypto suite: %d\n", suite);
-        return -1;
-    }
-}
-
-int cw_policy_set_suite(cw_policy_t *policy, int suite)
-{
-    int res;
-    
-    res = policy_set_suite(&policy->sp.rtp, suite)
-        | policy_set_suite(&policy->sp.rtcp, suite);
-    return res;
-}
-
-int cw_policy_set_master_key(cw_policy_t *policy,
-                               const unsigned char *key, size_t key_len,
-                               const unsigned char *salt, size_t salt_len)
-{
-    size_t size = key_len + salt_len;
-    unsigned char *master_key = NULL;
-
-    if (policy->sp.key)
-    {
-        free(policy->sp.key);
-        policy->sp.key = NULL;
-    }
-
-    master_key = malloc(size);
-
-    memcpy(master_key, key, key_len);
-    memcpy(master_key + key_len, salt, salt_len);
-
-    policy->sp.key = master_key;
-    return 0;
-}
-
-int cw_policy_set_encr_alg(cw_policy_t *policy, int ealg)
-{
-    int type = -1;
-
-    switch (ealg)
-    {
-    case MIKEY_SRTP_EALG_NULL:
-        type = NULL_CIPHER;
-        break;
-    case MIKEY_SRTP_EALG_AESCM:
-        type = AES_128_ICM;
-        break;
-    default:
-        return -1;
-    }
-
-    policy->sp.rtp.cipher_type = type;
-    policy->sp.rtcp.cipher_type = type;
-    return 0;
-}
-
-int cw_policy_set_auth_alg(cw_policy_t *policy, int aalg)
-{
-    int type = -1;
-
-    switch (aalg)
-    {
-    case MIKEY_SRTP_AALG_NULL:
-        type = NULL_AUTH;
-        break;
-    case MIKEY_SRTP_AALG_SHA1HMAC:
-        type = HMAC_SHA1;
-        break;
-    default:
-        return -1;
-    }
-
-    policy->sp.rtp.auth_type = type;
-    policy->sp.rtcp.auth_type = type;
-    return 0;
-}
-
-void cw_policy_set_encr_keylen(cw_policy_t *policy, int ekeyl)
-{
-    policy->sp.rtp.cipher_key_len = ekeyl;
-    policy->sp.rtcp.cipher_key_len = ekeyl;
-}
-
-void cw_policy_set_auth_keylen(cw_policy_t *policy, int akeyl)
-{
-    policy->sp.rtp.auth_key_len = akeyl;
-    policy->sp.rtcp.auth_key_len = akeyl;
-}
-
-void cw_policy_set_srtp_auth_taglen(cw_policy_t *policy, int autht)
-{
-    policy->sp.rtp.auth_tag_len = autht;
-    policy->sp.rtcp.auth_tag_len = autht;
-}
-
-void cw_policy_set_srtp_encr_enable(cw_policy_t *policy, int enable)
-{
-    int serv = enable  ?  sec_serv_conf  :  sec_serv_none;
-
-    policy->sp.rtp.sec_serv = (policy->sp.rtp.sec_serv & ~sec_serv_conf) | serv;
-}
-
-void cw_policy_set_srtcp_encr_enable(cw_policy_t *policy, int enable)
-{
-    int serv = enable  ?  sec_serv_conf  :  sec_serv_none;
-
-    policy->sp.rtcp.sec_serv = (policy->sp.rtcp.sec_serv & ~sec_serv_conf) | serv;
-}
-
-void cw_policy_set_srtp_auth_enable(cw_policy_t *policy, int enable)
-{
-    int serv = enable  ?  sec_serv_auth  :  sec_serv_none;
-
-    policy->sp.rtp.sec_serv = (policy->sp.rtp.sec_serv & ~sec_serv_auth) | serv;
-}
-
-int cw_get_random(unsigned char *key, size_t len)
-{
-    int res = crypto_get_random(key, len);
-
-    return (res != err_status_ok)  ?  -1  :  0;
-}
-#endif    /* ENABLE_SRTP */
-
 static int rtp_recvfrom(struct cw_rtp *rtp, void *buf, size_t size,
                         int flags, struct sockaddr *sa, socklen_t *salen, int *actions)
 {
@@ -702,62 +403,225 @@ static int rtp_recvfrom(struct cw_rtp *rtp, void *buf, size_t size,
         return len;
 
 #ifdef ENABLE_SRTP
-    if (rtp->srtp)
-    {
-        int res = 0;
-        int i;
+    if (g_srtp_res && rtp->srtp) {
+        int res;
 
-        for (i = 0;  i < 5;  i++)
-        {
-            srtp_hdr_t *header = buf;
-
-            res = srtp_unprotect(rtp->srtp, buf, &len);
-            if (res != err_status_no_ctx)
-                break;
-
-            if (rtp->key_cb)
-            {
-                if (rtp->key_cb(rtp, ntohl(header->ssrc), rtp->data) < 0)
-                    break;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        if (res != err_status_ok)
-        {
-            if (option_debug  ||  rtpdebug)
-                cw_log(CW_LOG_DEBUG, "SRTP unprotect: %s\n", srtp_errstr(res));
+        res = g_srtp_res->unprotect(rtp->srtp, buf, &len);
+        if (res < 0)
             return -1;
-        }
     }
-#endif    /* ENABLE_SRTP */
+#endif
 
     return len;
 }
 
 static int rtp_sendto(struct cw_rtp *rtp, void *buf, size_t size, int flags)
 {
-    int len = size;
+#ifdef ENABLE_SRTP
+    if (g_srtp_res && rtp->srtp) {
+        int res;
+
+	res = g_srtp_res->protect(rtp->srtp, &buf, &size);
+        if (res < 0)
+            return -1;
+    }
+#endif
+
+    return udp_socket_send(rtp->rtp_sock_info, buf, size, flags);
+}
 
 #ifdef ENABLE_SRTP
-    if (rtp->srtp)
-    {
-        int res = srtp_protect(rtp->srtp, buf, &len);
+int cw_rtp_register_srtp(struct cw_srtp_res *srtp_res,
+			   struct cw_srtp_policy_res *policy_res)
+{
+	if (g_srtp_res || g_policy_res)
+		return -1;
 
-        if (res != err_status_ok)
-        {
-            if (option_debug  ||  rtpdebug)
-                cw_log(CW_LOG_DEBUG, "SRTP protect: %s\n", srtp_errstr(res));
-            return -1;
-        }
-    }
-#endif    /* ENABLE_SRTP */
+	if (!srtp_res || !policy_res)
+		return -1;
 
-    return udp_socket_send(rtp->rtp_sock_info, buf, len, flags);
+	g_srtp_res = srtp_res;
+	g_policy_res = policy_res;
+	return 0;
 }
+
+int cw_rtp_unregister_srtp(struct cw_srtp_res *srtp_res,
+			     struct cw_srtp_policy_res *policy_res)
+{
+	g_srtp_res = NULL;
+	g_policy_res = NULL;
+	return 0;
+}
+
+int cw_srtp_is_registered(void)
+{
+	return g_srtp_res && g_policy_res;
+}
+
+unsigned int cw_rtp_get_ssrc(struct cw_rtp *rtp)
+{
+	return rtp->ssrc;
+}
+
+void cw_rtp_set_srtp_cb(struct cw_rtp *rtp, const struct cw_srtp_cb *cb,
+			 void *data)
+{
+	if (!g_srtp_res || !rtp->srtp)
+		return;
+
+	g_srtp_res->set_cb(rtp->srtp, cb, data);
+}
+
+void
+cw_srtp_policy_set_ssrc(struct cw_srtp_policy *policy,
+			  unsigned long ssrc, int inbound)
+{
+	if (!g_policy_res)
+		return;
+
+	g_policy_res->set_ssrc(policy, ssrc, inbound);
+}
+
+int cw_rtp_add_srtp_policy(struct cw_rtp *rtp, struct cw_srtp_policy *policy)
+{
+	int res;
+
+	if (!g_srtp_res)
+		return -1;
+
+	if (!rtp->srtp) {
+		res = g_srtp_res->create(&rtp->srtp, rtp, policy);
+	} else {
+		res = g_srtp_res->add_stream(rtp->srtp, policy);
+	}
+
+	return res;
+}
+
+struct cw_srtp_policy *cw_srtp_policy_alloc()
+{
+	if (!g_policy_res)
+		return NULL;
+
+	return g_policy_res->alloc();
+}
+
+void
+cw_srtp_policy_destroy(struct cw_srtp_policy *policy)
+{
+	if (!g_policy_res)
+		return;
+
+	g_policy_res->destroy(policy);
+}
+int
+cw_srtp_policy_set_suite(struct cw_srtp_policy *policy,
+			   enum cw_srtp_suite suite)
+{
+	if (!g_policy_res)
+		return -1;
+
+	return g_policy_res->set_suite(policy, suite);
+}
+
+int
+cw_srtp_policy_set_master_key(struct cw_srtp_policy *policy,
+				const unsigned char *key, size_t key_len,
+				const unsigned char *salt, size_t salt_len)
+{
+	if (!g_policy_res)
+		return -1;
+
+	return g_policy_res->set_master_key(policy, key, key_len,
+					    salt, salt_len);
+}
+
+int
+cw_srtp_policy_set_encr_alg(struct cw_srtp_policy *policy,
+			      enum cw_srtp_ealg ealg)
+{
+	if (!g_policy_res)
+		return -1;
+
+	return g_policy_res->set_encr_alg(policy, ealg);
+}
+
+int
+cw_srtp_policy_set_auth_alg(struct cw_srtp_policy *policy,
+			      enum cw_srtp_aalg aalg)
+{
+	if (!g_policy_res)
+		return -1;
+
+	return g_policy_res->set_auth_alg(policy, aalg);
+}
+
+void cw_srtp_policy_set_encr_keylen(struct cw_srtp_policy *policy, int ekeyl)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_encr_keylen(policy, ekeyl);
+}
+
+void
+cw_srtp_policy_set_auth_keylen(struct cw_srtp_policy *policy,
+				 int akeyl)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_auth_keylen(policy, akeyl);
+}
+
+void
+cw_srtp_policy_set_srtp_auth_taglen(struct cw_srtp_policy *policy,
+				      int autht)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_srtp_auth_taglen(policy, autht);
+}
+
+void
+cw_srtp_policy_set_srtp_encr_enable(struct cw_srtp_policy *policy,
+				      int enable)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_srtp_encr_enable(policy, enable);
+}
+
+void
+cw_srtp_policy_set_srtcp_encr_enable(struct cw_srtp_policy *policy,
+				       int enable)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_srtcp_encr_enable(policy, enable);
+}
+
+void
+cw_srtp_policy_set_srtp_auth_enable(struct cw_srtp_policy *policy,
+				      int enable)
+{
+	if (!g_policy_res)
+		return;
+
+	return g_policy_res->set_srtp_auth_enable(policy, enable);
+}
+
+int cw_srtp_get_random(unsigned char *key, size_t len)
+{
+	if (!g_srtp_res)
+		return -1;
+
+	return g_srtp_res->get_random(key, len);
+}
+#endif
 
 static int rtpread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
@@ -1655,13 +1519,15 @@ void cw_rtp_destroy(struct cw_rtp *rtp)
 {
     if (rtp->smoother)
         cw_smoother_free(rtp->smoother);
+#ifdef ENABLE_SRTP
+    if (g_srtp_res && rtp->srtp) {
+        g_srtp_res->destroy(rtp->srtp);
+        rtp->srtp = NULL;
+    }
+#endif
     if (cw_io_isactive(&rtp->ioid))
         cw_io_remove(rtp->io, &rtp->ioid);
     udp_socket_destroy_group(rtp->rtp_sock_info);
-#ifdef ENABLE_SRTP
-    if (rtp->srtp)
-        srtp_dealloc(rtp->srtp);
-#endif
     free(rtp);
 }
 
@@ -2083,7 +1949,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     }
 
 #ifdef ENABLE_SRTP
-    if (p0->srtp  ||  p1->srtp)
+    if (p0->srtp || p1->srtp)
     {
         cw_log(CW_LOG_NOTICE, "Cannot native bridge in SRTP.\n");
         cw_channel_unlock(c0);
@@ -2457,10 +2323,5 @@ int cw_rtp_init(void)
     cw_cli_register(&cli_debug_ip);
     cw_cli_register(&cli_no_debug);
     cw_rtp_reload();
-#ifdef ENABLE_SRTP
-    cw_log(CW_LOG_NOTICE, "srtp_init\n");
-    srtp_init();
-    srtp_install_event_handler(srtp_event_cb);
-#endif
     return 0;
 }
