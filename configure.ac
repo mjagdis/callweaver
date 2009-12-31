@@ -31,7 +31,6 @@ AC_GNU_SOURCE
 AC_LANG_C
 AC_USE_SYSTEM_EXTENSIONS
 AC_C_CONST
-VL_PROG_CC_WARNINGS
 
 ######
 #
@@ -73,31 +72,40 @@ dnl Figure out what flags to use on the build
 
 CW_CFLAGS='-include $(top_builddir)/include/global.h'
 
-AX_CFLAGS_GCC_OPTION([-Werror], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wall], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wstrict-prototypes], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wmissing-prototypes], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wmissing-declarations], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wunused-parameter], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wshadow], [CW_CFLAGS])
-dnl AX_CFLAGS_GCC_OPTION([-Wcast-qual], [CW_CFLAGS])
-AX_CFLAGS_GCC_OPTION([-Wwrite-strings], [CW_CFLAGS])
+dnl VL_PROG_CC_WARNINGS munges CFLAGS. That's not according to automake
+dnl intentions and not what we want.
+O_CFLAGS="$CFLAGS"
+CFLAGS=
+VL_PROG_CC_WARNINGS
+if test -n "${CFLAGS}"; then
+	CW_CFLAGS="$CW_CFLAGS ${CFLAGS}"
+fi
+CFLAGS="${O_CFLAGS}"
 
-dnl If we are using Intel's C compiler, icc, we want to suppress some of its
-dnl remarks. Specifically:
-dnl
-dnl   remark #869: parameter "..." was never referenced
-dnl       we use function pointers extensively so the parameters are required
-dnl       by the API even if they aren't all used
-dnl
-dnl   remark #981: operands are evaluated in unspecified order
-dnl       icc is overly enthusiastic about telling you this even when it seems
-dnl       it should know there are no side effects to consider
-dnl
-dnl   remark #2259: non-pointer conversion from "..." to "..." may lose significant bits
-dnl       this gets triggered rather more often than we'd like and seems to be triggered
-dnl       by things like htons()/ntohs() that really shouldn't
-if $CC -V 2>&1 | grep -i "Intel(R) C " > /dev/null 2>&1; then
+if test "$GCC" = "yes"; then
+	AX_CFLAGS_GCC_OPTION([-Werror], [CW_CFLAGS])
+	AX_CFLAGS_GCC_OPTION([-Wstrict-prototypes], [CW_CFLAGS])
+	AX_CFLAGS_GCC_OPTION([-Wmissing-prototypes], [CW_CFLAGS])
+	AX_CFLAGS_GCC_OPTION([-Wmissing-declarations], [CW_CFLAGS])
+	dnl AX_CFLAGS_GCC_OPTION([-Wunused-parameter], [CW_CFLAGS])
+	AX_CFLAGS_GCC_OPTION([-Wshadow], [CW_CFLAGS])
+	dnl AX_CFLAGS_GCC_OPTION([-Wcast-qual], [CW_CFLAGS])
+	AX_CFLAGS_GCC_OPTION([-Wwrite-strings], [CW_CFLAGS])
+elif $CC -V 2>&1 | grep -i "Intel(R) C " > /dev/null 2>&1; then
+	dnl If we are using Intel's C compiler, icc, we want to suppress some of its
+	dnl remarks. Specifically:
+	dnl
+	dnl   remark #869: parameter "..." was never referenced
+	dnl       we use function pointers extensively so the parameters are required
+	dnl       by the API even if they aren't all used
+	dnl
+	dnl   remark #981: operands are evaluated in unspecified order
+	dnl       icc is overly enthusiastic about telling you this even when it seems
+	dnl       it should know there are no side effects to consider
+	dnl
+	dnl   remark #2259: non-pointer conversion from "..." to "..." may lose significant bits
+	dnl       this gets triggered rather more often than we'd like and seems to be triggered
+	dnl       by things like htons()/ntohs() that really shouldn't
 	CW_CFLAGS="$CW_CFLAGS -wd869 -wd981 -wd2259"
 fi
 
