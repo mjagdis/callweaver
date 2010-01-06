@@ -1974,7 +1974,7 @@ AM_CONDITIONAL([WANT_CHAN_FAX],
 dnl ###########################################################################
 
 AC_ARG_WITH([chan_iax2],
-	[AC_HELP_STRING([--with-chan_iax2],[Build and install chan_iax2 (default=yes)])],,[with_chan_iax2="yes"])
+	[AC_HELP_STRING([--with-chan_iax2],[Build and install chan_iax2 (default=no)])],,[with_chan_iax2="no"])
 
 AM_CONDITIONAL([WANT_CHAN_IAX2],[test "${with_chan_iax2}" = "yes"])
 
