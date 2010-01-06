@@ -104,10 +104,11 @@ static char global_dir[128] = "/usr/local/callweaver/logic";
 static void
 js_error(JSContext *cx, const char *message, JSErrorReport *report)
 {
-    if (message) {
-        cw_log(CW_LOG_ERROR, "%s\n", message);
-    }
-	
+	CW_UNUSED(cx);
+	CW_UNUSED(report);
+
+	if (message)
+		cw_log(CW_LOG_ERROR, "%s\n", message);
 }
 
 enum jchan_flags {
@@ -262,11 +263,15 @@ chan_waitfordigit(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *
 
 
 static JSBool
-chan_setmoh(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
+chan_setmoh(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+{
 	char *class = NULL;
-    struct jchan *jc = JS_GetPrivate(cx, obj);
-    if (argc > 0)
-        class = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
+	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(rval);
+
+	if (argc > 0)
+		class = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
 	if(class && jc->chan)
 		strncpy(jc->chan->musicclass, class, sizeof(jc->chan->musicclass)-1);
 	return JS_TRUE;
@@ -277,8 +282,11 @@ chan_mohstart(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 {
 	char *class = NULL;
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(rval);
+
 	if (argc > 0)
-        class = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
+		class = JS_GetStringBytes(JS_ValueToString(cx, argv[0]));
 	if(jc->chan)
 		cw_moh_start(jc->chan, class);
 	
@@ -289,6 +297,11 @@ static JSBool
 chan_mohstop(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(rval);
+
 	if(jc->chan)
 		cw_moh_stop(jc->chan);
 	return JS_TRUE;
@@ -298,6 +311,9 @@ static JSBool
 chan_wait(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(rval);
+
 	if (argc > 0) {
 		cw_safe_sleep(jc->chan, JSVAL_TO_INT(argv[0]));
 		return JS_TRUE;
@@ -560,6 +576,11 @@ static JSBool
 chan_hangup(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(rval);
+
 	cw_softhangup(jc->chan, CW_SOFTHANGUP_EXPLICIT);
 	return JS_TRUE;
 }
@@ -569,6 +590,11 @@ static JSBool
 chan_answer(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	struct jchan *jc = JS_GetPrivate(cx, obj);
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(rval);
+
 	cw_answer(jc->chan);
 	return JS_TRUE;
 }
@@ -662,6 +688,9 @@ chan_dbdel(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         JSString *str = NULL;
         int res;
 
+	CW_UNUSED(obj);
+	CW_UNUSED(argc);
+
         *rval = BOOLEAN_TO_JSVAL (JSVAL_FALSE);
 
         if ( !(( str = JS_ValueToString(cx, argv[0])) && ( family = JS_GetStringBytes(str)))) {
@@ -685,6 +714,9 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         char *family, *key, *value;
         JSString *str = NULL;
         int res;
+
+	CW_UNUSED(obj);
+	CW_UNUSED(argc);
 
         *rval = BOOLEAN_TO_JSVAL (JSVAL_NULL);
 
@@ -711,7 +743,6 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-
         int res = 0;
         char tmp[256];
 	tmp[0] = '\0';
@@ -719,6 +750,9 @@ chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
         JSString *str = NULL;
 
         char *family, *key;
+
+	CW_UNUSED(obj);
+	CW_UNUSED(argc);
 
 	*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);
  
@@ -965,7 +999,9 @@ js_unlinksound(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rva
 	struct cw_channel *chan = JS_GetPrivate(cx, obj);
 	struct cw_var_t *var;
 	char *path = NULL, *filename = NULL;
-	
+
+	CW_UNUSED(rval);
+
 	if (strstr(filename, ".."))
 		return JS_FALSE;
 
@@ -1003,6 +1039,8 @@ js_email(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	int fd = 0, ifd = 0;
 	int x=0, y=0, bytes=0, ilen=0;
 	unsigned int b=0, l=0;
+
+	CW_UNUSED(rval);
 
 	if ( chan && 
 		 argc > 3 && 
@@ -1123,6 +1161,10 @@ static JSBool
 js_die(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	char *msg = NULL;
+
+	CW_UNUSED(obj);
+	CW_UNUSED(rval);
+
 	if ( argc > 0 && (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[0])))) {
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3"Javascript Die: %s\n", msg);
@@ -1136,6 +1178,8 @@ js_getvar(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	JSString *str;
 	char *varname;
 	struct cw_var_t *var;
+
+	CW_UNUSED(obj);
 
 	if (argc > 0) {
 		if ((str = JS_ValueToString(cx, argv[0])) && (varname = JS_GetStringBytes(str))) {
@@ -1158,6 +1202,10 @@ js_verbose(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 	const char *prefix = "";
 	int32 level = 0;
 	JSBool ok;
+
+	CW_UNUSED(obj);
+	CW_UNUSED(argc);
+	CW_UNUSED(rval);
 
 	if ((ok = JS_ValueToInt32(cx, argv[0], &level))) {
 		if ((str = JS_ValueToString(cx, argv[1]))) {
@@ -1209,6 +1257,10 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	char *log;
 	char *msg;
+
+	CW_UNUSED(obj);
+	CW_UNUSED(rval);
+
 	if (argc > 1) {
 		if ((log = JS_GetStringBytes(JS_ValueToString(cx, argv[0]))) &&
 		   (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[1])))) {
@@ -1283,16 +1335,19 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct cw_channel *chan
 
 static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char buf[512];
+	struct localuser *u;
 	char *arg, *nextarg;
-	int res=-1;
-	jsval rval;
 	JSContext *cx;
 	JSObject *glob, *Chan;
-	struct localuser *u;
+	int res=-1;
+	jsval rval;
 	struct jchan jc;
 	int x = 0, y = 0;
-	char buf[512];
 	int flags = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 1 || !argv[0][0]) {
 		cw_log(CW_LOG_ERROR, "js requires an argument (filename|code)\n");

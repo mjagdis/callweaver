@@ -421,10 +421,15 @@ void sccp_hint_notify(sccp_channel_t * c, sccp_device_t * onedevice) {
 }
 
 /* callweaver hint wrapper */
-int sccp_hint_state(char *context, char* exten, int state, void *data) {
+int sccp_hint_state(char *context, char* exten, int state, void *data)
+{
 	sccp_hint_t * h = data;
 	sccp_device_t *d;
 	sccp_moo_t * r;
+
+	CW_UNUSED(context);
+	CW_UNUSED(exten);
+
 	if (state == -1 || !h || !h->device || !h->device->session)
 		return 0;
 
@@ -1253,6 +1258,9 @@ static int sccp_setcalledparty_exec(struct cw_channel *chan, int argc, char **ar
 {
   char * num, * name;
   sccp_channel_t * c = CS_CW_CHANNEL_PVT(chan);
+
+  CW_UNUSED(buf);
+  CW_UNUSED(len);
 
   if (strcasecmp(chan->type, "SCCP") != 0)
 	return 0;

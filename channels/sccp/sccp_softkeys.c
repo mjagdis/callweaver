@@ -51,13 +51,19 @@ void sccp_sk_redial(sccp_device_t * d , sccp_line_t * l, sccp_channel_t * c) {
 	sccp_channel_newcall(l, d->lastNumber);
 }
 
-void sccp_sk_newcall(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_newcall(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(c);
+
 	if (!l)
 		l = d->currentLine;
 	sccp_channel_newcall(l, NULL);
 }
 
-void sccp_sk_hold(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_hold(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(l);
+
 	if (!c) {
 		sccp_dev_displayprompt(d, 0, 0, "No call to put on hold.",5);
 		return;
@@ -65,7 +71,10 @@ void sccp_sk_hold(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	sccp_channel_hold(c);
 }
 
-void sccp_sk_resume(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_resume(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(l);
+
 	if (!c) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: No call to resume. Ignoring\n", d->id);
 		return;
@@ -73,7 +82,10 @@ void sccp_sk_resume(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	sccp_channel_resume(c);
 }
 
-void sccp_sk_transfer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_transfer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(l);
+
 	if (!c) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Transfer when there is no active call\n", d->id);
 		return;
@@ -82,7 +94,10 @@ void sccp_sk_transfer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 
 }
 
-void sccp_sk_endcall(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_endcall(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(l);
+
 	if (!c) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Endcall with no call in progress\n", d->id);
 		return;
@@ -91,10 +106,14 @@ void sccp_sk_endcall(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 }
 
 
-void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
 	/* actually the line param is not used */
 	sccp_line_t * l1 = NULL;
-	
+
+	CW_UNUSED(l);
+	CW_UNUSED(c);
+
 	if (!d->dndmode) {
 		sccp_dev_displayprompt(d, 0, 0, SKINNY_DISP_DND " " SKINNY_DISP_SERVICE_IS_NOT_ACTIVE, 10);
 		return;
@@ -119,8 +138,13 @@ void sccp_sk_dnd(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 }
 
 
-void sccp_sk_backspace(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_backspace(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
 	int len;
+
+	CW_UNUSED(d);
+	CW_UNUSED(l);
+
 	if (!c)
 		return;
 	if (c->state != SCCP_CHANNELSTATE_DIALING)
@@ -133,11 +157,20 @@ void sccp_sk_backspace(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	cw_mutex_unlock(&c->lock);
 }
 
-void sccp_sk_answer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_answer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(d);
+	CW_UNUSED(l);
+
 	sccp_channel_answer(c);
 }
 
-void sccp_sk_dirtrfr(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_dirtrfr(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(d);
+	CW_UNUSED(l);
+	CW_UNUSED(c);
+
 /*	sccp_channel_dirtrfr(c); */
 }
 
@@ -166,11 +199,20 @@ void sccp_sk_cfwdbusy(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 
 }
 
-void sccp_sk_cfwdnoanswer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_cfwdnoanswer(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(d);
+	CW_UNUSED(l);
+	CW_UNUSED(c);
+
 	sccp_log(10)(VERBOSE_PREFIX_3 "### CFwdNoAnswer Softkey pressed - NOT SUPPORTED\n");
 }
 
-void sccp_sk_park(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_park(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(d);
+	CW_UNUSED(l);
+
 #ifdef CS_SCCP_PARK
 	sccp_channel_park(c);
 #else
@@ -198,7 +240,10 @@ void sccp_sk_trnsfvm(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
 	cw_queue_control(c->owner, CW_CONTROL_BUSY);
 }
 
-void sccp_sk_private(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c) {
+void sccp_sk_private(sccp_device_t * d, sccp_line_t * l, sccp_channel_t * c)
+{
+	CW_UNUSED(l);
+
 	if (!d->private) {
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: private function is not active on this device\n", d->id);
 		return;

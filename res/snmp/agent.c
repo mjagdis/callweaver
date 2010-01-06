@@ -13,6 +13,10 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+/* If we allow the headers to declare things inline the compiler will complain
+ * about everything declared inline but never defined or used.
+ */
+#define NETSNMP_NO_INLINE
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
@@ -134,6 +138,8 @@ static oid callweaver_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 
 void *agent_thread(void *arg)
 {
+    CW_UNUSED(arg);
+
     cw_verbose(VERBOSE_PREFIX_2 "Starting %sAgent\n", res_snmp_agentx_subagent ? "Sub" : "");
 
     snmp_enable_stderrlog();
@@ -720,6 +726,13 @@ static u_char *cw_var_Modules(struct variable *vp,
                                 size_t *var_len,
                                 WriteMethod **write_method)
 {
+    CW_UNUSED(vp);
+    CW_UNUSED(name);
+    CW_UNUSED(length);
+    CW_UNUSED(exact);
+    CW_UNUSED(var_len);
+    CW_UNUSED(write_method);
+
 #if 0
     /* FIXME */
     static unsigned long long_ret;
@@ -766,6 +779,11 @@ static u_char *cw_var_Version(struct variable *vp, oid *name, size_t *length,
 
 static int term_callweaver_mib(int majorID, int minorID, void *serverarg, void *clientarg)
 {
+    CW_UNUSED(majorID);
+    CW_UNUSED(minorID);
+    CW_UNUSED(serverarg);
+    CW_UNUSED(clientarg);
+
     unregister_sysORTable(callweaver_oid, OID_LENGTH(callweaver_oid));
     return 0;
 }

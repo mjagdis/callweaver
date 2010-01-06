@@ -249,14 +249,17 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 	return m;
 }
 
-void * sccp_socket_thread(void * ignore) {
+void * sccp_socket_thread(void *data)
+{
 	fd_set fset;
-	int res, maxfd = FD_SETSIZE;
-	time_t now;
-	sccp_session_t * s = NULL, * s1 = NULL;
-	sccp_moo_t * m;
 	struct timeval tv;
 	sigset_t sigs;
+	sccp_session_t * s = NULL, * s1 = NULL;
+	sccp_moo_t * m;
+	time_t now;
+	int res, maxfd = FD_SETSIZE;
+
+	CW_UNUSED(data);
 
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);

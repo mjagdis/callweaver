@@ -74,11 +74,15 @@ static char *sccp_print_group(char *buf, int buflen, cw_group_t group) {
 	return(buf);
 }
 
-static int sccp_show_globals(struct cw_dynstr **ds_p, int argc, char * argv[]) {
+static int sccp_show_globals(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
 	char pref_buf[128];
 	char cap_buf[512];
 	char buf[256];
 	char iabuf[INET_ADDRSTRLEN];
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_mutex_lock(&GLOB(lock));
 	cw_codec_pref_string(&GLOB(global_codecs), pref_buf, sizeof(pref_buf) - 1);
@@ -245,8 +249,12 @@ static struct cw_clicmd cli_restart = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_channels(struct cw_dynstr **ds_p, int argc, char * argv[]) {
+static int sccp_show_channels(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
 	sccp_channel_t * c;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p,
 		"\n%-5s %-10s %-16s %-16s %-16s %-10s\n", "ID","LINE","DEVICE","AST STATE","SCCP STATE","CALLED"
@@ -278,9 +286,13 @@ static struct cw_clicmd cli_show_channels = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_devices(struct cw_dynstr **ds_p, int argc, char * argv[]) {
-	sccp_device_t * d;
+static int sccp_show_devices(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
 	char iabuf[INET_ADDRSTRLEN];
+	sccp_device_t * d;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p,
 		"\n%-16s %-15s %-16s %-10s\n", "NAME","ADDRESS","MAC","Reg. State"
@@ -309,9 +321,12 @@ static struct cw_clicmd cli_show_devices = {
 	.usage = "Usage: sccp show devices\n",
 };
 
-static int sccp_message_devices(struct cw_dynstr **ds_p, int argc, char * argv[]) {
+static int sccp_message_devices(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
 	sccp_device_t * d;
 	int msgtimeout=10;
+
+	CW_UNUSED(ds_p);
 
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
@@ -344,11 +359,15 @@ static struct cw_clicmd cli_message_devices = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_lines(struct cw_dynstr **ds_p, int argc, char * argv[]) {
+static int sccp_show_lines(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
+	char cap_buf[512];
 	sccp_line_t * l = NULL;
 	sccp_channel_t * c = NULL;
 	sccp_device_t * d = NULL;
-	char cap_buf[512];
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p,
 		"\n%-16s %-16s %-4s %-4s %-16s\n", "NAME","DEVICE","MWI","Chs","Active Channel"
@@ -401,10 +420,14 @@ static struct cw_clicmd cli_show_lines = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_sessions(struct cw_dynstr **ds_p, int argc, char * argv[]) {
+static int sccp_show_sessions(struct cw_dynstr **ds_p, int argc, char * argv[])
+{
+	char iabuf[INET_ADDRSTRLEN];
 	sccp_session_t * s = NULL;
 	sccp_device_t * d = NULL;
-	char iabuf[INET_ADDRSTRLEN];
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p,
 		"%-10s %-15s %-4s %-15s %-15s %-15s\n", "Socket", "IP", "KA", "DEVICE", "STATE", "TYPE"
@@ -525,7 +548,10 @@ static struct cw_clicmd cli_do_debug = {
   .usage = debug_usage,
 };
 
-static int sccp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int sccp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
@@ -541,7 +567,11 @@ static struct cw_clicmd cli_no_debug = {
   .usage = no_debug_usage,
 };
 
-static int sccp_do_reload(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int sccp_do_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_printf(ds_p, "SCCP configuration reload not implemented yet! use unload and load.\n");
 	return RESULT_SUCCESS;
 }
@@ -561,7 +591,11 @@ static const char version_usage[] =
 "Usage: SCCP show version\n"
 "		Show the SCCP channel version\n";
 
-static int sccp_show_version(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int sccp_show_version(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_printf(ds_p, "SCCP channel version: %s\n", SCCP_VERSION);
 	return RESULT_SUCCESS;
 }

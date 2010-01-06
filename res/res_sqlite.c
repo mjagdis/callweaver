@@ -198,6 +198,9 @@ static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, char *
 	sqlite3 *db;
 	int res=0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "sql requires an argument (sql)\n");
 		return -1;
@@ -436,7 +439,8 @@ static int sqlite_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 }
 
 
-static int exist_callback(void *pArg, int argc, char **argv, char **columnNames){
+static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
+{
 	struct extcon extcon;
 	struct cw_object *obj;
 	struct cache *cache;
@@ -448,6 +452,9 @@ static int exist_callback(void *pArg, int argc, char **argv, char **columnNames)
 	char *context;
 	const char *p;
 	unsigned int hash;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(columnNames);
 
 	if (pArg) {
 		config = pArg;
@@ -526,6 +533,9 @@ static int SQLiteSwitch_exists(struct cw_channel *chan, const char *context, con
 	const char *p;
 	unsigned int hash;
 	int res = 0; 
+
+	CW_UNUSED(chan);
+	CW_UNUSED(callerid);
 
 	memset(&config,0,sizeof(switch_config));
 	memset(databuf,0,ARRAY_SIZE);
@@ -615,6 +625,13 @@ static int SQLiteSwitch_canmatch(struct cw_channel *chan, const char *context, c
 
 	int res = 1; 
 
+	CW_UNUSED(chan);
+	CW_UNUSED(context);
+	CW_UNUSED(exten);
+	CW_UNUSED(priority);
+	CW_UNUSED(callerid);
+	CW_UNUSED(data);
+
 	//cw_log(CW_LOG_NOTICE, "SQLiteSwitch_canmatch %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 
 
@@ -633,6 +650,9 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 	const char *p;
 	unsigned int hash;
 	int res = 0;
+
+	CW_UNUSED(callerid);
+	CW_UNUSED(data);
 
 	time(&now);
 	//cw_log(CW_LOG_NOTICE, "SQLiteSwitch_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
@@ -665,8 +685,14 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 
 static int SQLiteSwitch_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-
 	int res = 0; 
+
+	CW_UNUSED(chan);
+	CW_UNUSED(context);
+	CW_UNUSED(exten);
+	CW_UNUSED(priority);
+	CW_UNUSED(callerid);
+	CW_UNUSED(data);
 
 	//cw_log(CW_LOG_NOTICE, "SQLiteSwitch_matchmore %d: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", res, context, exten, priority, callerid ? callerid : "<unknown>", data);
 

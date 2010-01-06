@@ -38,7 +38,10 @@ struct cw_ha {
         struct cw_ha *next;
 };
 
-void sccp_handle_alarm(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_alarm(sccp_session_t * s, sccp_moo_t * r)
+{
+	CW_UNUSED(s);
+
 	sccp_log(1)(VERBOSE_PREFIX_3 "SCCP: Alarm Message: Severity: %s (%d), %s [%d/%d]\n", skinny_alarm2str(letohl(r->msg.AlarmMessage.lel_alarmSeverity)), letohl(r->msg.AlarmMessage.lel_alarmSeverity), r->msg.AlarmMessage.text, letohl(r->msg.AlarmMessage.lel_parm1), letohl(r->msg.AlarmMessage.lel_parm2));
 }
 
@@ -225,9 +228,13 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 }
 
 
-void sccp_handle_unregister(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_unregister(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_moo_t * r1;
 	sccp_device_t * d = s->device;
+
+	CW_UNUSED(r);
+
 	if (!s || (s->fd < 0) )
 		return;
 
@@ -457,11 +464,14 @@ static btnlist *sccp_make_button_template(sccp_device_t * d) {
 	return btn;
 }
 
-void sccp_handle_button_template_req(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_button_template_req(sccp_session_t * s, sccp_moo_t * r)
+{
 	btnlist *btn;
 	sccp_device_t * d = s->device;
 	int i;
 	sccp_moo_t * r1;
+
+	CW_UNUSED(r);
 
 	if (!d)
 		return;
@@ -786,10 +796,14 @@ void sccp_handle_speeddial(sccp_device_t * d, sccp_speed_t * k) {
 }
 
 
-void sccp_handle_offhook(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_offhook(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_line_t * l;
 	sccp_channel_t * c;
 	sccp_device_t * d = s->device;
+
+	CW_UNUSED(r);
+
 	if (!d)
 		return;
 
@@ -823,10 +837,13 @@ void sccp_handle_offhook(sccp_session_t * s, sccp_moo_t * r) {
 	}
 }
 
-void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_channel_t * c;
 	sccp_line_t * l = NULL;
 	sccp_device_t * d = s->device;
+
+	CW_UNUSED(r);
 
 	if (!s || !d) {
 		cw_log(CW_LOG_NOTICE, "No device to put OnHook\n");
@@ -859,8 +876,12 @@ void sccp_handle_onhook(sccp_session_t * s, sccp_moo_t * r) {
 	return;
 }
 
-void sccp_handle_headset(sccp_session_t * s, sccp_moo_t * r) {
-  // XXX:T: What should we do here?
+void sccp_handle_headset(sccp_session_t * s, sccp_moo_t * r)
+{
+	CW_UNUSED(s);
+	CW_UNUSED(r);
+
+	// XXX:T: What should we do here?
 }
 
 void sccp_handle_capabilities_res(sccp_session_t * s, sccp_moo_t * r) {
@@ -879,12 +900,15 @@ void sccp_handle_capabilities_res(sccp_session_t * s, sccp_moo_t * r) {
 }
 
 
-void sccp_handle_soft_key_template_req(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_soft_key_template_req(sccp_session_t * s, sccp_moo_t * r)
+{
 	uint8_t i;
 	const uint8_t c = sizeof(softkeysmap);
 	sccp_moo_t * r1;
 	sccp_device_t * d = s->device;
-	
+
+	CW_UNUSED(r);
+
 	if (!d)
 		return;
 	
@@ -913,7 +937,8 @@ void sccp_handle_soft_key_template_req(sccp_session_t * s, sccp_moo_t * r) {
 }
 
 
-void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_device_t * d = s->device;
 	const softkey_modes * v = SoftKeyModes;
 	const	uint8_t	v_count = ( sizeof(SoftKeyModes)/sizeof(softkey_modes) );
@@ -923,7 +948,9 @@ void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_line_t * l;
 	uint8_t trnsfvm = 0;
 	uint8_t pickupgroup= 0;
-	
+
+	CW_UNUSED(r);
+
 	if (!d)
 		return;
 
@@ -1010,11 +1037,14 @@ void sccp_handle_soft_key_set_req(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_dev_set_keyset(s->device, 0, 0, KEYMODE_ONHOOK);
 }
 
-void sccp_handle_time_date_req(sccp_session_t * s, sccp_moo_t * req) {
+void sccp_handle_time_date_req(sccp_session_t * s, sccp_moo_t * req)
+{
   time_t timer = 0;
   struct tm * cmtime = NULL;
   sccp_moo_t * r1;
   REQ(r1, DefineTimeDate);
+
+  CW_UNUSED(req);
 
   if (!s || !s->device) {
        cw_log(CW_LOG_WARNING,"Session no longer valid\n");
@@ -1279,8 +1309,11 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 	}
 }
 
-void sccp_handle_version(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_version(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_moo_t * r1;
+
+	CW_UNUSED(r);
 
 	if (!s || !s->device)
 		return;
@@ -1302,9 +1335,12 @@ void sccp_handle_ConnectionStatistics(sccp_session_t * s, sccp_moo_t * r) {
 		);
 }
 
-void sccp_handle_ServerResMessage(sccp_session_t * s, sccp_moo_t * r) {
-	sccp_moo_t * r1;
+void sccp_handle_ServerResMessage(sccp_session_t * s, sccp_moo_t * r)
+{
 	char iabuf[INET_ADDRSTRLEN];
+	sccp_moo_t * r1;
+
+	CW_UNUSED(r);
 
 	/* old protocol function replaced by the SEP file server addesses list */
 
@@ -1318,13 +1354,16 @@ void sccp_handle_ServerResMessage(sccp_session_t * s, sccp_moo_t * r) {
 	sccp_dev_send(s->device, r1);
 }
 
-void sccp_handle_ConfigStatMessage(sccp_session_t * s, sccp_moo_t * r) {
+void sccp_handle_ConfigStatMessage(sccp_session_t * s, sccp_moo_t * r)
+{
 	sccp_moo_t * r1;
 	uint8_t lines = 0;
 	uint8_t speeddials = 0;
 	sccp_device_t * d;
 	sccp_line_t * l;
 	sccp_speed_t * k;
+
+	CW_UNUSED(r);
 
 	if (!s)
 		return;

@@ -455,9 +455,11 @@ int cw_rtp_register_srtp(struct cw_srtp_res *srtp_res,
 	return 0;
 }
 
-int cw_rtp_unregister_srtp(struct cw_srtp_res *srtp_res,
-			     struct cw_srtp_policy_res *policy_res)
+int cw_rtp_unregister_srtp(struct cw_srtp_res *srtp_res, struct cw_srtp_policy_res *policy_res)
 {
+	CW_UNUSED(srtp_res);
+	CW_UNUSED(policy_res);
+
 	g_srtp_res = NULL;
 	g_policy_res = NULL;
 	return 0;

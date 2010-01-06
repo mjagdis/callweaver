@@ -123,17 +123,24 @@ int loginpty(char *);
 
 static void *v110_gen_alloc (struct cw_channel *chan, void *params)
 {
+	CW_UNUSED(chan);
+
 	return params;
 }
 
 static void v110_gen_release (struct cw_channel *chan, void *data)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(data);
+
 	return;
 }
 
 static struct cw_frame *v110_generate(struct cw_channel *chan, void *data, int want)
 {
 	struct v110_state *vs = data;
+
+	CW_UNUSED(chan);
 
 	vs->fill_outframe(vs, want);
 	return &vs->f;
@@ -155,7 +162,12 @@ static int login_v110(struct cw_channel *chan, int argc, char **argv, char *resu
 	int urate=-1;
 	int primelen;
 	int res=-1;
-	
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	/* FIXME: We can probably do this on all ISDN channels, if we
