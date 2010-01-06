@@ -58,6 +58,9 @@ static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *b
 	struct cw_frame *f;
 	struct cw_bridge_config config;
 
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
+
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(changrab_syntax);
 
@@ -164,6 +167,8 @@ static int changrab_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	char *pria = NULL;
 	struct cw_channel *chan, *xferchan_1, *xferchan_2;
 	int x=1;
+
+	CW_UNUSED(ds_p);
 
 	if(argc < 3)
 		return RESULT_SHOWUSAGE;

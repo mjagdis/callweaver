@@ -769,14 +769,14 @@ static int dahdi_get_index(struct cw_channel *cw, struct dahdi_pvt *p, int nullo
 
 #ifdef ZAPATA_PRI
 static void wakeup_sub(struct dahdi_pvt *p, int a, struct dahdi_pri *pri)
-#else
-static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
-#endif
 {
-#ifdef ZAPATA_PRI
 	if (pri)
 		cw_mutex_unlock(&pri->lock);
-#endif			
+#else
+static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
+{
+	CW_UNUSED(pri);
+#endif
 	for (;;) {
 		if (p->subs[a].owner) {
 			if (cw_channel_trylock(p->subs[a].owner)) {
@@ -799,15 +799,15 @@ static void wakeup_sub(struct dahdi_pvt *p, int a, void *pri)
 
 #ifdef ZAPATA_PRI
 static void dahdi_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, struct dahdi_pri *pri)
-#else
-static void dahdi_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, void *pri)
-#endif
 {
 	/* We must unlock the PRI to avoid the possibility of a deadlock */
-#ifdef ZAPATA_PRI
 	if (pri)
 		cw_mutex_unlock(&pri->lock);
-#endif		
+#else
+static void dahdi_queue_frame(struct dahdi_pvt *p, struct cw_frame *f, void *pri)
+{
+	CW_UNUSED(pri);
+#endif
 	for (;;) {
 		if (p->owner) {
 			if (cw_channel_trylock(p->owner)) {
@@ -1228,6 +1228,9 @@ static int isourconf(struct dahdi_pvt *p, struct dahdi_subchannel *c)
 static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int i)
 {
 	struct dahdi_confinfo zi;
+
+	CW_UNUSED(i);
+
 	if (/* Can't delete if there's no dfd */
 		(c->dfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
@@ -5009,6 +5012,8 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 	int features;
 	struct dahdi_params ps;
 
+	CW_UNUSED(transfercapability);
+
 	if (i->subs[curindex].owner) {
 		cw_log(CW_LOG_WARNING, "Channel %d already has a %s call\n", i->channel,subnames[curindex]);
 		return NULL;
@@ -6261,6 +6266,9 @@ static void *do_monitor(void *data)
 	int found;
 	struct pollfd *pfds=NULL;
 	int lastalloc = -1;
+
+	CW_UNUSED(data);
+
 	/* This thread monitors all the frame relay interfaces which are not yet in use
 	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
@@ -7265,6 +7273,8 @@ static struct cw_channel *dahdi_request(const char *type, int format, void *data
 #endif	
 	struct dahdi_pvt *last, *start, *end;
 	cw_mutex_t *lock;
+
+	CW_UNUSED(type);
 
 	/* Assume we're locking the iflock */
 	lock = &iflock;
@@ -9244,7 +9254,9 @@ static int dahdi_destroy_channel(struct cw_dynstr **ds_p, int argc, char **argv)
 	int channel = 0;
 	struct dahdi_pvt *tmp = NULL;
 	struct dahdi_pvt *prev = NULL;
-	
+
+	CW_UNUSED(ds_p);
+
 	if (argc != 4) {
 		return RESULT_SHOWUSAGE;
 	}
@@ -9266,14 +9278,16 @@ static int dahdi_show_channels(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 #define FORMAT "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
-	struct dahdi_pvt *tmp = NULL;
 	char tmps[20] = "";
+	struct dahdi_pvt *tmp = NULL;
 	cw_mutex_t *lock;
 	struct dahdi_pvt *start;
 #ifdef ZAPATA_PRI
-	int trunkgroup;
 	struct dahdi_pri *pri=NULL;
+	int trunkgroup;
 	int x;
+#else
+	CW_UNUSED(argv);
 #endif
 
 	lock = &iflock;
@@ -9473,7 +9487,11 @@ static char dahdi_show_cadences_help[] =
 static int handle_dahdi_show_cadences(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int i, j;
-	for (i=0;i<num_cadence;i++) {
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	for (i = 0; i < num_cadence; i++) {
 		char output[1024];
 		char tmp[16];
 
@@ -9501,12 +9519,14 @@ static int dahdi_show_status(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
 
+	char alarmstr[50];
+	struct dahdi_spaninfo s;
 	int span;
 	int res;
-	char alarmstr[50];
-
 	int ctl;
-	struct dahdi_spaninfo s;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	ctl = open("/dev/dahdi/ctl", O_RDWR);
 	if (ctl < 0) {
@@ -9645,6 +9665,8 @@ static struct cw_manager_message *action_dahdidndon(struct mansession *sess, con
 	struct dahdi_pvt *p;
 	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(hdr)) {
 		if ((p = find_channel(atoi(hdr)))) {
 			p->dnd = 1;
@@ -9662,6 +9684,8 @@ static struct cw_manager_message *action_dahdidndoff(struct mansession *sess, co
 	struct cw_manager_message *msg;
 	struct dahdi_pvt *p;
 	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(hdr)) {
 		if ((p = find_channel(atoi(hdr)))) {
@@ -9681,6 +9705,8 @@ static struct cw_manager_message *action_transfer(struct mansession *sess, const
 	struct dahdi_pvt *p;
 	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(hdr)) {
 		if ((p = find_channel(atoi(hdr)))) {
 			dahdi_fake_event(p,TRANSFER);
@@ -9698,6 +9724,8 @@ static struct cw_manager_message *action_transferhangup(struct mansession *sess,
 	struct cw_manager_message *msg;
 	struct dahdi_pvt *p;
 	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(hdr)) {
 		if ((p = find_channel(atoi(hdr)))) {
@@ -9717,6 +9745,8 @@ static struct cw_manager_message *action_dahdidialoffhook(struct mansession *ses
 	struct dahdi_pvt *p;
 	char *hdr = cw_manager_msg_header(req, "DAHDIChannel");
 	int i;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(hdr)) {
 		if ((p = find_channel(atoi(hdr)))) {
@@ -9783,6 +9813,11 @@ static const char dahdidisableec_description[] = "Disable Echo Canceller onto th
 
 static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (chan==NULL) {
 	cw_log(CW_LOG_WARNING, "channel is NULL\n");
         return 0;

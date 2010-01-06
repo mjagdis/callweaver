@@ -734,6 +734,10 @@ static icd_status icd_command_dump_queue(struct cw_dynstr **ds_p, int argc, char
 
 static icd_status icd_command_dump_distributor(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(ds_p);
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
 /*
     icd_distributor *dist;
 
@@ -759,6 +763,9 @@ static icd_status icd_command_dump_customer(struct cw_dynstr **ds_p, int argc, c
     icd_list_iterator *iter;
     icd_member *member;
     icd_caller *caller;
+
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
 
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
@@ -881,6 +888,9 @@ int icd_command_load(struct cw_dynstr **ds_p, int argc, char **argv)
 
 icd_status icd_command_load_app_icd(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
     cw_dynstr_printf(ds_p, "\nAPP_ICD Reload \n");
@@ -896,6 +906,9 @@ icd_status icd_command_load_app_icd(struct cw_dynstr **ds_p, int argc, char **ar
 
 icd_status icd_command_load_conferences(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
     cw_dynstr_printf(ds_p, "\nConferences Reload \n");
@@ -911,6 +924,9 @@ icd_status icd_command_load_conferences(struct cw_dynstr **ds_p, int argc, char 
 
 icd_status icd_command_load_agents(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
     cw_dynstr_printf(ds_p, "\nAgents Reload \n");
@@ -926,6 +942,8 @@ icd_status icd_command_load_agents(struct cw_dynstr **ds_p, int argc, char **arg
 
 icd_status icd_command_load_queues(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
 
     cw_dynstr_printf(ds_p, "\n");
     cli_line(ds_p, "=", 80);
@@ -1120,6 +1138,8 @@ int icd_command_login (struct cw_dynstr **ds_p, int argc, char **argv)
     char *channelstring;
     int logFlag=1;
 
+    CW_UNUSED(ds_p);
+
     if ((argc != 3) && (argc !=4)){
         cw_manager_event(EVENT_FLAG_USER, "icd_command",
            3,
@@ -1210,6 +1230,8 @@ int icd_command_logout (struct cw_dynstr **ds_p, int argc, char **argv)
     const char *agent_id;
     const char *passwd_to_check;
     const char *passwd;
+
+    CW_UNUSED(ds_p);
 
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */

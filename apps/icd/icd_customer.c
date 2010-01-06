@@ -295,6 +295,8 @@ int icd_customer__standard_state_ready(icd_event * event, void *extra)
     //icd_member *member;
     //icd_list_iterator *iter;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     //that = (icd_caller *) icd_event__get_source(event);
 
@@ -311,6 +313,8 @@ int icd_customer__standard_state_call_end(icd_event * event, void *extra)
 /*     icd_status result; */
 /*     icd_caller_state state; */
     
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);

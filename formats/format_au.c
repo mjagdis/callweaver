@@ -222,6 +222,8 @@ static void *au_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         if (write_header(f))
@@ -332,6 +334,8 @@ static long au_tell(void *data)
 
 static char *au_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 

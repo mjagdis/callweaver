@@ -236,8 +236,10 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 	}
 }
 
-static struct cw_frame  *local_read(struct cw_channel *ast)
+static struct cw_frame  *local_read(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return &cw_null_frame;
 }
 
@@ -334,6 +336,8 @@ static int local_call(struct cw_channel *ast, const char *dest)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;
+
+	CW_UNUSED(dest);
 
 	cw_mutex_lock(&p->lock);
 	if (p->owner->cid.cid_num)
@@ -575,8 +579,10 @@ static struct cw_channel *local_request(const char *drvtype, int format, void *d
 	struct local_pvt *p;
 	struct cw_channel *chan = NULL;
 
-	p = local_alloc(data, format);
-	if (p)
+	CW_UNUSED(drvtype);
+	CW_UNUSED(cause);
+
+	if ((p = local_alloc(data, format)))
 		chan = local_new(p, CW_STATE_DOWN);
 	return chan;
 }
@@ -585,6 +591,8 @@ static struct cw_channel *local_request(const char *drvtype, int format, void *d
 static int locals_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	struct local_pvt *p;
+
+	CW_UNUSED(argv);
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;

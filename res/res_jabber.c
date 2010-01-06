@@ -211,6 +211,8 @@ static int jabber_manager_session(struct mansession *sess, const struct cw_manag
 {
 	struct jabber_message_node *node;
 
+	CW_UNUSED(sess);
+
 	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 
@@ -289,6 +291,8 @@ static void authentication_cb (LmConnection *connection, gboolean result, gpoint
 
 static void connection_open_cb (LmConnection *connection, gboolean result, struct jabber_profile *profile)
 {
+	CW_UNUSED(result);
+
 	cw_log(CW_LOG_DEBUG, "Connected callback\n");
 	lm_connection_authenticate (connection, profile->login, profile->passwd, profile->resource, authentication_cb, profile, FALSE,  NULL);
 	cw_log(CW_LOG_DEBUG, "Sent auth message\n");
@@ -478,6 +482,9 @@ static LmHandlerResult handle_messages (LmMessageHandler *handler, LmConnection 
 	char *body;
 	struct jabber_profile *profile;
 	struct cw_frame *frx;
+
+	CW_UNUSED(handler);
+	CW_UNUSED(connection);
 
 	profile = (struct jabber_profile *) user_data;
 	lmnode = lm_message_node_get_child (m->node, "body");
@@ -1632,6 +1639,9 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
 {
 	int sock = -1;
 
+	CW_UNUSED(ip);
+	CW_UNUSED(client);
+
 	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
 		sockaddr->sin_family = AF_INET;
 		sockaddr->sin_addr.s_addr = INADDR_ANY;
@@ -1859,6 +1869,9 @@ static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char 
 	struct jabber_message_node *node;
 	struct jabber_profile profile;
 	char *master;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR)) {
 		cw_log(CW_LOG_ERROR, "Error Setting Read Format.\n");

@@ -67,6 +67,8 @@ static int skel_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int res = 0;
 	struct localuser *u;
 
+	CW_UNUSED(result_max);
+
 	/* Check the argument count is within range and any
 	 * required arguments are none blank.
 	 */

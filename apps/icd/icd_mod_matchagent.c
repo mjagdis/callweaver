@@ -139,6 +139,8 @@ icd_status link_callers_via_pop_customer_match_agent(icd_distributor * dist, voi
     icd_status result;
     int LinkFound;
 
+    CW_UNUSED(extra);
+
     assert(dist != NULL);
     assert(dist->customers != NULL);
     assert(dist->agents != NULL);

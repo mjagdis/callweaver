@@ -130,6 +130,9 @@ static int disa_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int digittimeout = 10000;
 	int res;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(disa_syntax);
 

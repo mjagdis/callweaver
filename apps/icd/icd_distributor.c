@@ -658,6 +658,8 @@ icd_status icd_distributor__link_callers_via_pop(icd_distributor *dist, void *ex
     icd_caller *customer_caller = NULL;
     icd_caller *agent_caller = NULL;
     
+    CW_UNUSED(extra);
+
     assert(dist != NULL);
     assert(dist->customers != NULL);
     assert(dist->agents != NULL);
@@ -803,6 +805,8 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
     icd_caller *customer_caller = NULL;
     icd_caller *agent_caller = NULL;
 
+    CW_UNUSED(extra);
+
     assert(dist != NULL);
     assert(dist->customers != NULL);
     assert(dist->agents != NULL);
@@ -887,6 +891,8 @@ icd_status icd_distributor__link_callers_via_pop_and_push(icd_distributor *dist,
 
 /* Pop the top customer_member and link to all free agents (who are all bridgers). */
 icd_status icd_distributor__link_callers_via_ringall(icd_distributor *dist, void *extra) {
+    CW_UNUSED(extra);
+
     assert(dist != NULL);
     assert(dist->customers != NULL);
     assert(dist->agents != NULL);
@@ -898,9 +904,11 @@ icd_status icd_distributor__link_callers_via_ringall(icd_distributor *dist, void
 icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, struct cw_dynstr **ds_p, void *extra) {
     static const char *indent = "    ";
     vh_keylist *keys;
+
+    CW_UNUSED(extra);
+
     assert(dist != NULL);
 
-    
     cw_dynstr_tprintf(ds_p, 3,
         cw_fmtval("\nDumping icd_distributor {\n"),
         cw_fmtval("%sname=%s (%s)\n", indent,icd_distributor__get_name(dist), (dist->allocated ? "alloced" : "on heap")),

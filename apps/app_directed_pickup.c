@@ -79,6 +79,9 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	int res = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1)
 		return cw_function_syntax(pickup_syntax);
 

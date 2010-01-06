@@ -306,6 +306,8 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
 
+	CW_UNUSED(fullanswer);
+
 	if (answer == NULL) {
 		c->txt = NULL;
 		c->txtlen = 0;
@@ -339,6 +341,8 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 	struct enum_context *c = (struct enum_context *)context;
 	void *p = NULL;
 	int res;
+
+	CW_UNUSED(fullanswer);
 
 	res = parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput);
 

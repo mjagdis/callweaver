@@ -55,6 +55,11 @@ static int milliwatt_exec(struct cw_channel *chan, int argc, char **argv, char *
 	static char deprecated = 0;
 	struct localuser *u;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (!deprecated) {
 		deprecated = 1;
 		cw_log(CW_LOG_WARNING, "Milliwatt is deprecated. Use either Playtones(1004/0) or Playback(...) (to avoid transcoding)\n");

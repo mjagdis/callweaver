@@ -73,8 +73,11 @@ static const char tdesc[] = "While Loops and Conditional Execution";
 
 static int execif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res=0;
 	struct localuser *u;
+	int res=0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(execif_syntax);
@@ -204,6 +207,9 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	int x;
 	int res = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (!end && argc != 1)
 		return cw_function_syntax(while_syntax);
 
@@ -293,11 +299,19 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	ALL_DONE(u, res);
 }
 
-static int while_start_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+static int while_start_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return _while_exec(chan, argc, argv, NULL, 0, 0);
 }
 
-static int while_end_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) {
+static int while_end_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return _while_exec(chan, argc, argv, NULL, 0, 1);
 }
 

@@ -70,10 +70,13 @@ static const char userevent_descrip[] =
 "Returns 0.";
 
 
-static int userevent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int userevent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char eventname[512];
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > MAX_KEY_VAL_PAIRS * 2 + 1 || !(argc & 1) || !argv[0][0])
 		return cw_function_syntax(userevent_syntax);

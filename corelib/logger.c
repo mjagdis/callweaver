@@ -483,8 +483,11 @@ int reload_logger(int rotate)
 	return -1;
 }
 
-static int handle_logger_reload(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	if(reload_logger(0)) {
 		cw_dynstr_printf(ds_p, "Failed to reload the logger\n");
 		return RESULT_FAILURE;
@@ -492,8 +495,11 @@ static int handle_logger_reload(struct cw_dynstr **ds_p, int argc __attribute__(
 		return RESULT_SUCCESS;
 }
 
-static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_log(CW_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
 	if(reload_logger(1)) {
 		cw_dynstr_printf(ds_p, "Failed to reload the logger and rotate log files\n");
@@ -504,10 +510,13 @@ static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc __attribute__(
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
-static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p, FORMATL " %s\n" FORMATL " %s\n",
 		"Channel", "Type", "Configuration\n",

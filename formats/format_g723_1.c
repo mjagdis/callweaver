@@ -74,6 +74,8 @@ static void *g723_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -183,6 +185,10 @@ static int g723_write(void *data, struct cw_frame *f)
 
 static int g723_seek(void *data, long sample_offset, int whence)
 {
+    CW_UNUSED(data);
+    CW_UNUSED(sample_offset);
+    CW_UNUSED(whence);
+
     return -1;
 }
 
@@ -198,11 +204,15 @@ static int g723_trunc(void *data)
 
 static long g723_tell(void *data)
 {
+    CW_UNUSED(data);
+
     return -1;
 }
 
 static char *g723_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 

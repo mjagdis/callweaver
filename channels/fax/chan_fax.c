@@ -201,6 +201,8 @@ static int t31_at_tx_handler(at_state_t *s, void *user_data, const uint8_t *buf,
 {
 	struct faxmodem *fm = user_data;
 
+	CW_UNUSED(s);
+
 #ifdef TRACE
 	if (cfg_vblevel > 2) {
 		char msg[256];
@@ -239,6 +241,8 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 	struct faxmodem *fm = user_data;
 	struct cw_channel *chan = NULL;
 	int res = 0;
+
+	CW_UNUSED(t31);
 
 	cw_mutex_lock(&fm->lock);
 
@@ -619,6 +623,10 @@ static struct cw_channel *tech_requester(const char *drvtype, int format, void *
 	int unit = -1;
 	char *p = data, *q;
 
+	CW_UNUSED(drvtype);
+	CW_UNUSED(format);
+	CW_UNUSED(cause);
+
 	if ((q = strchr(p, '/')))
 		p = q + 1;
 	if (isdigit(*p))
@@ -692,6 +700,8 @@ static int tech_call(struct cw_channel *chan, const char *dest)
 	char buf[sizeof("0000+0000")];
 	struct faxmodem *fm;
 	time_t u_now = time(NULL);
+
+	CW_UNUSED(dest);
 
 	fm = chan->tech_pvt;
 
@@ -935,6 +945,8 @@ static int tech_write(struct cw_channel *chan, struct cw_frame *frame)
 
 static struct cw_frame *tech_exception(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return NULL;
 }
 
@@ -987,6 +999,9 @@ static int tech_indicate(struct cw_channel *chan, int condition)
  */
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
+	CW_UNUSED(oldchan);
+	CW_UNUSED(newchan);
+
 	return 0;
 }
 
@@ -1056,6 +1071,9 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
 static int chan_fax_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int x;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_mutex_lock(&control_lock);
 

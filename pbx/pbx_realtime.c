@@ -163,6 +163,9 @@ static struct cw_variable *realtime_switch_common(const char *table, const char 
 
 static int realtime_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(callerid);
+
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) cw_variables_destroy(var);
 	if (var)
@@ -172,6 +175,9 @@ static int realtime_exists(struct cw_channel *chan, const char *context, const c
 
 static int realtime_canmatch(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(callerid);
+
 	REALTIME_COMMON(MODE_CANMATCH);
 	if (var) cw_variables_destroy(var);
 	if (var)
@@ -185,6 +191,8 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 	char appdata[512]="";
 	char *tmp = NULL;
 	struct cw_variable *v;
+
+	CW_UNUSED(callerid);
 
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
@@ -225,6 +233,9 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 
 static int realtime_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(callerid);
+
 	REALTIME_COMMON(MODE_MATCHMORE);
 	if (var) cw_variables_destroy(var);
 	if (var)

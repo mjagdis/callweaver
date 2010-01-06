@@ -74,6 +74,9 @@ static int transfer_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	int len;
 	int res;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1)
 		return cw_function_syntax(transfer_syntax);
 

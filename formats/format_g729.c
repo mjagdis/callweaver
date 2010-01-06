@@ -81,6 +81,8 @@ static void *g729_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -149,6 +151,8 @@ static int g729_write(void *data, struct cw_frame *f)
 
 static char *g729_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 

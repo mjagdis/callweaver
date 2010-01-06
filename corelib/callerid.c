@@ -491,10 +491,12 @@ int tdd_generate(struct tdd_state *tdd, uint8_t *outbuf, int outlen, const char 
 	adsi_tx_state_t adsi;
 	int slen;
 
+	CW_UNUSED(tdd);
+
 	adsi_tx_init(&adsi, ADSI_STANDARD_TDD);
 
 	adsi_tx_put_message(&adsi, (uint8_t *) msg, strlen(msg));
-    adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
+	adsi_tx_set_preamble(&adsi, 0, -1, -1, -1);
 
 	slen = adsi_tx(&adsi, lin, sizeof(lin)/sizeof(lin[0]));
 	return lin2xlaw(codec, lin, slen, outbuf, outlen);

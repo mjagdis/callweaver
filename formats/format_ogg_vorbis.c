@@ -579,6 +579,8 @@ static struct cw_frame *ogg_vorbis_read(void *data, int *whennext)
 
 static int ogg_vorbis_trunc(void *data)
 {
+    CW_UNUSED(data);
+
     cw_log(CW_LOG_WARNING, "Truncation is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
@@ -593,18 +595,26 @@ static int ogg_vorbis_trunc(void *data)
 
 static int ogg_vorbis_seek(void *data, long sample_offset, int whence)
 {
+    CW_UNUSED(data);
+    CW_UNUSED(sample_offset);
+    CW_UNUSED(whence);
+
     cw_log(CW_LOG_WARNING, "Seeking is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
 static long ogg_vorbis_tell(void *data)
 {
+    CW_UNUSED(data);
+
     cw_log(CW_LOG_WARNING, "Telling is not supported on OGG/Vorbis streams!\n");
     return -1;
 }
 
 static char *ogg_vorbis_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     cw_log(CW_LOG_WARNING, "Getting comments is not supported on OGG/Vorbis streams!\n");
     return NULL;
 }

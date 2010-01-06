@@ -770,6 +770,8 @@ static __attribute__((__noreturn__)) void *cw_cdr_submit(void *data)
 {
 	struct cw_cdr *oldbatchitems;
 
+	CW_UNUSED(data);
+
 	for (;;) {
 		pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &cdr_batch_lock);
 		pthread_mutex_lock(&cdr_batch_lock);
@@ -826,6 +828,8 @@ static int cdrbe_print(struct cw_object *obj, void *data)
 
 static int handle_cli_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc > 2)
 		return RESULT_SHOWUSAGE;
 

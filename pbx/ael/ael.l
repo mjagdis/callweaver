@@ -171,6 +171,15 @@ static void pbcwhere(const char *text, int *line, int *col )
 #define	STORE_POS
 #define	STORE_LOC
 #endif
+
+#if defined(__GNUC__)
+#  pragma GCC system_header
+#elif defined __SUNPRO_CC
+#  pragma disable_warn
+#elif defined(_MSC_VER)
+#  pragma warning(push, 1)
+#endif
+
 %}
 
 

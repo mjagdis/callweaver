@@ -78,6 +78,9 @@ static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int debug=0;
 	int i;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_len);
+
 	pbx_builtin_setvar_helper(chan, auth_chanvar, "FAILURE"); /* default to fail */
 	
 	if (argc < 1 || argc > 3)

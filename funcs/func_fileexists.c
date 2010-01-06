@@ -47,6 +47,8 @@ static const char fileexists_func_desc[] = "Returns the file status. Results are
 
 static int builtin_function_fileexists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(fileexists_func_syntax);
 

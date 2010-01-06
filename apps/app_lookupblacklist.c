@@ -57,10 +57,15 @@ static const char lookupblacklist_descrip[] =
 
 static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char var[16] = "FALSE";
 	char blacklist[1];
 	struct localuser *u;
 	int bl = 0;
-	char var[16] = "FALSE";
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD (u);
 

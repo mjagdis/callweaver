@@ -270,6 +270,8 @@ static struct cw_frame *g722tolin_sample(int *i)
 {
     static struct cw_frame f;
  
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G722);
     f.datalen = sizeof(g722_ex);
     f.samples = sizeof(g722_ex)*2;

@@ -59,7 +59,11 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	char tmp[MAXRESULT];
 	struct localuser *u;
 	char *newvar = NULL;
-	int res = 0;
+	int res = -1;
+
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
@@ -69,16 +73,18 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	LOCAL_USER_ADD(u);
 	
 	/* Check and parse arguments */
-	if (argv[0]) {
+	if (argc == 1 && argv[0]) {
 		newvar = strsep(&argv[0], "=");
 		if (newvar && (newvar[0] != '\0')) {
 			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], tmp, sizeof(tmp));
 			pbx_builtin_setvar_helper(chan, newvar, tmp);
+			res = 0;
 		}
 	}
 
 	LOCAL_USER_REMOVE(u);
-	return res;
+
+	return (res ? cw_function_syntax(eval_syntax) : 0);
 }
 
 static int unload_module(void)

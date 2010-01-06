@@ -352,6 +352,9 @@ static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, ch
 	int waitforbridge = 0;
 	int res = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc > 2) {
 		for (; argv[2][0]; argv[2]++) {
 			switch (argv[2][0]) {
@@ -380,11 +383,20 @@ static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, ch
 
 static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return __cw_monitor_stop(chan, 1);
 }
 
 static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return __cw_monitor_change_fname(chan, argv[0], 1);
 }
 
@@ -414,6 +426,8 @@ static struct cw_manager_message *start_monitor_action(struct mansession *sess, 
 	char *mix;
 	char *p;
 	int ret;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
@@ -464,6 +478,8 @@ static struct cw_manager_message *stop_monitor_action(struct mansession *sess, c
 	char *name = cw_manager_msg_header(req, "Channel");
 	int res;
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			res = __cw_monitor_stop(chan, 1);
@@ -498,6 +514,8 @@ static struct cw_manager_message *change_monitor_action(struct mansession *sess,
 	char *name = cw_manager_msg_header(req, "Channel");
 	char *fname;
 	int ret;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(name)) {
 		fname = cw_manager_msg_header(req, "File");

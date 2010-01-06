@@ -81,6 +81,13 @@ static const char pop_descrip[] =
 
 static int pop_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	if (argc != 0)
+		return cw_function_syntax(pop_syntax);
+
 	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
 	return 0;
@@ -92,6 +99,12 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	struct cw_var_t *var;
 	char *label;
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	if (argc != 0)
+		return cw_function_syntax(return_syntax);
 
 	if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(STACKVAR), STACKVAR))) {
 		label = cw_strdupa(var->value);
@@ -124,6 +137,9 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *p, *q;
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(gosub_syntax);
@@ -162,6 +178,9 @@ static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, char *re
 {
 	char *s, *q;
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))

@@ -365,6 +365,8 @@ static void *do_valetparking_thread(void *ignore)
 	int x;
 	int gc=0;
 
+	CW_UNUSED(ignore);
+
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 	for (;;) {
@@ -483,6 +485,9 @@ static int valetpark_call(struct cw_channel *chan, int argc, char **argv, char *
 	struct localuser *u;
 	int timeout;
 	int ext = 0, res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vpcsyntax);
@@ -607,16 +612,18 @@ static struct cw_channel *valet_request(const char *type, int format, void *data
 	char *exten = NULL, *lotname = NULL;
 	struct cw_channel *peer;
 
+	CW_UNUSED(type);
+
 	exten = cw_strdupa(data);
 	if((lotname=strchr(exten,':'))) {
-        *lotname = '\0';
-        lotname++;
-    }
+		*lotname = '\0';
+		lotname++;
+	}
 	if(!lotname) {
-        cw_log(CW_LOG_WARNING,"Please specify a lotname in the dialplan.");
-		*cause = CW_CAUSE_UNALLOCATED;
-        return NULL;
-    }
+		cw_log(CW_LOG_WARNING,"Please specify a lotname in the dialplan.");
+			*cause = CW_CAUSE_UNALLOCATED;
+		return NULL;
+	}
 	if((peer = do_valetunpark(NULL, exten, lotname))) {
 	    if(cw_test_flag(peer, CW_FLAG_MOH)) {
 			cw_moh_stop(peer);
@@ -640,12 +647,15 @@ static struct cw_channel *valet_request(const char *type, int format, void *data
 
 static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res=0;
+	struct cw_bridge_config config;
 	struct localuser *u;
 	struct cw_channel *peer=NULL;
 	int valetpark=-1;
 	int dres;
-	struct cw_bridge_config config;
+	int res=0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vupsyntax);
@@ -704,6 +714,9 @@ static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, char 
 	struct localuser *u;
 	int res=0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vpsyntax);
 
@@ -728,6 +741,9 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 	struct localuser *u;
 	int res = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(vlsyntax);
 
@@ -751,6 +767,9 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 static int handle_valetparkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct valetparkeduser *cur;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p, "%4s %25s (%-15s %-12s %-4s) %-6s %-6s %-15s\n",
 		"Num", "Channel", "Context", "Extension", "Pri", "Elapsed","Timeout","LotName");

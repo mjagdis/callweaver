@@ -101,9 +101,11 @@ static int say_number_female(int num, struct cw_channel *chan, const char *ints,
 
 static int say_number_full(struct cw_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
 {
-    int res = 0;
     char fn[256] = "";
+    int res = 0;
     int i = 0;
+
+    CW_UNUSED(options);
 
     if (!num)
     {

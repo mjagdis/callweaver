@@ -196,6 +196,8 @@ static struct cw_frame *playtones_generator(struct cw_channel *chan, void *data,
 	struct playtones_item *pi;
 	int x;
 
+	CW_UNUSED(chan);
+
 	cw_fr_init_ex(&ps->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 
 	ps->f.datalen = samples * sizeof(ps->data[0]);

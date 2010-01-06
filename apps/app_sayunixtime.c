@@ -69,10 +69,13 @@ static const char datetime_descrip[] =
 static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct timeval tv;
-	time_t unixtime;
 	struct localuser *u;
 	const char *format;
-	int res=0;
+	time_t unixtime;
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc > 3)
 		return cw_function_syntax(sayunixtime_syntax);

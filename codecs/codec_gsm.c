@@ -92,6 +92,8 @@ static struct cw_frame *gsmtolin_sample(int *i)
 {
     static struct cw_frame f;
 
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_GSM);
     f.datalen = sizeof(gsm_ex);
     /* All frames are 20 ms long */

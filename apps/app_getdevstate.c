@@ -60,10 +60,13 @@ static const char g_descrip[] =
 
 static int get_devstate(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char resc[8]="-1";
 	struct localuser *u;
 	int res=-1;
-	char resc[8]="-1";
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	if (argc > 0 && argv[0][0])

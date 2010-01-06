@@ -258,6 +258,8 @@ static int cw_run_atexit_one(struct cw_object *obj, void *data)
 {
 	struct cw_atexit *it = container_of(obj, struct cw_atexit, obj);
 
+	CW_UNUSED(data);
+
 	if (option_verbose > 2)
 		cw_verbose(VERBOSE_PREFIX_3 "atexit: run \"%s\"\n", it->name);
 
@@ -284,6 +286,8 @@ static void cw_run_atexits(void)
 /*! NULL handler so we can collect the child exit status */
 static void null_sig_handler(int sig)
 {
+	CW_UNUSED(sig);
+
 }
 
 CW_MUTEX_DEFINE_STATIC(safe_system_lock);
@@ -370,11 +374,15 @@ int cw_safe_system(const char *s)
  */
 static void urg_handler(int num)
 {
+	CW_UNUSED(num);
+
 }
 
 static void child_handler(int sig)
 {
 	int status;
+
+	CW_UNUSED(sig);
 
 	/* Reap all dead children -- not just one */
 	while (wait3(&status, WNOHANG, NULL) > 0) /* Nothing */;
@@ -391,6 +399,8 @@ static int lockfile_got_term = 0;
 /* Ignore all signals except for SIGTERM */
 static void lockfile_sighandler(int sig)
 {
+	CW_UNUSED(sig);
+
 	lockfile_got_term = 1;
 }
 
@@ -548,6 +558,8 @@ out:
 
 static void quit_handler(void *data)
 {
+	CW_UNUSED(data);
+
 	int local_restart;
 
 	/* No more changing your mind. This is definitely what we are going to do. */
@@ -789,8 +801,11 @@ static const char abort_halt_help[] =
 
 static int handle_shutdown_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	restart = 0;
 	shutdown_restart(ds_p, 1, 0 /* Not nice */, -1);
 	return RESULT_SUCCESS;
@@ -828,8 +843,11 @@ static int handle_shutdown_when_convenient(struct cw_dynstr **ds_p, int argc, ch
 
 static int handle_restart_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	restart = 1;
 	shutdown_restart(ds_p, 1, 0 /* not nicely */, -1);
 	return RESULT_SUCCESS;
@@ -867,8 +885,11 @@ static int handle_restart_when_convenient(struct cw_dynstr **ds_p, int argc, cha
 
 static int handle_shutdown_restart_cancel(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	cw_cancel_shutdown();
 	shutdown_restart(ds_p, 0, 0, -1);
 	return RESULT_SUCCESS;
@@ -876,14 +897,21 @@ static int handle_shutdown_restart_cancel(struct cw_dynstr **ds_p, int argc, cha
 
 static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	shutdown_restart(ds_p, -1, 0, 0);
 	return RESULT_SUCCESS;
 }
 
 static int handle_bang(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	return RESULT_SUCCESS;
 }
 

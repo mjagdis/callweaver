@@ -1288,6 +1288,8 @@ yuck:
 
 static int count_messages(struct cw_vm_user *vmu, char *dir)
 {
+	CW_UNUSED(vmu);
+
 	/* Find all .txt files - even if they are not in sequence from 0000 */
 
 	int vmcount = 0;
@@ -3156,6 +3158,9 @@ static int get_folder(struct cw_channel *chan, int start)
 static int get_folder2(struct cw_channel *chan, const char *fn, int start)
 {
 	int res = 0;
+
+	CW_UNUSED(start);
+
 	res = cw_play_and_wait(chan, fn);	/* Folder name */
 	while (((res < '0') || (res > '9')) &&
 			(res != '#') && (res >= 0)) {
@@ -3164,13 +3169,16 @@ static int get_folder2(struct cw_channel *chan, const char *fn, int start)
 	return res;
 }
 
-static int vm_forwardoptions(struct cw_channel *chan, struct cw_vm_user *vmu, char *curdir, int curmsg, char *vmfts,
-			     char *context, signed char record_gain)
+static int vm_forwardoptions(struct cw_channel *chan, struct cw_vm_user *vmu, char *curdir, int curmsg, char *vmfts, char *context, signed char record_gain)
 {
 	int cmd = 0;
 	int retries = 0;
 	int duration = 0;
 	signed char zero_gain = 0;
+
+	CW_UNUSED(vmu);
+	CW_UNUSED(vmfts);
+	CW_UNUSED(context);
 
 	while ((cmd >= 0) && (cmd != 't') && (cmd != '*')) {
 		if (cmd)
@@ -3217,6 +3225,8 @@ static int notify_new_message(struct cw_channel *chan, struct cw_vm_user *vmu, i
 {
 	char todir[256], fn[256], ext_context[256], *stringp;
 	int newmsgs = 0, oldmsgs = 0;
+
+	CW_UNUSED(chan);
 
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);
@@ -3503,6 +3513,8 @@ static int wait_file2(struct cw_channel *chan, struct vm_state *vms, const char 
 {
 	int res;
 
+	CW_UNUSED(vms);
+
 	if ((res = cw_streamfile(chan, file, chan->language))) 
 		cw_log(CW_LOG_WARNING, "Unable to play message %s\n", file); 
 	if (!res)
@@ -3512,6 +3524,8 @@ static int wait_file2(struct cw_channel *chan, struct vm_state *vms, const char 
 
 static int wait_file(struct cw_channel *chan, struct vm_state *vms, const char *file)
 {
+	CW_UNUSED(vms);
+
 	return cw_control_streamfile(chan, file, "#", "*", "1456789", "0", "2", skipms);
 }
 
@@ -4986,6 +5000,9 @@ static int vm_execmain(struct cw_channel *chan, int argc, char **argv, char *res
 	struct cw_flags flags = { 0 };
 	signed char record_gain = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	memset(&vms, 0, sizeof(vms));
@@ -5414,12 +5431,15 @@ out:
 
 static int vm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res = 0;
-	struct localuser *u;
+	char *opts[OPT_ARG_ARRAY_SIZE];
 	char tmp[256];
 	struct leave_vm_options leave_options;
+	struct localuser *u;
 	struct cw_flags flags = { 0 };
-	char *opts[OPT_ARG_ARRAY_SIZE];
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 	
@@ -5531,6 +5551,9 @@ static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, char *r
 	struct cw_vm_user svm;
 	char *context;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(syntax_vm_box_exists);
 
@@ -5558,6 +5581,9 @@ static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, char *
 	char *context = NULL;
 	int silent = 0;
 	int res = -1;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -5641,8 +5667,10 @@ static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *
 
 static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	static const char output_format[] = "%-15s %-20s %-45s\n";
 	struct vm_zone *zone = zones;
-	const char output_format[] = "%-15s %-20s %-45s\n";
+
+	CW_UNUSED(argv);
 
 	if (argc != 3) return RESULT_SHOWUSAGE;
 
@@ -6183,9 +6211,11 @@ static int load_module(void)
 
 static int dialout(struct cw_channel *chan, struct cw_vm_user *vmu, char *num, char *outgoing_context) 
 {
-	int cmd = 0;
 	char destination[80] = "";
+	int cmd = 0;
 	int retries = 0;
+
+	CW_UNUSED(vmu);
 
 	if (!num) {
 		cw_verbose( VERBOSE_PREFIX_3 "Destination number will be entered manually\n");

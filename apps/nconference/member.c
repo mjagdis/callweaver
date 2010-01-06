@@ -256,6 +256,8 @@ static int process_incoming(struct cw_conf_member *member, struct cw_frame *f)
 
 static void *membergen_alloc(struct cw_channel *chan, void *params)
 {
+    CW_UNUSED(chan);
+
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
     cw_log(CW_CONF_DEBUG,"Allocating generator\n");
 #endif
@@ -264,6 +266,9 @@ static void *membergen_alloc(struct cw_channel *chan, void *params)
 
 static void membergen_release(struct cw_channel *chan, void *data)
 {
+    CW_UNUSED(chan);
+    CW_UNUSED(data);
+
 #if  ( APP_NCONFERENCE_DEBUG == 1 )
     cw_log(CW_CONF_DEBUG,"Releasing generator\n");
 #endif
@@ -274,6 +279,8 @@ static void membergen_release(struct cw_channel *chan, void *data)
 static struct cw_frame *membergen_generate(struct cw_channel *chan, void *data, int samples)
 {
     struct cw_conf_member *member = data;
+
+    CW_UNUSED(chan);
 
     // If this is a talker, don't send any packets
     if (member->type==MEMBERTYPE_TALKER)
@@ -580,6 +587,8 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
    ****************************************************************************/
 
 struct cw_conf_member *create_member( struct cw_channel *chan, int argc, char **argv ) {
+
+    CW_UNUSED(argc);
 
     if ( chan == NULL )
     {

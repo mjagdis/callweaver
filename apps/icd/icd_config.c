@@ -364,6 +364,8 @@ icd_config *icd_config__get_subset(icd_config * that, const char *begin_key)
 /* Returns the registry for this config, if any. */
 icd_config_registry *icd_config__get_registry(icd_config * that, char *key)
 {
+    CW_UNUSED(key);
+
     assert(that != NULL);
     assert(that->state == ICD_CONFIG_STATE_INITIALIZED);
 

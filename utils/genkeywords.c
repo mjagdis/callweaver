@@ -229,6 +229,9 @@ int main(int argc, char *argv[])
 	int i, j, ret;
 	const char *p;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	puts("#ifndef _CALLWEAVER_CALLWEAVER_KEYWORDS_H");
 	puts("#define _CALLWEAVER_CALLWEAVER_KEYWORDS_H");
 	putchar('\n');

@@ -535,6 +535,8 @@ static int statechange_queue(const char *dev, cw_devicestate_t state, void *ign)
     struct statechange *sc;
     pthread_t t;
 
+    CW_UNUSED(ign);
+
     sc = malloc(sizeof(struct statechange) + strlen(dev) + 1);
     if (sc)
     {
@@ -2277,6 +2279,8 @@ static int update_queue(struct cw_call_queue *q, struct member *member)
 
 static int calc_metric(struct cw_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct outchan *tmp)
 {
+    CW_UNUSED(qe);
+
     switch (q->strategy)
     {
     case QUEUE_STRATEGY_RINGALL:
@@ -3077,6 +3081,9 @@ static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 {
     struct localuser *u;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_pqm_syntax);
 
@@ -3098,6 +3105,9 @@ static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 static int upqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     struct localuser *u;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_upqm_syntax);
@@ -3122,6 +3132,9 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
     struct localuser *u;
     time_t added = 0;
     int res = -1;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 3)
         return cw_function_syntax(app_rqm_syntax);
@@ -3165,9 +3178,12 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
 
 static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    int res=-1;
     struct localuser *u;
     int penalty = 0;
+    int res = -1;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 3)
         return cw_function_syntax(app_aqm_syntax);
@@ -3227,6 +3243,9 @@ static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     /* Our queue entry */
     struct queue_ent qe;
     
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc < 1 || argc > 5 || !argv[0][0])
         return cw_function_syntax(syntax);
 
@@ -3814,6 +3833,9 @@ static struct cw_manager_message *manager_queues_show(struct mansession *sess, c
 	static const char *a[] = { "show", "queues" };
 	struct cw_manager_message *msg;
 
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
+
 	if ((msg = cw_manager_response("Follows", NULL))) {
 		__queues_show(1, &msg->data, 2, (char **)a, 0);
 		cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
@@ -3923,6 +3945,8 @@ static struct cw_manager_message *manager_add_queue_member(struct mansession *se
     char *queuename, *interface, *penalty_s, *paused_s;
     int paused, penalty = 0;
 
+    CW_UNUSED(sess);
+
     queuename = cw_manager_msg_header(req, "Queue");
     interface = cw_manager_msg_header(req, "Interface");
     penalty_s = cw_manager_msg_header(req, "Penalty");
@@ -3971,6 +3995,8 @@ static struct cw_manager_message *manager_update_queue_member(struct mansession 
 	char *queuename, *interface, *penalty_s, *paused_s;
 	int paused, penalty = 0;
 
+	CW_UNUSED(sess);
+
 	queuename = cw_manager_msg_header(req, "Queue");
 	interface = cw_manager_msg_header(req, "Interface");
 	penalty_s = cw_manager_msg_header(req, "Penalty");
@@ -4017,6 +4043,8 @@ static struct cw_manager_message *manager_remove_queue_member(struct mansession 
     char *queuename, *interface;
     struct cw_manager_message *msg;
 
+    CW_UNUSED(sess);
+
     queuename = cw_manager_msg_header(req, "Queue");
     interface = cw_manager_msg_header(req, "Interface");
 
@@ -4047,6 +4075,8 @@ static struct cw_manager_message *manager_pause_queue_member(struct mansession *
     struct cw_manager_message *msg = NULL;
     char *queuename, *interface, *paused_s;
     int paused;
+
+    CW_UNUSED(sess);
 
     interface = cw_manager_msg_header(req, "Interface");
     paused_s = cw_manager_msg_header(req, "Paused");

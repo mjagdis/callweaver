@@ -260,6 +260,8 @@ static struct cw_frame *g726tolin_sample(int *i)
 {
     static struct cw_frame f;
  
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_G726);
     f.datalen = sizeof(g726_ex);
     f.samples = sizeof(g726_ex)*2;

@@ -77,12 +77,16 @@ static const char if_time_func_desc[] =
 
 static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+
 	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "0" : "1"), len);
 	return 0;
 }
 
 static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+
 	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "1" : "0"), len);
 	return 0;
 }
@@ -92,6 +96,8 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 	struct cw_timing timing;
 	char *s, *q, **a = NULL;
 	int i, n, l, first;
+
+	CW_UNUSED(chan);
 
 	/* First argument is "<timespec ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
@@ -159,10 +165,11 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 
 static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	static int deprecation_warning = 0;
 	char *s, *q, **a = NULL;
 	int i, n, l, first;
 
-	static int deprecation_warning = 0;
+	CW_UNUSED(chan);
 
 	if (!deprecation_warning) {
 		cw_log(CW_LOG_WARNING, "IF(... ? ... : ...) is deprecated, please use $[ ... ? ... :: ... ] instead.\n");

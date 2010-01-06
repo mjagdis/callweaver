@@ -92,6 +92,9 @@ static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char 
 	struct softhangup_args args;
 	struct localuser *u;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc == 0) {
 		if (chan){
 			cw_log(CW_LOG_WARNING, "Soft hanging %s up.\n",chan->name);

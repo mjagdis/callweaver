@@ -730,6 +730,11 @@ icd_status icd_member__remove_listener(icd_member * that, void *listener)
 icd_status icd_member__standard_dump(icd_member * that, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     /* TBD */
+    CW_UNUSED(that);
+    CW_UNUSED(verbosity);
+    CW_UNUSED(ds_p);
+    CW_UNUSED(extra);
+
     return ICD_SUCCESS;
 }
 

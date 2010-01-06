@@ -139,6 +139,9 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 
 static void dump_cbypass(char *output, int maxlen, void *value, int len)
 {
+	CW_UNUSED(value);
+	CW_UNUSED(len);
+
 	maxlen--;
 	strncpy(output, "Bypass Caches", maxlen);
 	output[maxlen] = '\0';

@@ -77,6 +77,9 @@ static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, char 
 	char *c, *t;
 	int res = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
 		dep_warning = 1;

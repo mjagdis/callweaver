@@ -76,6 +76,11 @@ static int privacy_exec (struct cw_channel *chan, int argc, char **argv, char *r
 	int minlength = 10;
 	int x;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD (u);
 
 	if (!cw_strlen_zero(chan->cid.cid_num)) {

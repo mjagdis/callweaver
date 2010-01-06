@@ -69,8 +69,14 @@ static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv,
 	struct localuser *u;
 	int pres = -1;
 
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
+
+	if (argc != 1)
+		return cw_function_syntax(setcallerid_pres_syntax);
+
 	LOCAL_USER_ADD(u);
-	
+
 	pres = cw_parse_caller_presentation(argv[0]);
 
 	if (pres < 0) {

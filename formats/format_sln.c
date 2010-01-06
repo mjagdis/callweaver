@@ -76,6 +76,8 @@ static void *slinear_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -178,6 +180,8 @@ static long slinear_tell(void *data)
 
 static char *slinear_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 

@@ -445,8 +445,11 @@ int stun_handle_packet(int s,
 
 int stun_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 2)
         return RESULT_SHOWUSAGE;
+
     stundebug = 1;
     cw_dynstr_printf(ds_p, "STUN Debugging Enabled\n");
     return RESULT_SUCCESS;
@@ -454,8 +457,11 @@ int stun_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
    
 int stun_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
+
     stundebug = 0;
     cw_dynstr_printf(ds_p, "STUN Debugging Disabled\n");
     return RESULT_SUCCESS;

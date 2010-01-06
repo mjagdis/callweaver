@@ -1967,10 +1967,16 @@ static int handle_frame(struct dundi_hdr *h, struct sockaddr_in *sain, int datal
 
 static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata)
 {
-	struct sockaddr_in sain;
-	int res;
-	struct dundi_hdr *h;
 	char buf[MAX_PACKET_SIZE];
+	struct sockaddr_in sain;
+	struct dundi_hdr *h;
+	int res;
+
+	CW_UNUSED(ior);
+	CW_UNUSED(fd);
+	CW_UNUSED(events);
+	CW_UNUSED(cbdata);
+
 	socklen_t len;
 	len = sizeof(sain);
 	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sain, &len);
@@ -2079,6 +2085,8 @@ static void check_password(void)
 
 static void network_thread_cleanup(void *data)
 {
+	CW_UNUSED(data);
+
 	if (cw_io_isactive(&netsocket_io_id))
 		cw_io_remove(io, &netsocket_io_id);
 
@@ -2091,6 +2099,8 @@ static void network_thread_cleanup(void *data)
 static void *network_thread(void *data)
 {
 	struct sockaddr_in sain;
+
+	CW_UNUSED(data);
 
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
@@ -2137,13 +2147,15 @@ static void dundi_mutex_unlock(void *mutex)
 	cw_mutex_unlock(mutex);
 }
 
-static __attribute__((__noreturn__)) void *process_precache(void *data)
+static __attribute__((noreturn)) void *process_precache(void *data)
 {
-	struct dundi_precache_queue *qe;
-	time_t now;
 	char context[256];
 	char number[256];
+	struct dundi_precache_queue *qe;
+	time_t now;
 	int run;
+
+	CW_UNUSED(data);
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -2182,8 +2194,11 @@ static __attribute__((__noreturn__)) void *process_precache(void *data)
 
 static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	dundidebug = 1;
 	cw_dynstr_printf(ds_p, "DUNDi Debugging Enabled\n");
 	return RESULT_SUCCESS;
@@ -2191,8 +2206,11 @@ static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int dundi_do_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	global_storehistory = 1;
 	cw_dynstr_printf(ds_p, "DUNDi History Storage Enabled\n");
 	return RESULT_SUCCESS;
@@ -2235,8 +2253,11 @@ static int dundi_flush(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int dundi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	dundidebug = 0;
 	cw_dynstr_printf(ds_p, "DUNDi Debugging Disabled\n");
 	return RESULT_SUCCESS;
@@ -2244,8 +2265,11 @@ static int dundi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int dundi_no_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+
 	global_storehistory = 0;
 	cw_dynstr_printf(ds_p, "DUNDi History Storage Disabled\n");
 	return RESULT_SUCCESS;
@@ -2556,10 +2580,14 @@ static int dundi_show_trans(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-22.22s %-5.5s %-5.5s %-3.3s %-3.3s %-3.3s\n"
 #define FORMAT "%-16.16s:%5d %-5.5d %-5.5d %-3.3d %-3.3d %-3.3d\n"
-	struct dundi_transaction *trans;
 	char iabuf[INET_ADDRSTRLEN];
+	struct dundi_transaction *trans;
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&peerlock);
 	cw_dynstr_printf(ds_p, FORMAT2, "Remote", "Src", "Dst", "Tx", "Rx", "Ack");
 	for (trans = alltrans;trans;trans = trans->allnext) {
@@ -2575,8 +2603,12 @@ static int dundi_show_trans(struct cw_dynstr **ds_p, int argc, char *argv[])
 static int dundi_show_entityid(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	char eid_str[20];
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&peerlock);
 	dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid);
 	cw_mutex_unlock(&peerlock);
@@ -2588,10 +2620,14 @@ static int dundi_show_requests(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-15s %-15s %-15s %-3.3s %-3.3s\n"
 #define FORMAT "%-15s %-15s %-15s %-3.3d %-3.3d\n"
-	struct dundi_request *req;
 	char eidstr[20];
+	struct dundi_request *req;
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&peerlock);
 	cw_dynstr_printf(ds_p, FORMAT2, "Number", "Context", "Root", "Max", "Rsp");
 	for (req = requests;req;req = req->next) {
@@ -2610,10 +2646,14 @@ static int dundi_show_mappings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-7.7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 #define FORMAT "%-12.12s %-7d %-12.12s %-10.10s %-5.5s %-25.25s\n"
-	struct dundi_mapping *map;
 	char fs[256];
+	struct dundi_mapping *map;
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&peerlock);
 	cw_dynstr_printf(ds_p, FORMAT2, "DUNDi Cntxt", "Weight", "Local Cntxt", "Options", "Tech", "Destination");
 	for (map = mappings;map;map = map->next) {
@@ -2634,9 +2674,12 @@ static int dundi_show_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
 	struct dundi_precache_queue *qe;
 	int h,m,s;
 	time_t now;
-	
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	time(&now);
 	cw_mutex_lock(&pclock);
 	cw_dynstr_printf(ds_p, FORMAT2, "Number", "Context", "Expiration");
@@ -4485,11 +4528,15 @@ static int dundi_helper(struct cw_channel *chan, const char *context, const char
 
 static int dundi_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(callerid);
+
 	return dundi_helper(chan, context, exten, priority, data, DUNDI_FLAG_EXISTS);
 }
 
 static int dundi_canmatch(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(callerid);
+
 	return dundi_helper(chan, context, exten, priority, data, DUNDI_FLAG_CANMATCH);
 }
 
@@ -4500,6 +4547,8 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 	struct cw_var_t *var = NULL;
 	int res;
 	int x=0;
+
+	CW_UNUSED(callerid);
 
 	if (!strncasecmp(context, "proc-", 5)) {
 		if (!chan) {	
@@ -4554,6 +4603,8 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 
 static int dundi_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
+	CW_UNUSED(callerid);
+
 	return dundi_helper(chan, context, exten, priority, data, DUNDI_FLAG_MATCHMORE);
 }
 

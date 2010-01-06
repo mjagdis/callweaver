@@ -80,6 +80,9 @@ static int function_config_rw(struct cw_channel *chan, int argc, char **argv, ch
 	};
 	int i;
 
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+
 	if (buf) {
 		for (i = 0; i < arraysize(keytab); i++) {
 			if (!strcasecmp(keytab[i].key, argv[0])) {

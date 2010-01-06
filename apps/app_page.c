@@ -115,12 +115,15 @@ static void launch_page(struct cw_channel *chan, const char *nconferenceopts, co
 
 static int page_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char nconferenceopts[80];
 	struct localuser *u;
 	char *tech, *resource;
-	char nconferenceopts[80];
-	unsigned char flags;
 	unsigned int confid = rand();
 	int res=0;
+	unsigned char flags;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(page_syntax);

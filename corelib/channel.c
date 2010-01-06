@@ -240,10 +240,14 @@ struct cw_variable *cw_channeltype_list(void)
 #endif
 }
 
-static int show_channeltypes(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int show_channeltypes(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_tprintf(ds_p, 2,
 		cw_fmtval(FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer"),
 		cw_fmtval(FORMAT, "----------", "-----------", "-----------", "-----------", "--------")
@@ -302,9 +306,11 @@ int cw_check_hangup(struct cw_channel *chan)
 
 
 /*--- cw_begin_shutdown: Initiate system shutdown */
-static int channel_hangup_one(struct cw_object *obj, void *data __attribute__((__unused__)))
+static int channel_hangup_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	CW_UNUSED(data);
 
 	cw_softhangup(chan, CW_SOFTHANGUP_SHUTDOWN);
 	return 0;
@@ -3628,9 +3634,11 @@ static void *tonepair_alloc(struct cw_channel *chan, void *params)
 	return ts;
 }
 
-static struct cw_frame *tonepair_generate(struct cw_channel *chan __attribute__((__unused__)), void *data, int samples)
+static struct cw_frame *tonepair_generate(struct cw_channel *chan, void *data, int samples)
 {
 	struct tonepair_state *ts = data;
+
+	CW_UNUSED(chan);
 
 	cw_fr_init_ex(&ts->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 

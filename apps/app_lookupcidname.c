@@ -58,20 +58,24 @@ static const char descrip[] =
 
 static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-  char dbname[64];
-  struct localuser *u;
+	char dbname[64];
+	struct localuser *u;
 
-  LOCAL_USER_ADD (u);
-  if (chan->cid.cid_num) {
-	if (!cw_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
-		cw_set_callerid (chan, NULL, dbname, NULL);
-		  if (option_verbose > 2)
-		    cw_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n",
-				 dbname);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	LOCAL_USER_ADD (u);
+	if (chan->cid.cid_num) {
+		if (!cw_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
+			cw_set_callerid (chan, NULL, dbname, NULL);
+				if (option_verbose > 2)
+					cw_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n", dbname);
+		}
 	}
-  }
-  LOCAL_USER_REMOVE (u);
-  return 0;
+	LOCAL_USER_REMOVE (u);
+	return 0;
 }
 
 static int unload_module (void)

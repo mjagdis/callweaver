@@ -214,6 +214,8 @@ static struct cw_frame *alawtoulaw_sample(int *i)
 {
     static struct cw_frame f;
 
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW);
     f.datalen = sizeof (ulaw_ex);
     f.samples = sizeof(ulaw_ex);
@@ -225,6 +227,8 @@ static struct cw_frame *ulawtoalaw_sample(int *i)
 {
     static struct cw_frame f;
   
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ULAW);
     f.datalen = sizeof (alaw_ex);
     f.samples = sizeof(alaw_ex);

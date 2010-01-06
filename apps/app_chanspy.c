@@ -118,6 +118,8 @@ static void spy_release(struct cw_channel *chan, void *data)
 {
     struct chanspy_translation_helper *csth = data;
 
+    CW_UNUSED(chan);
+
     cw_slinfactory_destroy(&csth->slinfactory[0]);
     cw_slinfactory_destroy(&csth->slinfactory[1]);
 
@@ -127,6 +129,9 @@ static void spy_release(struct cw_channel *chan, void *data)
 static void *spy_alloc(struct cw_channel *chan, void *params)
 {
     struct chanspy_translation_helper *csth = params;
+
+    CW_UNUSED(chan);
+
     cw_slinfactory_init(&csth->slinfactory[0]);
     cw_slinfactory_init(&csth->slinfactory[1]);
     return params;
@@ -220,6 +225,8 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int sa
     int x;
     int vf;
     int minsamp;
+
+    CW_UNUSED(chan);
 
     if (csth->spy.status == CHANSPY_DONE)
     {
@@ -541,6 +548,9 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 	int oldwf;
 	int res = -1;
 	signed char zero_volume = 0;
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
 
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(chanspy_syntax);

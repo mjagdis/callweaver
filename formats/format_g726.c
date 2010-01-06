@@ -83,6 +83,8 @@ static void *g726_open(FILE *f, int rate, const char *name)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(name);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -122,6 +124,8 @@ static void *g726_rewrite(FILE *f, int rate, const char *comment)
 {
     struct pvt *tmp;
     
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -216,21 +220,31 @@ static int g726_write(void *data, struct cw_frame *f)
 
 static char *g726_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 
 static int g726_seek(void *data, long sample_offset, int whence)
 {
+    CW_UNUSED(data);
+    CW_UNUSED(sample_offset);
+    CW_UNUSED(whence);
+
     return -1;
 }
 
 static int g726_trunc(void *data)
 {
+    CW_UNUSED(data);
+
     return -1;
 }
 
 static long g726_tell(void *data)
 {
+    CW_UNUSED(data);
+
     return -1;
 }
 

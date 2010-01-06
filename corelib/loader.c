@@ -552,6 +552,8 @@ static int handle_load(struct cw_dynstr **ds_p, int argc, char *argv[])
 	struct load_module_args args;
 	const char *path;
 
+	CW_UNUSED(ds_p);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 

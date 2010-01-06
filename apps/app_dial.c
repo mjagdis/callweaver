@@ -269,7 +269,13 @@ static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 
 static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan *outgoing, int *to, struct cw_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
+	struct cw_channel *watchers[CW_MAX_WATCHERS];
+	char cidname[CW_MAX_EXTENSION];
 	struct outchan *o;
+	struct cw_frame *f;
+	struct cw_channel *peer = NULL;
+	struct cw_channel *winner;
+	struct cw_var_t *context = NULL;
 	int found;
 	int numlines;
 	int numbusy = busystart;
@@ -278,14 +284,10 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 	int prestart = busystart + congestionstart + nochanstart;
 	int cause;
 	int orig = *to;
-	struct cw_frame *f;
-	struct cw_channel *peer = NULL;
-	struct cw_channel *watchers[CW_MAX_WATCHERS];
 	int pos;
 	int single;
-	struct cw_channel *winner;
-	struct cw_var_t *context = NULL;
-	char cidname[CW_MAX_EXTENSION];
+
+	CW_UNUSED(statussize);
 
 	single = (outgoing && !outgoing->next && !cw_test_flag(outgoing, DIAL_MUSICONHOLD | DIAL_RINGBACKONLY));
 	
@@ -1704,18 +1706,25 @@ out:
 static int dial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct cw_flags peerflags;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	memset(&peerflags, 0, sizeof(peerflags));
 	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
 static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	struct cw_flags peerflags;
 	struct cw_var_t *context;
 	char *announce = NULL;
-	int retryinterval = 0, loops = 0, res = 0;
 	struct localuser *u;
-	struct cw_flags peerflags;
-	
+	int retryinterval = 0, loops = 0, res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 4 || argc > 7)
 		return cw_function_syntax(retrydial_syntax);
 

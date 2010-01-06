@@ -663,6 +663,9 @@ static int realtime_mysql_status(struct cw_dynstr **ds_p, int argc, char **argv)
 	char status[256], status2[100] = "";
 	int conntime = time(NULL) - connect_time;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	if(mysql_reconnect(NULL)) {
 		if(dbhost[0]) {
 			snprintf(status, 255, "Connected to %s@%s, port %d", dbname, dbhost, dbport);

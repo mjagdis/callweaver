@@ -3256,6 +3256,8 @@ static int sip_call(struct cw_channel *ast, const char *dest)
 #endif    
     struct cw_object *obj;
 
+    CW_UNUSED(dest);
+
     p = ast->tech_pvt;
     if ((ast->_state != CW_STATE_DOWN) && (ast->_state != CW_STATE_RESERVED))
     {
@@ -3848,6 +3850,8 @@ static int sip_rtp_write(struct cw_channel *ast, struct cw_frame *frame, int *fa
     struct sip_pvt *p = ast->tech_pvt;
     int res = 0;
 
+    CW_UNUSED(faxdetect);
+
     switch (frame->frametype)
     {
     case CW_FRAME_VOICE:
@@ -4141,6 +4145,8 @@ static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel
     int res2 = 0;
     enum cw_bridge_result bridge_res;
 
+    CW_UNUSED(timeoutms);
+
     cw_channel_lock(c0);
     if (c0->tech->bridge == sip_bridge)
     {
@@ -4422,6 +4428,8 @@ static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, 
 {
     /* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
     struct cw_frame *f;
+
+    CW_UNUSED(faxdetect);
 
     if (!p->rtp)
     {
@@ -6199,6 +6207,8 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
 {
     struct sip_pvt dialogue;
 
+    CW_UNUSED(intended_method);
+
     memset(&dialogue, 0, sizeof(dialogue));
 
     if (sin)
@@ -7383,6 +7393,9 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 	const char *pidfstate = "--";
 	const char *pidfnote= "Ready";
 	int res = -1;
+
+	CW_UNUSED(substate);
+	CW_UNUSED(timeout);
 
 	if ((msg = malloc(sizeof(*msg)))) {
 		switch (state) {
@@ -8929,6 +8942,8 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 static int cb_extensionstate(char *context, char* exten, int state, void *data)
 {
     struct sip_pvt *p = data;
+
+    CW_UNUSED(context);
 
     switch (state)
     {
@@ -10598,6 +10613,9 @@ static int sip_show_domains(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct domain *d;
 
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
     if (CW_LIST_EMPTY(&domain_list))
     {
         cw_dynstr_printf(ds_p, "SIP Domain support not enabled.\n\n");
@@ -10745,6 +10763,8 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 	struct cw_manager_message *msg;
 	char *peer_s = cw_manager_msg_header(req, "Peer");
 	int x = 0, codec = 0;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(peer_s)) {
 		if ((peer = find_peer(peer_s, NULL, 0))) {
@@ -10905,6 +10925,8 @@ static int sip_show_registry(struct cw_dynstr **ds_p, int argc, char *argv[])
     char host[80];
     struct sip_registry *reg;
 
+    CW_UNUSED(argv);
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
 
@@ -10930,6 +10952,8 @@ static int sip_show_settings(struct cw_dynstr **ds_p, int argc, char *argv[])
     char tmp[BUFSIZ];
     int realtimepeers = 0;
     int realtimeusers = 0;
+
+    CW_UNUSED(argv);
 
     realtimepeers = cw_check_realtime("sippeers");
     realtimeusers = cw_check_realtime("sipusers");
@@ -11117,6 +11141,8 @@ static int __sip_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[], 
 	    .ds_p = ds_p,
 	    .numchans = 0,
     };
+
+    CW_UNUSED(argv);
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;
@@ -11747,10 +11773,11 @@ static int sip_notify(struct cw_dynstr **ds_p, int argc, char *argv[])
 /*! \brief  sip_do_history: Enable SIP History logging (CLI) */
 static int sip_do_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 2)
-    {
         return RESULT_SHOWUSAGE;
-    }
+
     recordhistory = 1;
     cw_dynstr_printf(ds_p, "SIP History Recording Enabled (use 'sip show history')\n");
     return RESULT_SUCCESS;
@@ -11759,10 +11786,11 @@ static int sip_do_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 /*! \brief  sip_no_history: Disable SIP History logging (CLI) */
 static int sip_no_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 3)
-    {
         return RESULT_SHOWUSAGE;
-    }
+
     recordhistory = 0;
     cw_dynstr_printf(ds_p, "SIP History Recording Disabled\n");
     return RESULT_SUCCESS;
@@ -11770,10 +11798,12 @@ static int sip_no_history(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 /*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
 static int sip_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
-
 {
+    CW_UNUSED(argv);
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
+
     sipdebug &= ~SIP_DEBUG_CONSOLE;
     cw_dynstr_printf(ds_p, "SIP Debugging Disabled\n");
     return RESULT_SUCCESS;
@@ -12126,6 +12156,9 @@ static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, cha
 	size_t l;
 	int err;
 
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+
 	if (!(err = regcomp(&args.preg, argv[0], REG_EXTENDED | REG_NOSUB))) {
 		/* People debugging might like the results ordered but that just
 		 * adds extra work to the common case. So tough. Suck it up!
@@ -12185,6 +12218,8 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
 static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(checksipdomain_func_syntax);
 
@@ -12198,8 +12233,10 @@ static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
 static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    struct sip_peer *peer;
     char iabuf[INET_ADDRSTRLEN];
+    struct sip_peer *peer;
+
+    CW_UNUSED(chan);
 
     if (argc < 1 || argc > 2 || !argv[0][0])
 	    return cw_function_syntax(sippeer_func_syntax);
@@ -12331,6 +12368,8 @@ static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, c
 {
     struct sip_peer *peer;
     struct cw_variable *var;
+
+    CW_UNUSED(chan);
 
     if (argc != 2 || !argv[0][0])
 	    return cw_function_syntax(sippeervar_func_syntax);
@@ -12486,6 +12525,8 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
 {
     int outgoing = cw_test_flag(p, SIP_OUTGOING);
     
+    CW_UNUSED(seqno);
+
     if (option_debug > 3)
     {
         int reinvite = (p->owner && p->owner->_state == CW_STATE_UP);
@@ -12750,8 +12791,10 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
     int expires, expires_ms;
     struct sip_registry *r;
 
-    r = p->registry;
-    if (!r)
+    CW_UNUSED(ignore);
+    CW_UNUSED(seqno);
+
+    if (!(r = p->registry))
         return 1;
 
     /* There should be a timeout scheduled. If we can delete
@@ -12902,9 +12945,14 @@ destroy:
 /*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
 static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
 {
+    struct timeval tv;
     struct sip_peer *peer;
     int pingtime;
-    struct timeval tv;
+
+    CW_UNUSED(req);
+    CW_UNUSED(ignore);
+    CW_UNUSED(seqno);
+    CW_UNUSED(sipmethod);
 
     if (resp != 100)
     {
@@ -13563,6 +13611,8 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 {
     int res;
 
+    CW_UNUSED(debug);
+
     res = get_destination(p, req);
     build_contact(p);
     /* XXX Should we authenticate OPTIONS? XXX */
@@ -13969,9 +14019,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, int seqno, int *nounlock)
 {
     struct cw_channel *c=NULL;
-    int res;
     struct cw_channel *transfer_to;
     struct cw_var_t *transfercontext;
+    int res;
+
+    CW_UNUSED(debug);
 
     if (option_debug > 2)
         cw_log(CW_LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
@@ -14060,6 +14112,8 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
 {
     int ret;
 
+    CW_UNUSED(debug);
+
     check_via(p, req);
     cw_set_flag(p, SIP_ALREADYGONE);    
     if (p->rtp)
@@ -14101,11 +14155,13 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
 /*! \brief  handle_request_bye: Handle incoming BYE request */
 static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int debug, int ignore)
 {
-    struct cw_channel *c=NULL;
-    int res;
-    struct cw_channel *bridged_to;
     char iabuf[INET_ADDRSTRLEN];
-    
+    struct cw_channel *c=NULL;
+    struct cw_channel *bridged_to;
+    int res;
+
+    CW_UNUSED(debug);
+
     if (p->pendinginvite && !cw_test_flag(p, SIP_OUTGOING) && !ignore && !p->owner)
         transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
 
@@ -14844,6 +14900,11 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	struct parse_request_state pstate;
 	socklen_t sa_from_len, sa_to_len;
 
+	CW_UNUSED(ior);
+	CW_UNUSED(fd);
+	CW_UNUSED(events);
+	CW_UNUSED(ignore);
+
 	if (req)
 		memset(req, 0, sizeof(*req));
 	else if (!(req = calloc(1, sizeof(*req)))) {
@@ -15037,6 +15098,8 @@ static __attribute__((__noreturn__)) void *do_monitor(void *data)
     struct cw_io_rec sipsock_read_id;
     int reloading;
     int res;
+
+    CW_UNUSED(data);
 
     cw_io_init(&sipsock_read_id, sipsock_read, NULL);
 
@@ -15330,12 +15393,14 @@ static int sip_devicestate(void *data)
 /* SIP calls initiated by the PBX arrive here */
 static struct cw_channel *sip_request_call(const char *type, int format, void *data, int *cause)
 {
-    int oldformat;
+    char tmp[256];
     struct sip_pvt *p;
     struct cw_channel *tmpc = NULL;
     char *ext, *host;
-    char tmp[256];
     char *dest = data;
+    int oldformat;
+
+    CW_UNUSED(type);
 
     oldformat = format;
     format &= ((CW_FORMAT_MAX_AUDIO << 1) - 1);
@@ -15741,6 +15806,7 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
     struct cw_flags userflags = {(0)};
     struct cw_flags mask = {(0)};
 
+    CW_UNUSED(realtime);
 
     if (!(user = calloc(1, sizeof(struct sip_user))))
         return NULL;
@@ -16949,6 +17015,8 @@ static int sip_set_rtp_peer(struct cw_channel *chan, struct cw_rtp *rtp, struct 
 {
     struct sip_pvt *p;
 
+    CW_UNUSED(nat_active);
+
     p = chan->tech_pvt;
     if (!p) 
         return -1;
@@ -17240,6 +17308,11 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
     struct cw_channel *bchan;
     struct cw_var_t *var;
 
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
+
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_T38_DISABLE, "T38_DISABLE"))) {
         cw_object_put(var);
         cw_log(CW_LOG_DEBUG, "T38_DISABLE variable found. Cannot send T38 switchover.\n");
@@ -17353,10 +17426,15 @@ static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *d
 /*
  * Display message onto phone LCD, if supported. -- Antonio Gallo
  */
-static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) {
-	int res = 0;
+static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+{
+	static const char blank[] = " ";
 	struct sip_pvt *p = NULL;
-	const char *blank=" ";
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	/* parameter checking */
 	if (argc != 1 || !argv[0][0]) {
 		argv[0]=(char*)blank;
@@ -17397,6 +17475,9 @@ static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result,
 static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
     struct sip_pvt *p;
+
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
 
     if (argc != 1 || !argv[0][0])
         return cw_function_syntax(dtmfmode_syntax);
@@ -17459,6 +17540,9 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
     char varbuf[128];
     struct cw_var_t *var;
     int no = 0;
+
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
 
     if (argc < 1 || !argv[0][0])
         return cw_function_syntax(sipaddheader_syntax);
@@ -17597,6 +17681,8 @@ static int sip_poke_peer_one(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
 
+	CW_UNUSED(data);
+
 	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
 	if (peer->pokeexpire == -1)
 		peer->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(peer));
@@ -17645,6 +17731,8 @@ static void sip_send_all_registers(void)
 static int flush_peers_one(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
+
+	CW_UNUSED(data);
 
 	/* Tell qualification to stop */
 	cw_set_flag(peer, SIP_ALREADYGONE);
@@ -17708,6 +17796,9 @@ static int sip_do_reload(void)
 /*! \brief  sip_reload: Force reload of module from cli */
 static int sip_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(ds_p);
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
 
     cw_mutex_lock(&sip_reload_lock);
     if (sip_reloading)

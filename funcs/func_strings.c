@@ -144,6 +144,8 @@ static int function_filter(struct cw_channel *chan, int argc, char **argv, char 
 	char *allowed;
 	char *string;
 
+	CW_UNUSED(chan);
+
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
 		cw_log(CW_LOG_ERROR, "Syntax: %s\n", filter_func_syntax);
 		return -1;
@@ -167,6 +169,8 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 	char errstr[256] = "";
 	regex_t regexbuf;
 	int i;
+
+	CW_UNUSED(chan);
 
 	if (argc < 2 || !argv[0][0] || !argv[1])
 		return cw_function_syntax(regex_func_syntax);
@@ -202,6 +206,9 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 
 static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+
 	if (buf)
 		snprintf(buf, len, "%lu", (unsigned long)(argv[0] ? strlen(argv[0]) : 0));
 
@@ -216,6 +223,8 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, char *bu
 	const char *format = "%c";
 	long epochi;
 	struct tm now_tm;
+
+	CW_UNUSED(chan);
 
 	if ( (argc>0) && (!cw_strlen_zero(argv[0])) ) epoch=argv[0];
 	if ( (argc>1) && (!cw_strlen_zero(argv[1])) ) tz=argv[1];
@@ -348,6 +357,8 @@ static int function_sort(struct cw_channel *chan, int argc, char **argv, char *b
 	struct sortable_keys *sortable_keys;
 	char *p;
 	int count2;
+
+	CW_UNUSED(chan);
 
 	if (argc < 1 || !argv[0][0])
 		return cw_function_syntax(sort_func_syntax);

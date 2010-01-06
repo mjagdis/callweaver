@@ -71,6 +71,9 @@ static const char cdr_mysql_status_help[] =
 
 static int handle_cdr_mysql_status(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	if (connected) {
 		char status[256], status2[100] = "";
 		int interval = time(NULL) - connect_time;

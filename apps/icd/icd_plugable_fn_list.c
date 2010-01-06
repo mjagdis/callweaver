@@ -216,6 +216,8 @@ icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, struct cw_dyn
 {
     icd_status ret = ICD_SUCCESS;
 
+    CW_UNUSED(ds_p);
+
     assert(that != NULL);
     return ret;
 

@@ -79,6 +79,8 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     const char *convert_from = NULL;
     const char *convert_to = NULL;
 
+    CW_UNUSED(result_max);
+
     if (argc != 1)
     {
         pbx_builtin_setvar_helper(chan, "LDAPSTATUS", "FAILURE");

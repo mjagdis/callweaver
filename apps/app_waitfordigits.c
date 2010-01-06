@@ -115,7 +115,10 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 
 	char dig=0;
 	int res = 0;
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || argc > 5)
 	{
 		cw_log(CW_LOG_ERROR, "Syntax: %s\n", waitfordigits_syntax);

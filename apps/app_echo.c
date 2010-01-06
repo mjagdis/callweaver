@@ -54,6 +54,10 @@ static int echo_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	struct cw_frame *f;
 	int res = -1;
 
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 0)
 		return cw_function_syntax(echo_syntax);
 

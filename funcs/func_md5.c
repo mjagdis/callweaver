@@ -55,6 +55,8 @@ static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, 
 {
 	char md5[33];
 
+	CW_UNUSED(chan);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(md5_func_syntax);
 
@@ -69,6 +71,8 @@ static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, 
 static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
 	char newmd5[33];
+
+	CW_UNUSED(chan);
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(checkmd5_func_syntax);

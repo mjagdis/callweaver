@@ -189,6 +189,8 @@ icd_status icd_metalist__dump(icd_metalist * that, struct cw_dynstr **ds_p)
 {
     icd_status ret = ICD_SUCCESS;
 
+    CW_UNUSED(ds_p);
+
     assert(that != NULL);
     return ret;
 

@@ -78,6 +78,8 @@ static int parse_config(void)
 
 static int pgsql_reconnect(const char *database)
 {
+	CW_UNUSED(database);
+
 	if (conn != NULL) {
 		/* we may already be connected */
 		if (PQstatus(conn) == CONNECTION_OK) {

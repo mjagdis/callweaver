@@ -60,6 +60,9 @@ static int verbose_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	int level;
 	struct localuser *u;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	level = 0;
 	if (argc == 2 && isdigit(argv[0][0])) {
 		level = atoi(argv[0]);

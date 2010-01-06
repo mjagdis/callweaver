@@ -2,6 +2,11 @@
 #include "confdefs.h"
 #endif
 
+#define CW_UNUSED(ident)	(void)(ident)
+
+#if !defined(__GNUC__)
+#  define __attribute__(...)
+#endif
 
 #ifdef HAVE_OLD_SETAFFINITY
 #  define HAVE_SETAFFINITY

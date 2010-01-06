@@ -131,9 +131,12 @@ static void restore_tty(int fd, int oldstate)
 
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
-	struct cw_key *key = (struct cw_key *)userdata;
 	char prompt[256];
+	struct cw_key *key = (struct cw_key *)userdata;
 	int tmp;
+
+	CW_UNUSED(rwflag);
+
 	if (key->infd > -1) {
 		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
 			 key->ktype == CW_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
@@ -530,9 +533,12 @@ static void crypto_load(int ifd, int ofd)
 
 static int show_keys(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct cw_key *key;
 	char sum[16 * 2 + 1];
+	struct cw_key *key;
 	int count_keys = 0;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_mutex_lock(&keylock);
 	key = keys;
@@ -553,10 +559,14 @@ static int show_keys(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int init_keys(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct cw_key *key;
-	int ign;
-	char *kn;
 	char tmp[256] = "";
+	struct cw_key *key;
+	char *kn;
+	int ign;
+
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	key = keys;
 	while(key) {

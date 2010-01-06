@@ -67,6 +67,11 @@ static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame);
 
 static struct cw_channel *skel_request(const char *drvtype, int format, void *data, int *cause)
 {
+	CW_UNUSED(drvtype);
+	CW_UNUSED(format);
+	CW_UNUSED(data);
+	CW_UNUSED(cause);
+
 	return NULL;
 }
 
@@ -78,6 +83,9 @@ static struct cw_channel *skel_request(const char *drvtype, int format, void *da
  */
 static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
+	CW_UNUSED(oldchan);
+	CW_UNUSED(newchan);
+
 	return 0;
 }
 
@@ -95,6 +103,9 @@ static int skel_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
  */
 static int skel_call(struct cw_channel *chan, const char *dest)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(dest);
+
 	return -1;
 }
 
@@ -105,6 +116,8 @@ static int skel_call(struct cw_channel *chan, const char *dest)
  */
 static int skel_answer(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return -1;
 }
 
@@ -115,6 +128,8 @@ static int skel_answer(struct cw_channel *chan)
  */
 static int skel_hangup(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return 0;
 }
 
@@ -127,12 +142,16 @@ static int skel_hangup(struct cw_channel *chan)
  */
 static struct cw_frame  *skel_read(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return &cw_null_frame;
 }
 
 
 static struct cw_frame  *skel_exception(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	return &cw_null_frame;
 }
 
@@ -144,6 +163,9 @@ static struct cw_frame  *skel_exception(struct cw_channel *chan)
  */
 static int skel_write(struct cw_channel *chan, struct cw_frame *frame)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(frame);
+
 	return -1;
 }
 
@@ -155,6 +177,9 @@ static int skel_write(struct cw_channel *chan, struct cw_frame *frame)
  */
 static int skel_indicate(struct cw_channel *chan, int condition)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(condition);
+
 	return -1;
 }
 
@@ -166,6 +191,9 @@ static int skel_indicate(struct cw_channel *chan, int condition)
  */
 static int skel_digit(struct cw_channel *chan, char digit)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(digit);
+
 	return -1;
 }
 
@@ -177,6 +205,9 @@ static int skel_digit(struct cw_channel *chan, char digit)
  */
 static int skel_sendtext(struct cw_channel *chan, const char *text)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(text);
+
 	return -1;
 }
 
@@ -190,6 +221,11 @@ static int skel_sendtext(struct cw_channel *chan, const char *text)
  */
 static int skel_sendhtml(struct cw_channel *chan, int subclass, const char *data, int datalen)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(subclass);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
+
 	return -1;
 }
 
@@ -201,6 +237,9 @@ static int skel_sendhtml(struct cw_channel *chan, int subclass, const char *data
  */
 static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(frame);
+
 	return -1;
 }
 
@@ -211,6 +250,9 @@ static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame)
  */
 static int skel_writevideo(struct cw_channel *chan, struct cw_frame *frame)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(frame);
+
 	return 0;
 }
 
@@ -221,6 +263,11 @@ static int skel_writevideo(struct cw_channel *chan, struct cw_frame *frame)
  */
 static int skel_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(option);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
+
 	return 0;
 }
 
@@ -231,6 +278,11 @@ static int skel_setoption(struct cw_channel *chan, int option, void *data, int d
  */
 static int skel_queryoption(struct cw_channel *chan, int option, void *data, int *datalen)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(option);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
+
 	return 0;
 }
 
@@ -241,6 +293,9 @@ static int skel_queryoption(struct cw_channel *chan, int option, void *data, int
  */
 static int skel_transfer(struct cw_channel *chan, const char *newdest)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(newdest);
+
 	return 0;
 }
 
@@ -252,6 +307,13 @@ static int skel_transfer(struct cw_channel *chan, const char *newdest)
 static enum cw_bridge_result skel_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags,
 	struct cw_frame **fo, struct cw_channel **rc, int timeoutms)
 {
+	CW_UNUSED(c0);
+	CW_UNUSED(c1);
+	CW_UNUSED(flags);
+	CW_UNUSED(fo);
+	CW_UNUSED(rc);
+	CW_UNUSED(timeoutms);
+
 	return CW_BRIDGE_COMPLETE;
 }
 
@@ -262,6 +324,9 @@ static enum cw_bridge_result skel_bridge(struct cw_channel *c0, struct cw_channe
  */
 static struct cw_channel *skel_bridgedchannel(struct cw_channel *chan, struct cw_channel *bridge)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(bridge);
+
 	return NULL;
 }
 

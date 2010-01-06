@@ -90,6 +90,9 @@ static int deltree_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 	char *family, *keytree;
 	struct localuser *u;
 
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
+
 	if (argc != 1)
 		return cw_function_syntax(dt_syntax);
 
@@ -135,6 +138,9 @@ static int del_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 	char *family, *key;
 	struct localuser *u;
 
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
+
 	if (argc != 1)
 		return cw_function_syntax(d_syntax);
 
@@ -168,9 +174,12 @@ static int del_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 
 static int put_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *val, *family, *key;
 	static int dep_warning = 0;
+	char *val, *family, *key;
 	struct localuser *u;
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
@@ -212,10 +221,13 @@ static int put_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 
 static int get_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	char *varname, *family, *key;
-	char dbresult[256];
 	static int dep_warning = 0;
+	char dbresult[256];
+	char *varname, *family, *key;
 	struct localuser *u;
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");

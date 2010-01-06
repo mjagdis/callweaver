@@ -65,10 +65,13 @@ static int is_on_phonepad(char key)
 
 static int controlplayback_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	struct localuser *u;
 	int res = 0;
 	int skipms = 0;
-	struct localuser *u;
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 7)
 		return cw_function_syntax(controlplayback_syntax);

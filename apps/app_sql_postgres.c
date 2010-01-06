@@ -405,15 +405,16 @@ static int aPGSQL_fetch(struct cw_channel *chan, void *data) {
 	return(res);
 }
 
-static int aPGSQL_reset(struct cw_channel *chan, void *data) {
-	
-	char *s1,*s3;
-	int l;
-	PGconn *karoto;
-	int id;
+static int aPGSQL_reset(struct cw_channel *chan, void *data)
+{
 	char *stringp=NULL;
-	 
-	
+	char *s1,*s3;
+	PGconn *karoto;
+	int l;
+	int id;
+
+	CW_UNUSED(chan);
+
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strncpy(s1, data, l - 1);
@@ -431,15 +432,16 @@ static int aPGSQL_reset(struct cw_channel *chan, void *data) {
 	
 }
 
-static int aPGSQL_clear(struct cw_channel *chan, void *data) {
-	
-	char *s1,*s3;
-	int l;
-	PGresult *karoto;
-	int id;
+static int aPGSQL_clear(struct cw_channel *chan, void *data)
+{
 	char *stringp=NULL;
-	 
-	
+	char *s1,*s3;
+	PGresult *karoto;
+	int l;
+	int id;
+
+	CW_UNUSED(chan);
+
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strncpy(s1, data, l - 1);
@@ -461,15 +463,16 @@ static int aPGSQL_clear(struct cw_channel *chan, void *data) {
 	   
 	   
 	
-static int aPGSQL_disconnect(struct cw_channel *chan, void *data) {
-	
-	char *s1,*s3;
-	int l;
-	PGconn *karoto;
-	int id;
+static int aPGSQL_disconnect(struct cw_channel *chan, void *data)
+{
 	char *stringp=NULL;
-	 
-	
+	char *s1,*s3;
+	PGconn *karoto;
+	int l;
+	int id;
+
+	CW_UNUSED(chan);
+
 	l=strlen(data)+2;
 	s1=malloc(l);
 	strncpy(s1, data, l - 1);
@@ -488,9 +491,12 @@ static int aPGSQL_disconnect(struct cw_channel *chan, void *data) {
 	
 }
 
-static int aPGSQL_debug(struct cw_channel *chan, void *data) {
-	cw_log(CW_LOG_WARNING,"Debug : %s\n",(char *)data);
-	return(0);
+static int aPGSQL_debug(struct cw_channel *chan, void *data)
+{
+	CW_UNUSED(chan);
+
+	cw_log(CW_LOG_WARNING, "Debug : %s\n", (char *)data);
+	return 0;
 }
 		
 	
@@ -499,6 +505,9 @@ static int PGSQL_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 {
 	struct localuser *u;
 	int res;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc == 0 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");

@@ -259,24 +259,24 @@ extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int 
  */
 static __inline__ int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
-static __inline__ int cw_manager_msg(struct cw_manager_message **msg __attribute__((__unused__)), size_t count __attribute__((__unused__)), ...)
+static __inline__ int cw_manager_msg(struct cw_manager_message **msg __attribute__((unused)), size_t count __attribute__((unused)), ...)
 {
 	return 0;
 }
 static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (2)));
-static __inline__ void cw_manager_event(int category __attribute__((__unused__)), const char *event __attribute__((__unused__)), size_t count __attribute__((__unused__)), ...)
+static __inline__ void cw_manager_event(int category __attribute__((unused)), const char *event __attribute__((unused)), size_t count __attribute__((unused)), ...)
 {
 }
 static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1,2), format (printf, 2,3)));
-static __inline__ char *cw_msg_tuple(const char *key __attribute__((__unused__)), const char *fmt __attribute__((__unused__)), ...)
+static __inline__ char *cw_msg_tuple(const char *key __attribute__((unused)), const char *fmt __attribute__((unused)), ...)
 {
 	return NULL;
 }
 static __inline__ char *cw_msg_vtuple(const char *key, const char *fmt, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1,2), format (printf, 2,3)));
-static __inline__ char *cw_msg_vtuple(const char *key __attribute__((__unused__)), const char *fmt __attribute__((__unused__)), ...)
+static __inline__ char *cw_msg_vtuple(const char *key __attribute__((unused)), const char *fmt __attribute__((unused)), ...)
 {
 	return NULL;
 }
@@ -324,15 +324,6 @@ extern int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
 	__attribute__ ((nonnull (1)));
 extern void cw_manager_event(int category, const char *event, size_t count, ...)
 	__attribute__ ((nonnull (2)));
-
-/* icc is keen on warning about unspecified order of evaluation for function
- * arguments. Since the cw_msg_[v]tuple() arguments to cw_manager_{msg,event}()
- * aren't real we add some brackets to turn the arg list into a single arg
- * consisting of a series of comma operators - which have defined order of
- * execution.
- */
-#  define cw_manager_msg(msg, count, ...) cw_manager_msg((msg), (count), (__VA_ARGS__))
-#  define cw_manager_event(category, event, count, ...) cw_manager_event((category), (event), (count), (__VA_ARGS__))
 
 extern char *cw_msg_tuple(const char *key, const char *fmt, ...)
 	__attribute__ ((nonnull (1,2), format (printf, 2,3)));

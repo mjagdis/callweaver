@@ -70,7 +70,10 @@ static void cw_cdr_fork(struct cw_channel *chan)
 static int forkcdr_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	struct localuser *u;
-	int res=0;
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

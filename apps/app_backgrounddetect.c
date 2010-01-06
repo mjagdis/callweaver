@@ -108,6 +108,9 @@ static int background_detect_exec(struct cw_channel *chan, int argc, char **argv
 	int noextneeded = 0;
 	int longdtmf = 1;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "0");
 	pbx_builtin_setvar_helper(chan, "FAXEXTEN", "unknown");
 	pbx_builtin_setvar_helper(chan, "DTMF_DETECTED", "0");

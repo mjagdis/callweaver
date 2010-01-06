@@ -61,7 +61,7 @@ struct asent {
 static struct asent *aslist = NULL;
 static pthread_t asthread = CW_PTHREADT_NULL;
 
-static __attribute__((__noreturn__)) void *autoservice_run(void *ign)
+static __attribute__((noreturn)) void *autoservice_run(void *data)
 {
 	struct cw_channel *mons[MAX_AUTOMONS];
 	int x;
@@ -69,6 +69,8 @@ static __attribute__((__noreturn__)) void *autoservice_run(void *ign)
 	struct cw_channel *chan;
 	struct asent *as;
 	struct cw_frame *f;
+
+	CW_UNUSED(data);
 
 	for (;;) {
 		x = 0;

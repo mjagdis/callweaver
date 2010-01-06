@@ -59,9 +59,12 @@ static const char sendtext_descrip[] =
 
 static int sendtext_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res;
 	struct localuser *u;
-		
+	int res;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc == 0)
 		return cw_function_syntax(sendtext_syntax);
 

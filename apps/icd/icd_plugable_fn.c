@@ -475,6 +475,8 @@ icd_status icd_plugable__set_state_bridged_fn(icd_plugable_fn * that, int (*brid
 icd_status icd_plugable__set_state_conference_fn(icd_plugable_fn * that,
     int (*state_conference_fn) (icd_event * that, void *extra), void *extra)
 {
+    CW_UNUSED(extra);
+
     assert(that != NULL);
 
     that->state_conference_fn = state_conference_fn;

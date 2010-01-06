@@ -225,6 +225,8 @@ void terminal_init(void)
 
 void terminal_set_icon(const char *s)
 {
+	CW_UNUSED(s);
+
 	if (strstr(terminal_type, "xterm")) {
 		fputs("\033]1;Callweaver\007", stderr);
 		fflush(stderr);

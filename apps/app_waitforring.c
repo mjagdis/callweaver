@@ -60,6 +60,9 @@ static int waitforring_exec(struct cw_channel *chan, int argc, char **argv, char
 	int res = 0;
 	int ms;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1 || !isdigit(argv[0][0]))
                 return cw_function_syntax(waitforring_syntax);
 

@@ -337,12 +337,15 @@ static int aMYSQL_fetch(struct cw_channel *chan, char *data) {
 	return -1;
 }
 
-static int aMYSQL_clear(struct cw_channel *chan, char *data) {
-
+static int aMYSQL_clear(struct cw_channel *chan, char *data)
+{
 	MYSQL_RES *mysqlres;
-
 	int id;
+
+	CW_UNUSED(chan);
+
 	strsep(&data," "); // eat the first token, we already know it :P 
+
 	id = safe_scan_int(&data," \n",-1);
 	if ((mysqlres=find_identifier(id,CW_MYSQL_ID_RESID))==NULL) {
 		cw_log(CW_LOG_WARNING,"Invalid result identifier %d passed in aMYSQL_clear\n",id);
@@ -354,10 +357,13 @@ static int aMYSQL_clear(struct cw_channel *chan, char *data) {
 	return 0;
 }
 
-static int aMYSQL_disconnect(struct cw_channel *chan, char *data) {
-	
+static int aMYSQL_disconnect(struct cw_channel *chan, char *data)
+{
 	MYSQL *mysql;
 	int id;
+
+	CW_UNUSED(chan);
+
 	strsep(&data," "); // eat the first token, we already know it :P 
 
 	id = safe_scan_int(&data," \n",-1);
@@ -373,9 +379,12 @@ static int aMYSQL_disconnect(struct cw_channel *chan, char *data) {
 
 static int MYSQL_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	char sresult[10];
 	struct localuser *u;
 	int res;
-	char sresult[10];
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc == 0 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "APP_MYSQL requires an argument (see manual)\n");

@@ -67,6 +67,9 @@ static int devstate_exec(struct cw_channel *chan, int argc, char **argv, char *r
 {
     struct localuser *u;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc != 2)
         return cw_function_syntax(devstate_syntax);
 
@@ -132,6 +135,8 @@ static struct cw_manager_message *action_devstate(struct mansession *sess, const
 	struct cw_manager_message *msg;
         char *devstate = cw_manager_msg_header(req, "Devstate");
         char *value = cw_manager_msg_header(req, "Value");
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(devstate)) {
 		if (!cw_strlen_zero(value)) {

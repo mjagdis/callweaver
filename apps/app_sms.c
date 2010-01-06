@@ -181,11 +181,16 @@ static void put_message(sms_t *h, const uint8_t *msg, int len);
 
 static void *sms_alloc(struct cw_channel *chan, void *params)
 {
+    CW_UNUSED(chan);
+
     return params;
 }
 
 static void sms_release(struct cw_channel *chan, void *data)
 {
+    CW_UNUSED(chan);
+    CW_UNUSED(data);
+
     return;
 }
 
@@ -1234,6 +1239,8 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
 {
     uint8_t p = 3;
 
+    CW_UNUSED(len);
+
     if (h->smsc)
     {
         /* SMSC */
@@ -1504,6 +1511,8 @@ static struct cw_frame *sms_generate(struct cw_channel *chan, void *data, int sa
     int i;
     int j;
 
+    CW_UNUSED(chan);
+
     if (samples > sizeof(h->buf) / sizeof(h->buf[0]))
         samples = sizeof(h->buf) / sizeof(h->buf[0]);
 
@@ -1700,6 +1709,9 @@ static int sms_exec(struct cw_channel *chan, int argc, char **argv, char *result
     int original_read_fmt;
     int original_write_fmt;
     uint8_t tx_msg[256];
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (argc < 1  ||  argc > 2)
         return cw_function_syntax(sms_syntax);

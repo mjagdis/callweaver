@@ -72,9 +72,15 @@ static int settransfercapability_exec(struct cw_channel *chan, int argc, char **
 	struct localuser *u;
 	int x;
 	int transfercapability = -1;
-	
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
+
+	if (argc != 1)
+		return cw_function_syntax(settransfercapability_syntax);
+
 	LOCAL_USER_ADD(u);
-	
+
 	for (x = 0; x < (sizeof(transcaps) / sizeof(transcaps[0])); x++) {
 		if (!strcasecmp(transcaps[x].name, argv[0])) {
 			transfercapability = transcaps[x].val;

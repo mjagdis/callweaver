@@ -854,6 +854,8 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
 
+	CW_UNUSED(sin);
+
 	if ((tmp = calloc(1, sizeof(*tmp)))) {
 		tmp->prefs = prefs;
 		tmp->callno = 0;
@@ -1500,6 +1502,8 @@ static int iax2_prune_realtime(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int iax2_test_losspct(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+
        if (argc != 4)
                return RESULT_SHOWUSAGE;
 
@@ -1622,8 +1626,12 @@ static int iax2_show_stats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct iax_frame *cur;
 	int cnt = 0, dead=0, final=0;
+
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	for (cur = iaxq.head; cur ; cur = cur->next) {
 		if (cur->retries < 0)
 			dead++;
@@ -1647,6 +1655,10 @@ static int iax2_show_cache(struct cw_dynstr **ds_p, int argc, char *argv[])
 	int s;
 	int x,y;
 	struct timeval tv;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	gettimeofday(&tv, NULL);
 	cw_mutex_lock(&dpcache_lock);
 	dp = dpcache;
@@ -1769,6 +1781,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 
 static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk)
 {
+    CW_UNUSED(updatehistory);
 
 #if 0
 	if (option_debug && iaxdebug)
@@ -1859,6 +1872,9 @@ static int iax2_sendhtml(struct cw_channel *c, int subclass, const char *data, i
 static int iax2_fixup(struct cw_channel *oldchannel, struct cw_channel *newchan)
 {
 	unsigned short callno = PTR_TO_CALLNO(newchan->tech_pvt);
+
+	CW_UNUSED(oldchannel);
+
 	cw_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno])
 		iaxs[callno]->owner = newchan;
@@ -2438,6 +2454,8 @@ static int iax2_setoption(struct cw_channel *c, int option, void *data, int data
 
 static struct cw_frame *iax2_read(struct cw_channel *c) 
 {
+	CW_UNUSED(c);
+
 	cw_log(CW_LOG_NOTICE, "I should never be called!\n");
 	return &cw_null_frame;
 }
@@ -3641,6 +3659,9 @@ static struct cw_manager_message *manager_iax2_show_netstats(struct mansession *
 {
 	struct cw_manager_message *msg;
 
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
+
 	if ((msg = cw_manager_response("Follows", NULL))) {
 		msg->data->used -= 2;
 		cw_cli_netstats(&msg->data, 0);
@@ -3654,6 +3675,9 @@ static struct cw_manager_message *manager_iax2_show_peers(struct mansession *ses
 {
 	const char *a[] = { "iax2", "show", "users" };
 	struct cw_manager_message *msg;
+
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
 
 	if ((msg = cw_manager_response("Follows", NULL))) {
 		msg->data->used -= 2;
@@ -3695,6 +3719,8 @@ static int iax2_show_registry(struct cw_dynstr **ds_p, int argc, char *argv[])
 	char perceived[80];
 	char iabuf[INET_ADDRSTRLEN];
 
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
@@ -3727,6 +3753,8 @@ static int iax2_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
 	int x;
 	int numchans = 0;
 	char iabuf[INET_ADDRSTRLEN];
+
+	CW_UNUSED(argv);
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -3843,6 +3871,8 @@ static int cw_cli_netstats(struct cw_dynstr **ds_p, int limit_fmt)
 
 static int iax2_show_netstats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -3857,6 +3887,8 @@ static int iax2_show_netstats(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int iax2_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 1;
@@ -3866,6 +3898,8 @@ static int iax2_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int iax2_do_trunk_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 1;
@@ -3875,6 +3909,8 @@ static int iax2_do_trunk_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int iax2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 0;
@@ -3884,6 +3920,8 @@ static int iax2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int iax2_no_trunk_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	iaxtrunkdebug = 0;
@@ -4954,6 +4992,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	char iabuf[INET_ADDRSTRLEN];
 	//int version;
 
+	CW_UNUSED(devtype);
+
 	memset(&ied, 0, sizeof(ied));
 
 	/* SLD: Another find_peer call during registration - this time when we are really updating our registration */
@@ -5309,6 +5349,8 @@ static int timing_read(void *user_data)
 	int totalcalls = 0;
 	struct timeval now;
 
+	CW_UNUSED(user_data);
+
 	if (iaxtrunkdebug)
 		cw_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", MAX_TRUNKDATA);
 	gettimeofday(&now, NULL);
@@ -5583,6 +5625,10 @@ static int socket_read(struct cw_io_rec *ior, int fd, short events, void *cbdata
 	char caller_pref_buf[128];
 	struct cw_codec_pref pref,rpref;
 	const char *using_prefs = "mine";
+
+	CW_UNUSED(ior);
+	CW_UNUSED(events);
+	CW_UNUSED(cbdata);
 
 	/* Clear frames */
 	memset(&frb.fr, 0, sizeof(frb.fr));
@@ -7122,6 +7168,8 @@ static struct cw_channel *iax2_request(const char *type, int format, void *data,
 	struct create_addr_info cai;
 	char *tmpstr;
 
+	CW_UNUSED(type);
+
 	memset(&pds, 0, sizeof(pds));
 	tmpstr = cw_strdupa(data);
 	parse_dial_string(tmpstr, &pds);
@@ -7190,12 +7238,14 @@ static struct cw_channel *iax2_request(const char *type, int format, void *data,
 	return c;
 }
 
-static __attribute__((__noreturn__)) void *network_thread(void *ignore)
+static __attribute__((__noreturn__)) void *network_thread(void *data)
 {
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
 	struct iax_frame *f, *freeme;
 	int count;
+
+	CW_UNUSED(data);
 
 	for (;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -8137,6 +8187,10 @@ static int reload_config(void)
 
 static int iax2_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	return reload_config();
 }
 
@@ -8221,6 +8275,10 @@ static struct iax2_dpcache *find_cache(struct cw_channel *chan, const char *data
 	int callno;
 	struct cw_channel *c;
 	struct cw_frame *f;
+
+	CW_UNUSED(context);
+	CW_UNUSED(priority);
+
 	gettimeofday(&tv, NULL);
 	dp = dpcache;
 	while(dp) {
@@ -8362,6 +8420,9 @@ static int iax2_exists(struct cw_channel *chan, const char *context, const char 
 {
 	struct iax2_dpcache *dp;
 	int res = 0;
+
+	CW_UNUSED(callerid);
+
 #if 0
 	cw_log(CW_LOG_NOTICE, "iax2_exists: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
@@ -8385,6 +8446,9 @@ static int iax2_canmatch(struct cw_channel *chan, const char *context, const cha
 {
 	int res = 0;
 	struct iax2_dpcache *dp;
+
+	CW_UNUSED(callerid);
+
 #if 0
 	cw_log(CW_LOG_NOTICE, "iax2_canmatch: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
@@ -8408,6 +8472,9 @@ static int iax2_matchmore(struct cw_channel *chan, const char *context, const ch
 {
 	int res = 0;
 	struct iax2_dpcache *dp;
+
+	CW_UNUSED(callerid);
+
 #if 0
 	cw_log(CW_LOG_NOTICE, "iax2_matchmore: con: %s, exten: %s, pri: %d, cid: %s, data: %s\n", context, exten, priority, callerid ? callerid : "<unknown>", data);
 #endif
@@ -8434,6 +8501,8 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 	struct cw_var_t *var;
 	char *ncontext;
 	struct iax2_dpcache *dp;
+
+	CW_UNUSED(callerid);
 #if 0
 	cw_log(CW_LOG_NOTICE, "iax2_exec: con: %s, exten: %s, pri: %d, cid: %s, data: %s, newstack: %d\n", context, exten, priority, callerid ? callerid : "<unknown>", data, newstack);
 #endif

@@ -184,6 +184,8 @@ int icd_module_command_agtpri(struct cw_dynstr **ds_p, int argc, char **argv)
 {
     static const char *help[2] = { "help", "agtpri" };
 
+    CW_UNUSED(argv);
+
     if (argc >= 2)
         cw_dynstr_printf(ds_p, "\n\nICD Module loaded a icd command interface \n\n\n");
     else
@@ -285,6 +287,8 @@ static icd_status link_callers_via_pop_customer_ring_agent_priority_groups(icd_d
     char agent_priority_str[3];
     int match_found = 1;
     int match_count = 0;
+
+    CW_UNUSED(extra);
 
     icd_list_iterator *iter;
 
@@ -432,6 +436,8 @@ static int icd_module__agent_state_bridged(icd_event * event, void *extra)
     struct cw_channel *chan_associate;
     struct cw_channel *bchan;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
@@ -496,6 +502,8 @@ static int icd_module__customer_state_bridged(icd_event * event, void *extra)
     struct cw_channel *bchan;
     int link_count = 0;
     icd_status result;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -605,6 +613,8 @@ static int icd_module__pushback_and_ready_on_fail(icd_event * event, void *extra
 {
     icd_caller *that;
     //int *value = 0;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
 

@@ -100,6 +100,9 @@ static int icd_module__factory_event_listener(void *listener, icd_event * factor
     int event_id = icd_event__get_event_id(event);
     int call_pos=0, call_cnt=0;
 
+    CW_UNUSED(listener);
+    CW_UNUSED(extra);
+
     switch (event_id) {
     case ICD_EVENT_ADD:
         /* ok need to get the src see if itsa q add */
@@ -194,6 +197,8 @@ static int icd_module__event_listener(void *listener, icd_event * event, void *e
     struct cw_channel *chan = NULL;
     int call_cnt = 0;
     int call_pos = 0;
+
+    CW_UNUSED(listener);
 
     assert(event != NULL);
 

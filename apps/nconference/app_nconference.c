@@ -82,8 +82,12 @@ MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
  ***********************************************************/
 
 int app_conference_main( struct cw_channel* chan, int argc, char **argv, char *result, size_t result_max) {
-	int res = 0 ;
 	struct localuser *u ;
+	int res = 0 ;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD( u ) ; 
 	res = member_exec( chan, argc, argv ) ;
 	LOCAL_USER_REMOVE( u ) ;	

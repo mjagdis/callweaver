@@ -260,6 +260,10 @@ static int send_dtmf(char *buf, const char *name, int id, char *args, struct ads
 	const char *a;
 	int bytes=0;
 
+	CW_UNUSED(name);
+	CW_UNUSED(id);
+	CW_UNUSED(state);
+
 	a = get_token(&args, script, lineno);
 	if (!a) {
 		cw_log(CW_LOG_WARNING, "Expecting something to send for SENDDTMF at line %d of %s\n", lineno, script);
@@ -288,6 +292,10 @@ static int goto_line(char *buf, const char *name, int id, char *args, struct ads
 	const char *gline;
 	int line;
 	unsigned char cmd;
+
+	CW_UNUSED(name);
+	CW_UNUSED(id);
+	CW_UNUSED(state);
 
 	page = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
@@ -320,6 +328,10 @@ static int goto_line_rel(char *buf, const char *name, int id, char *args, struct
 	int line;
 	unsigned char cmd;
 
+	CW_UNUSED(name);
+	CW_UNUSED(id);
+	CW_UNUSED(state);
+
 	dir = get_token(&args, script, lineno);
 	gline = get_token(&args, script, lineno);
 	if (!dir || !gline) {
@@ -349,6 +361,9 @@ static int send_delay(char *buf, const char *name, int id, char *args, struct ad
 	const char *gtime;
 	int ms;
 
+	CW_UNUSED(name);
+	CW_UNUSED(state);
+
 	gtime = get_token(&args, script, lineno);
 	if (!gtime) {
 		cw_log(CW_LOG_WARNING, "Expecting number of milliseconds to wait at line %d of %s\n", lineno, script);
@@ -371,6 +386,9 @@ static int set_state(char *buf, const char *name, int id, char *args, struct ads
 	const char *gstate;
 	int state;
 
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
+
 	gstate = get_token(&args, script, lineno);
 	if (!gstate) {
 		cw_log(CW_LOG_WARNING, "Expecting state number at line %d of %s\n", lineno, script);
@@ -388,6 +406,9 @@ static int set_state(char *buf, const char *name, int id, char *args, struct ads
 static int cleartimer(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
 	const char *tok;
+
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
 
 	tok = get_token(&args, script, lineno);
 	if (tok) 
@@ -427,6 +448,8 @@ static int setflag(char *buf, const char *name, int id, char *args, struct adsi_
 	struct adsi_flag *flag;
 	const char *tok;
 
+	CW_UNUSED(name);
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Setting flag requires a flag number at line %d of %s\n", lineno, script);
@@ -452,6 +475,8 @@ static int clearflag(char *buf, const char *name, int id, char *args, struct ads
 	struct adsi_flag *flag;
 	const char *tok;
 
+	CW_UNUSED(name);
+
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
 		cw_log(CW_LOG_WARNING, "Clearing flag requires a flag number at line %d of %s\n", lineno, script);
@@ -475,6 +500,9 @@ static int starttimer(char *buf, const char *name, int id, char *args, struct ad
 {
 	const char *tok;
 	int secs;
+
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
 
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
@@ -592,6 +620,8 @@ static int showkeys(char *buf, const char *name, int id, char *args, struct adsi
 	int x;
 	int flagid=0;
 
+	CW_UNUSED(name);
+
 	for (x=0;x<7;x++) {
 		/* Up to 6 key arguments */
 		tok = get_token(&args, script, lineno);
@@ -643,6 +673,8 @@ static int showdisplay(char *buf, const char *name, int id, char *args, struct a
 	int flag=0;
 	int cmd = 3;
 
+	CW_UNUSED(name);
+
 	/* Get display */
 	tok = get_token(&args, script, lineno);
 	if (!tok || process_token(dispname, tok, sizeof(dispname) - 1, ARG_STRING)) {
@@ -693,6 +725,9 @@ static int cleardisplay(char *buf, const char *name, int id, char *args, struct 
 {
 	const char *tok;
 
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
+
 	tok = get_token(&args, script, lineno);
 	if (tok) 
 		cw_log(CW_LOG_WARNING, "Clearing display requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -705,6 +740,9 @@ static int cleardisplay(char *buf, const char *name, int id, char *args, struct 
 static int digitdirect(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
 	const char *tok;
+
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
 
 	tok = get_token(&args, script, lineno);
 	if (tok) 
@@ -719,6 +757,9 @@ static int clearcbone(char *buf, const char *name, int id, char *args, struct ad
 {
 	const char *tok;
 
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
+
 	tok = get_token(&args, script, lineno);
 	if (tok)
 		cw_log(CW_LOG_WARNING, "CLEARCB1 requires no arguments ('%s') at line %d of %s\n", tok, lineno, script);
@@ -731,6 +772,9 @@ static int clearcbone(char *buf, const char *name, int id, char *args, struct ad
 static int digitcollect(char *buf, const char *name, int id, char *args, struct adsi_script *istate, char *script, int lineno)
 {
 	const char *tok;
+
+	CW_UNUSED(name);
+	CW_UNUSED(istate);
 
 	tok = get_token(&args, script, lineno);
 	if (tok) 
@@ -746,6 +790,9 @@ static int subscript(char *buf, const char *name, int id, char *args, struct ads
 	char subbuf[80];
 	struct adsi_subscript *sub;
 	const char *tok;
+
+	CW_UNUSED(name);
+	CW_UNUSED(id);
 
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
@@ -768,13 +815,16 @@ static int onevent(char *buf, const char *name, int id, char *args, struct adsi_
 {
 	char subbuf[80];
 	char sname[80];
+	int snums[8];
 	struct adsi_subscript *sub;
 	const char *tok;
 	int sawin=0;
 	int event;
-	int snums[8];
 	int scnt = 0;
 	int x;
+
+	CW_UNUSED(name);
+	CW_UNUSED(id);
 
 	tok = get_token(&args, script, lineno);
 	if (!tok) {
@@ -1567,6 +1617,9 @@ static int adsi_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
 {
 	int res=0;
 	struct localuser *u;
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
 
 	LOCAL_USER_ADD(u);
 

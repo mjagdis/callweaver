@@ -47,6 +47,8 @@ static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **arg
 {
 	char *ret;
 
+	CW_UNUSED(chan);
+
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(env_func_syntax);
 

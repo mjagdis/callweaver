@@ -50,6 +50,11 @@ static char flash_descrip[] =
 
 static int flash_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (chan)
 		cw_indicate(chan, CW_CONTROL_FLASH);
 	return 0;

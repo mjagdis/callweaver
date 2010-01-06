@@ -146,12 +146,15 @@ static int do_waiting(struct cw_channel *chan, int maxsilence) {
 	return gotsilence;
 }
 
-static int waitforsilence_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int waitforsilence_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res = 1;
 	struct localuser *u;
 	int maxsilence;
 	int iterations = 1, i;
+	int res = 1;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc < 0 || argc > 2 || (argc > 0 && !isdigit(argv[0][0])) || (argc == 2 && !isdigit(argv[1][0])))
 		return cw_function_syntax(waitforsilence_syntax);

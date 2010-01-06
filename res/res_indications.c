@@ -91,6 +91,9 @@ static int handle_add_indication(struct cw_dynstr **ds_p, int argc, char *argv[]
 {
     struct tone_zone *tz;
     int created_country = 0;
+
+    CW_UNUSED(ds_p);
+
     if (argc != 5) return RESULT_SHOWUSAGE;
 
     tz = cw_get_indication_zone(argv[2]);
@@ -130,6 +133,8 @@ static int handle_remove_indication(struct cw_dynstr **ds_p, int argc, char *arg
 {
     struct tone_zone *tz;
     
+    CW_UNUSED(ds_p);
+
     if (argc != 3  &&  argc != 4)
         return RESULT_SHOWUSAGE;
 
@@ -223,6 +228,9 @@ static int handle_playtones(struct cw_channel *chan, int argc, char **argv, char
     struct tone_zone_sound *ts;
     int res;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc < 1 || !argv[0][0])
     {
         cw_log(CW_LOG_NOTICE,"Nothing to play\n");
@@ -243,6 +251,11 @@ static int handle_playtones(struct cw_channel *chan, int argc, char **argv, char
  */
 static int handle_stopplaytones(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     cw_playtones_stop(chan);
     return 0;
 }

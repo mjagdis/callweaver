@@ -71,6 +71,10 @@ static int icd_module__event_cli(void *listener, icd_event * factory_event, void
     icd_event *event = icd_event__get_extra(factory_event);
     int event_module_id = icd_event__get_module_id(event);
     int event_id = icd_event__get_event_id(event);
+
+    CW_UNUSED(listener);
+    CW_UNUSED(extra);
+
 /*
     assert(factory_event != NULL);
       cw_verbose(VERBOSE_PREFIX_2 "YoYoAPP_ICD:Mod[%d] Event[%d]  \n",

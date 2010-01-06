@@ -1423,7 +1423,17 @@ static char *expr2_token_subst(const char *mess);
 #  endif
 #endif
 
-#line 1427 "callweaver_expr2f.c"
+
+#if defined(__GNUC__)
+#  pragma GCC system_header
+#elif defined __SUNPRO_CC
+#  pragma disable_warn
+#elif defined(_MSC_VER)
+#  pragma warning(push, 1)
+#endif
+
+
+#line 1437 "callweaver_expr2f.c"
 
 #define INITIAL 0
 #define var 1
@@ -1650,10 +1660,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 110 "callweaver_expr2.l"
+#line 120 "callweaver_expr2.l"
 
 
-#line 1657 "callweaver_expr2f.c"
+#line 1667 "callweaver_expr2f.c"
 
     yylval = yylval_param;
 
@@ -1736,122 +1746,122 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 112 "callweaver_expr2.l"
+#line 122 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 113 "callweaver_expr2.l"
+#line 123 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 114 "callweaver_expr2.l"
+#line 124 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 115 "callweaver_expr2.l"
+#line 125 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 116 "callweaver_expr2.l"
+#line 126 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 117 "callweaver_expr2.l"
+#line 127 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 118 "callweaver_expr2.l"
+#line 128 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 119 "callweaver_expr2.l"
+#line 129 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 120 "callweaver_expr2.l"
+#line 130 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 121 "callweaver_expr2.l"
+#line 131 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 122 "callweaver_expr2.l"
+#line 132 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 123 "callweaver_expr2.l"
+#line 133 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 124 "callweaver_expr2.l"
+#line 134 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 125 "callweaver_expr2.l"
+#line 135 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 126 "callweaver_expr2.l"
+#line 136 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 127 "callweaver_expr2.l"
+#line 137 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 128 "callweaver_expr2.l"
+#line 138 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 129 "callweaver_expr2.l"
+#line 139 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 130 "callweaver_expr2.l"
+#line 140 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COMPL;}
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 131 "callweaver_expr2.l"
+#line 141 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 132 "callweaver_expr2.l"
+#line 142 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 133 "callweaver_expr2.l"
+#line 143 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 134 "callweaver_expr2.l"
+#line 144 "callweaver_expr2.l"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 135 "callweaver_expr2.l"
+#line 145 "callweaver_expr2.l"
 {
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -1864,24 +1874,24 @@ YY_RULE_SETUP
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 145 "callweaver_expr2.l"
+#line 155 "callweaver_expr2.l"
 {}
 	YY_BREAK
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 146 "callweaver_expr2.l"
+#line 156 "callweaver_expr2.l"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 27:
 /* rule 27 can match eol */
 YY_RULE_SETUP
-#line 148 "callweaver_expr2.l"
+#line 158 "callweaver_expr2.l"
 {/* what to do with eol */}
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 149 "callweaver_expr2.l"
+#line 159 "callweaver_expr2.l"
 {
 		SET_COLUMNS;
 		/* the original behavior of the expression parser was
@@ -1893,7 +1903,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 158 "callweaver_expr2.l"
+#line 168 "callweaver_expr2.l"
 {
 		SET_COLUMNS;
 		SET_STRING;
@@ -1903,7 +1913,7 @@ YY_RULE_SETUP
 case 30:
 /* rule 30 can match eol */
 YY_RULE_SETUP
-#line 165 "callweaver_expr2.l"
+#line 175 "callweaver_expr2.l"
 {
 		curlycount--;
 		if (curlycount < 0) {
@@ -1917,7 +1927,7 @@ YY_RULE_SETUP
 case 31:
 /* rule 31 can match eol */
 YY_RULE_SETUP
-#line 175 "callweaver_expr2.l"
+#line 185 "callweaver_expr2.l"
 {
 		curlycount++;
 		yymore();
@@ -1925,7 +1935,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 181 "callweaver_expr2.l"
+#line 191 "callweaver_expr2.l"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1936,7 +1946,7 @@ YY_RULE_SETUP
 case 33:
 /* rule 33 can match eol */
 YY_RULE_SETUP
-#line 188 "callweaver_expr2.l"
+#line 198 "callweaver_expr2.l"
 {
 		char c = yytext[yyleng-1];
 		BEGIN(0);
@@ -1948,7 +1958,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 197 "callweaver_expr2.l"
+#line 207 "callweaver_expr2.l"
 {
 		curlycount = 0;
 		BEGIN(var);
@@ -1956,7 +1966,7 @@ YY_RULE_SETUP
 	}
 	YY_BREAK
 case YY_STATE_EOF(trail):
-#line 203 "callweaver_expr2.l"
+#line 213 "callweaver_expr2.l"
 {
 		BEGIN(0);
 		SET_COLUMNS;
@@ -1967,10 +1977,10 @@ case YY_STATE_EOF(trail):
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 211 "callweaver_expr2.l"
+#line 221 "callweaver_expr2.l"
 ECHO;
 	YY_BREAK
-#line 1974 "callweaver_expr2f.c"
+#line 1984 "callweaver_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(var):
 	yyterminate();
@@ -3145,7 +3155,7 @@ void cw_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 211 "callweaver_expr2.l"
+#line 221 "callweaver_expr2.l"
 
 
 
@@ -3313,13 +3323,11 @@ static char *expr2_token_subst(const char *mess)
 
 int cw_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 {	
-	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
-	char spacebuf[8000]; /* best safe than sorry */
 	char spacebuf2[8000]; /* best safe than sorry */
-	int i=0;
+	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	char *s2 = expr2_token_subst((char *)s);
-	spacebuf[0] = 0;
-	
+	int i=0;
+
 	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
 																								which is the same thing as... get this:
 													yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column

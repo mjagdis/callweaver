@@ -117,6 +117,8 @@ static struct cw_frame *lpc10tolin_sample(int *i)
 {
     static struct cw_frame f;
 
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_LPC10);
     f.datalen = sizeof(lpc10_ex);
     /* All frames are 22 ms long (maybe a little more -- why did he choose

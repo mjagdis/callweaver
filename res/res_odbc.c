@@ -265,7 +265,7 @@ static int odbc_show_command(struct cw_dynstr **ds_p, int argc, char **argv)
 	odbc_obj *obj;
 	int x = 0;
 	
-	if (!strcmp(argv[1], "show")) {
+	if (argc >= 2 && !strcmp(argv[1], "show")) {
 		if (!argv[2] || (argv[2] && !strcmp(argv[2], "all"))) {
 			for (x = 0; x < MAX_ODBC_HANDLES; x++) {
 				if (!ODBC_REGISTRY[x].used)
@@ -285,7 +285,8 @@ static int odbc_show_command(struct cw_dynstr **ds_p, int argc, char **argv)
 static int odbc_disconnect_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
-	if (!strcmp(argv[1], "disconnect")) {
+
+	if (argc >= 2 && !strcmp(argv[1], "disconnect")) {
 		if (!argv[2])
 			return odbc_disconnect_usage(ds_p);
 
@@ -300,7 +301,8 @@ static int odbc_disconnect_command(struct cw_dynstr **ds_p, int argc, char **arg
 static int odbc_connect_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
-	if (!argv[1])
+
+	if (argc < 2 || !argv[1])
 		return odbc_connect_usage(ds_p);
 
 	if (!strcmp(argv[1], "connect") || !strcmp(argv[1], "disconnect")) {

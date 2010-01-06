@@ -277,6 +277,8 @@ static struct cw_frame *okiadpcmtolin_sample(int *i)
 {
     static struct cw_frame f;
   
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_OKI_ADPCM);
     f.datalen = sizeof (adpcm_ex);
     f.samples = sizeof(adpcm_ex)*2;

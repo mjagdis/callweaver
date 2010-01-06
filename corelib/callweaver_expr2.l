@@ -96,6 +96,16 @@ static char *expr2_token_subst(const char *mess);
     static int input  (yyscan_t yyscanner) __attribute__ (( unused ));
 #  endif
 #endif
+
+
+#if defined(__GNUC__)
+#  pragma GCC system_header
+#elif defined __SUNPRO_CC
+#  pragma disable_warn
+#elif defined(_MSC_VER)
+#  pragma warning(push, 1)
+#endif
+
 %}
 
 %option prefix="cw_yy"

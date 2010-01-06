@@ -77,10 +77,10 @@ static int play_and_wait(struct cw_channel *chan, const char *file, const char *
 
 static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	char *path = NULL, filein[256];
+	char filein[256];
 	char dftbase[256];
-	char *base;
 	struct cw_flags flags = {0};
+	char *path = NULL, *base;
 	struct cw_filestream *fs;
 	struct cw_frame *f = NULL;
 	struct localuser *u;
@@ -95,7 +95,10 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *re
 		len = 0,
 		maxlen = 0,
 		mode = 0;
-		
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", cw_config_CW_SPOOL_DIR);

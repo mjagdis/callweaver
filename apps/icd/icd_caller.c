@@ -1904,6 +1904,9 @@ int icd_caller__require_authentication(icd_event * event, void *extra)
 /* Always returns true without doing anything */
 int icd_caller__authenticate_always_succeeds(icd_caller * caller, void *authenticate_token)
 {
+    CW_UNUSED(caller);
+    CW_UNUSED(authenticate_token);
+
     return 1;
 }
 
@@ -1938,6 +1941,8 @@ int icd_caller__play_logged_in_message(icd_event * event, void *extra)
     icd_status result;
     int cw_result;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
 
     that = icd_event__get_source(event);
@@ -1966,6 +1971,8 @@ int icd_caller__ready_state_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
 
     that = icd_event__get_source(event);
@@ -1981,6 +1988,8 @@ int icd_caller__ready_state_on_fail(icd_event * event, void *extra)
 int icd_caller__limited_ready_state_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     //assert(extra != NULL);
@@ -2013,6 +2022,8 @@ int icd_caller__limited_ready_state_on_fail(icd_event * event, void *extra)
 int icd_caller__destroy_on_fail(icd_event * event, void *extra)
 {
     icd_caller *that;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
 
@@ -2054,6 +2065,8 @@ int icd_caller__dummy_notify_hook(icd_event * event, void *extra)
 {
     /*icd_caller *that; */
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     /*that = (icd_caller *)icd_event__get_source(event); */
     return 0;
@@ -2061,6 +2074,9 @@ int icd_caller__dummy_notify_hook(icd_event * event, void *extra)
 
 int icd_caller__delq_notify_hook(icd_event * event, void *extra)
 {
+    CW_UNUSED(event);
+    CW_UNUSED(extra);
+
     return 0;
 }
 
@@ -2068,6 +2084,8 @@ int icd_caller__deldist_notify_hook(icd_event * event, void *extra)
 {
     icd_caller *that;
     icd_status result;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -2103,6 +2121,8 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
     icd_caller *that;
     icd_member *member;
     icd_list_iterator *iter;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -2162,6 +2182,8 @@ int icd_caller__standard_state_ready(icd_event * event, void *extra)
 int icd_caller__standard_state_distribute(icd_event * event, void *extra)
 {
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
 
     return 0;
@@ -2184,6 +2206,8 @@ int icd_caller__standard_state_get_channels(icd_event * event, void *extra)
     icd_member *member;
     icd_caller *caller = NULL;
     int res, it;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -2420,6 +2444,8 @@ int icd_caller__standard_state_bridged(icd_event * event, void *extra)
     icd_caller *associate;
     icd_list_iterator *iter;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
     assert(that != NULL);
@@ -2645,6 +2671,8 @@ int icd_caller__standard_state_conference(icd_event * event, void *extra)
 /*     icd_queue *queue; */
 /*     icd_member *member; */
     
+    CW_UNUSED(extra);
+
     caller = (icd_caller *) icd_event__get_source(event);
     assert(caller != NULL);
    
@@ -2691,6 +2719,9 @@ icd_status icd_caller__standard_launch_caller(icd_caller * that)
 icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct cw_dynstr **ds_p, void *extra)
 {
     //int skip_opening;
+
+    CW_UNUSED(verbosity);
+    CW_UNUSED(extra);
 
     assert(caller != NULL);
 

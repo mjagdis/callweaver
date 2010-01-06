@@ -196,6 +196,10 @@ int main(int argc, char *argv[])
 	char *tmp;
 	int ver = 0;
 	int subver = 0;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	/* Setup stdin/stdout for line buffering */
 	setlinebuf(stdin);
 	setlinebuf(stdout);

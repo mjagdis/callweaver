@@ -33,7 +33,7 @@ endif WANT_PBX_REALTIME
 
 if WANT_PBX_AEL
 cwmod_LTLIBRARIES	+= pbx_ael.la
-pbx_ael_la_SOURCES	= pbx_ael.c ael/ael_lex.c ael/ael_tab.c
+pbx_ael_la_SOURCES	= pbx_ael.c ael/ael_lex_w.c ael/ael_tab.c
 pbx_ael_la_LDFLAGS	= -module -avoid-version @NO_UNDEFINED@
 pbx_ael_la_LIBADD	= @CALLWEAVER_LIB@
 pbx_ael_la_CFLAGS	= $(AM_CFLAGS) -D_GNU_SOURCE=1

@@ -245,6 +245,9 @@ static int get_callback(void *pArg, int argc, char **argv, char **columnNames)
 {
 	struct cw_db_data *result = pArg;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(columnNames);
+
 	cw_copy_string(result->data, argv[0], result->datalen);
 	result->rownum++;
 	return 0;
@@ -414,6 +417,8 @@ static int tree_callback(void *pArg, int argc, char **argv, char **columnNames)
 		*cur = NULL,
 		*ret = NULL;
 
+	CW_UNUSED(columnNames);
+
 	for(x=0; x < argc; x++) {
 		keys = argv[0];
 		values = argv[1];
@@ -513,6 +518,9 @@ void cw_db_freetree(struct cw_db_entry *dbe)
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
 	struct cw_dynstr **ds_p = pArg;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(columnNames);
 
 	cw_dynstr_printf(ds_p, "/%s/%-50s: %-25s\n", argv[0], argv[1], argv[2]);
 

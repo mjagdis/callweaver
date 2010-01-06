@@ -66,6 +66,9 @@ static int playback_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	int option_noanswer = 0;
 	int i;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1)
 		return cw_function_syntax(playback_syntax);
 

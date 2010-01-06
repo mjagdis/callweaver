@@ -339,6 +339,8 @@ static int handle_showuptime(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int handle_version(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 2)
         return RESULT_SHOWUSAGE;
 

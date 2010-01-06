@@ -483,6 +483,9 @@ static int handle_show_listener(struct cw_dynstr **ds_p, int argc, char *argv[])
 		.ds_p = ds_p,
 	};
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_printf(ds_p, MANLISTEN_FORMAT MANLISTEN_FORMAT,
 		"State", "Address",
 		"-----", "-------");
@@ -520,6 +523,9 @@ static int handle_show_mansess(struct cw_dynstr **ds_p, int argc, char *argv[])
 	struct mansess_print_args args = {
 		.ds_p = ds_p,
 	};
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p, MANSESS_FORMAT1 MANSESS_FORMAT1,
 		"Address", "Username", "Queued", "Max Queue", "Overflow",
@@ -724,6 +730,9 @@ static const char mandescr_ping[] =
 
 static struct cw_manager_message *action_ping(struct mansession *sess, const struct message *req)
 {
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
+
 	return cw_manager_response("Pong", NULL);
 }
 
@@ -734,6 +743,9 @@ static const char mandescr_version[] =
 static struct cw_manager_message *action_version(struct mansession *sess, const struct message *req)
 {
 	struct cw_manager_message *msg;
+
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
 
 	if ((msg = cw_manager_response("Version", NULL))) {
 		cw_manager_msg(&msg, 3,
@@ -771,6 +783,9 @@ static int listcommands_print(struct cw_object *obj, void *data)
 static struct cw_manager_message *action_listcommands(struct mansession *sess, const struct message *req)
 {
 	struct listcommands_print_args args;
+
+	CW_UNUSED(sess);
+	CW_UNUSED(req);
 
 	if ((args.msg = cw_manager_response("Success", NULL)))
 		cw_registry_iterate_ordered(&manager_action_registry, listcommands_print, &args);
@@ -822,6 +837,8 @@ static struct cw_manager_message *action_hangup(struct mansession *sess, const s
 	struct cw_channel *chan = NULL;
 	char *name = cw_manager_msg_header(req, "Channel");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
@@ -850,6 +867,8 @@ static struct cw_manager_message *action_setvar(struct mansession *sess, const s
         struct cw_channel *chan;
         char *name = cw_manager_msg_header(req, "Channel");
         char *varname;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(name)) {
 		varname = cw_manager_msg_header(req, "Variable");
@@ -883,6 +902,8 @@ static struct cw_manager_message *action_getvar(struct mansession *sess, const s
 	char *name = cw_manager_msg_header(req, "Channel");
 	char *varname;
 	struct cw_var_t *var;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(name)) {
 		varname = cw_manager_msg_header(req, "Variable");
@@ -1027,6 +1048,8 @@ static struct cw_manager_message *action_redirect(struct mansession *sess, const
 	char *priority;
 	int res;
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(name)) {
 		if ((chan = cw_get_channel_by_name_locked(name))) {
 			context = cw_manager_msg_header(req, "Context");
@@ -1076,6 +1099,8 @@ static struct cw_manager_message *action_command(struct mansession *sess, const 
 	struct cw_manager_message *msg = NULL;
 	char *cmd = cw_manager_msg_header(req, "Command");
 
+	CW_UNUSED(sess);
+
 	if (cmd) {
 		if ((msg = cw_manager_response("Follows", NULL))) {
 			msg->data->used -= 2;
@@ -1098,6 +1123,8 @@ static struct cw_manager_message *action_complete(struct mansession *sess, const
 {
 	struct cw_manager_message *msg = NULL;
 	char *cmd = cw_manager_msg_header(req, "Command");
+
+	CW_UNUSED(sess);
 
 	if (cmd) {
 		if ((msg = cw_manager_response("Completion", NULL))) {
@@ -1189,6 +1216,8 @@ static struct cw_manager_message *action_originate(struct mansession *sess, cons
 	int res;
 	int to = 30000;
 	int reason = 0;
+
+	CW_UNUSED(sess);
 
 	if (!name)
 		return cw_manager_response("Error", "Channel not specified");
@@ -1302,6 +1331,8 @@ static struct cw_manager_message *action_mailboxstatus(struct mansession *sess, 
 	struct cw_manager_message *msg = NULL;
 	char *mailbox = cw_manager_msg_header(req, "Mailbox");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(mailbox)) {
 		if ((msg = cw_manager_response("Success", "Mailbox Status"))) {
 			cw_manager_msg(&msg, 2,
@@ -1330,6 +1361,8 @@ static struct cw_manager_message *action_mailboxcount(struct mansession *sess, c
 	struct cw_manager_message *msg = NULL;
 	char *mailbox = cw_manager_msg_header(req, "Mailbox");
 	int newmsgs = 0, oldmsgs = 0;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(mailbox)) {
 		if ((msg = cw_manager_response("Success", "Mailbox Message Count"))) {
@@ -1363,7 +1396,9 @@ static struct cw_manager_message *action_extensionstate(struct mansession *sess,
 	const char *exten = cw_manager_msg_header(req, "Exten");
 	const char *context = cw_manager_msg_header(req, "Context");
 	int status;
-	
+
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(exten)) {
 		if ((msg = cw_manager_response("Success", "Extension Status"))) {
 			if (cw_strlen_zero(context))
@@ -1399,6 +1434,8 @@ static struct cw_manager_message *action_timeout(struct mansession *sess, const 
 	struct cw_channel *chan = NULL;
 	char *name = cw_manager_msg_header(req, "Channel");
 	int timeout;
+
+	CW_UNUSED(sess);
 
 	if (!cw_strlen_zero(name)) {
 		if ((timeout = atoi(cw_manager_msg_header(req, "Timeout")))) {
@@ -1914,6 +1951,8 @@ void cw_manager_event_func(int category, size_t count, int map[], const char *fm
 
 static int manager_state_cb(char *context, char *exten, int state, void *data)
 {
+	CW_UNUSED(data);
+
 	/* Notify managers of change */
 	cw_manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
 		3,
@@ -2157,6 +2196,8 @@ static void manager_listen(char *spec, int (* const handler)(struct mansession *
 static int listener_close(struct cw_object *obj, void *data)
 {
 	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
+
+	CW_UNUSED(data);
 
 	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING))
 		cw_connection_close(conn);

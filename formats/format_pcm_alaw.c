@@ -101,6 +101,8 @@ static void *pcm_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -253,6 +255,8 @@ static long pcm_tell(void *data)
 
 static char *pcm_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 

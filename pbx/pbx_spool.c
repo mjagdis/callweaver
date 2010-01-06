@@ -289,8 +289,10 @@ static int scan_service(char *fn, time_t now, time_t atime)
 {
 	struct outgoing *o;
 	FILE *f;
-	o = malloc(sizeof(struct outgoing));
-	if (o) {
+
+	CW_UNUSED(atime);
+
+	if ((o = malloc(sizeof(struct outgoing)))) {
 		init_outgoing(o);
 		f = fopen(fn, "r+");
 		if (f) {
@@ -338,8 +340,10 @@ static int scan_service(char *fn, time_t now, time_t atime)
 	return -1;
 }
 
-static __attribute__((__noreturn__)) void *scan_thread(void *data)
+static __attribute__((noreturn)) void *scan_thread(void *data)
 {
+	CW_UNUSED(data);
+
 	char fn[256];
 	struct stat st;
 	DIR *dir;

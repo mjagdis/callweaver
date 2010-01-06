@@ -638,6 +638,12 @@ static int rtpread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
     struct cw_rtp *rtp = cbdata;
     struct cw_frame *f;
 
+    CW_UNUSED(ior);
+    CW_UNUSED(fd);
+    CW_UNUSED(events);
+
+
+
     if ((f = cw_rtp_read(rtp)))
     {
         if (rtp->callback)
@@ -2248,10 +2254,14 @@ static int rtp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
    
 static int rtp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc !=3)
         return RESULT_SHOWUSAGE;
+
     rtpdebug = 0;
     cw_dynstr_printf(ds_p,"RTP Debugging Disabled\n");
+
     return RESULT_SUCCESS;
 }
 

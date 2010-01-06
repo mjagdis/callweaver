@@ -238,6 +238,8 @@ static __attribute__((__noreturn__)) void *do_devstate_changes(void *data)
 {
 	struct state_change *sc = NULL;
 
+	CW_UNUSED(data);
+
 	CW_LIST_LOCK(&state_changes);
 	for (;;) {
 		/* the list lock will _always_ be held at this point in the loop */

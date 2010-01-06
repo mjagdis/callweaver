@@ -886,13 +886,15 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 
 static int mgcp_call(struct cw_channel *ast, const char *dest)
 {
-	int res;
+	char tone[50] = "";
 	struct mgcp_endpoint *p;
 	struct mgcp_subchannel *sub;
-	char tone[50] = "";
 	const char *distinctive_ring = NULL;
 	struct cw_object *obj;
 	struct cw_var_t *var;
+	int res;
+
+	CW_UNUSED(dest);
 
 	if (mgcpdebug) {
 		cw_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_call(%s)\n", ast->name);
@@ -1080,13 +1082,16 @@ static int mgcp_hangup(struct cw_channel *ast)
 
 static int mgcp_show_endpoints(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	char iabuf[INET_ADDRSTRLEN];
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
 	int hasendpoints = 0;
-	char iabuf[INET_ADDRSTRLEN];
+
+	CW_UNUSED(argv);
 
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
@@ -1921,6 +1926,8 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, const cha
 
 static int respprep(struct mgcp_request *resp, struct mgcp_endpoint *p, const char *msg, struct mgcp_request *req, const char *msgrest)
 {
+	CW_UNUSED(p);
+
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req, msgrest);
 	return 0;
@@ -2055,11 +2062,13 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 
 static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct cw_rtp *rtp, int codecs)
 {
-	struct mgcp_request resp;
 	char local[256];
 	char tmp[80];
-	int x;
+	struct mgcp_request resp;
 	struct mgcp_endpoint *p = sub->parent;
+	int x;
+
+	CW_UNUSED(codecs);
 
 	if (cw_strlen_zero(sub->cxident) && rtp) {
 		/* We don't have a CXident yet, store the destination and
@@ -2901,6 +2910,8 @@ static void handle_hd_hf(struct mgcp_subchannel *sub, char *ev)
 	struct cw_channel *c;
 	pthread_t t;
 
+	CW_UNUSED(ev);
+
 	/* Off hook / answer */
 	if (sub->outgoing) {
 		/* Answered */
@@ -3308,6 +3319,12 @@ static int mgcpsock_read(struct cw_io_rec *ior, int fd, short events, void *igno
 	int result;
 	int ident;
 	char iabuf[INET_ADDRSTRLEN];
+
+	CW_UNUSED(ior);
+	CW_UNUSED(fd);
+	CW_UNUSED(events);
+	CW_UNUSED(ignore);
+
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
@@ -3392,9 +3409,12 @@ static struct cw_io_rec mgcpsock_read_id;
 static void *do_monitor(void *data)
 {
 	int reloading;
+
 	/*struct mgcp_gateway *g;*/
 	/*struct mgcp_endpoint *e;*/
 	/*time_t thispass = 0, lastpass = 0;*/
+
+	CW_UNUSED(data);
 
 	/* Add an I/O event to our UDP socket */
 	if (mgcpsock > -1) 
@@ -3509,6 +3529,8 @@ static struct cw_channel *mgcp_request(const char *drvtype, int format, void *da
 	struct cw_channel *tmpc = NULL;
 	char tmp[256];
 	char *dest = data;
+
+	CW_UNUSED(drvtype);
 
 	format &= gcapability;
 	if (!format) {
@@ -3946,6 +3968,9 @@ static struct cw_rtp *mgcp_get_rtp_peer(struct cw_channel *chan)
 
 static int mgcp_set_rtp_peer(struct cw_channel *chan, struct cw_rtp *rtp, struct cw_rtp *vrtp, int codecs, int nat_active)
 {
+	CW_UNUSED(vrtp);
+	CW_UNUSED(nat_active);
+
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
 	sub = chan->tech_pvt;
@@ -3964,6 +3989,8 @@ static struct cw_rtp_protocol mgcp_rtp = {
 
 static int mgcp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 1;
@@ -3973,6 +4000,8 @@ static int mgcp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int mgcp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	mgcpdebug = 0;
@@ -4321,6 +4350,10 @@ static int mgcp_do_reload(void)
 
 static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_mutex_lock(&mgcp_reload_lock);
 	if (mgcp_reloading) {
 		cw_verbose("Previous mgcp reload not yet done\n");

@@ -348,6 +348,8 @@ int icd_agent__standard_state_ready(icd_event * event, void *extra)
     //icd_member *member;
     //icd_list_iterator *iter;
 
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     //that = (icd_caller *) icd_event__get_source(event);
 
@@ -365,6 +367,8 @@ int icd_agent__standard_state_call_end(icd_event * event, void *extra)
 
     /* char *action; */
     char *wait;
+
+    CW_UNUSED(extra);
 
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
@@ -463,6 +467,8 @@ int icd_agent__standard_state_suspend(icd_event * event, void *extra)
     //int cleanup_required = 0;
     //char res;
     
+    CW_UNUSED(extra);
+
     assert(event != NULL);
     that = icd_event__get_source(event);
     assert(that != NULL);

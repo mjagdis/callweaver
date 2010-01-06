@@ -828,6 +828,8 @@ blt_hangup(struct cw_channel *chan)
 static int 
 blt_indicate(struct cw_channel *c, int condition)
 {
+  CW_UNUSED(c);
+
   cw_log(CW_LOG_DEBUG, "blt_indicate (%d)\n", condition);
 
   switch(condition) {
@@ -917,6 +919,9 @@ blt_request(const char * type, int format, void * local_data, int *cause)
   blt_dev_t * dev = NULL;
   struct cw_channel * chan = NULL;
   char * number = data, * dname;
+
+  CW_UNUSED(type);
+  CW_UNUSED(cause);
 
   dname = strsep(&number, "/");
 
@@ -1031,6 +1036,8 @@ send_atcmd_error(blt_dev_t * dev)
 static int
 atcmd_brsf_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   cw_log(CW_LOG_DEBUG, "Device Supports: %s\n", arg);
   dev->brsf = atoi(arg);
   send_atcmd(dev, "+BRSF: %d", 23);
@@ -1042,6 +1049,10 @@ atcmd_brsf_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_bvra_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(dev);
+  CW_UNUSED(arg);
+  CW_UNUSED(len);
+
   cw_log(CW_LOG_WARNING, "+BVRA Not Yet Supported\n");
   // Do not do anything further
   return -1;
@@ -1064,6 +1075,8 @@ atcmd_cclk_read(blt_dev_t * dev)
 static int
 atcmd_chup_execute(blt_dev_t * dev, const char * data)
 {
+  CW_UNUSED(data);
+
   if (!dev->owner) {
     cw_log(CW_LOG_ERROR, "Request to hangup call when none in progress\n");
     return -1;
@@ -1108,6 +1121,8 @@ atcmd_clan_read(blt_dev_t * dev)
 static int
 atcmd_clip_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   dev->clip = atoi(arg);
   return 0;
 }
@@ -1116,6 +1131,8 @@ atcmd_clip_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_colp_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   dev->colp = atoi(arg);
   return 0;
 }
@@ -1124,6 +1141,8 @@ atcmd_colp_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_ccwa_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   dev->ccwa = atoi(arg);
   return 0;
 }
@@ -1133,6 +1152,9 @@ atcmd_ccwa_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_cmer_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(arg);
+  CW_UNUSED(len);
+
   dev->ready = 1;
   dev->status = BLT_STATUS_READY;
   return 0;
@@ -1156,6 +1178,8 @@ atcmd_cmer_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_cpbr_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   // XXX:T: Fix the phone book!
   // * Maybe add res_phonebook or something? */
   send_atcmd(dev, "+CPBR: %d,\"%s\",128,\"%s\"", atoi(arg), arg, arg);
@@ -1166,6 +1190,10 @@ atcmd_cpbr_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_cpbs_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(dev);
+  CW_UNUSED(arg);
+  CW_UNUSED(len);
+
   // XXX:T: I guess we'll just accept any?
   return 0;
 }
@@ -1173,6 +1201,10 @@ atcmd_cpbs_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_cscs_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(dev);
+  CW_UNUSED(arg);
+  CW_UNUSED(len);
+
   // XXX:T: Language
   return 0;
 }
@@ -1180,6 +1212,8 @@ atcmd_cscs_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_eips_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   cw_log(CW_LOG_DEBUG, "Identify Presentation Set: %s=%s\n",
                          (*(arg) == 49) ? "ELIP" : "EOLP",
                          (*(arg+2) == 49) ? "ON" : "OFF");
@@ -1196,6 +1230,8 @@ atcmd_eips_set(blt_dev_t * dev, const char * arg, int len)
 static int
 atcmd_vgs_set(blt_dev_t * dev, const char * arg, int len)
 {
+  CW_UNUSED(len);
+
   dev->gain_speaker = atoi(arg);
   return 0;
 }
@@ -1231,6 +1267,8 @@ atcmd_dial_execute(blt_dev_t * dev, const char * data)
 
 static int atcmd_bldn_execute(blt_dev_t * dev, const char *data)
 {
+	CW_UNUSED(data);
+
 	return atcmd_dial_execute(dev, "bldn;");
 }
 
@@ -1238,6 +1276,7 @@ static int atcmd_bldn_execute(blt_dev_t * dev, const char *data)
 static int
 atcmd_answer_execute(blt_dev_t * dev, const char * data)
 {
+  CW_UNUSED(data);
 
   if (!dev->ringing || !dev->owner) {
     cw_log(CW_LOG_WARNING, "Can't answer non existant call\n");
@@ -1377,6 +1416,8 @@ ag_unsol_clip(blt_dev_t * dev, const char * data)
 /* -- Handle negotiation when we're a HS -- */
 static void ag_unknown_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(dev);
+
   cw_log(CW_LOG_DEBUG, "Got UNKN response: %s\n", cmd);
 
   // DELAYED
@@ -1386,6 +1427,8 @@ static void ag_unknown_response(blt_dev_t * dev, char * cmd)
 
 static void ag_cgmi_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(cmd);
+
   // CGMM - Phone Model
   // CGMR - Phone Revision
   // CGSN - IMEI
@@ -1420,12 +1463,16 @@ static void ag_cgmi_valid_response(blt_dev_t * dev, char * cmd)
 
 static void ag_clip_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(cmd);
+
   send_atcmd(dev, "AT+CGMI=?");
   dev->cb = ag_cgmi_valid_response;
 }
 
 static void ag_cmer_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(cmd);
+
   dev->cb = ag_clip_response;
   dev->ready = 1;
   dev->status = BLT_STATUS_READY;
@@ -1434,6 +1481,8 @@ static void ag_cmer_response(blt_dev_t * dev, char * cmd)
 
 static void ag_cind_status_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(cmd);
+
   // XXX:T: Handle response.
   dev->cb = ag_cmer_response;
   send_atcmd(dev, "AT+CMER=3,0,0,1");
@@ -1442,6 +1491,8 @@ static void ag_cind_status_response(blt_dev_t * dev, char * cmd)
 
 static void ag_cind_response(blt_dev_t * dev, char * cmd)
 {
+  CW_UNUSED(cmd);
+
   dev->cb = ag_cind_status_response;
   dev->cind = 1;
   send_atcmd(dev, "AT+CIND?");
@@ -1629,6 +1680,8 @@ sco_listen(bdaddr_t * bdaddr)
   int sock = -1;
   int on = 1;
   struct sockaddr_sco loc_addr;
+
+  CW_UNUSED(bdaddr);
 
   memset(&loc_addr, 0, sizeof(loc_addr));
 
@@ -1950,6 +2003,8 @@ handle_incoming(int fd, blt_role_t role)
   struct sockaddr_rc addr;
   socklen_t len = (socklen_t) sizeof(addr);
 
+  CW_UNUSED(role);
+
   // Got a new incoming socket.
   cw_log(CW_LOG_DEBUG, "Incoming RFCOMM socket\n");
 
@@ -2245,6 +2300,8 @@ do_monitor(void * data)
   blt_dev_t * dev;
   struct pollfd * pfds;
 
+  CW_UNUSED(data);
+
   /* FIXME: no way is this actually cancellation-clean even though
    * it get cancelled. Nor is it particularly clear how to make it
    * not leak memory and descriptors on a reload. Hell, it even
@@ -2513,6 +2570,9 @@ blt_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
   blt_dev_t * dev;
 
+  CW_UNUSED(argc);
+  CW_UNUSED(argv);
+
   if (cw_mutex_lock(&iface_lock)) {
     cw_log(CW_LOG_ERROR, "Failed to get Iface lock\n");
     cw_dynstr_printf(ds_p, "Failed to get iface lock\n");
@@ -2548,6 +2608,10 @@ static int
 blt_show_information(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
   char b1[18];
+
+  CW_UNUSED(argc);
+  CW_UNUSED(argv);
+
   ba2str(&local_bdaddr, b1);
   cw_dynstr_tprintf(ds_p, 5,
     cw_fmtval("-------------------------------------------\n"),

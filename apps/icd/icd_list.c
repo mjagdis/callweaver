@@ -924,6 +924,9 @@ void *icd_list_iterator__next(icd_list_iterator * that)
 /* This does precisely nothing */
 int icd_list__dummy_notify_hook(icd_event * event, void *extra)
 {
+    CW_UNUSED(event);
+    CW_UNUSED(extra);
+
     return 0;
 }
 
@@ -931,6 +934,9 @@ int icd_list__dummy_notify_hook(icd_event * event, void *extra)
    can be placed after it */
 icd_list_node *icd_list__insert_fifo(icd_list * that, void *new_elem, void *a)
 {
+    CW_UNUSED(new_elem);
+    CW_UNUSED(a);
+
     assert(that != NULL);
 
     return that->tail;
@@ -939,6 +945,9 @@ icd_list_node *icd_list__insert_fifo(icd_list * that, void *new_elem, void *a)
 /* Return NULL to indicate the new element goes at the head of the list */
 icd_list_node *icd_list__insert_lifo(icd_list * that, void *new_elem, void *a)
 {
+    CW_UNUSED(new_elem);
+    CW_UNUSED(a);
+
     assert(that != NULL);
 
     return NULL;
@@ -947,6 +956,9 @@ icd_list_node *icd_list__insert_lifo(icd_list * that, void *new_elem, void *a)
 /* Eventually, this should calculate a node to insert at and iterate to there */
 icd_list_node *icd_list__insert_random(icd_list * that, void *new_elem, void *seed)
 {
+    CW_UNUSED(new_elem);
+    CW_UNUSED(seed);
+
     assert(that != NULL);
 
     return NULL;

@@ -186,6 +186,8 @@ static int imager_print(struct cw_object *obj, void *data)
 
 static int show_image_formats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 

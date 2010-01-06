@@ -574,6 +574,9 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
 
     void_hash_table *arghash = vh_init("args");
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
 
@@ -860,6 +863,9 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
 
     void_hash_table *arghash = vh_init("args");
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
 
@@ -1047,6 +1053,9 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     int oldrformat = 0, oldwformat = 0;
 
     void_hash_table *arghash = vh_init("args");
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1289,6 +1298,9 @@ int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cha
 
     void_hash_table *arghash = vh_init("args");
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
 
@@ -1330,6 +1342,9 @@ int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, 
     struct localuser *u;
 
     void_hash_table *arghash = vh_init("args");
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1374,6 +1389,9 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
     int pos =0, oldrformat = 0, oldwformat = 0;
 
     void_hash_table *arghash = vh_init("args");
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1699,6 +1717,9 @@ int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *r
     const char *loginstring;
 
     void_hash_table *arghash = vh_init("args");
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);

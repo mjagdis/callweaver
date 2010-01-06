@@ -218,6 +218,10 @@ static int realtime_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	struct config_data config_data;
 	struct cw_variable *v;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	memset(&config_data, 0, sizeof(config_data));
 	config_data.database = argv[0];
 	config_data.action = "realtime_lookup";
@@ -279,6 +283,9 @@ static int update_curl(const char *database, const char *table, const char *keyf
 static struct cw_config *config_curl (const char *database, const char *table, const char *file, struct cw_config *cfg)
 {
 	struct config_data config_data;
+
+	CW_UNUSED(table);
+
 	/* can't configure myself */
 	if (!strcmp(file, global_config_file))
 		return NULL;

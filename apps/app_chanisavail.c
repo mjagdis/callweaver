@@ -70,6 +70,9 @@ static int chanavail_exec(struct cw_channel *chan, int argc, char **argv, char *
 	int status;
 	int res=-1, inuse=-1, option_state=0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 0 || argc > 2)
 		return cw_function_syntax(chanisavail_syntax);
 

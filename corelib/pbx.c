@@ -218,8 +218,11 @@ static int switch_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_switches(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_show_switches(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_printf(ds_p, "\n    -= Registered CallWeaver Alternative Switches =-\n");
 	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, ds_p);
 	return RESULT_SUCCESS;
@@ -241,12 +244,15 @@ static int handle_show_globals_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_globals(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_show_globals(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct handle_show_globals_args args = {
 		.ds_p = ds_p,
 		.count = 0,
 	};
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_registry_iterate_ordered(&var_registry, handle_show_globals_one, &args);
 
@@ -2611,12 +2617,15 @@ static const char set_global_help[] =
  */
 
 /*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
-static int handle_show_hints(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
+static int handle_show_hints(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     struct cw_hint *hint;
     int num = 0;
     int watchers;
     struct cw_state_cb *watcher;
+
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
 
     if (!hints)
     {

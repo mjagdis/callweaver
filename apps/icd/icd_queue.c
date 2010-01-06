@@ -654,6 +654,8 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_d
     vh_keylist *keys;
     icd_distributor *dist;
 
+    CW_UNUSED(extra);
+
     assert(that != NULL);
 
     cw_dynstr_tprintf(ds_p, 3,
@@ -690,6 +692,8 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_d
 icd_status icd_queue__show(icd_queue * that, int verbosity, struct cw_dynstr **ds_p)
 {
 #define FMT_QUEUE_DATA "%-18s %-8d %-14d %-15d %-10d %-18d\n"
+
+    CW_UNUSED(verbosity);
 
     assert(that != NULL);
     //vh_keylist *keys;

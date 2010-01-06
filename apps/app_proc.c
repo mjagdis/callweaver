@@ -89,27 +89,29 @@ static const char exit_descrip[] =
 
 static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	struct cw_var_t *var;
-	char *proc;
+	char oldexten[256] = "";
 	char fullproc[80];
 	char varname[80];
-	char *oldargs[MAX_ARGS + 1] = { NULL, };
-	int x;
-	int res=0;
-	char oldexten[256]="";
-	int oldpriority;
 	char pc[80], depthc[12];
 	char oldcontext[CW_MAX_CONTEXT] = "";
-	int offset, depth;
-	int setproccontext=0;
-	int autoloopflag;
-  
+	char *oldargs[MAX_ARGS + 1] = { NULL, };
+	struct cw_var_t *var;
+	char *proc;
 	char *save_proc_exten;
 	char *save_proc_context;
 	char *save_proc_priority;
 	char *save_proc_offset;
 	struct localuser *u;
+	int x;
+	int res=0;
+	int oldpriority;
+	int offset, depth;
+	int setproccontext=0;
+	int autoloopflag;
  
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1)
 		return cw_function_syntax(proc_syntax);
 
@@ -310,6 +312,9 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	char *s, *q;
 	int i;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
 		return cw_function_syntax(if_syntax);
@@ -348,6 +353,12 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 			
 static int proc_exit_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return PROC_EXIT_RESULT;
 }
 

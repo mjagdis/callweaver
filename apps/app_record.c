@@ -69,18 +69,16 @@ static const char record_descrip[] =
 
 static int record_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res = 0;
-	int count = 0;
-	int percentflag = 0;
-	char *ext = NULL;
-	int i = 0;
 	char tmp[256];
-
 	struct cw_filestream *s = '\0';
 	struct localuser *u;
 	struct cw_frame *f = NULL;
-	
+	char *ext = NULL;
 	struct cw_dsp *sildet = NULL;   	/* silence detector dsp */
+	int res = 0;
+	int count = 0;
+	int percentflag = 0;
+	int i = 0;
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
@@ -94,7 +92,10 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	int option_quiet = 0;
 	int rfmt = 0;
 	int flags;
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || argc > 4 || !argv[0][0])
 		return cw_function_syntax(record_syntax);
 

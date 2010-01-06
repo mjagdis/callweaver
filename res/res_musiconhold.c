@@ -177,6 +177,8 @@ static void moh_files_release(struct cw_channel *chan, void *data)
 {
 	struct moh_files_state *state = chan->music_state;
 
+	CW_UNUSED(data);
+
 	if (chan && state) {
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
@@ -549,6 +551,10 @@ static void *monitor_custom_command(void *data)
 
 static int moh0_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (cw_moh_start(chan, argv[0])) {
 		cw_log(CW_LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", argv[0], chan->name);
 		return -1;
@@ -561,6 +567,10 @@ static int moh0_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 static int moh1_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	int res;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1 || !(res = atoi(argv[0])))
 		return cw_function_syntax("WaitMusicOnHold(seconds)");
 
@@ -575,6 +585,9 @@ static int moh1_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 
 static int moh2_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax("SetMusicOnHold(class)");
 
@@ -586,6 +599,9 @@ static int moh3_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 {
 	const char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (cw_moh_start(chan, class))
 		cw_log(CW_LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
 
@@ -594,6 +610,11 @@ static int moh3_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 
 static int moh4_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	cw_moh_stop(chan);
 
 	return 0;
@@ -712,6 +733,8 @@ static struct cw_frame *moh_generate(struct cw_channel *chan, void *data, int sa
 {
 	struct mohdata *moh = data;
 	int len, res;
+
+	CW_UNUSED(chan);
 
 	if (!moh->parent->pid)
 		return NULL;
@@ -1061,6 +1084,8 @@ static int moh_on_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 
+	CW_UNUSED(data);
+
 	if (cw_test_flag(chan, CW_FLAG_MOH))
 		local_cw_moh_start(chan, NULL);
 
@@ -1070,6 +1095,8 @@ static int moh_on_one(struct cw_object *obj, void *data)
 static int moh_off_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
+
+	CW_UNUSED(data);
 
 	if (cw_test_flag(chan, CW_FLAG_MOH))
 		cw_generator_deactivate(&chan->generator);
@@ -1082,6 +1109,9 @@ static int moh_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mohclass *moh;
 	int x;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	/* FIXME: logically this should be after we have the moh_lock so nothing
 	 * else can start before we destroy the old classes. But that leads to
@@ -1116,8 +1146,11 @@ static int moh_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int cli_files_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	int i;
 	struct mohclass *class;
+	int i;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
@@ -1136,6 +1169,9 @@ static int cli_files_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 static int moh_classes_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {

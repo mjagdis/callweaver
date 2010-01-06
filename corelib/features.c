@@ -438,6 +438,7 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 	size_t len;
 	struct cw_channel *caller_chan = NULL, *callee_chan = NULL;
 
+	CW_UNUSED(config);
 
 	if(sense == 2) {
 		caller_chan = peer;
@@ -513,6 +514,11 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 
 static int builtin_disconnect(struct cw_channel *chan, struct cw_channel *peer, struct cw_bridge_config *config, char *code, int sense)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(peer);
+	CW_UNUSED(config);
+	CW_UNUSED(sense);
+
 	if (option_verbose > 3)
 		cw_verbose(VERBOSE_PREFIX_3 "User hit '%s' to disconnect call.\n", code);
 	return FEATURE_RETURN_HANGUP;
@@ -526,6 +532,9 @@ static int builtin_blindtransfer(struct cw_channel *chan, struct cw_channel *pee
 	struct cw_var_t *var;
 	const char *transferer_real_context;
 	int res;
+
+	CW_UNUSED(config);
+	CW_UNUSED(code);
 
 	if (sense == FEATURE_SENSE_PEER) {
 		transferer = peer;
@@ -667,6 +676,8 @@ static int builtin_atxfer(struct cw_channel *chan, struct cw_channel *peer, stru
 	int res;
 	struct cw_frame *f = NULL;
 	struct cw_bridge_thread_obj *tobj;
+
+	CW_UNUSED(code);
 
 	cw_log(CW_LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
 	if (sense == FEATURE_SENSE_PEER) {
@@ -860,6 +871,10 @@ static int builtin_autopark(struct cw_channel *chan, struct cw_channel *peer, st
 	struct cw_channel *transferee;
 	int res;
 
+	CW_UNUSED(config);
+	CW_UNUSED(code);
+	CW_UNUSED(sense);
+
 	if (sense == FEATURE_SENSE_PEER) {
 		transferer = peer;
 		transferee = chan;
@@ -1005,6 +1020,9 @@ static int feature_exec_app(struct cw_channel *chan, struct cw_channel *peer, st
 	struct cw_channel *work = chan;
 	char *args;
 	int res;
+
+	CW_UNUSED(config);
+	CW_UNUSED(sense);
 
 	CW_LIST_LOCK(&feature_list);
 	CW_LIST_TRAVERSE(&feature_list,feature,feature_entry) {
@@ -1570,6 +1588,8 @@ static __attribute__((__noreturn__)) void *do_parking_thread(void *ignore)
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 
+	CW_UNUSED(ignore);
+
 	for (;;) {
 		ms = -1;
 		max = -1;
@@ -1737,11 +1757,16 @@ std:					for (x=0; x<CW_MAX_FDS; x++) {
 
 static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	/* Args are unused at the moment but could contain a parking
-	   lot context eventually */
-	int res=0;
 	struct localuser *u;
+	int res = 0;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
+
 	/* Setup the exten/priority to be s/1 since we don't know
 	   where this call should return */
 	strcpy(chan->exten, "s");
@@ -1752,9 +1777,12 @@ static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *
 		res = cw_safe_sleep(chan, 1000);
 	if (!res)
 		res = cw_park_call(chan, chan, 0, NULL);
+
 	LOCAL_USER_REMOVE(u);
+
 	if (!res)
 		res = CW_PBX_KEEPALIVE;
+
 	return res;
 }
 
@@ -1769,6 +1797,9 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int park;
 	int dres;
 	struct cw_bridge_config config;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax("Park(exten)");
@@ -1878,6 +1909,9 @@ static int handle_showfeatures(struct cw_dynstr **ds_p, int argc, char *argv[])
 	struct cw_call_feature *feature;
 #define FORMAT "%-25s %-7s %-7s\n"
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_dynstr_tprintf(ds_p, 3,
 		cw_fmtval(FORMAT, "Builtin Feature", "Default", "Current"),
 		cw_fmtval(FORMAT, "---------------", "-------", "-------"),
@@ -1933,6 +1967,9 @@ static int handle_parkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct parkeduser *cur;
 	int numparked = 0;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");

@@ -135,7 +135,10 @@ static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	char info[1024];
 	struct localuser *u;
 	int level;
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	level = (argc > 0 ? atoi(argv[0]) : 0);

@@ -20,24 +20,39 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 static int stub_cw_monitor_start( struct cw_channel *chan, const char *format_spec, const char *fname_base, int need_lock )
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(format_spec);
+	CW_UNUSED(fname_base);
+	CW_UNUSED(need_lock);
+
 	cw_log(CW_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static int stub_cw_monitor_stop( struct cw_channel *chan, int need_lock)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(need_lock);
+
 	cw_log(CW_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static int stub_cw_monitor_change_fname( struct cw_channel *chan, const char *fname_base, int need_lock )
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(fname_base);
+	CW_UNUSED(need_lock);
+
 	cw_log(CW_LOG_NOTICE, "res_monitor not loaded!\n");
 	return -1;
 }
 
 static void stub_cw_monitor_setjoinfiles(struct cw_channel *chan, int turnon)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(turnon);
+
 	cw_log(CW_LOG_NOTICE, "res_monitor not loaded!\n");
 }
 

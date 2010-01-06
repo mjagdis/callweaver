@@ -305,6 +305,8 @@ static int test_errors = 0;
    working properly, and non-zero if they are not working properly. */
 static void *test_thread_body(void *data) 
 { 
+	CW_UNUSED(data);
+
 	cw_mutex_lock(&test_lock);
 	lock_count += 10;
 	if (lock_count != 10) 

@@ -51,12 +51,16 @@ static int resynch_jb(struct scx_jb *jb, void *data, long ms, long ts, long now)
 
 static struct scx_jb_frame * alloc_jb_frame(struct scx_jb *jb)
 {
+	CW_UNUSED(jb);
+
 	return (struct scx_jb_frame *) calloc(1, sizeof(struct scx_jb_frame));
 }
 
 
 static void release_jb_frame(struct scx_jb *jb, struct scx_jb_frame *frame)
 {
+	CW_UNUSED(jb);
+
 	free(frame);
 }
 

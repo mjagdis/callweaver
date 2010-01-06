@@ -112,6 +112,8 @@ static void *faxgen_alloc(struct cw_channel *chan, void *params)
 {
     struct faxgen_state *fgs;
 
+    CW_UNUSED(chan);
+
     cw_log(CW_LOG_DEBUG, "Allocating fax generator\n");
     if ((fgs = malloc(sizeof(*fgs)))) {
         fgs->fax = params;
@@ -122,6 +124,8 @@ static void *faxgen_alloc(struct cw_channel *chan, void *params)
 
 static void faxgen_release(struct cw_channel *chan, void *data)
 {
+    CW_UNUSED(chan);
+
     cw_log(CW_LOG_DEBUG, "Releasing fax generator\n");
     free(data);
     return;
@@ -133,6 +137,8 @@ static struct cw_frame *faxgen_generate(struct cw_channel *chan, void *data, int
     struct faxgen_state *fgs = data;
     int len;
     
+    CW_UNUSED(chan);
+
     cw_fr_init_ex(&fgs->f, CW_FRAME_VOICE, CW_FORMAT_SLINEAR);
 
     samples = (samples <= MAX_BLOCK_SIZE)  ?  samples  :  MAX_BLOCK_SIZE;
@@ -221,6 +227,8 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     struct cw_frame outf, *f;
     struct cw_channel *chan;
 
+    CW_UNUSED(s);
+
     chan = (struct cw_channel *) user_data;
 
     cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38);
@@ -235,8 +243,11 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
 }
 /*- End of function --------------------------------------------------------*/
 
-static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char *source_file, int calling_party, int verbose) {
+static int fax_set_common(struct cw_channel *chan, t30_state_t *t30, const char *source_file, int calling_party, int verbose)
+{
     struct cw_var_t 	*var;
+
+    CW_UNUSED(calling_party);
 
     if (!verbose && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_FAX_DEBUG, "FAX_DEBUG"))) {
         verbose = 1;
@@ -624,7 +635,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *so
 }
 /*- End of function --------------------------------------------------------*/
 
-static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     fax_state_t 	fax;
     t38_terminal_state_t t38;
@@ -643,6 +654,9 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     int original_write_fmt;
 
     signed char sc;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     /* Basic initial checkings */
 

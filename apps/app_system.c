@@ -108,11 +108,17 @@ static int system_exec_helper(struct cw_channel *chan, int argc, char **argv)
 
 static int system_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return system_exec_helper(chan, argc, argv);
 }
 
 static int trysystem_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	cw_log(CW_LOG_WARNING, "TrySystem is depricated. Please use System - it's the same thing!");
 	return system_exec_helper(chan, argc, argv);
 }

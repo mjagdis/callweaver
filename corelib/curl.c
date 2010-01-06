@@ -39,6 +39,10 @@ static void cw_curl_lock(CURL *handle, curl_lock_data data, curl_lock_access acc
 {
 	pthread_mutex_t *mutex = userptr;
 
+	CW_UNUSED(handle);
+	CW_UNUSED(data);
+	CW_UNUSED(access);
+
 	pthread_mutex_lock(mutex);
 }
 
@@ -46,6 +50,9 @@ static void cw_curl_lock(CURL *handle, curl_lock_data data, curl_lock_access acc
 static void cw_curl_unlock(CURL *handle, curl_lock_data data, void *userptr)
 {
 	pthread_mutex_t *mutex = userptr;
+
+	CW_UNUSED(handle);
+	CW_UNUSED(data);
 
 	pthread_mutex_unlock(mutex);
 }

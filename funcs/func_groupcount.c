@@ -70,6 +70,8 @@ static int group_count_function_read(struct cw_channel *chan, int argc, char **a
 	char group[80] = "", category[80] = "";
 	int count= -1;
 
+	CW_UNUSED(argc);
+
 	if (buf) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
@@ -84,9 +86,12 @@ static int group_count_function_read(struct cw_channel *chan, int argc, char **a
 
 static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-	int count;
 	char group[80] = "";
 	char category[80] = "";
+	int count;
+
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
 
 	if (buf) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
@@ -148,6 +153,9 @@ static int group_list_function_read(struct cw_channel *chan, int argc, char **ar
 	char tmp1[1024] = "";
 	char tmp2[1024] = "";
 	struct cw_group_info *gi = NULL;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	cw_app_group_list_lock();
 

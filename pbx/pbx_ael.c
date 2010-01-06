@@ -1790,7 +1790,11 @@ int check_app_args(struct pval* appcall, struct pval *arglist, struct argapp *ap
 	struct argdesc *ad = app->args;
 	struct pval *pa;
 	int z;
-	
+
+	CW_UNUSED(appcall);
+	CW_UNUSED(arglist);
+	CW_UNUSED(app);
+
 	for (pa = arglist; pa; pa=pa->next) {
 		if (!ad) {
 			cw_log(CW_LOG_WARNING, "Warning: file %s, line %d-%d: Extra argument %s not in application call to %s !\n",
@@ -1834,6 +1838,10 @@ int check_app_args(struct pval* appcall, struct pval *arglist, struct argapp *ap
 	}
 	return 0;
 #else
+	CW_UNUSED(appcall);
+	CW_UNUSED(arglist);
+	CW_UNUSED(app);
+
 	return 0;
 #endif
 }
@@ -1847,7 +1855,10 @@ void check_switch_expr(struct pval *item, struct argapp *apps)
 	struct appsetvar *v,*v2;
 	struct argchoice *c;
 	struct pval *t;
-	
+
+	CW_UNUSED(item);
+	CW_UNUSED(apps);
+
 	p = item->u1.str;
 	while (p && *p && (*p == ' ' || *p == '\t' || *p == '$' || *p == '{' ) )
 		p++;
@@ -1933,6 +1944,10 @@ void check_switch_expr(struct pval *item, struct argapp *apps)
 			warns++;
 		}
 	}
+#else
+	CW_UNUSED(item);
+	CW_UNUSED(apps);
+
 #endif
 }
 
@@ -3478,36 +3493,60 @@ static int pbx_load_module(void)
 /* CLI interface */
 static int ael2_debug_read(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	aeldebug |= DEBUG_READ;
 	return 0;
 }
 
 static int ael2_debug_tokens(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	aeldebug |= DEBUG_TOKENS;
 	return 0;
 }
 
 static int ael2_debug_procs(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	aeldebug |= DEBUG_PROCS;
 	return 0;
 }
 
 static int ael2_debug_contexts(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	aeldebug |= DEBUG_CONTEXTS;
 	return 0;
 }
 
 static int ael2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	aeldebug = 0;
 	return 0;
 }
 
 static int ael2_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_context_destroy(NULL, registrar);
 	return (pbx_load_module());
 }

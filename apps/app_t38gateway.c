@@ -252,6 +252,8 @@ static int t38_tx_packet_handler(t38_core_state_t *s, void *user_data, const uin
     struct cw_frame outf, *f;
     struct cw_channel *chan;
 
+    CW_UNUSED(s);
+
     chan = (struct cw_channel *) user_data;
     cw_fr_init_ex(&outf, CW_FRAME_MODEM, CW_MODEM_T38);
     outf.datalen = len;
@@ -436,19 +438,22 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
 
 static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    int res = 0;
+    char status[256];
+    struct cw_channel *channels[2];
     struct localuser *u;
     char *dest = NULL;
     struct cw_channel *peer;
+    struct cw_frame *f;
+    struct cw_channel *active = NULL;
     int state = 0, ready = 0;
     int timeout;
     int format = chan->nativeformats;
-    struct cw_frame *f;
+    int res = 0;
     int verbose;
-    char status[256];
-    struct cw_channel *active = NULL;
-    struct cw_channel *channels[2];
-    
+
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
+
     if (argc < 1  ||  argc > 3  ||  !argv[0][0])
         return cw_function_syntax(t38gateway_syntax);
 

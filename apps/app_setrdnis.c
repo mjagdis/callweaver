@@ -60,10 +60,16 @@ static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	char *n, *l;
 	static int deprecation_warning = 0;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (!deprecation_warning) {
 		cw_log(CW_LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
+
+	if (argc != 1)
+		return cw_function_syntax(setrdnis_syntax);
 
 	LOCAL_USER_ADD(u);
 

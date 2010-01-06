@@ -516,6 +516,9 @@ cnfout:
 
 static int confs_show(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+    CW_UNUSED(argc);
+    CW_UNUSED(argv);
+
     cw_dynstr_printf(ds_p, "Deprecated! Please use 'meetme' instead.\n");
     return RESULT_SUCCESS;
 }
@@ -1950,6 +1953,9 @@ static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
     int empty = 0, empty_no_pin = 0;
     int always_prompt = 0;
 
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
+
     if (argc > 3)
         return cw_function_syntax(syntax);
 
@@ -2238,6 +2244,9 @@ static int admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf,
     struct cw_conference *cnf;
     struct cw_conf_user *user;
     struct localuser *u;
+
+    CW_UNUSED(buf);
+    CW_UNUSED(len);
 
     if (argc < 2 || argc > 3)
         return cw_function_syntax(syntax3);

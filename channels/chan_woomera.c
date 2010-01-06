@@ -1431,7 +1431,11 @@ static struct cw_channel *woomera_new(const char *drvtype, int format, void *dat
 {
 	private_object *tech_pvt;
 	struct cw_channel *chan = NULL;
-	
+
+	CW_UNUSED(drvtype);
+	CW_UNUSED(format);
+	CW_UNUSED(cause);
+
 	if ((chan = cw_channel_alloc(1, "%s/%s-%04lx", chan->type, (char *)data, cw_random() & 0xffff))) {
 		chan->nativeformats = WFORMAT;
 		chan->type = type;
@@ -1474,6 +1478,8 @@ static struct cw_channel *woomera_new(const char *drvtype, int format, void *dat
 static struct cw_channel *tech_requester(const char *drvtype, int format, void *data, int *cause)
 {
 	struct cw_channel *chan = NULL;
+
+	CW_UNUSED(drvtype);
 
 	if (globals.panic) {
 		return NULL;
@@ -1703,6 +1709,9 @@ static int tech_write_video(struct cw_channel *self, struct cw_frame *frame)
 //	private_object *tech_pvt;
 	int res = 0;
 
+	CW_UNUSED(self);
+	CW_UNUSED(frame);
+
 //	tech_pvt = self->tech_pvt;
 	return res;
 }
@@ -1757,6 +1766,11 @@ static int tech_send_html(struct cw_channel *self, int subclass, const char *dat
 //	private_object *tech_pvt;
 	int res = 0;
 
+	CW_UNUSED(self);
+	CW_UNUSED(subclass);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
+
 //	tech_pvt = self->tech_pvt;
 	return res;
 }
@@ -1766,6 +1780,9 @@ static int tech_send_text(struct cw_channel *self, const char *text)
 {
 	int res = 0;
 
+	CW_UNUSED(self);
+	CW_UNUSED(text);
+
 	return res;
 }
 
@@ -1773,6 +1790,9 @@ static int tech_send_text(struct cw_channel *self, const char *text)
 static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) 
 {
 	int res = 0;
+
+	CW_UNUSED(self);
+	CW_UNUSED(frame);
 
 	return res;
 }
@@ -1782,6 +1802,10 @@ static int tech_send_image(struct cw_channel *self, struct cw_frame *frame)
 static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen)
 {
 	int res = 0;
+
+	CW_UNUSED(option);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
 
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++SETOPT %s\n",self->name);
@@ -1795,6 +1819,10 @@ static int tech_queryoption(struct cw_channel *self, int option, void *data, int
 {
 	int res = 0;
 
+	CW_UNUSED(option);
+	CW_UNUSED(data);
+	CW_UNUSED(datalen);
+
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++GETOPT %s\n",self->name);
 	}
@@ -1805,6 +1833,8 @@ static int tech_queryoption(struct cw_channel *self, int option, void *data, int
 static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge)
 {
 	struct cw_channel *chan = NULL;
+
+	CW_UNUSED(bridge);
 
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++BRIDGED %s\n",self->name);
@@ -1818,6 +1848,8 @@ static int tech_transfer(struct cw_channel *self, const char *newdest)
 {
 	int res = -1;
 
+	CW_UNUSED(newdest);
+
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++TRANSFER %s\n",self->name);
 	}
@@ -1828,6 +1860,12 @@ static int tech_transfer(struct cw_channel *self, const char *newdest)
 static enum cw_bridge_result tech_bridge(struct cw_channel *chan_a, struct cw_channel *chan_b, int flags, struct cw_frame **outframe, struct cw_channel **recent_chan, int timeoutms)
 {
 	enum cw_bridge_result res = CW_BRIDGE_FAILED;
+
+	CW_UNUSED(chan_b);
+	CW_UNUSED(flags);
+	CW_UNUSED(outframe);
+	CW_UNUSED(recent_chan);
+	CW_UNUSED(timeoutms);
 
 	if (globals.debug > 1) {
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++BRIDGE %s\n",chan_a->name);

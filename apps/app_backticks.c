@@ -115,6 +115,9 @@ static int backticks_exec(struct cw_channel *chan, int argc, char **argv, char *
 	char buf[1024] = "";
 	struct localuser *u;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc != 2)
 		return cw_function_syntax(backticks_syntax);
 
@@ -130,6 +133,8 @@ static int backticks_exec(struct cw_channel *chan, int argc, char **argv, char *
 
 static int function_backticks(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
+	CW_UNUSED(chan);
+
         if (argc > 0)
 		do_backticks(argv[0], buf, len);
 

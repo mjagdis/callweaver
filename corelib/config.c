@@ -986,8 +986,11 @@ static int config_engine_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int config_command(struct cw_dynstr **ds_p, int argc __attribute__((__unused__)), char **argv __attribute__((__unused__)))
+static int config_command(struct cw_dynstr **ds_p, int argc, char **argv)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	cw_registry_iterate_ordered(&config_engine_registry, config_engine_print, ds_p);
 	return 0;
 }

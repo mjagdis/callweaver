@@ -991,11 +991,14 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
 
 static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    char *initial_digits;
-    int imax_chars;
-    int imax_time;
-    int res;
-    struct localuser *u;
+	struct localuser *u;
+	char *initial_digits;
+	int imax_chars;
+	int imax_time;
+	int res;
+
+	CW_UNUSED(buf);
+	CW_UNUSED(len);
 
 	if (argc != 3 || argv[0][0] == '=' || !(initial_digits = strchr(argv[0], '=')))
 		return cw_function_syntax(dtmftotext_syntax);

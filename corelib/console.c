@@ -577,10 +577,12 @@ static char **cli_completion(void)
 }
 
 
-static void console_cleanup(void *data __attribute__((__unused__)))
+static void console_cleanup(void *data)
 {
 	char filename[80];
 	char *p;
+
+	CW_UNUSED(data);
 
 	rl_callback_handler_remove();
 	terminal_write("\r\n", 2);

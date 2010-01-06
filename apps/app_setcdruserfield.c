@@ -79,6 +79,8 @@ static struct cw_manager_message *action_setcdruserfield(struct mansession *sess
 	char *channel = cw_manager_msg_header(req, "Channel");
 	char *append = cw_manager_msg_header(req, "Append");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(channel)) {
 		if (!cw_strlen_zero(userfield)) {
 			if ((c = cw_get_channel_by_name_locked(channel))) {
@@ -104,7 +106,10 @@ static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, 
 {
 	struct localuser *u;
 	int res = 0;
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && argc && argv[0][0]) {
@@ -120,7 +125,10 @@ static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **arg
 {
 	struct localuser *u;
 	int res = 0;
-	
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 
 	if (chan->cdr && argc && argv[0][0]) {

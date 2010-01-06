@@ -271,6 +271,8 @@ static struct cw_frame *alawtolin_sample(int *i)
 {
     static struct cw_frame f;
   
+    CW_UNUSED(i);
+
     cw_fr_init_ex(&f, CW_FRAME_VOICE, CW_FORMAT_ALAW);
     f.datalen = sizeof(alaw_slin_ex);
     f.samples = sizeof(alaw_slin_ex);

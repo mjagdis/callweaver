@@ -89,6 +89,8 @@ static int builtin_function_math(struct cw_channel *chan, int argc, char **argv,
 	int iaction = -1;
 	int type_of_result = FLOAT_RESULT;
 
+	CW_UNUSED(chan);
+
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(math_func_syntax);
 

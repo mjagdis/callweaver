@@ -379,6 +379,9 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *res
     int readvol = 0;
     int writevol = 0;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc < 1 || argc > 3)
         return cw_function_syntax(muxmon_syntax);
 

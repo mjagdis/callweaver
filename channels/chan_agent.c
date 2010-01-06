@@ -416,8 +416,10 @@ static int agent_cleanup(struct agent_pvt *p)
 
 static int check_availability(struct agent_pvt *newlyavailable, int needlock);
 
-static int agent_answer(struct cw_channel *ast)
+static int agent_answer(struct cw_channel *chan)
 {
+	CW_UNUSED(chan);
+
 	cw_log(CW_LOG_WARNING, "Huh?  Agent is being asked to answer?\n");
 	return -1;
 }
@@ -643,6 +645,9 @@ static int agent_call(struct cw_channel *ast, const char *dest)
 	struct agent_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int newstate=0;
+
+	CW_UNUSED(dest);
+
 	cw_mutex_lock(&p->lock);
 	p->acknowledged = 0;
 	if (!p->chan) {
@@ -1279,6 +1284,8 @@ static struct cw_channel *agent_request(const char *type, int format, void *data
 	int hasagent = 0;
 	struct timeval tv;
 
+	CW_UNUSED(type);
+
 	s = data;
 	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupoff) == 1)) {
 		groupmatch = (1 << groupoff);
@@ -1532,6 +1539,8 @@ static struct cw_manager_message *action_agent_logoff(struct mansession *sess, c
 	struct cw_manager_message *msg;
 	char *agent = cw_manager_msg_header(req, "Agent");
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(agent)) {
 		if (!agent_logoff(agent, cw_true(cw_manager_msg_header(req, "Soft"))))
 			msg = cw_manager_response("Success", "Agent logged out");
@@ -1573,8 +1582,12 @@ static int agents_show(struct cw_dynstr **ds_p, int argc, char **argv)
 	int count_agents = 0;		/* Number of agents configured */
 	int online_agents = 0;		/* Number of online agents */
 	int offline_agents = 0;		/* Number of offline agents */
+
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&agentlock);
 	p = agents;
 	while(p) {
@@ -1684,6 +1697,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	int play_announcement = 1;
 	int update_cdr = updatecdr;
 	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -2150,6 +2166,8 @@ static struct cw_manager_message *action_agent_callback_login(struct mansession 
 	struct agent_pvt *p;
 	int login_state = 0;
 
+	CW_UNUSED(sess);
+
 	if (!cw_strlen_zero(agent)) {
 		if (!cw_strlen_zero(exten)) {
 			cw_mutex_lock(&agentlock);
@@ -2239,6 +2257,9 @@ static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **a
 	int nowarnings = 0;
 	int changeoutgoing = 0;
 	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc > 1) {
 		for (; argv[0][0]; argv[0]++) {

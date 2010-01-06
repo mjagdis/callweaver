@@ -88,70 +88,93 @@ static void wait_for_hangup(struct cw_channel *chan, char *s)
 
 static int pbx_builtin_progress(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    cw_indicate(chan, CW_CONTROL_PROGRESS);
-    return 0;
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	cw_indicate(chan, CW_CONTROL_PROGRESS);
+	return 0;
 }
 
 static int pbx_builtin_ringing(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    cw_indicate(chan, CW_CONTROL_RINGING);
-    return 0;
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	cw_indicate(chan, CW_CONTROL_RINGING);
+	return 0;
 }
 
 static int pbx_builtin_busy(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    cw_indicate(chan, CW_CONTROL_BUSY);        
-    if (chan->_state != CW_STATE_UP)
-        cw_setstate(chan, CW_STATE_BUSY);
-    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
-    return -1;
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	cw_indicate(chan, CW_CONTROL_BUSY);
+	if (chan->_state != CW_STATE_UP)
+		cw_setstate(chan, CW_STATE_BUSY);
+	wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
+	return -1;
 }
 
 static int pbx_builtin_congestion(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    cw_indicate(chan, CW_CONTROL_CONGESTION);
-    if (chan->_state != CW_STATE_UP)
-        cw_setstate(chan, CW_STATE_BUSY);
-    wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
-    return -1;
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	cw_indicate(chan, CW_CONTROL_CONGESTION);
+	if (chan->_state != CW_STATE_UP)
+		cw_setstate(chan, CW_STATE_BUSY);
+	wait_for_hangup(chan, (argc > 0 ? argv[0] : NULL));
+	return -1;
 }
 
 static int pbx_builtin_answer(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    int delay = (argc > 0 ? atoi(argv[0]) : 0);
-    int res;
+	int delay = (argc > 0 ? atoi(argv[0]) : 0);
+	int res;
     
-    if (chan->_state == CW_STATE_UP)
-        delay = 0;
-    res = cw_answer(chan);
-    if (res)
-        return res;
-    if (delay)
-        res = cw_safe_sleep(chan, delay);
-    return res;
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	if (chan->_state == CW_STATE_UP)
+		delay = 0;
+
+	if (!(res = cw_answer(chan)) && delay)
+		res = cw_safe_sleep(chan, delay);
+
+	return res;
 }
 
 static int pbx_builtin_setlanguage(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    static int deprecation_warning = 0;
+	static int deprecation_warning = 0;
 
-    if (!deprecation_warning)
-    {
-        cw_log(CW_LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
-        deprecation_warning = 1;
-    }
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
-    /* Copy the language as specified */
-    if (argc > 0)
-        cw_copy_string(chan->language, argv[0], sizeof(chan->language));
+	if (!deprecation_warning) {
+		cw_log(CW_LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
+		deprecation_warning = 1;
+	}
 
-    return 0;
+	/* Copy the language as specified */
+	if (argc > 0)
+		cw_copy_string(chan->language, argv[0], sizeof(chan->language));
+
+	return 0;
 }
 
 static int pbx_builtin_resetcdr(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *p;
 	int flags = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	for (; argc; argv++, argc--) {
 		for (p = argv[0]; *p; p++) {
@@ -175,29 +198,43 @@ static int pbx_builtin_resetcdr(struct cw_channel *chan, int argc, char **argv, 
 
 static int pbx_builtin_setaccount(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	cw_cdr_setaccount(chan, (argc > 0 ? argv[0] : ""));
 	return 0;
 }
 
 static int pbx_builtin_setamaflags(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	cw_cdr_setamaflags(chan, (argc > 0 ? argv[0] : ""));
 	return 0;
 }
 
 static int pbx_builtin_hangup(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    int n;
-    if (argc > 0 && (n = atoi(argv[0])) > 0)
-        chan->hangupcause = n;
-    /* Just return non-zero and it will hang up */
-    return -1;
+	int n;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
+	if (argc > 0 && (n = atoi(argv[0])) > 0)
+		chan->hangupcause = n;
+
+	/* Just return non-zero and it will hang up */
+	return -1;
 }
 
 static int pbx_builtin_goto(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *context, *exten;
 	int res;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	context = exten = NULL;
 	if (argc > 2) context = (argv++)[0];
@@ -213,6 +250,9 @@ static int pbx_builtin_gotoiftime(struct cw_channel *chan, int argc, char **argv
     char tmp[1024];
     struct cw_timing timing;
     char *s, *q;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     s = NULL;
     if (argc > 3) {
@@ -248,6 +288,9 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
     struct cw_timing timing;
     char *s, *args, *p;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     s = NULL;
     if (argc > 3) {
     	if ((s = strchr(argv[3], '?')))
@@ -279,6 +322,9 @@ static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, char
 {
     double ms;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     /* Wait for "n" seconds */
     if (argc > 0 && (ms = atof(argv[0])))
         return cw_safe_sleep(chan, (int)(ms * 1000.0));
@@ -290,6 +336,9 @@ static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv,
     struct cw_flags flags = {0};
     char *mohclass = NULL;
     int ms, res;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (argc > 1) {
         char *opts[1];
@@ -344,6 +393,9 @@ static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv
     char *context = NULL;
     struct cw_flags flags = {0};
     unsigned int hash = 0;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     switch (argc)
     {
@@ -440,6 +492,9 @@ static int pbx_builtin_atimeout(struct cw_channel *chan, int argc, char **argv, 
     static int deprecation_warning = 0;
     int x = (argc > 0 ? atoi(argv[0]) : 0);
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (!deprecation_warning)
     {
         cw_log(CW_LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
@@ -456,6 +511,10 @@ static int pbx_builtin_atimeout(struct cw_channel *chan, int argc, char **argv, 
 static int pbx_builtin_rtimeout(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     static int deprecation_warning = 0;
+
+    CW_UNUSED(argc);
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (!deprecation_warning)
     {
@@ -477,6 +536,10 @@ static int pbx_builtin_rtimeout(struct cw_channel *chan, int argc, char **argv, 
 static int pbx_builtin_dtimeout(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     static int deprecation_warning = 0;
+
+    CW_UNUSED(argc);
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     if (!deprecation_warning)
     {
@@ -550,14 +613,17 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, ch
 
 static int pbx_builtin_setvar_old(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    static int deprecation_warning = 0;
+	static int deprecation_warning = 0;
 
-    if (!deprecation_warning) {
-        cw_log(CW_LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
-        deprecation_warning = 1;
-    }
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
-    return pbx_builtin_setvar(chan, argc, argv, NULL, 0);
+	if (!deprecation_warning) {
+		cw_log(CW_LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
+		deprecation_warning = 1;
+	}
+
+	return pbx_builtin_setvar(chan, argc, argv, NULL, 0);
 }
 
 static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
@@ -565,6 +631,9 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 	char tmp[VAR_BUF_SIZE];
 	struct cw_channel *chan2;
 	char *channel, *s;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (argc != 2 || !(channel = strchr(argv[0], '=')))
 		return cw_function_syntax("ImportVar(newvar=channelname,variable)");
@@ -589,6 +658,10 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 
 static int pbx_builtin_setglobalvar(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	for (; argc; argv++, argc--) {
  		char *value;
 		if ((value = strchr(argv[0], '='))) {
@@ -604,21 +677,30 @@ static int pbx_builtin_setglobalvar(struct cw_channel *chan, int argc, char **ar
 
 static int pbx_builtin_noop(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-    // The following is added to relax dialplan execution.
-    // When doing small loops with lots of iteration, this
-    // allows other threads to re-schedule smoothly.
-    // This will for sure dramatically slow down benchmarks but
-    // will improve performance under load or in particular circumstances.
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
-    // sched_yield(); // This doesn't seem to have the effect we want.
-    usleep(1);
-    return 0;
+	// The following is added to relax dialplan execution.
+	// When doing small loops with lots of iteration, this
+	// allows other threads to re-schedule smoothly.
+	// This will for sure dramatically slow down benchmarks but
+	// will improve performance under load or in particular circumstances.
+
+	// sched_yield(); // This doesn't seem to have the effect we want.
+	usleep(1);
+	return 0;
 }
 
 static int pbx_builtin_gotoif(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
 	char *s, *q;
 	int i;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	/* First argument is "<condition ? ..." */
 	if (argc > 0) {
@@ -661,6 +743,9 @@ static int pbx_builtin_gotoif(struct cw_channel *chan, int argc, char **argv, ch
 
 static int pbx_builtin_saynumber(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     if (argc < 1) {
         cw_log(CW_LOG_WARNING, "SayNumber requires an argument (number)\n");
         return -1;
@@ -679,6 +764,9 @@ static int pbx_builtin_saydigits(struct cw_channel *chan, int argc, char **argv,
 {
     int res = 0;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     for (; !res && argc; argv++, argc--)
         res = cw_say_digit_str(chan, argv[0], "", chan->language);
     return res;
@@ -688,6 +776,9 @@ static int pbx_builtin_saycharacters(struct cw_channel *chan, int argc, char **a
 {
     int res = 0;
 
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
+
     for (; !res && argc; argv++, argc--)
         res = cw_say_character_str(chan, argv[0], "", chan->language);
     return res;
@@ -696,6 +787,9 @@ static int pbx_builtin_saycharacters(struct cw_channel *chan, int argc, char **a
 static int pbx_builtin_sayphonetic(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
     int res = 0;
+
+    CW_UNUSED(result);
+    CW_UNUSED(result_max);
 
     for (; !res && argc; argv++, argc--)
         res = cw_say_phonetic_str(chan, argv[0], "", chan->language);

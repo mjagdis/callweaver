@@ -143,6 +143,8 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 	struct hostent *hp;
 	struct cw_hostent ahp;
 
+	CW_UNUSED(argv);
+
 	host = cw_strdupa(ogiurl + 6);	/* Remove ogi:// */
 
 	/* Strip off any script name */
@@ -362,6 +364,10 @@ static void setup_env(struct cw_channel *chan, char *request, int fd, int enhanc
 static int handle_answer(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])
 {
 	int res;
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	res = 0;
 	if (chan->_state != CW_STATE_UP) {
 		/* Answer the chan */
@@ -1088,7 +1094,7 @@ static int handle_setcallerid(struct cw_channel *chan, OGI *ogi, int argc, char 
 	char tmp[256];
 	char *l, *n;
 
-	if (argv[2]) {
+	if (argc >= 3 && argv[2]) {
 		cw_copy_string(tmp, argv[2], sizeof(tmp));
 		cw_callerid_parse(tmp, &n, &l);
 		if (l)
@@ -1127,7 +1133,7 @@ static int handle_channelstatus(struct cw_channel *chan, OGI *ogi, int argc, cha
 
 static int handle_setvariable(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	if (argv[3])
+	if (argc >= 4 && argv[3])
 		pbx_builtin_setvar_helper(chan, argv[2], argv[3]);
 
 	fdprintf(ogi->fd, "200 result=1\n");
@@ -1188,8 +1194,10 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 
 static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	const char *prefix;
 	int level = 0;
+	const char *prefix;
+
+	CW_UNUSED(chan);
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -1223,11 +1231,14 @@ static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **ar
 
 static int handle_dbget(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	int res;
 	char tmp[256];
+	int res;
+
+	CW_UNUSED(chan);
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+
 	res = cw_db_get(argv[2], argv[3], tmp, sizeof(tmp));
 	if (res) 
 		fdprintf(ogi->fd, "200 result=0\n");
@@ -1241,8 +1252,11 @@ static int handle_dbput(struct cw_channel *chan, OGI *ogi, int argc, char **argv
 {
 	int res;
 
+	CW_UNUSED(chan);
+
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
+
 	res = cw_db_put(argv[2], argv[3], argv[4]);
 	if (res) 
 		fdprintf(ogi->fd, "200 result=0\n");
@@ -1256,8 +1270,11 @@ static int handle_dbdel(struct cw_channel *chan, OGI *ogi, int argc, char **argv
 {
 	int res;
 
+	CW_UNUSED(chan);
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+
 	res = cw_db_del(argv[2], argv[3]);
 	if (res) 
 		fdprintf(ogi->fd, "200 result=0\n");
@@ -1270,8 +1287,12 @@ static int handle_dbdel(struct cw_channel *chan, OGI *ogi, int argc, char **argv
 static int handle_dbdeltree(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	int res;
+
+	CW_UNUSED(chan);
+
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
+
 	if (argc == 4)
 		res = cw_db_deltree(argv[2], argv[3]);
 	else
@@ -1294,8 +1315,11 @@ static const char no_debug_usage[] =
 
 static int ogi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+
 	ogidebug = 1;
 	cw_dynstr_printf(ds_p, "OGI Debugging Enabled\n");
 	return RESULT_SUCCESS;
@@ -1303,8 +1327,11 @@ static int ogi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int ogi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
 	ogidebug = 0;
 	cw_dynstr_printf(ds_p, "OGI Debugging Disabled\n");
 	return RESULT_SUCCESS;
@@ -1324,8 +1351,12 @@ static struct cw_clicmd  cli_no_debug = {
 	.usage = no_debug_usage,
 };
 
-static int handle_noop(struct cw_channel *chan, OGI *ogi, int arg, char *argv[])
+static int handle_noop(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])
 {
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
 	fdprintf(ogi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -2044,6 +2075,9 @@ static int ogi_exec_full(struct cw_channel *chan, int argc, char **argv, int enh
 
 static int ogi_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (chan->_softhangup)
 		cw_log(CW_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	return ogi_exec_full(chan, argc, argv, 0, 0);
@@ -2053,6 +2087,9 @@ static int eogi_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 {
 	int readformat;
 	int res;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	if (chan->_softhangup)
 		cw_log(CW_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
@@ -2072,6 +2109,11 @@ static int eogi_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 
 static int deadogi_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	return ogi_exec_full(chan, argc, argv, 0, 1);
 }
 

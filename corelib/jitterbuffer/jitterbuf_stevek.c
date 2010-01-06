@@ -147,6 +147,8 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 	long threshold = 2 * jb->info.jitter + jb->conf.resync_threshold;
 	long kicked;
 
+	CW_UNUSED(ms);
+
 	/* check if a resync has been requested, or is needed */
 	if (jb->force_resync) {
 		resync(jb, ts, now);

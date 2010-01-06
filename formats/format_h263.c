@@ -88,6 +88,8 @@ static void *h263_rewrite(FILE *f, const char *comment)
 {
     struct pvt *tmp;
 
+    CW_UNUSED(comment);
+
     if ((tmp = calloc(1, sizeof(*tmp))))
     {
         tmp->f = f;
@@ -196,11 +198,17 @@ static int h263_write(void *data, struct cw_frame *f)
 
 static char *h263_getcomment(void *data)
 {
+    CW_UNUSED(data);
+
     return NULL;
 }
 
 static int h263_seek(void *data, long sample_offset, int whence)
 {
+    CW_UNUSED(data);
+    CW_UNUSED(sample_offset);
+    CW_UNUSED(whence);
+
     return -1;
 }
 

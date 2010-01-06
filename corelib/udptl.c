@@ -198,6 +198,10 @@ static int udptlread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
     cw_udptl_t *udptl = cbdata;
     struct cw_frame *f;
 
+    CW_UNUSED(ior);
+    CW_UNUSED(fd);
+    CW_UNUSED(events);
+
     if ((f = cw_udptl_read(udptl)))
     {
         if (udptl->callback)
@@ -273,6 +277,9 @@ void cw_udptl_offered_from_local(cw_udptl_t *udptl, int local)
 int cw_udptl_get_preferred_error_correction_scheme(cw_udptl_t *udptl)
 {
     int ret;
+
+    CW_UNUSED(udptl);
+
     cw_mutex_lock(&settingslock);
     ret = udptlfectype;
     cw_mutex_unlock(&settingslock);
@@ -568,6 +575,8 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     void *pvt1;
     int to;
     
+    CW_UNUSED(flags);
+
     cw_channel_lock(c0);
     while (cw_channel_trylock(c1))
     {
@@ -739,8 +748,11 @@ static int udptl_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
    
 static int udptl_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(argv);
+
     if (argc != 3)
         return RESULT_SHOWUSAGE;
+
     udptldebug = 0;
     cw_dynstr_printf(ds_p, "UDPTL Debugging Disabled\n");
     return RESULT_SUCCESS;
@@ -748,8 +760,12 @@ static int udptl_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 static int udptl_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+    CW_UNUSED(ds_p);
+    CW_UNUSED(argv);
+
     if (argc != 2)
         return RESULT_SHOWUSAGE;
+
     cw_udptl_reload();
     return RESULT_SUCCESS;
 }
@@ -757,6 +773,8 @@ static int udptl_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 static int udptl_show_settings(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
     const char *error_correction_str;
+
+    CW_UNUSED(argv);
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;

@@ -459,6 +459,10 @@ struct cw_channel *icd_bridge_get_callweaver_channel(const char *chanstring, con
     char *type = NULL;
     char *data = NULL;
 
+    CW_UNUSED(context);
+    CW_UNUSED(priority);
+    CW_UNUSED(extension);
+
     /* The channel string method */
     if (chan == NULL && chanstring != NULL) {
         type = strdup(chanstring);
@@ -848,6 +852,8 @@ int no_agent(icd_caller * caller, icd_queue * queue){
 
     const char * tmp_str;
     icd_caller *agent_caller = NULL;
+
+    CW_UNUSED(queue);
 
     tmp_str = icd_caller__get_param(caller, "identifier");
     

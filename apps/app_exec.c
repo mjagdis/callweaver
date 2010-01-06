@@ -56,9 +56,13 @@ static const char exec_descrip[] =
 
 static int exec_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res=0;
+	char args[MAXRESULT];
 	struct localuser *u;
-	char *s, *appname, *endargs, args[MAXRESULT];
+	char *s, *appname, *endargs;
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

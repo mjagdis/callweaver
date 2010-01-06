@@ -386,6 +386,9 @@ icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct
     icd_member *member;
     icd_caller *caller;
 
+    CW_UNUSED(verbosity);
+    CW_UNUSED(extra);
+
     assert(list != NULL);
     assert(list->dump_fn != NULL);
 

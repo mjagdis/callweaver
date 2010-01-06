@@ -409,6 +409,9 @@ static int directory_exec(struct cw_channel *chan, int argc, char **argv, char *
 	int res = 0;
 	int last = 1;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(directory_syntax);
 

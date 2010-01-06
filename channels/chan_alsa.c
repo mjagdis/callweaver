@@ -2316,12 +2316,14 @@ static int send_sound(void)
 	return 0;
 }
 
-static void *sound_thread(void *unused)
+static void *sound_thread(void *data)
 {
 	fd_set rfds;
 	fd_set wfds;
 	int max;
 	int res;
+
+	CW_UNUSED(data);
 
 	for(;;) {
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
@@ -2555,6 +2557,8 @@ static int soundcard_init(void)
 
 static int alsa_digit(struct cw_channel *c, char digit)
 {
+	CW_UNUSED(c);
+
 	cw_mutex_lock(&alsalock);
 	cw_verbose( " << Console Received digit %c >> \n", digit);
 	cw_mutex_unlock(&alsalock);
@@ -2563,6 +2567,8 @@ static int alsa_digit(struct cw_channel *c, char digit)
 
 static int alsa_text(struct cw_channel *c, const char *text)
 {
+	CW_UNUSED(c);
+
 	cw_mutex_lock(&alsalock);
 	cw_verbose( " << Console Received text %s >> \n", text);
 	cw_mutex_unlock(&alsalock);
@@ -2580,8 +2586,11 @@ static void grab_owner(void)
 
 static int alsa_call(struct cw_channel *c, const char *dest)
 {
-	int res = 3;
 	struct cw_frame f = { CW_FRAME_CONTROL };
+	int res = 3;
+
+	CW_UNUSED(c);
+
 	cw_mutex_lock(&alsalock);
 	cw_verbose( " << Call placed to '%s' on console >> \n", dest);
 	if (autoanswer) {
@@ -2659,6 +2668,9 @@ static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 	static int sizpos = 0;
 	int len = sizpos;
 	int res = 0;
+
+	CW_UNUSED(chan);
+
 	/* size_t frames = 0; */
 	snd_pcm_state_t state;
 	/* Immediately return if no sound is enabled */
@@ -2782,6 +2794,9 @@ static struct cw_frame *alsa_read(struct cw_channel *chan)
 static int alsa_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 {
 	struct chan_alsa_pvt *p = newchan->tech_pvt;
+
+	CW_UNUSED(oldchan);
+
 	cw_mutex_lock(&alsalock);
 	p->owner = newchan;
 	cw_mutex_unlock(&alsalock);
@@ -2852,8 +2867,12 @@ static struct cw_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 
 static struct cw_channel *alsa_request(const char *drvtype, int fmt, void *data, int *cause)
 {
-	int oldformat = fmt;
 	struct cw_channel *tmp=NULL;
+	int oldformat = fmt;
+
+	CW_UNUSED(drvtype);
+	CW_UNUSED(data);
+
 	fmt &= CW_FORMAT_SLINEAR;
 	if (!fmt) {
 		cw_log(CW_LOG_NOTICE, "Asked to get a channel of format '%d'\n", oldformat);
@@ -2910,8 +2929,11 @@ static const char autoanswer_usage[] =
 
 static int console_answer(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
+	CW_UNUSED(argv);
+
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
+
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner) {
 		cw_dynstr_printf(ds_p, "No one is calling us\n");
@@ -2980,8 +3002,12 @@ static const char answer_usage[] =
 static int console_hangup(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
+
+	CW_UNUSED(argv);
+
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
+
 	cursound = -1;
 	cw_mutex_lock(&alsalock);
 	if (!alsa.owner && !hookstate) {

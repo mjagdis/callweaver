@@ -104,6 +104,9 @@ static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		short frdata[160];
 	} myf;
 
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	last.tv_usec = 0;
 	last.tv_sec = 0;
 

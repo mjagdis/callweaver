@@ -75,6 +75,9 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
     int confnr = 0;
     icd_conference * conf;
 
+    CW_UNUSED(listener);
+    CW_UNUSED(extra);
+
     assert(factory_event != NULL);
     /* 
     cw_verbose(VERBOSE_PREFIX_2 "YoYoAPP_ICD:Mod[%d] Event[%d]  \n",

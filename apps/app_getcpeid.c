@@ -77,6 +77,11 @@ static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 	int width, height, buttons;
 	int res=0;
 
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	LOCAL_USER_ADD(u);
 	stuff[0] = data[0];
 	stuff[1] = data[1];

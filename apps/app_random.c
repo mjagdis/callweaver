@@ -49,11 +49,14 @@ static const char random_descrip[] =
 
 static int random_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
 {
-	int res=0;
 	struct localuser *u;
 	char *s, *context, *exten;
 	int probint;
-	
+	int res = 0;
+
+	CW_UNUSED(result);
+	CW_UNUSED(result_max);
+
 	if (argc < 1 || argc > 4)
 		return cw_function_syntax(random_syntax);
 

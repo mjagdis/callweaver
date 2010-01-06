@@ -959,7 +959,12 @@ static int pbx_load_module(void);
 
 static int handle_reload_extensions(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	if (argc!=2) return RESULT_SHOWUSAGE;
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argv);
+
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+
 	pbx_load_module();
 	return RESULT_SUCCESS;
 }

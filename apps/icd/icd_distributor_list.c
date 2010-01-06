@@ -48,6 +48,8 @@ icd_distributor_list *init_icd_distributor_list(int size)
 {
     icd_distributor_list *list = NULL;
 
+    CW_UNUSED(size);
+
     return list;
 }
 
@@ -55,6 +57,8 @@ icd_distributor_list *init_icd_distributor_list(int size)
 icd_status destroy_icd_distributor_list(icd_distributor_list ** listp)
 {
     icd_status ret = ICD_SUCCESS;
+
+    CW_UNUSED(listp);
 
     return ret;
 }
@@ -66,6 +70,9 @@ icd_status icd_distributor_list__push(icd_distributor_list * that, icd_distribut
 {
     icd_status ret = ICD_SUCCESS;
 
+    CW_UNUSED(that);
+    CW_UNUSED(dist);
+
     return ret;
 }
 
@@ -73,6 +80,8 @@ icd_status icd_distributor_list__push(icd_distributor_list * that, icd_distribut
 icd_distributor *icd_distributor_list__pop(icd_distributor_list * that)
 {
     icd_distributor *dist = NULL;
+
+    CW_UNUSED(that);
 
     return dist;
 }
@@ -82,8 +91,10 @@ icd_status icd_distributor_list__dump(icd_distributor_list * that, struct cw_dyn
 {
     icd_status ret = ICD_SUCCESS;
 
-    return ret;
+    CW_UNUSED(that);
+    CW_UNUSED(ds_p);
 
+    return ret;
 }
 
 /***** Locking *****/
@@ -93,6 +104,8 @@ icd_status icd_distributor_list__lock(icd_distributor_list * that)
 {
     icd_status ret = ICD_SUCCESS;
 
+    CW_UNUSED(that);
+
     return ret;
 }
 
@@ -100,6 +113,8 @@ icd_status icd_distributor_list__lock(icd_distributor_list * that)
 icd_status icd_distributor_list__unlock(icd_distributor_list * that)
 {
     icd_status ret = ICD_SUCCESS;
+
+    CW_UNUSED(that);
 
     return ret;
 }
@@ -111,12 +126,20 @@ icd_status icd_distributor_list__add_listener(icd_distributor_list * that, void 
 {
     icd_status ret = ICD_SUCCESS;
 
+    CW_UNUSED(that);
+    CW_UNUSED(listener);
+    CW_UNUSED(lstn_fn);
+    CW_UNUSED(extra);
+
     return ret;
 }
 
 icd_status icd_distributor_list__remove_listener(icd_distributor_list * that, void *listener)
 {
     icd_status ret = ICD_SUCCESS;
+
+    CW_UNUSED(that);
+    CW_UNUSED(listener);
 
     return ret;
 }

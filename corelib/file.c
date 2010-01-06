@@ -541,11 +541,15 @@ struct cw_frame *cw_readframe(struct cw_filestream *s)
 static void filestream_release(struct cw_channel *chan, void *params)
 {
 //	struct cw_filestream *fs = params;
+	CW_UNUSED(chan);
+	CW_UNUSED(params);
 }
 
 static void *filestream_alloc(struct cw_channel *chan, void *params)
 {
 	struct cw_filestream *fs = params;
+
+	CW_UNUSED(chan);
 
 	atomic_inc(&fs->running);
 	return fs;
@@ -556,6 +560,9 @@ static struct cw_frame *filestream_generate(struct cw_channel *chan, void *data,
 	struct cw_filestream *fs = data;
 	struct cw_frame *f;
 	int whennext = 0;
+
+	CW_UNUSED(chan);
+	CW_UNUSED(samples);
 
 	f = fs->fmt->read(fs->pvt, &whennext);
 	if (!f)
@@ -733,6 +740,11 @@ struct cw_filestream *cw_readfile(const char *filename, const char *fmt, const c
 		.fmt = fmt,
 	};
 
+	CW_UNUSED(comment);
+	CW_UNUSED(flags);
+	CW_UNUSED(check);
+	CW_UNUSED(mode);
+
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		return NULL;
@@ -860,6 +872,8 @@ struct cw_filestream *cw_writefile(const char *filename, const char *type, const
 		.myflags = O_WRONLY | O_CREAT,
 		.mode = mode,
 	};
+
+	CW_UNUSED(check);
 
 	if (!(args.s = calloc(1, sizeof(*args.s)))) {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
@@ -1145,6 +1159,8 @@ static int show_file_formats_one(struct cw_object *obj, void *data)
 static int show_file_formats(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	struct show_file_formats_args args = { ds_p, 0 };
+
+	CW_UNUSED(argv);
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;

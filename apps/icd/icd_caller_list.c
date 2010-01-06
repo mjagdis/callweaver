@@ -406,6 +406,9 @@ icd_status icd_caller_list__remove_listener(icd_caller_list * that, void *listen
 
 int icd_caller_list__dummy_notify(icd_event * event, void *extra)
 {
+    CW_UNUSED(event);
+    CW_UNUSED(extra);
+
     return 0;
 }
 
@@ -416,6 +419,8 @@ icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct
     //icd_caller_list *call_list;
     icd_list_iterator *iter;
     icd_caller *caller;
+
+    CW_UNUSED(extra);
 
     assert(list != NULL);
     assert(list->dump_fn != NULL);
