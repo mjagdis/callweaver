@@ -6185,11 +6185,30 @@ static int __transmit_response(struct sip_pvt *p, const char *status, struct sip
 	if ((msg = (reliable ? malloc(sizeof(*msg)) : &tmpmsg))) {
 		respprep(msg, p, status, req);
 		add_header_contentLength(msg, 0);
-		/* If we are cancelling an incoming invite for some reason, add information
-		 * about the reason why we are doing this in clear text
-		 */
-		if (status[0] != '1' && p->owner && p->owner->hangupcause)
-			add_header(msg, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+
+		if (status[0] != '1') {
+			/* If we are cancelling an incoming invite for some reason, add information
+			 * about the reason why we are doing this in clear text
+			 */
+			if (p->owner && p->owner->hangupcause)
+				add_header(msg, "X-CallWeaver-HangupCause", cw_cause2str(p->owner->hangupcause), SIP_DL_DONTCARE);
+		} else if (!memcmp(status, "100 ", 4)) {
+			char *s;
+
+			/* RFC3261 8.2.6:
+			 * When a 100 (Trying) response is generated, any Timestamp header field
+			 * present in the request MUST be copied into this 100 (Trying) response.
+			 * If there is a delay in generating the response, the UAS SHOULD add a
+			 * delay value into the Timestamp value in the response. This value MUST
+			 * contain the difference between the time of sending of the response and
+			 * receipt of the request, measured in seconds.
+			 *
+			 * Note: we do not add a delay value.
+			 */
+			if ((s = get_header(req, "Timestamp")))
+				add_header(msg, "Timestamp", s, SIP_DL_DONTCARE);
+		}
+
 		add_blank_header(msg);
 
 		res =  send_response(p, &msg, reliable);
