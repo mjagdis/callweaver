@@ -782,7 +782,7 @@ void pbx_retrieve_variable(struct cw_channel *c, const char *varname, char **ret
         else
         {
             if (-offset > n)
-                offset =- n;
+                offset = -n;
         }
 
         if ((offset < 0  &&  offset2 > -offset)  ||  (offset >= 0  &&  offset + offset2 > strlen(*ret)))
