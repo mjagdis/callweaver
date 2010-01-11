@@ -555,11 +555,11 @@ static int database_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 	}
 
 	if (family && prefix) {
-		sql = sqlite3_mprintf("select * from %q where family='%q' and keys='%q'", globals.tablename, family, prefix);
+		sql = sqlite3_mprintf("select family, keys, value from %q where family='%q' and keys='%q' order by family, keys", globals.tablename, family, prefix);
 	} else if (family) {
-		sql = sqlite3_mprintf("select * from %q where family='%q'", globals.tablename, family);
+		sql = sqlite3_mprintf("select family, keys, value from %q where family='%q' order by family, keys", globals.tablename, family);
 	} else {
-		sql = sqlite3_mprintf("select * from %q", globals.tablename);
+		sql = sqlite3_mprintf("select family, keys, value from %q order by family, keys", globals.tablename);
 	}
 
 	if (sql) {
