@@ -486,14 +486,14 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 		if (touch_monitor) {
 			len = strlen(touch_monitor->value) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s,auto-%ld-%s,m", (touch_format->value ? touch_format->value : "wav"), time(NULL), touch_monitor->value);
+			snprintf(args, len, "%s,auto-%ld-%s,m", (touch_format ? touch_format->value : "wav"), time(NULL), touch_monitor->value);
 			cw_object_put(touch_monitor);
 		} else {
 			caller_chan_id = cw_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
 			callee_chan_id = cw_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s,auto-%ld-%s-%s,m", (touch_format->value ? touch_format->value : "wav"), time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s,auto-%ld-%s-%s,m", (touch_format ? touch_format->value : "wav"), time(NULL), caller_chan_id, callee_chan_id);
 		}
 
 		if (touch_format)
