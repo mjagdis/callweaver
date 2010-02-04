@@ -222,7 +222,7 @@ int cw_manager_send(struct mansession *sess, const struct message *req, struct c
 	int q_w_next;
 	int ret = -1;
 
-	if (*resp_p) {
+	if (*resp_p && (*resp_p)->data) {
 		if (!(*resp_p)->data->error && (!req || !req->actionid || !cw_manager_msg(resp_p, 1, cw_msg_tuple("ActionID", "%s", req->actionid)))) {
 			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
 			pthread_mutex_lock(&sess->lock);
@@ -1106,7 +1106,7 @@ static struct cw_manager_message *action_command(struct mansession *sess, const 
 			msg->data->used -= 2;
 
 			cw_cli_command(&msg->data, cmd);
-			cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+			cw_dynstr_printf(&msg->data, "%s--END COMMAND--\r\n\r\n", (msg->data->data[msg->data->used - 1] != '\n' ? "\n" : ""));
 		}
 	} else
 		msg = cw_manager_response("Error", NULL);
@@ -1496,8 +1496,16 @@ static int process_message(struct mansession *sess, const struct message *req)
 		msg = cw_manager_response("Error", "Authentication Required");
 
 	if (msg) {
-		if (!cw_manager_send(sess, req, &msg) && !islogoff)
-			return 0;
+		/* Yes, we _could_ carry on if it overflowed rather than failed but dropping
+		 * a response message leaves the client out-of-state and potentially hung,
+		 * leaking memory or just plain confused and upset. Responses to action
+		 * requests are important.
+		 */
+		if (!cw_manager_send(sess, req, &msg)) {
+			if (!islogoff)
+				return 0;
+		} else
+			cw_log(CW_LOG_ERROR, "failed to send response to %s - session will be closed\n", sess->name);
 	}
 
 	return -1;
@@ -1705,12 +1713,8 @@ static void *manager_session(void *data)
 		pthread_cleanup_pop(1);
 
 		if (sess->m) {
-			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL, 0) | O_NONBLOCK);
-
 			if (process_message(sess, sess->m))
 				break;
-
-			fcntl(sess->fd, F_SETFL, fcntl(sess->fd, F_GETFL, 0) & (~O_NONBLOCK));
 
 			/* Remove the queued message and signal completion to the reader */
 			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
