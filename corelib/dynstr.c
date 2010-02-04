@@ -60,7 +60,7 @@ int cw_dynstr_vprintf(struct cw_dynstr **ds_p, const char *fmt, va_list ap)
 		va_list aq;
 		char *data;
 		size_t size;
-		int used;
+		size_t used;
 
 		data = NULL;
 		size = 0;
