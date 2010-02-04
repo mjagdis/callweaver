@@ -40,6 +40,8 @@
 #ifndef _CALLWEAVER_PREPROCESSOR_H
 #define _CALLWEAVER_PREPROCESSOR_H
 
+#define CW_CPP_MKSTR(a)		# a
+
 #define CW_CPP_CAT(a, b)	a ## b
 #define CW_CPP_DEBRACKET(...)	__VA_ARGS__
 #define CW_CPP_DO(op, ...)	op(__VA_ARGS__)

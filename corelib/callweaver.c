@@ -788,6 +788,28 @@ static const char restart_when_convenient_help[] =
 "       If a timeout is given and CallWeaver is unable to stop in this\n"
 "       any seconds an immediate stop will be initiated.\n";
 
+static const char core_analyse_help[] =
+"Usage: core analyse emailadress [...]\n"
+"       Causes CallWeaver to generate a core analysis and email it to the specified\n"
+"       addresses. Success is dependent on having working \"gdb\" and \"mail\" applications\n"
+"       installed.\n"
+"\n"
+"       Note that this command WILL cause an interruption in service as gdb will suspend\n"
+"       the process while it works. This is hopefully kept to a minimum.\n";
+
+static const char core_dump_and_halt_help[] =
+"Usage: core dump and halt\n"
+"       Causes CallWeaver to dump core and halt immediately. All active calls will be\n"
+"       terminated. CallWeaver will NOT restart itself but may be restarted automatically\n"
+"       if you are using some form of external process monitor.\n";
+
+static const char core_dump_and_continue_help[] =
+"Usage: core dump and continue\n"
+"       Causes CallWeaver to dump core and continue operation.\n"
+"       Success is dependent on gdb being installed and accessible via $PATH. Even if gdb\n"
+"       is not available \"core dump and halt\" will still work (but obviously causes\n"
+"       CallWeaver to halt in the process).\n";
+
 static const char bang_help[] =
 "Usage: !<command>\n"
 "       Executes a given shell command\n";
@@ -906,6 +928,89 @@ static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, cha
 	return RESULT_SUCCESS;
 }
 
+static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+	struct cw_dynstr *buf = NULL;
+	int res;
+
+	CW_UNUSED(ds_p);
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	res = RESULT_FAILURE;
+
+	if (!strcmp(argv[3], "halt")) {
+		*(int *)0 = 1;
+	} else {
+		cw_dynstr_printf(&buf, "gdb $( type -p \"%s\" ) %u <<EOF\n"
+			"generate-core-file\n"
+			"quit\n"
+			"EOF\n",
+			_argv[0], cw_mainpid);
+
+		if (buf && !buf->error) {
+			cw_safe_system(buf->data);
+			res = RESULT_SUCCESS;
+		} else
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	}
+
+	return res;
+
+}
+
+static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
+{
+	char buf[1024];
+	struct cw_dynstr *cmd = NULL;
+	FILE *fd;
+	int i;
+
+	cw_dynstr_printf(&cmd, "CALLWEAVER_NOTIFYDEV='");
+
+	for (i = 2; i < argc; i++) {
+		const char *p = argv[i];
+
+		cw_dynstr_printf(&cmd, "%s ", (i != 2 ? "," : ""));
+
+		while (*p) {
+			int n = strcspn(p, "'");
+			cw_dynstr_printf(&cmd, "%.*s", n, p);
+			if (!p[n])
+				break;
+			cw_dynstr_printf(&cmd, "\\%c", p[n]);
+			p += n + 1;
+		}
+	}
+
+	cw_dynstr_printf(&cmd, "' '%s/cw_coreanalyse' '%s' %u 'Live core analysis' 2>&1",
+		CW_CPP_DO(CW_CPP_MKSTR, CW_UTILSDIR), _argv[0], (unsigned int)cw_mainpid);
+
+	i = RESULT_FAILURE;
+
+	if (cmd) {
+		if (!cmd->error) {
+			if ((fd = popen(cmd->data, "r"))) {
+				while ((i = fread(buf, 1, sizeof(buf), fd)) > 0)
+					if (cw_dynstr_printf(ds_p, "%.*s", i, buf))
+				pclose(fd);
+			} else
+				cw_dynstr_printf(ds_p, "popen: %s\n", strerror(errno));
+
+			i = RESULT_SUCCESS;
+		}
+
+		cw_dynstr_free(cmd);
+	}
+
+	if (i != RESULT_SUCCESS)
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+
+	return i;
+}
+
+
 static int handle_bang(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
@@ -953,7 +1058,7 @@ static struct cw_clicmd core_cli[] = {
 		.usage = shutdown_gracefully_help,
 	},
 	{
-		.cmda = { "stop", "when","convenient", NULL },
+		.cmda = { "stop", "when", "convenient", NULL },
 		.handler = handle_shutdown_when_convenient,
 		.summary = "Shut down CallWeaver when there are no calls in progress",
 		.usage = shutdown_when_convenient_help,
@@ -975,6 +1080,24 @@ static struct cw_clicmd core_cli[] = {
 		.handler = handle_restart_when_convenient,
 		.summary = "Restart CallWeaver when there are no calls in progress",
 		.usage = restart_when_convenient_help,
+	},
+	{
+		.cmda = { "core", "analyse", NULL },
+		.handler = core_analyse,
+		.summary = "Generate a core analysis.",
+		.usage = core_analyse_help,
+	},
+	{
+		.cmda = { "core", "dump", "and", "halt", NULL },
+		.handler = core_dump,
+		.summary = "Dump core and halt.",
+		.usage = core_dump_and_halt_help,
+	},
+	{
+		.cmda = { "core", "dump", "and", "continue", NULL },
+		.handler = core_dump,
+		.summary = "Dump core and continue.",
+		.usage = core_dump_and_continue_help,
 	},
 	{
 		.cmda = { "!", NULL },
