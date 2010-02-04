@@ -1526,7 +1526,7 @@ int callweaver_main(int argc, char *argv[])
 			fprintf(stderr, "CallWeaver already running. Use \"callweaver -r\" to connect.\n");
 			/* Fall through */
 		case -1: /* Interrupted before claim */
-			exit(1);
+			exit(EX_TEMPFAIL);
 	}
 
 	if (!option_console && !option_nofork) {
