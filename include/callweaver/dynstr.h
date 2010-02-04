@@ -27,6 +27,9 @@
 #include "callweaver/preprocessor.h"
 
 
+#define CW_DYNSTR_DEFAULT_CHUNK 64
+
+
 struct cw_dynstr {
 	size_t size, chunk, used;
 	unsigned char error:1;

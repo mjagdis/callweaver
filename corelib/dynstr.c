@@ -36,14 +36,17 @@ static int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
 static int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
 {
 	struct cw_dynstr *nds;
+	size_t nsize = sizeof(**ds_p) + len;
 
 	if ((*ds_p) && (*ds_p)->chunk)
-		len = (len | (*ds_p)->chunk) + 1;
+		nsize = (nsize | (*ds_p)->chunk) + 1;
 
-	if ((nds = realloc(*ds_p, sizeof(**ds_p) + len))) {
-		nds->size = len;
-		if (!(*ds_p))
-			nds->chunk = nds->used = nds->error = 0;
+	if ((nds = realloc(*ds_p, nsize))) {
+		nds->size = nsize - sizeof(**ds_p);
+		if (!(*ds_p)) {
+			nds->chunk = CW_DYNSTR_DEFAULT_CHUNK;
+			nds->used = nds->error = 0;
+		}
 		*ds_p = nds;
 		return 0;
 	}
