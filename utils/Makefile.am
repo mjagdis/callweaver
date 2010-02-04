@@ -6,6 +6,7 @@ AM_CFLAGS			= @CW_CFLAGS@
 noinst_SCRIPTS = cc
 noinst_PROGRAMS = genkeywords
 cwutils_PROGRAMS = streamplayer # check_expr 
+cwutils_SCRIPTS = cw_mixer
 
 streamplayer_SOURCES = streamplayer.c ${top_srcdir}/corelib/strcompat.c
 
@@ -29,3 +30,10 @@ if WANT_SMSQ
     smsq_SOURCES = smsq.c
     smsq_LDADD = -lpopt
 endif WANT_SMSQ
+
+
+install-data-hook:
+	cfgdir=/etc/sysconfig; \
+	test -d $$cfgdir || cfgdir=/etc/default; \
+	test -f $(DESTDIR)$$cfgdir/cw_mixer \
+	|| $(INSTALL) -m 0644 $(srcdir)/cw_mixer.conf.sample $(DESTDIR)$$cfgdir/cw_mixer

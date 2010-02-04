@@ -265,8 +265,8 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 		}
 
 		if (chan->monitor->joinfiles && !cw_strlen_zero(chan->monitor->filename_base)) {
-			char tmp[1024];
-			char tmp2[1024];
+			struct cw_dynstr *cmd = NULL;
+			/* This mapping is because that's what corelib/file.c does when asked to write wav49 */
 			const char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
@@ -277,26 +277,30 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 			execute = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MONITOR_EXEC, "MONITOR_EXEC");
 			execute_args = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MONITOR_EXEC_ARGS, "MONITOR_EXEC_ARGS");
 
-			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" %s%s \"%s/%s.%s\" %s &",
-				(execute ? execute->value : "nice -n 19 soxmix"),
-				dir, name, format, dir, name, format,
-				(execute ? "" : "-t "),
-				(execute ? "" : format),
+			cw_dynstr_printf(&cmd,
+				"%s '%s/%s-in.%s' '%s/%s-out.%s' '%s/%s.%s' %s > /dev/null 2>&1 &",
+				(execute ? execute->value : "nice -n 19 " CW_CPP_DO(CW_CPP_MKSTR, CW_UTILSDIR) "/cw_mixer"),
 				dir, name, format,
-				(execute_args ? execute_args->value : ""));
+				dir, name, format,
+				dir, name, format,
+				(execute_args ? execute_args->value : "")
+			);
 
 			if (execute_args)
 				cw_object_put(execute_args);
+
 			if (execute)
 				cw_object_put(execute);
-			else {
-				/* Remove legs when done mixing */
-				snprintf(tmp2, sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &", tmp, dir ,name);
-				cw_copy_string(tmp, tmp2, sizeof(tmp));
-			}
-			cw_log(CW_LOG_DEBUG,"monitor executing %s\n", tmp);
-			if (cw_safe_system(tmp) == -1)
-				cw_log(CW_LOG_WARNING, "Execute of %s failed.\n", tmp);
+
+			if (cmd && !cmd->error) {
+				cw_log(CW_LOG_DEBUG,"Executing: %s\n", cmd->data);
+				if (cw_safe_system(cmd->data) == -1)
+					cw_log(CW_LOG_WARNING, "Failed to execute: %s failed.\n", cmd->data);
+			} else
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+
+			if (cmd)
+				cw_dynstr_free(cmd);
 		}
 		
 		free(chan->monitor->format);

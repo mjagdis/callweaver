@@ -21,6 +21,7 @@ res_indications_la_LIBADD	= @CALLWEAVER_LIB@
 res_monitor_la_SOURCES 		= res_monitor.c
 res_monitor_la_LDFLAGS 		= -module -avoid-version @NO_UNDEFINED@
 res_monitor_la_LIBADD		= @CALLWEAVER_LIB@  
+res_monitor_la_CFLAGS 		= $(AM_CFLAGS) -DCW_UTILSDIR="$(cwutilsdir)"
 
 res_ogi_la_SOURCES 		= res_ogi.c
 res_ogi_la_LDFLAGS 		= -module -avoid-version @NO_UNDEFINED@
