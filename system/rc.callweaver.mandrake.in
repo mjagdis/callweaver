@@ -1,0 +1,65 @@
+#!/bin/sh
+# 
+# callweaver:		Starts the callweaver service
+# 
+# chkconfig: 2345 95 10
+# description:	Starts the callweaver service
+# 
+# processname:	callweaver
+# 
+
+[ -x '@cwexecdir@/callweaver' ] || exit 0
+[ -d /etc/callweaver ] || exit 0
+
+# Full path to callweaver binary
+DAEMON='@cwexecdir@/callweaver'
+
+# Full path to safe_callweaver script
+SAFE_CALLWEAVER='@cwutilsdir@/safe_callweaver'
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+
+case "$1" in
+	start)
+		gprintf "Starting callweaver: "
+		"${SAFE_CALLWEAVER:-$DAEMON}"
+		if [ $? -ne 0 ]; then
+			failure
+		else
+			success
+		fi
+		echo
+		;;
+	stop)
+		gprintf "Stopping callweaver: "
+		killall -TERM callweaver
+		success
+		echo
+		;;
+	restart)
+		$0 stop
+		sleep 5
+		$0 start
+		;;
+	reload)
+		gprintf "Reloading callweaver: "
+		killall -HUP callweaver
+		success
+		echo
+		;;
+	status)
+		if killall -0 callweaver; then
+			echo "CallWeaver is currently running"
+		else
+			echo "CallWeaver is not running"
+		fi
+		;;
+	*)
+		gprintf "*** Usage: ${0##*/} {start|stop|reload|restart|status}\n"
+		exit 1
+esac
+
+exit 0
+

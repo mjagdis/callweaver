@@ -1,0 +1,396 @@
+#!/bin/bash
+#
+# CallWeaver -- An open source telephony toolkit.
+#
+# Copyright (C) 2010, Eris Associates Limited, UK
+#
+# Mike Jagdis <mjagdis@eris-associates.co.uk>
+#
+# See http://www.callweaver.org for more information about
+# the CallWeaver project. Please do not directly contact
+# any of the maintainers of this project for assistance;
+# the project provides a web site, mailing lists and IRC
+# channels for your use.
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License Version 2. See the LICENSE file
+# at the top of the source tree.
+
+
+CW_ARGS=( "$@" )		# Grab any args passed to safe_callweaver
+
+
+# This is somewhat complicated. The idea is that the hardcoded defaults
+# are overridden by values in the /etc/{sysconfig,default}/callweaver,
+# which are in turn overridden by anything in the environment. It is
+# made more complicated by the fact that we need to know the difference
+# between a variable not existing in the environment and existing but
+# having a null value. Anyway...
+
+# Save config settings found in the environment
+eval `export -p | while read word keyval; do
+	# In bash-mode bash reports "declare -x ..." in sh-mode "export ..."
+	[[ "$word" == 'declare' ]] && keyval="${keyval#-x }"
+	case $keyval in
+		CALLWEAVER_*)
+			echo "ENV_${keyval%%=*}=${keyval#*=}"
+			;;
+	esac
+done`
+
+# Set defaults
+CALLWEAVER_ARGS=
+CALLWEAVER_CONSOLE='yes'			# Whether or not you want a console
+CALLWEAVER_COREDIR='@cwvardir@/core'		# Where core files are to be dumped
+#CALLWEAVER_NOTIFY='callweaver'			# List of email addresses to notify about crashes
+#CALLWEAVER_NOTIFYDEV='callweaver'		# List of email addresses to send core analyses to
+#CALLWEAVER_FROM='CallWeaver'			# What to put in the "From" line of emails
+#CALLWEAVER_REPLYTO='admin'			# What to put in the "Reply-to" line of emailes
+CALLWEAVER_MACHINE=`hostname`			# To specify which machine has crashed when getting the mail
+CALLWEAVER_SLEEPSECS=4				# Seconds to sleep before restarting
+CALLWEAVER_SYSLOG='daemon'			# Syslog facility to use for logging, blank to disable syslog logging
+CALLWEAVER_TERM='vt102'				# Terminal type to use for Callweaver if CALLWEAVER_TTY is not null
+CALLWEAVER_TTY='9'				# TTY (if you want one) for Callweaver to run on
+
+# Override with any local preferences
+[[ -r /etc/sysconfig/callweaver ]] && . /etc/sysconfig/callweaver
+[[ -r /etc/default/callweaver ]] && . /etc/default/callweaver
+
+# Override again with environment settings
+for key in ${!ENV_CALLWEAVER_*}; do
+	eval "${key#ENV_}=\$$key"
+done
+
+
+if [[ -n "$CALLWEAVER_SYSLOG" ]]; then
+	logger="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p logger )"
+else
+	logger=
+fi
+
+logmsg()
+{
+	local msg="$*"
+	echo "callweaver: $msg" 1>&2
+	[[ -n "$logger" ]] && "$logger" -p "$CALLWEAVER_SYSLOG".info -t callweaver "$msg"
+}
+
+
+core_analyse()
+{
+	local outfile="$1"
+	local bin="$2"
+	local core="$3"
+	shift; shift; shift
+	local msg="$*"
+
+	local gdb="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p gdb )"
+
+	if [[ -n "$gdb" ]]; then
+		local tmpfile="$outfile"
+		[[ "$tmpfile" == '-' ]] && tmpfile="/tmp/scw$$"
+
+		local mimeboundary='nvhfdlaltychsifkgl'
+
+		local sections=(
+			'"bt"			"backtrace"				"Backtrace"'
+			'"bt-full"		"backtrace full"			"Backtrace (full)"'
+			'"threads"		"info threads"				"Threads"'
+			'"threads-bt"		"thread apply all backtrace"		"Backtrace (all threads)"'
+			'"threads-bt-full"	"thread apply all backtrace full"	"Backtrace (all threads, full)"'
+		)
+
+		(
+			echo "set prompt"
+			echo "set logging overwrite on"
+			echo "set logging redirect on"
+
+			for sect in "${sections[@]}"; do
+				eval set -- $sect
+				echo "set logging file $tmpfile.$1.txt"
+				echo "set logging on"
+				echo "$2"
+				echo "set logging off"
+			done
+
+			echo "quit"
+		) > "$tmpfile.cmds"
+
+		# Gdb doesn't handle end-of-pipe at all well...
+		TERM=dumb "$gdb" -q --nx "$bin" "$core" < "$tmpfile.cmds" > "$tmpfile.gdb.txt" 2>&1
+		rm -f "$tmpfile.cmds"
+
+		if [[ -n "$CALLWEAVER_NOTIFYDEV" && -x /usr/sbin/sendmail ]]; then
+			local base64="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p base64 )"
+			local gzip="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p gzip )"
+
+			[[ -n "$base64" && -n "$gzip" ]] && "$gzip" -9 "$tmpfile".*.txt
+
+			(
+				echo "Subject: Callweaver core analysis"
+				echo "From: ${CALLWEAVER_FROM:-no-reply}"
+				echo "To: $CALLWEAVER_NOTIFYDEV"
+				echo "Reply-to: ${CALLWEAVER_REPLYTO:-no-reply}"
+				echo "MIME-Version: 1.0"
+				echo "Content-type: multipart/mixed; boundary="$mimeboundary""
+				echo
+				echo "--$mimeboundary"
+				echo "Content-Type: text/plain; charset=utf-8"
+				echo "Content-Transfer-Encoding: 8bit"
+				echo
+				echo "$msg"
+				echo
+
+				if [[ -n "$base64" && -n "$gzip" ]]; then
+					for sect in "${sections[@]}"; do
+						eval set -- $sect
+						echo "--$mimeboundary"
+						echo "Content-Type: application/x-gzip"
+						echo "Content-Description: $3"
+						echo "Content-Disposition: attachment; filename=\"$1.txt.gz\""
+						echo "Content-Transfer-Encoding: base64"
+						echo
+						"$base64" "$tmpfile.$1.txt.gz" 2> /dev/null
+					done
+				else
+					for sect in "${sections[@]}"; do
+						eval set -- $sect
+						echo "--$mimeboundary"
+						echo "Content-Type: text/plain; charset=utf-8"
+						echo "Content-Description: $3"
+						echo "Content-Disposition: attachment; filename=\"$1.txt\""
+						echo
+						cat "$tmpfile.$1.txt" 2> /dev/null
+					done
+				fi
+
+				echo "--$mimeboundary--"
+			) | /usr/sbin/sendmail -i -t
+		elif [[ "$outfile" == '-' ]]; then
+			for sect in "${sections[@]}"; do
+				eval set -- $sect
+				echo
+				echo '------------------------------------------------------------------------------'
+				echo "$3"
+				echo '------------------------------------------------------------------------------'
+				cat "$tmpfile.$1.txt"
+			done 2> /dev/null
+		fi
+
+		if [[ "$outfile" == '-' ]]; then
+			rm -f "$tmpfile".*
+		else
+			gzip -9 "$tmpfile".*.txt
+		fi
+	fi
+}
+
+
+savecore()
+{
+	local msg="$*"
+
+	local coredir=
+	local core
+
+	for core in core*; do
+		[[ "$core" == 'core*' ]] && break
+
+		if [[ "$coredir" == '' ]]; then
+			coredir="$( date '+%Y-%m-%d-%H:%M:%S' )"
+			mkdir "$coredir"
+		fi
+
+		mv "$core" "$coredir"
+		core_analyse "$coredir/$core" '@cwexecdir@/callweaver' "$coredir/$core" "$msg" &
+	done
+
+	[[ -n "$coredir" ]] && logmsg "Found and moved core dumps to $coredir"
+}
+
+
+run_callweaver()
+{
+	# We should only exit if callweaver itself exits normally, which it
+	# should do even when signalled by a SIGTERM.
+	trap '' HUP INT QUIT PIPE TERM
+
+	if [[ -n "$CALLWEAVER_TTY" ]]; then
+		# From here on we only talk to CALLWEAVER_TTY. If the outer
+		# safe_callweaver invoked setsid this becomes our controlling
+		# terminal. If either setsid or session were unavailable, well,
+		# sorry, this is as good as it gets.
+		exec 0<> "/dev/$CALLWEAVER_TTY" 1>&0 2>&0
+		stty sane
+
+		# Whatever $TERM we have referred to something else.
+		# Use $CALLWEAVER_TERM if we have it otherwise
+		# assume something minimal but likely.
+		export TERM="${CALLWEAVER_TERM:-vt102}"
+	fi
+
+	[[ -z "$CALLWEAVER_COREDIR" ]] || cd "$CALLWEAVER_COREDIR" || exit 1
+
+	# Try and get the standard exit codes
+	eval $(
+		while read define key value comment; do
+			[[ "$define" == '#define' && "$key" != '_SYSEXIST_H' ]] && echo "local $key=$value"
+		done < /usr/include/sysexits.h
+	)
+
+	# If we couldn't read them for some reason this is what we actually need although
+	# the values are not necessarily right...
+	if [[ -z "$EX_OK" ]]; then
+		local EX_OK=0
+		local EX_USAGE=64
+		local EX_NOUSER=67
+		local EX_NOPERM=77
+	fi
+
+	if [[ "$CALLWEAVER_CONSOLE" != "no" ]]; then
+		CW_ARGS[${#CW_ARGS[@]}]='-c'
+	fi
+
+	local CW_CMD=()
+	if [[ -n "$CALLWEAVER_PRIORITY" ]]; then
+		nice="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p nice )"
+		if [[ -n "$nice" ]]; then
+			CW_CMD[${#CW_CMD[@]}]="$nice"
+			CW_CMD[${#CW_CMD[@]}]='-n'
+			CW_CMD[${#CW_CMD[@]}]="$CALLWEAVER_PRIORITY"
+		else
+			logmsg "nice not found - priority will NOT be adjusted"
+		fi
+	fi
+	CW_CMD[${#CW_CMD[@]}]='@cwexecdir@/callweaver'
+
+	# Turn job control on. This allows us to run callweaver in a new process
+	# group which, in turn, allows us to go nuclear on anything it forks but
+	# which does not die easily if callweaver does not exit cleanly. Notable
+	# examples of such subprocesses are madplay or mpg123 which are commonly
+	# used for streaming mp3s into callweaver as hold music.
+	set -m
+
+	while :; do
+		# Start callweaver in the background then immediately foreground it.
+		# We want callweaver in the foreground in all cases but we start
+		# it in the background so that it is made a new process group leader
+		# by the shell.
+		"${CW_CMD[@]}" $CALLWEAVER_ARGS "${CW_ARGS[@]}" -f -g &
+		local pgrp=$!
+		fg > /dev/null
+		local EXITSTATUS=$?
+
+		logmsg "CallWeaver ended with exit status $EXITSTATUS"
+
+		# Try and make sure any subprocesses spawned by callweaver get the
+		# message. If they still don't we'll go nuclear on them a little
+		# later...
+		kill -TERM -$pgrp 2> /dev/null
+
+		case "$EXITSTATUS" in
+			$EX_OK)
+				# Properly shutdown....
+				logmsg "CallWeaver shutdown normally."
+				exit 0
+				;;
+
+			$EX_USAGE|$EX_NOUSER|$EX_NOPERM)
+				# Unrecoverable config error. Callweaver has already logged the error.
+				exit $EXITSTATUS
+				;;
+
+			*)
+				# Potentially recoverable...
+				if [[ $EXITSTATUS -ge 128 ]]; then
+					msg="CallWeaver exited on signal $(( $EXITSTATUS & 127 ))"
+				else
+					msg="CallWeaver died with code $EXITSTATUS"
+				fi
+
+				logmsg "$msg"
+
+				if [[ -n "$CALLWEAVER_NOTIFY" && -x /usr/sbin/sendmail ]]; then
+					/usr/sbin/sendmail -i -t <<EOF_NOTIFY
+Subject: $CALLWEAVER_MACHINE: $msg
+From: ${CALLWEAVER_FROM:-no-reply}
+To: $CALLWEAVER_NOTIFY
+Reply-to: ${CALLWEAVER_REPLYTO:-no-reply}
+
+EOF_NOTIFY
+				fi
+
+				[[ -n "$CALLWEAVER_COREDIR" ]] && savecore "$msg"
+
+				logmsg "Automatically restarting CallWeaver in $CALLWEAVER_SLEEPSECS seconds..."
+				sleep "$CALLWEAVER_SLEEPSECS"
+
+				EXITSTATUS=-1
+				;;
+		esac
+
+		# Any processes left in the ex-callweaver's process group are
+		# being Bad Citizens and ignoring instructions to stop what
+		# they're doing. Clean up with extreme prejudice.
+		kill -9 -$pgrp 2> /dev/null
+
+		[[ $EXITSTATUS -ne -1 ]] && exit $EXITSTATUS
+	done
+}
+
+
+if [[ "${0##*/}" == 'cw_coreanalyse' ]]; then
+	core_analyse '-' "${CW_ARGS[@]}"
+	exit
+fi
+
+
+if [[ -n "$SAFE_CALLWEAVER_BACKEND" ]]; then
+	run_callweaver
+	exit $?
+fi
+
+
+if [[ -n "$CALLWEAVER_COREDIR" ]]; then
+	if [[ ! -d "$CALLWEAVER_COREDIR/" || ! -x "$CALLWEAVER_COREDIR/" ]]; then
+		logmsg "Cannot access directory $CALLWEAVER_COREDIR/" 1>&2
+		exit 1
+	fi
+
+	if [[ ! -w "$CALLWEAVER_COREDIR/" ]]; then
+		logmsg "Cannot write to directory $CALLWEAVER_COREDIR/" 1>&2
+		exit 1
+	fi
+
+	#
+	# Let CallWeaver dump core
+	#
+	ulimit -c unlimited
+fi
+
+if [[ -n "$CALLWEAVER_TTY" ]]; then
+	if [[ -c "/dev/tty$CALLWEAVER_TTY" && -w "/dev/tty$CALLWEAVER_TTY" ]]; then
+		CALLWEAVER_TTY="tty$CALLWEAVER_TTY"
+		if grep '^Linux ' /proc/version > /dev/null 2>&1; then
+			CALLWEAVER_TERM='linux'
+		fi
+	elif [[ -c "/dev/vc/$CALLWEAVER_TTY" && -w "/dev/vc/$CALLWEAVER_TTY" ]]; then
+		CALLWEAVER_TTY="vc/$CALLWEAVER_TTY"
+	elif [[ ! -c "/dev/$CALLWEAVER_TTY" || ! -w "/dev/$CALLWEAVER_TTY" ]]; then
+		logmsg "Cannot find your CALLWEAVER_TTY (/dev/$CALLWEAVER_TTY)" 1>&2
+		exit 1
+	fi
+	# These might have changed so we promote them to environment overrides. That way
+	# we guarantee that what the backend recieves is already adjusted as necessary
+	# and usable.
+	export CALLWEAVER_TTY CALLWEAVER_TERM
+
+	setsid="$( PATH='/usr/bin:/bin:/usr/sbin:/sbin' type -p setsid )"
+	if [[ -n "$setsid" ]]; then
+		SAFE_CALLWEAVER_BACKEND=1 exec "$setsid" "$0" "${CW_ARGS[@]}" &
+	else
+		SAFE_CALLWEAVER_BACKEND=1 exec "$0" "${CW_ARGS[@]}" &
+	fi
+else
+	run_callweaver
+fi

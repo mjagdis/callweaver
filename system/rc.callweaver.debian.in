@@ -1,0 +1,71 @@
+#! /bin/sh
+#
+# callweaver	start the callweaver PBX
+#
+### BEGIN INIT INFO
+# Provides:          callweaver pbx
+# Required-Start:    $syslog $network $remote_fs $time $named
+# Should-Start:      ypbind sendmail dahdi postgresql mysql ldap
+# Required-Stop:     $syslog $network $remote_fs $time $named
+# Should-Stop:       ypbind sendmail dahdi postgresql mysql ldap
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: CallWeaver PBX server
+# Description:       Start the CallWeaver PBX server.
+#                    Configuration files are under @cwconfdir@
+#
+### END INIT INFO
+
+PATH='/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin'
+NAME='callweaver'
+DESC='CallWeaver'
+
+# Full path to callweaver binary
+DAEMON='@cwexecdir@/callweaver'
+
+# Full path to safe_callweaver script
+SAFE_CALLWEAVER='@cwutilsdir@/safe_callweaver'
+
+test -x "$DAEMON" || exit 0
+
+# Load the VERBOSE setting and other rcS variables
+. /lib/init/vars.sh
+
+# Define LSB log_* functions.
+# Depen on lsb-base (>= 3.0-6) to ensure that this file is present.
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Starting $DESC" "$NAME"
+	start-stop-daemon --start --exec "${SAFE_CALLWEAVER:-$DAEMON}"
+	case $? in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		*)   [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  stop)
+	[ "$VERBOSE" != no ] && log_daemon_msg "Stopping $DESC" "$NAME"
+	killall -TERM callweaver
+	case $? in
+		0|1) [ "$VERBOSE" != no ] && log_end_msg 0 ;;
+		*)   [ "$VERBOSE" != no ] && log_end_msg 1 ;;
+	esac
+	;;
+  reload|force-reload)
+	log_daemon_msg "Reloading $DESC" "$NAME"
+	killall -HUP callweaver
+	log_end_msg $?
+	;;
+  restart)
+	log_daemon_msg "Restarting $DESC" "$NAME"
+	"$DAEMON" -rx 'restart gracefully' > /dev/null 2>&1
+	log_end_msg 0
+	;;
+  *)
+	echo "Usage: ${0##*/} {start|stop|restart|reload|force-reload}" >&2
+	exit 3
+	;;
+esac
+
+:

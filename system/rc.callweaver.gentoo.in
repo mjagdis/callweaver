@@ -6,12 +6,12 @@ depend() {
 
 start() {
 	ebegin "Starting CallWeaver"
-	/usr/sbin/callweaver
+	'@cwexecdir@/callweaver'
 	eend $? "Failed to start CallWeaver"
 }
 
 stop() {
 	ebegin "Stopping CallWeaver"
-	kill $(cat /var/run/callweaver.pid)
+	kill $(cat '@cwpidfile@')
 	eend $? "Failed to stop CallWeaver"
 }

@@ -49,6 +49,7 @@ AC_PATH_PROGS(SED,gsed sed,[echo sed not found, doh!])
 AC_PATH_PROGS(CAT,cat,[echo cat not found, Doh!])
 AC_PATH_PROGS(TR,tr,[echo tr not found, need this for upper/lowercase conversions])
 AC_PATH_PROGS(UNAME,uname,[echo uname not found so no version info will be available])
+AC_PROG_LN_S
 AC_PROG_CXX
 AC_PROG_YACC
 AC_PROG_CC
@@ -2646,6 +2647,7 @@ AC_OUTPUT([Makefile
  		 ogi/ogi-test.ogi
 		 ogi/fastogi-test
                  formats/Makefile
+		 system/Makefile
 ])
 
 dnl #                 channels/sofia/Makefile

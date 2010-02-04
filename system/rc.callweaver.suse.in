@@ -10,16 +10,16 @@
 # functions from UL or change the script to work without them.
 #
 ### BEGIN INIT INFO
-# Provides:          callweaver
-# Required-Start:    $syslog $remote_fs
-# Should-Start:      $time ypbind sendmail zaptel postgresql mysql ldap
-# Required-Stop:     $syslog $remote_fs
-# Should-Stop:       $time ypbind sendmail zaptel
+# Provides:          callweaver pbx
+# Required-Start:    $syslog $network $remote_fs $time $named
+# Should-Start:      ypbind sendmail dahdi postgresql mysql ldap
+# Required-Stop:     $syslog $network $remote_fs $time $named
+# Should-Stop:       ypbind sendmail dahdi postgresql mysql ldap
 # Default-Start:     3 5
 # Default-Stop:      0 1 2 6
-# Short-Description: CallWeaver software
-# Description:       Start the CallWeaver software.
-#                    Configuration files are under /etc/callweaver.
+# Short-Description: CallWeaver PBX server
+# Description:       Start the CallWeaver PBX server.
+#                    Configuration files are under @cwconfdir@
 # 
 ### END INIT INFO
 # 
@@ -92,8 +92,9 @@
 
 # Check for missing binaries (stale symlinks should not happen)
 # Note: Special treatment of stop for LSB conformance
-CALLWEAVER_BIN=/usr/sbin/callweaver
-test -x $CALLWEAVER_BIN || { echo "$CALLWEAVER_BIN not installed"; 
+SAFE_CALLWEAVER_BIN='@cwutilsdir@/safe_callweaver'
+CALLWEAVER_BIN='@cwexecdir@/callweaver'
+test -x "$CALLWEAVER_BIN" || { echo "$CALLWEAVER_BIN not installed";
 	if [ "$1" = "stop" ]; then exit 0;
 	else exit 5; fi; }
 
@@ -105,7 +106,7 @@ test -x $CALLWEAVER_BIN || { echo "$CALLWEAVER_BIN not installed";
 
 # Read config	
 #. $FOO_CONFIG
-PIDFILE=/var/run/callweaver/callweaver.pid
+PIDFILE='@cwpidfile@'
 
 # Source LSB init functions
 # providing start_daemon, killproc, pidofproc, 
@@ -154,7 +155,7 @@ case "$1" in
 	echo -n "Starting CallWeaver "
 	## Start daemon with startproc(8). If this fails
 	## the return value is set appropriately by startproc.
-	startproc -u callweaver -g callweaver -p $PIDFILE $CALLWEAVER_BIN
+	startproc "${SAFE_CALLWEAVER_BIN:-$CALLWEAVER_BIN}"
 
 	# Remember status and be verbose
 	rc_status -v
@@ -164,7 +165,7 @@ case "$1" in
 	## Stop daemon with killproc(8) and if this fails
 	## killproc sets the return value according to LSB.
 
-	killproc -p $PIDFILE -TERM $CALLWEAVER_BIN
+	killproc -p "$PIDFILE" -TERM "$CALLWEAVER_BIN"
 
 	# Remember status and be verbose
 	rc_status -v
@@ -176,9 +177,9 @@ case "$1" in
 	if test "$1" = "condrestart"; then
 		echo "${attn} Use try-restart ${done}(LSB)${attn} rather than condrestart ${warn}(RH)${norm}"
 	fi
-	$0 status
+	"$0" status
 	if test $? = 0; then
-		$0 restart
+		"$0" restart
 	else
 		rc_reset	# Not running is not a failure.
 	fi
@@ -188,21 +189,22 @@ case "$1" in
     restart)
 	## Stop the service and regardless of whether it was
 	## running or not, start it again.
-	$0 stop
-	$0 start
+	"$0" stop
+	sleep 5
+	"$0" start
 
 	# Remember status and be quiet
 	rc_status
 	;;
     force-reload|reload)
 
-	$0 status
+	"$0" status
 	if test $? = 0; then
-	    echo -n "Reloading CallWeaver "
-	    killproc -p $PIDFILE -HUP $CALLWEAVER_BIN
-	    touch $PIDFILE
+		echo -n "Reloading CallWeaver "
+		killproc -p "$PIDFILE" -HUP "$CALLWEAVER_BIN"
+		touch "$PIDFILE"
 	else
-	    rc_failed 7
+		rc_failed 7
 	fi
 	rc_status -v
 	;;
@@ -220,7 +222,7 @@ case "$1" in
 	# 5--199 reserved (5--99 LSB, 100--149 distro, 150--199 appl.)
 	
 	# NOTE: checkproc returns LSB compliant status values.
-	checkproc -p $PIDFILE $CALLWEAVER_BIN
+	checkproc -p "$PIDFILE" "$CALLWEAVER_BIN"
 	# NOTE: rc_status knows that we called this init script with
 	# "status" option and adapts its messages accordingly.
 	rc_status -v
@@ -230,10 +232,10 @@ case "$1" in
 	## argument to this init script which is required for a reload.
 	## Note: probe is not (yet) part of LSB (as of 1.9)
 
-	test /etc/callweaver -nt /var/run/callweaver.pid && echo reload
+	test '@cwconfdir@' -nt "$PIDFILE" && echo reload
 	;;
     *)
-	echo "Usage: $0 {start|stop|status|try-restart|restart|force-reload|reload|probe}"
+	echo "Usage: ${0##*/} {start|stop|status|try-restart|restart|force-reload|reload|probe}"
 	exit 1
 	;;
 esac

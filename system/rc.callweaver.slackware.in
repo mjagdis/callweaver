@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Start/stop/restart CallWeaver
+
+SAFE_CALLWEAVER_BIN='@cwutilsdir@/safe_callweaver'
+CALLWEAVER_BIN='@cwexecdir@/callweaver'
+
+PIDFILE='@cwpidfile@'
+
+
+callweaver_start() {
+	if [ -x "$CALLWEAVER_BIN" ]; then
+		echo "Starting CallWeaver $CALLWEAVER_BIN"
+		"${SAFE_CALLWEAVER:-$DAEMON}"
+	fi
+}
+
+callweaver_stop() {
+	# If there is no PID file, ignore this request...
+	if [ -r "$PIDFILE" ]; then
+		killall -TERM callweaver
+	fi
+}
+
+callweaver_restart() {
+	callweaver_stop
+	sleep 5
+	callweaver_start
+}
+
+case "$1" in
+    'start')
+	callweaver_start
+	;;
+    'stop')
+	callweaver_stop
+	;;
+    'restart')
+	callweaver_restart
+	;;
+    *)
+	echo "usage ${0##*/} start|stop|restart"
+	;;
+esac

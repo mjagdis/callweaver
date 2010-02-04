@@ -37,7 +37,7 @@ AM_CFLAGS			= @CW_CFLAGS@
 EXTRA_DIST = substitute.mak
 
 utilitydir = ${cwutilsdir}
-utility_SCRIPTS = callweaver_cli safe_callweaver
+utility_SCRIPTS = callweaver_cli
 CLEANFILES = $(utility_SCRIPTS)
 
 @substitute@
@@ -45,10 +45,6 @@ CLEANFILES = $(utility_SCRIPTS)
 callweaver_cli:
 	$(substitute) $(top_srcdir)/callweaver_cli.in > callweaver_cli
 	chmod +x callweaver_cli
-
-safe_callweaver:
-	$(substitute) $(top_srcdir)/safe_callweaver.in > safe_callweaver
-	chmod +x safe_callweaver
 
 #############
 # MAN PAGES #
@@ -59,8 +55,7 @@ if WANT_MAN_PAGES
 	if test ! -d $(DESTDIR)${cwmandir}/man8; then \
 		mkdir -p $(DESTDIR)${cwmandir}/man8 ; \
 	fi ; \
-	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${cwmandir}/man8/. ; \
-	cp $(top_srcdir)/safe_callweaver.8 $(DESTDIR)${cwmandir}/man8/. ;
+	cp $(top_srcdir)/callweaver.8 $(DESTDIR)${cwmandir}/man8/. ;
 endif
 
 uninstall-man-pages:
@@ -145,6 +140,7 @@ uninstall-sgml-docs:
 SUBDIRS =   utils libltdl libs
 SUBDIRS +=  stdtime include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels ogi res configs
+SUBDIRS +=  system
 
 ############################
 # INSTALLATION DIRECTORIES #
