@@ -166,7 +166,7 @@ static void cw_moh_free_class(struct mohclass *class)
 		free(mtmp);
 	}
 
-	for (i = 0; i < class->total_files; i--)
+	for (i = 0; i < class->total_files; i++)
 		free(class->files[i]);
 	free(class->files);
 	free(class);
