@@ -81,7 +81,7 @@ extern int cw_channels_init(void);
 
 #if !defined(LOW_MEMORY)
 #  define CALLWEAVER_FILE_VERSION(file, x) \
-	static char __attribute__((unused)) __file_version[] = file ", " x;
+	static char __attribute__((used)) __file_version[] = file ", " x;
 #else /* LOW_MEMORY */
 #  define CALLWEAVER_FILE_VERSION(file, x)
 #endif
