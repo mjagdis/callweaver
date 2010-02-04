@@ -64,7 +64,7 @@ static inline void cw_dynstr_free(struct cw_dynstr *ds)
 extern CW_API_PUBLIC int cw_dynstr_vprintf(struct cw_dynstr **ds_p, const char *fmt, va_list ap)
 	__attribute__ ((__nonnull__ (1,2)));
 extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr **ds_p, const char *fmt, ...)
-	__attribute__ ((__nonnull__ (1,2)));
+	__attribute__ ((__nonnull__ (1,2), __format__ (printf, 2,3)));
 
 
 /* If you are looking at this trying to fix a weird compile error
