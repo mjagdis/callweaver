@@ -35,24 +35,24 @@ static pthread_key_t cw_curl_session_key;
 static pthread_mutex_t cw_curl_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 
-static void cw_curl_lock(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr)
+static void cw_curl_lock(CURL *handle, curl_lock_data lock_data, curl_lock_access lock_access, void *userptr)
 {
 	pthread_mutex_t *mutex = userptr;
 
 	CW_UNUSED(handle);
-	CW_UNUSED(data);
-	CW_UNUSED(access);
+	CW_UNUSED(lock_data);
+	CW_UNUSED(lock_access);
 
 	pthread_mutex_lock(mutex);
 }
 
 
-static void cw_curl_unlock(CURL *handle, curl_lock_data data, void *userptr)
+static void cw_curl_unlock(CURL *handle, curl_lock_data lock_data, void *userptr)
 {
 	pthread_mutex_t *mutex = userptr;
 
 	CW_UNUSED(handle);
-	CW_UNUSED(data);
+	CW_UNUSED(lock_data);
 
 	pthread_mutex_unlock(mutex);
 }

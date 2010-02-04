@@ -738,6 +738,9 @@ int cw_mutex_init_attr_debug(cw_mutex_t *t, pthread_mutexattr_t *attr, int canlo
 		CRASH;
 		return 0;
 	}
+#else
+	CW_UNUSED(canlog);
+	CW_UNUSED(mutex_name);
 #endif
 
 	t->file[0] = filename;
@@ -911,6 +914,8 @@ int cw_cond_wait_debug(cw_cond_t *cond, cw_mutex_t *t, int canlog, const char *f
 	struct cw_pthread_info *thread_info;
 	int res;
 
+	CW_UNUSED(cond_name);
+
 #ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
 		debug_mutex_log("%s:%d %s: Error: mutex '%s' is uninitialized\n",
@@ -951,6 +956,8 @@ int cw_cond_timedwait_debug(cw_cond_t *cond, cw_mutex_t *t, const struct timespe
 {
 	struct cw_pthread_info *thread_info;
 	int res;
+
+	CW_UNUSED(cond_name);
 
 #ifdef CW_MUTEX_INIT_W_CONSTRUCTORS
 	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER))
