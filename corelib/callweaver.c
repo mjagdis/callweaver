@@ -1619,7 +1619,7 @@ int callweaver_main(int argc, char *argv[])
 	 */
 	cw_cli_init();
 
-	if (option_console || option_nofork) {
+	if (option_console) {
 		if (cw_pthread_create(&consolethread, &global_attr_default, console, NULL)) {
 			cw_log(CW_LOG_ERROR, "Failed to start console - console is not available\n");
 			option_console = 0;
