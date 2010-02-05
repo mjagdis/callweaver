@@ -1,0 +1,235 @@
+#!/bin/bash
+#
+# CallWeaver -- An open source telephony toolkit.
+#
+# Copyright (C) 2010, Eris Associates Limited, UK
+#
+# Mike Jagdis <mjagdis@eris-associates.co.uk>
+#
+# See http://www.callweaver.org for more information about
+# the CallWeaver project. Please do not directly contact
+# any of the maintainers of this project for assistance;
+# the project provides a web site, mailing lists and IRC
+# channels for your use.
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License Version 2. See the LICENSE file
+# at the top of the source tree.
+
+
+# This is somewhat complicated. The idea is that the hardcoded defaults
+# are overridden by values in the /etc/{sysconfig,default}/cw_mixer,
+# which are in turn overridden by anything in the environment. It is
+# made more complicated by the fact that we need to know the difference
+# between a variable not existing in the environment and existing but
+# having a null value. Anyway...
+
+# Save config settings found in the environment
+eval `export -p | while read word keyval; do
+	# In bash-mode bash reports "declare -x ..." in sh-mode "export ..."
+	[[ "$word" == 'declare' ]] && keyval="${keyval#-x }"
+	case $keyval in
+		CW_MIXER_*)
+			echo "ENV_${keyval%%=*}=${keyval#*=}"
+			;;
+	esac
+done`
+
+# Set defaults. (This is boilerplate from the standard
+# /etc/{sysconfig,default}/cw_mixer)
+
+# If CW_MIXER_AUTOGAIN is set to 'yes' we will attempt to adjust the input
+# files to give them similar average volumes before combining them. By
+# preference we use "wavegain" to do this. If it isn't (and it doesn't come
+# with all (any?) distributions but follow the link to the/a website from
+# freshmeat, http://freshmeat.net/projects/wavegain/ if you want to install
+# it) then we will try and use "normalize" (which comes with SuSE at least).
+# If neither "wavegain" nor "normalize" are found no adjustment will be
+# made regardless of the setting below.
+#
+# Note that both "wavegain" and "normalize" want to work with PCM data.
+# The input files will be automatically converted as necessary however
+# if you have WAV/GSM inputs and are outputting WAV the output will be
+# WAV/PCM rather than WAV/GSM. i.e. in this case your output files will
+# be significantly bigger with CW_MIXER_AUTOGAIN on and will almost certainly
+# get transcoded if you play them back via any sort of telephony channel.
+#
+# You almost certainly want this enabled.
+CW_MIXER_AUTOGAIN='yes'
+
+# Set CW_MIXER_KEEP_INPUTS to 'yes' to retain the input files. Otherwise
+# they will be deleted if the merged file _appears_ to have been successful.
+#
+# Set this to anything other than 'yes' at your own risk!
+CW_MIXER_KEEP_INPUTS='yes'
+
+# Set CW_MIXER_MERGETYPE to 'M' if you want the input files to be combined
+# as separate channels in a stereo output file. Set to 'm' if you want the
+# input files mixed to create a mono output file.
+#
+# This only works if you have a sufficiently recent version of "sox".
+# Otherwise we will automatically fall back to "soxmix" which only mixes
+# inputs to create a mono output. If neither "sox" nor "soxmix" appear to
+# work there will, of course, be no output created.
+CW_MIXER_MERGETYPE='M'
+
+# CW_MIXER_EFFECTS can be used to apply effects such as companding to the
+# input files. These effects are applied using sox to the input files
+# individually _after_ any CW_MIXER_AUTOGAIN normalization but _before_
+# mixing.
+#
+# A typical use might be to use the "compand" filter to smooth out
+# volume changes (particularly useful for a conference call recording
+# perhaps). In the example below the first filter attempts to even out
+# fluctuations as different people speak, the second attempts to
+# clamp down on short duration noises such as someone bumping the mic.
+#
+# You should probably not enable this unless you know what you are
+# doing and are prepared to experiment. There is unlikely to be any
+# one setting that suits all circumstances - and plenty that suit
+# no circumstances!
+#CW_MIXER_EFFECTS=(
+#	compand 1,4 6:-80,-80,-75,-25,0,0 -5 -30 1
+#	compand .03,.2 -80,-80,-15,-15,0,-15 -15 -40 .1
+#)
+
+# Override with any local preferences
+[[ -r '/etc/sysconfig/cw_mixer' ]] && . '/etc/sysconfig/cw_mixer'
+[[ -r '/etc/default/cw_mixer' ]] && . '/etc/default/cw_mixer'
+
+# Override again with environment settings
+for key in ${!ENV_CW_MIXER_*}; do
+	eval "${key#ENV_}=\$$key"
+done
+
+
+# Map a CallWeaver file type to something sox understands
+map_cw2sox()
+{
+	case $1 in
+		ulaw)	echo 'ul' ;;
+		alaw)	echo 'al' ;;
+	esac
+}
+
+
+# Return the data format and rate of the contents of a WAV file
+wav_info()
+{
+	local data=
+	local rate=
+
+	case ${2:-${3##*.}} in
+		WAV|wav)
+			set -- $( file "$3" )
+			local prev=8000
+			while [[ $# -gt 0 ]]; do
+				case $1 in
+					Hz)
+						[[ $prev -gt $rate ]] && rate=$prev ;;
+					PCM|GSM)
+						data="$1" ;;
+				esac
+				prev="$1"
+				shift
+			done
+			;;
+	esac
+
+	echo $data $rate
+}
+
+
+in1file="$1"
+orig1file="$1"
+in2file="$2"
+orig2file="$2"
+outfile="$3"
+
+in1type=$( map_cw2sox "${1##*.}" )
+in2type=$( map_cw2sox "${2##*.}" )
+outtype=$( map_cw2sox "${3##*.}" )
+
+pids=()
+
+trap '
+	[[ ${#pids[@]} -gt 0 ]] && kill "${pids[@]}"
+	rm -rf /tmp/$$
+' 0
+
+mkdir /tmp/$$ || exit
+
+
+if [[ "$CW_MIXER_AUTOGAIN" == 'yes' ]]; then
+	wavegain=$( type -p wavegain )
+	[[ -n "$wavegain" ]] || normalize=$( type -p normalize )
+
+	if [[ -n "$wavegain" || -n "$normalize" ]]; then
+		# Both want WAV/PCM as input.
+		# You can't convert WAV/GSM to WAV/PCM in one go. Sox just sees "WAV"
+		# for both input and output and simply copies the stream :-(
+		rate=8000
+		set -- $( wav_info "$rate" "$in1type" "$in1file" )
+		data1="$1"
+		[[ ${2:-8000} -gt $rate ]] && rate="$2"
+		set -- $( wav_info "$rate" "$in2type" "$in2file" )
+		data2="$1"
+		[[ ${2:-8000} -gt $rate ]] && rate="$2"
+
+		if [[ "$data1" != 'PCM' ]]; then
+			sox ${in1type:+-t $in1type} "$in1file" -t raw -r $rate -s -2 - | sox -t raw -r $rate -s -2 - "/tmp/$$/1.norm.wav" &
+			in1file="/tmp/$$/1.norm.wav"
+			in1type=
+		elif [[ -n "$wavegain" ]]; then
+			cp "$in1file" "/tmp/$$/1.norm.wav"
+			in1file="/tmp/$$/1.norm.wav"
+		fi
+		if [[ "$data2" != 'PCM' ]]; then
+			sox ${in2type:+-t $in2type} "$in2file" -t raw -r $rate -s -2 - | sox -t raw -r $rate -s -2 - "/tmp/$$/2.norm.wav" &
+			in2file="/tmp/$$/2.norm.wav"
+			in2type=
+		elif [[ -n "$wavegain" ]]; then
+			cp "$in2file" "/tmp/$$/2.norm.wav"
+			in1file="/tmp/$$/2.norm.wav"
+		fi
+		wait
+	fi
+
+	if [[ -n "$wavegain" ]]; then
+		# Wavegain wants to create a temp output file in the local directory and then
+		# rename it back to the original name so we have to be careful not to cross
+		# filesystems. So in the wavegain case we have copied the source files to the
+		# work directory even if they didn't need converting and will now change into
+		# the work directory to run wavegain.
+		( cd "/tmp/$$"; "$wavegain" -y "$in1file" "$in2file" )
+	elif [[ -n "$normalize" ]]; then
+		"$normalize" -v -m -- "$in1file" "$in2file"
+	fi
+fi
+
+
+if [[ -n "$CW_MIXER_EFFECTS" ]]; then
+	mknod "/tmp/$$/1" p
+	mknod "/tmp/$$/2" p
+
+	sox ${in1type:+-t $in1type} "$in1file" -t wav "/tmp/$$/1" "${CW_MIXER_EFFECTS[@]}" &
+	pids[${#pids[@]}]=$!
+	sox ${in2type:+-t $in2type} "$in2file" -t wav "/tmp/$$/2" "${CW_MIXER_EFFECTS[@]}" &
+	pids[${#pids[@]}]=$!
+
+	in1file="/tmp/$$/1"
+	in1type='wav'
+	in2file="/tmp/$$/2"
+	in2type='wav'
+fi
+
+if ! sox -$CW_MIXER_MERGETYPE ${in1type:+-t $in1type} "$in1file" ${in1type:+-t $in1type} "$in2file" ${outtype:+-t $outtype} "$outfile"; then
+	soxmix ${in1type:+-t $in1type} "$in1file" ${in1type:+-t $in1type} "$in2file" ${outtype:+-t $outtype} "$outfile"
+fi
+
+if [[ $? -eq 0 && "$CW_MIXER_KEEP_INPUTS" != 'yes' ]]; then
+	set -- $( ls -l "$outfile" )
+	if [[ $5 -gt 100 ]]; then
+		rm -f "$orig1file" "$orig2file"
+	fi
+fi
