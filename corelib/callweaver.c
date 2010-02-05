@@ -1017,6 +1017,12 @@ static int handle_bang(struct cw_dynstr **ds_p, int argc, char *argv[])
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 
+	/* This doesn't do anything because shell escapes are handled on the
+	 * client side of the CLI. The client is not allowed to connect and
+	 * then shell out on to the server.
+	 * The only reason the server knows anything about the "!" command
+	 * is for the sake of help and completion.
+	 */
 	return RESULT_SUCCESS;
 }
 
