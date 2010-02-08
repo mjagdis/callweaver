@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Limited, UK
+ * Copyright (C) 2007,2010, Eris Associates Limited, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -42,25 +42,13 @@ static char *terminal_type;
 
 static char *sgr, *setaf, *setab;
 
-static struct {
-	const char *on, *off;
-} level_attr[] = {
-	[__CW_LOG_DEBUG] = { NULL, NULL },
-	[__CW_LOG_EVENT] = { NULL, NULL },
-	[__CW_LOG_NOTICE] = { NULL, NULL },
-	[__CW_LOG_WARNING] = { NULL, NULL },
-	[__CW_LOG_ERROR] = { NULL, NULL },
-	[__CW_LOG_VERBOSE] = { NULL, NULL },
-	[__CW_LOG_DTMF] = { NULL, NULL },
-};
-
 static const char *col_defaults;
 static int col_defaults_len;
 static const char *attr_end;
 static int attr_end_len;
 
 
-static void highlight(const char **start, const char **end, const char *spec)
+void terminal_highlight(const char **start, const char **end, const char *spec)
 {
 	static struct {
 		int len;
@@ -193,6 +181,12 @@ static void highlight(const char **start, const char **end, const char *spec)
 }
 
 
+int terminal_write_attr(const char *str)
+{
+	return putp(str);
+}
+
+
 void terminal_init(void)
 {
 	int i;
@@ -213,11 +207,6 @@ void terminal_init(void)
 				attr_end_len = strlen(attr_end);
 			} else
 				sgr = NULL;
-
-			highlight(&level_attr[__CW_LOG_DEBUG].on, &level_attr[__CW_LOG_DEBUG].off, "fg=blue,bold");
-			highlight(&level_attr[__CW_LOG_NOTICE].on, &level_attr[__CW_LOG_NOTICE].off, "fg=green,bold");
-			highlight(&level_attr[__CW_LOG_WARNING].on, &level_attr[__CW_LOG_WARNING].off, "fg=yellow,bold");
-			highlight(&level_attr[__CW_LOG_ERROR].on, &level_attr[__CW_LOG_ERROR].off, "fg=red,bold");
 		}
 	}
 }
@@ -230,97 +219,5 @@ void terminal_set_icon(const char *s)
 	if (strstr(terminal_type, "xterm")) {
 		fputs("\033]1;Callweaver\007", stderr);
 		fflush(stderr);
-	}
-}
-
-
-void terminal_write(const char *buf, int len)
-{
-	static char word[80];
-	static int windex = 0;
-	static int state = 0;
-
-	while (len) {
-		if (state == 0) {
-			if (isalnum(*buf) || (len > 1 && strchr("/_.", *buf) && isalnum(buf[1])))
-				state = 1;
-			else if (*buf == ' ')
-				state = 2;
-			else if (ispunct(*buf))
-				state = 3;
-			else
-				state = 4;
-		}
-
-		switch (state) {
-			case 1:
-				while (len && (isalnum(*buf) || (len > 1 && strchr(":/_.", *buf) && isalnum(buf[1]))) && windex < sizeof(word)/sizeof(word[0])) {
-					len--;
-					word[windex++] = *(buf++);
-				}
-				break;
-
-			case 2:
-				while (len && *buf == ' ' && windex < sizeof(word)/sizeof(word[0])) {
-					len--;
-					word[windex++] = *(buf++);
-				}
-				break;
-
-			case 3:
-				while (len && ispunct(*buf) && (len <= 1 || !strchr("/_.", *buf) || !isalnum(buf[1])) && windex < sizeof(word)/sizeof(word[0])) {
-					len--;
-					word[windex++] = *(buf++);
-				}
-				break;
-
-			case 4:
-				//if (len && !isprint(*buf) && windex < sizeof(word)/sizeof(word[0])) {
-				len--;
-				word[windex++] = *(buf++);
-				state = 0;
-				//}
-				break;
-		}
-
-		if (len && windex < sizeof(word)/sizeof(word[0]))
-			state = 0;
-
-		if (len || windex < sizeof(word)/sizeof(word[0])) {
-#if 1
-			int i = __CW_LOG_VERBOSE;
-
-			if (!strncmp(word, "DEBUG", windex))
-				i = __CW_LOG_DEBUG;
-			else if (!strncmp(word, "EVENT", windex))
-				i = __CW_LOG_EVENT;
-			else if (!strncmp(word, "NOTICE", windex))
-				i = __CW_LOG_NOTICE;
-			else if (!strncmp(word, "WARNING", windex))
-				i = __CW_LOG_WARNING;
-			else if (!strncmp(word, "ERROR", windex))
-				i = __CW_LOG_ERROR;
-			else if (!strncmp(word, "VERBOSE", windex))
-				i = __CW_LOG_VERBOSE;
-			else if (!strncmp(word, "DTMF", windex))
-				i = __CW_LOG_DTMF;
-
-			if (level_attr[i].on)
-				putp(level_attr[i].on);
-			fwrite(word, sizeof(word[0]), windex, stdout);
-			if (level_attr[i].off)
-				putp(level_attr[i].off);
-#else
-			if (windex == 1 && !isprint(word[0])) {
-				printf("0x%02x\n", word[0]);
-			} else {
-				fprintf(stdout, "%d \"", windex);
-				fwrite(word, sizeof(word[0]), windex, stdout);
-				fputs("\"\n", stdout);
-			}
-#endif
-
-			windex = 0;
-		}
 	}
 }

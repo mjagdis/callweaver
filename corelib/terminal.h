@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Limited, UK
+ * Copyright (C) 2007,2010, Eris Associates Limited, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -16,6 +16,7 @@
  * at the top of the source tree.
  */
 
+extern void terminal_highlight(const char **start, const char **end, const char *spec);
+extern int terminal_write_attr(const char *str);
 extern void terminal_init(void);
 extern void terminal_set_icon(const char *s);
-extern void terminal_write(const char *buf, int len);

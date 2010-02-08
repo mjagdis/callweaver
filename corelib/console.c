@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Limited, UK
+ * Copyright (C) 2007,2010, Eris Associates Limited, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -59,6 +59,21 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define CALLWEAVER_PROMPT "%s*CLI> "
 
 
+static struct {
+	const char *on, *off;
+} level_attr[] = {
+	[__CW_LOG_DEBUG] = { NULL, NULL },
+	[__CW_LOG_EVENT] = { NULL, NULL },
+	[__CW_LOG_NOTICE] = { NULL, NULL },
+	[__CW_LOG_WARNING] = { NULL, NULL },
+	[__CW_LOG_ERROR] = { NULL, NULL },
+	[__CW_LOG_VERBOSE] = { NULL, NULL },
+	[__CW_LOG_DTMF] = { NULL, NULL },
+};
+
+static const char *bold_on, *bold_off;
+
+
 const char *rl_basic_word_break_characters = " \t";
 
 
@@ -79,23 +94,23 @@ static int matches_space;
 static int matches_count;
 
 
-static void smart_write(const char *buf, int len)
+static void exit_prompt(void)
 {
 	if (prompting && (option_console || option_remote)) {
 		prompting = 0;
 		if (clr_eol) {
-			terminal_write("\r", 1);
+			fputs("\r", stdout);
 			fputs(clr_eol, stdout);
 		} else
-			terminal_write("\r\n", 2);
+			fputs("\r\n", stdout);
 	}
-
-	terminal_write(buf, len);
 }
 
 
 static void smart_page(int page, const struct cw_dynstr *ds, int lines)
 {
+	exit_prompt();
+
 	if (page) {
 		int rows, cols;
 
@@ -107,8 +122,6 @@ static void smart_page(int page, const struct cw_dynstr *ds, int lines)
 			if (!(pager = getenv("PAGER")))
 				pager = "more";
 
-			smart_write("", 0);
-
 			if ((fd = popen(pager, "w"))) {
 				int ok = (fwrite(ds->data, ds->used, 1, fd) == 1);
 				if (pclose(fd) == 0 && ok)
@@ -117,7 +130,7 @@ static void smart_page(int page, const struct cw_dynstr *ds, int lines)
 		}
 	}
 
-	smart_write(ds->data, ds->used);
+	fwrite(ds->data, 1, ds->used, stdout);
 }
 
 
@@ -287,15 +300,13 @@ static int read_message(int s, int nresp)
 		const int name_len;
 		const int buf_len;
 		char *buf;
-		const char *tail;
-		const int tail_len;
 	} field[] = {
-		[F_DATE]     = { "Date",      sizeof("Date") - 1,      sizeof(buf_date),     buf_date,     NULL,  0 },
-		[F_LEVEL]    = { "Level",     sizeof("Level") - 1,     sizeof(buf_level),    buf_level,    "[",   1 },
-		[F_THREADID] = { "Thread ID", sizeof("Thread ID") - 1, sizeof(buf_threadid), buf_threadid, "]: ", 3 },
-		[F_FILE]     = { "File",      sizeof("File") - 1,      sizeof(buf_file),     buf_file,     ":",   1 },
-		[F_LINE]     = { "Line",      sizeof("Line") - 1,      sizeof(buf_line),     buf_line,     " ",   1 },
-		[F_FUNCTION] = { "Function",  sizeof("Function") - 1,  sizeof(buf_function), buf_function, ": ",  2 },
+		[F_DATE]     = { "Date",      sizeof("Date") - 1,      sizeof(buf_date),     buf_date     },
+		[F_LEVEL]    = { "Level",     sizeof("Level") - 1,     sizeof(buf_level),    buf_level    },
+		[F_THREADID] = { "Thread ID", sizeof("Thread ID") - 1, sizeof(buf_threadid), buf_threadid },
+		[F_FILE]     = { "File",      sizeof("File") - 1,      sizeof(buf_file),     buf_file     },
+		[F_LINE]     = { "Line",      sizeof("Line") - 1,      sizeof(buf_line),     buf_line     },
+		[F_FUNCTION] = { "Function",  sizeof("Function") - 1,  sizeof(buf_function), buf_function },
 	};
 	static int field_len[arraysize(field)];
 	static char buf[32768];
@@ -395,8 +406,10 @@ static int read_message(int s, int nresp)
 								}
 							}
 						} else if (msgtype == MSG_RESPONSE) {
-							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1))
-								smart_write(val, lval);
+							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
+								exit_prompt();
+								fwrite(val, 1, lval, stdout);
+							}
 						} else if (msgtype == MSG_FOLLOWS || msgtype == MSG_COMPLETION) {
 							if (lkey != sizeof("Privilege")-1 || memcmp(key, "Privilege", sizeof("Privilege") - 1)) {
 								state = 4;
@@ -448,32 +461,48 @@ static int read_message(int s, int nresp)
 					if (buf[pos] == '\n') {
 						if (msgtype == MSG_EVENT) {
 							if (lval != sizeof("--END MESSAGE--") - 1 || memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1)) {
+								exit_prompt();
+
 								if (level == CW_EVENT_NUM_PROGRESS) {
 									/* Progress messages suppress input handling until
 									 * we get a null progress message to signify the end
 									 */
 									if (lval) {
-										smart_write(key, lval);
+										fwrite(key, 1, lval, stdout);
 										progress = 2;
 									} else {
-										smart_write("\n", 1);
+										putchar('\n');
 										progress = 0;
 									}
 								} else {
 									if (progress == 2) {
+										putchar('\n');
 										progress = 1;
-										smart_write("\n", 1);
 									}
 
 									key[lval++] = '\n';
 									if (level != CW_EVENT_NUM_VERBOSE) {
-										smart_write(field[F_DATE].buf, field_len[F_DATE]);
-										for (i = 1; i < arraysize(field); i++) {
-											terminal_write(field[i].buf, field_len[i]);
-											terminal_write(field[i].tail, field[i].tail_len);
-										}
+										fwrite(field[F_DATE].buf, 1, field_len[F_DATE], stdout);
+										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].on)
+											terminal_write_attr(level_attr[level].on);
+										fwrite(field[F_LEVEL].buf, 1, field_len[F_LEVEL], stdout);
+										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].off)
+											terminal_write_attr(level_attr[level].off);
+										putchar('[');
+										fwrite(field[F_THREADID].buf, 1, field_len[F_THREADID], stdout);
+										fwrite("]: ", 1, 3, stdout);
+										fwrite(field[F_FILE].buf, 1, field_len[F_FILE], stdout);
+										putchar(':');
+										fwrite(field[F_LINE].buf, 1, field_len[F_LINE], stdout);
+										putchar(' ');
+										if (bold_on)
+											terminal_write_attr(bold_on);
+										fwrite(field[F_FUNCTION].buf, 1, field_len[F_FUNCTION], stdout);
+										if (bold_off)
+											terminal_write_attr(bold_off);
+										fwrite(": ", 1, 2, stdout);
 									}
-									smart_write(key, lval);
+									fwrite(key, 1, lval, stdout);
 								}
 							} else
 								state = 0;
@@ -585,7 +614,7 @@ static void console_cleanup(void *data)
 	CW_UNUSED(data);
 
 	rl_callback_handler_remove();
-	terminal_write("\r\n", 2);
+	fputs("\r\n", stdout);
 	fflush(stdout);
 	set_title("");
 
@@ -729,14 +758,22 @@ void *console(void *data)
 	console_address = data;
 	console_sock = -1;
 
+	pthread_cleanup_push(console_cleanup, NULL);
+
 	terminal_init();
+
+	terminal_highlight(&level_attr[__CW_LOG_DEBUG].on, &level_attr[__CW_LOG_DEBUG].off, "fg=blue,bold");
+	terminal_highlight(&level_attr[__CW_LOG_NOTICE].on, &level_attr[__CW_LOG_NOTICE].off, "fg=green,bold");
+	terminal_highlight(&level_attr[__CW_LOG_WARNING].on, &level_attr[__CW_LOG_WARNING].off, "fg=yellow,bold");
+	terminal_highlight(&level_attr[__CW_LOG_ERROR].on, &level_attr[__CW_LOG_ERROR].off, "fg=red,bold");
+
+	terminal_highlight(&bold_on, &bold_off, "bold");
+
 	terminal_set_icon("Callweaver");
 
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
-
-	pthread_cleanup_push(console_cleanup, NULL);
 
 	rl_initialize ();
 	rl_editing_mode = 1;
