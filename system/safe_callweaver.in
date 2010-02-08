@@ -212,8 +212,9 @@ savecore()
 run_callweaver()
 {
 	# We should only exit if callweaver itself exits normally, which it
-	# should do even when signalled by a SIGTERM.
-	trap '' HUP INT QUIT PIPE TERM
+	# should do when signalled by a SIGTERM or SIGINT, however SIGHUP
+	# means reload configs and SIGPIPE and SIGQUIT are ignored if possible.
+	trap '' HUP PIPE QUIT
 
 	if [[ -n "$CALLWEAVER_TTY" ]]; then
 		# From here on we only talk to CALLWEAVER_TTY. If the outer
