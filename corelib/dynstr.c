@@ -29,11 +29,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-static int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
-	__attribute__ ((nonnull (1)));
-
-
-static int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
+int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
 {
 	struct cw_dynstr *nds;
 	size_t nsize = sizeof(**ds_p) + len;

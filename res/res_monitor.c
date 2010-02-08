@@ -300,7 +300,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 				cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
 			if (cmd)
-				cw_dynstr_free(cmd);
+				cw_dynstr_free(&cmd);
 		}
 		
 		free(chan->monitor->format);

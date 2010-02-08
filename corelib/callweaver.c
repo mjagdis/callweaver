@@ -1001,7 +1001,7 @@ static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
 			i = RESULT_SUCCESS;
 		}
 
-		cw_dynstr_free(cmd);
+		cw_dynstr_free(&cmd);
 	}
 
 	if (i != RESULT_SUCCESS)

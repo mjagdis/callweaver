@@ -1725,7 +1725,7 @@ static void *cli_command_thread(void *cli_command)
 	struct cw_dynstr *ds = NULL;
 
 	cw_cli_command(&ds, (char *)cli_command);
-	cw_dynstr_free(ds);
+	cw_dynstr_free(&ds);
 	free(cli_command);
 
 	return NULL;

@@ -2982,7 +2982,7 @@ void icd_caller__dump_debug(icd_caller * that)
     struct cw_dynstr *ds = NULL;
 
     icd_caller__dump_debug_fd(that, &ds, "  == ");
-    cw_dynstr_free(ds);
+    cw_dynstr_free(&ds);
 }
 
 void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr **ds_p, const char *indent)

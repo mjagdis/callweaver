@@ -536,8 +536,7 @@ is_data:
 							if (msgtype == MSG_FOLLOWS) {
 								if (ds) {
 									smart_page((nresp >= 0), ds, ds_lines);
-									cw_dynstr_free(ds);
-									ds = NULL;
+									cw_dynstr_free(&ds);
 									ds_lines = 0;
 								}
 							}

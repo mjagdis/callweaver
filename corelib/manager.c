@@ -1821,7 +1821,7 @@ static void manager_msg_free(struct cw_object *obj)
 
 	cw_object_destroy(it);
 	if (it->data)
-		cw_dynstr_free(it->data);
+		cw_dynstr_free(&it->data);
 	free(it);
 }
 
