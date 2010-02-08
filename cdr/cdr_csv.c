@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Eris Associates Limited, UK
+ * Copyright (C) 2009 - 2010, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
@@ -66,124 +66,69 @@ static FILE *csvmaster_fd;
 static char csvacct_path[CW_CONFIG_MAX_PATH];
 static int csvacct_offset;
 
-static char *gbuf;
-static size_t gbufsize;
-#define atleast(n)	((n + 255) / 256)
 
-
-static int expand(size_t n)
+static void append_string(struct cw_dynstr **ds_p, const char *s)
 {
-	char *nbuf;
+	cw_dynstr_printf(ds_p, "\"");
 
-	if ((nbuf = realloc(gbuf, gbufsize + n))) {
-		gbuf = nbuf;
-		gbufsize += n;
-		return 0;
-	}
-
-	return -1;
-}
-
-
-static int append_string(size_t *pos, char *buf, size_t bufsize, const char *s)
-{
-	int res = -1;
-
-	if (bufsize - *pos < 3 && expand(atleast(3)))
-		goto out;
-
-	buf[(*pos)++] = '\"';
-
-	for (; *s; s++) {
-		if (bufsize - *pos < 2 + 2 && expand(atleast(2)))
-			goto out;
-		if ((buf[(*pos)++] = *s) == '\"')
-			buf[(*pos)++] = '\"';
-	}
-
-	buf[*pos + 0] = '\"';
-	buf[*pos + 1] = ',';
-	*pos += 2;
-
-	res = 0;
-
-out:
-	return res;
-}
-
-
-static int append_times(size_t *pos, char *buf, size_t bufsize, const struct cw_cdr *cdr)
-{
-	int res = -1;
-	int n;
-
-	for (;;) {
-		n = snprintf(buf + *pos, bufsize - *pos, "%d,%d,", cdr->duration, cdr->billsec);
-		if (bufsize - *pos >= n + 1)
+	while (*s) {
+		int n = strcspn(s, "\"");
+		cw_dynstr_printf(ds_p, "%.*s", n, s);
+		if (!s[n])
 			break;
-		if (expand(atleast(n + 1)))
-			goto out;
+		cw_dynstr_printf(ds_p, "\"\"");
+		s += n + 1;
 	}
 
-	*pos += n;
-	res = 0;
-
-out:
-	return res;
+	cw_dynstr_printf(ds_p, "\",");
 }
 
 
-static int append_date(size_t *pos, char *buf, size_t bufsize, const struct timeval tv)
+static void append_times(struct cw_dynstr **ds_p, const struct cw_cdr *cdr)
+{
+	cw_dynstr_printf(ds_p, "%d,%d,", cdr->duration, cdr->billsec);
+}
+
+
+static void append_date(struct cw_dynstr **ds_p, const struct timeval tv)
 {
 	struct tm tm;
-	int res = -1;
 
 	if (!cw_tvzero(tv)) {
-		if (bufsize - *pos < MAX_DATE_LEN + 1 && expand(atleast(MAX_DATE_LEN + 1)))
-			goto out;
+		cw_dynstr_need(ds_p, MAX_DATE_LEN + sizeof(",") - 1);
 		localtime_r(&tv.tv_sec, &tm);
-		*pos += strftime(buf + *pos, bufsize - *pos, DATE_FORMAT ",", &tm);
+		(*ds_p)->used += strftime((*ds_p)->data + (*ds_p)->used, (*ds_p)->size - (*ds_p)->used, DATE_FORMAT ",", &tm);
 	}
-
-	res = 0;
-
-out:
-	return res;
 }
 
 
-static char *build_csv_record(size_t *pos, const struct cw_cdr *cdr)
+static void build_csv_record(struct cw_dynstr **ds_p, const struct cw_cdr *cdr)
 {
-	*pos = 0;
-
-	if (!append_string(pos, gbuf, gbufsize, cdr->accountcode)
-	&& !append_string(pos, gbuf, gbufsize, cdr->src)
-	&& !append_string(pos, gbuf, gbufsize, cdr->dst)
-	&& !append_string(pos, gbuf, gbufsize, cdr->dcontext)
-	&& !append_string(pos, gbuf, gbufsize, cdr->clid)
-	&& !append_string(pos, gbuf, gbufsize, cdr->channel)
-	&& !append_string(pos, gbuf, gbufsize, cdr->dstchannel)
-	&& !append_string(pos, gbuf, gbufsize, cdr->lastapp)
-	&& !append_string(pos, gbuf, gbufsize, cdr->lastdata)
-	&& !append_date(pos, gbuf, gbufsize, cdr->start)
-	&& !append_date(pos, gbuf, gbufsize, cdr->answer)
-	&& !append_date(pos, gbuf, gbufsize, cdr->end)
-	&& !append_times(pos, gbuf, gbufsize, cdr)
-	&& !append_string(pos, gbuf, gbufsize, cw_cdr_disp2str(cdr->disposition))
-	&& !append_string(pos, gbuf, gbufsize, cw_cdr_flags2str(cdr->amaflags))
+	append_string(ds_p, cdr->accountcode);
+	append_string(ds_p, cdr->src);
+	append_string(ds_p, cdr->dst);
+	append_string(ds_p, cdr->dcontext);
+	append_string(ds_p, cdr->clid);
+	append_string(ds_p, cdr->channel);
+	append_string(ds_p, cdr->dstchannel);
+	append_string(ds_p, cdr->lastapp);
+	append_string(ds_p, cdr->lastdata);
+	append_date(ds_p, cdr->start);
+	append_date(ds_p, cdr->answer);
+	append_date(ds_p, cdr->end);
+	append_times(ds_p, cdr);
+	append_string(ds_p, cw_cdr_disp2str(cdr->disposition));
+	append_string(ds_p, cw_cdr_flags2str(cdr->amaflags));
 #ifdef CSV_LOGUNIQUEID
-	&& !append_string(pos, gbuf, gbufsize, cdr->uniqueid)
+	append_string(ds_p, cdr->uniqueid);
 #endif
 #ifdef CSV_LOGUSERFIELD
-	&& !append_string(pos, gbuf, gbufsize, cdr->userfield)
+	append_string(ds_p, cdr->userfield);
 #endif
-	) {
-		/* Trim off trailing comma */
-		gbuf[*pos - 1] = '\n';
-		return gbuf;
-	}
 
-	return NULL;
+	/* Replace trailing comma with a newline */
+	if ((*ds_p) && !(*ds_p)->error)
+		(*ds_p)->data[(*ds_p)->used - 1] = '\n';
 }
 
 
@@ -217,8 +162,7 @@ static int csvmaster_open(void)
 static int csv_log(struct cw_cdr *batch)
 {
 	struct cw_cdr *cdrset, *cdr;
-	char *buf;
-	size_t len;
+	struct cw_dynstr *ds = NULL;
 
 	pthread_mutex_lock(&csv_lock);
 
@@ -227,10 +171,12 @@ static int csv_log(struct cw_cdr *batch)
 			batch = batch->batch_next;
 
 			while ((cdr = cdrset)) {
-				cdrset = cdrset->next;
+				build_csv_record(&ds, cdr);
 
-				if ((buf = build_csv_record(&len, cdr))) {
-					fwrite(buf, len, 1, csvmaster_fd);
+				if (ds && !ds->error) {
+					cdrset = cdrset->next;
+
+					fwrite(ds->data, 1, ds->used, csvmaster_fd);
 
 					if (!cw_strlen_zero(cdr->accountcode)) {
 						static char badacct = 0;
@@ -241,7 +187,7 @@ static int csv_log(struct cw_cdr *batch)
 						if (!strchr(cdr->accountcode, '/') && (cdr->accountcode[0] != '.' || cdr->accountcode[1] != '.')) {
 							if (snprintf(csvacct_path + csvacct_offset, sizeof(csvacct_path) - csvacct_offset, "%s.csv", cdr->accountcode) < sizeof(csvacct_path) - csvacct_offset) {
 								if (!(err = ((d = open_cloexec(csvacct_path, O_WRONLY|O_APPEND|O_CREAT, 0666)) < 0))) {
-									err = (write(d, buf, len) != len);
+									err = (write(d, ds->data, ds->used) != ds->used);
 									err |= fsync(d);
 									err |= close(d);
 								}
@@ -258,6 +204,13 @@ static int csv_log(struct cw_cdr *batch)
 							badacct = 1;
 						}
 					}
+
+					cw_dynstr_reset(&ds);
+				} else {
+					if (ds)
+						cw_dynstr_free(&ds);
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					sleep(1);
 				}
 			}
 		}
@@ -267,6 +220,9 @@ static int csv_log(struct cw_cdr *batch)
 	}
 
 	pthread_mutex_unlock(&csv_lock);
+
+	if (ds)
+		cw_dynstr_free(&ds);
 
 	return 0;
 }
@@ -295,12 +251,6 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	if (!(gbuf = malloc(1024))) {
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
-		return -1;
-	}
-	gbufsize = 1024;
-
 	snprintf(csvmaster_path, sizeof(csvmaster_path), "%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 	csvacct_offset = snprintf(csvacct_path, sizeof(csvacct_path), "%s/%s/", cw_config_CW_LOG_DIR, CSV_LOG_DIR);
 
