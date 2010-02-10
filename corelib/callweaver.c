@@ -930,7 +930,7 @@ static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, cha
 
 static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
 {
-	struct cw_dynstr *buf = NULL;
+	struct cw_dynstr *ds = NULL;
 	int res;
 
 	CW_UNUSED(ds_p);
@@ -943,16 +943,22 @@ static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
 	if (!strcmp(argv[3], "halt")) {
 		*(int *)0 = 1;
 	} else {
-		cw_dynstr_printf(&buf, "gdb $( type -p \"%s\" ) %u <<EOF\n"
+		cw_dynstr_printf(&ds, "gdb $( type -p \"%s\" ) %u <<EOF\n"
 			"generate-core-file\n"
 			"quit\n"
 			"EOF\n",
 			_argv[0], cw_mainpid);
 
-		if (buf && !buf->error) {
-			cw_safe_system(buf->data);
-			res = RESULT_SUCCESS;
-		} else
+		if (ds) {
+			if (!ds->error) {
+				cw_safe_system(ds->data);
+				res = RESULT_SUCCESS;
+			}
+
+			cw_dynstr_free(&ds);
+		}
+
+		if (unlikely(res != RESULT_SUCCESS))
 			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 	}
 
@@ -993,7 +999,7 @@ static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
 		if (!cmd->error) {
 			if ((fd = popen(cmd->data, "r"))) {
 				while ((i = fread(buf, 1, sizeof(buf), fd)) > 0)
-					if (cw_dynstr_printf(ds_p, "%.*s", i, buf))
+					cw_dynstr_printf(ds_p, "%.*s", i, buf);
 				pclose(fd);
 			} else
 				cw_dynstr_printf(ds_p, "popen: %s\n", strerror(errno));
@@ -1004,7 +1010,7 @@ static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
 		cw_dynstr_free(&cmd);
 	}
 
-	if (i != RESULT_SUCCESS)
+	if (unlikely(i != RESULT_SUCCESS))
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
 	return i;
