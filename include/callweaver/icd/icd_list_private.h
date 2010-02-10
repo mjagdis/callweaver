@@ -103,7 +103,7 @@ extern "C" {
         int (*del_fn) (icd_event * that, void *extra);
         int (*clr_fn) (icd_event * that, void *extra);
         int (*dstry_fn) (icd_event * that, void *extra);
-          icd_status(*dump_fn) (icd_list * that, int verbosity, struct cw_dynstr **ds_p, void *extra);
+          icd_status(*dump_fn) (icd_list * that, int verbosity, struct cw_dynstr *ds_p, void *extra);
         void *ins_fn_extra;
         void *add_fn_extra;
         void *del_fn_extra;

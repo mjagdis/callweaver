@@ -109,7 +109,7 @@ typedef struct switch_config switch_config;
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames);
 
 struct switch_config {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int timeout;
 	int seeheads;
 };
@@ -271,7 +271,7 @@ static int cli_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_cli(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int sqlite_cli(struct cw_dynstr *ds_p, int argc, char *argv[]) {
 	char sqlbuf[1024];
 	char path[ARRAY_SIZE];
 	switch_config config;

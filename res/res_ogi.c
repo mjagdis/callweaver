@@ -1313,7 +1313,7 @@ static const char no_debug_usage[] =
 "Usage: ogi no debug\n"
 "       Disables dumping of OGI transactions for debugging purposes\n";
 
-static int ogi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ogi_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -1325,7 +1325,7 @@ static int ogi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int ogi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ogi_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -1679,7 +1679,7 @@ static void join(char *s, size_t len, const char **w)
 	}
 }
 
-static int help_workhorse(struct cw_dynstr **ds_p, const char **match)
+static int help_workhorse(struct cw_dynstr *ds_p, const char **match)
 {
 	char fullcmd[80];
 	char matchstr[80];
@@ -1949,7 +1949,7 @@ static int run_ogi(struct cw_channel *chan, char *request, OGI *ogi, int pid, in
 	return returnstatus;
 }
 
-static int handle_showogi(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int handle_showogi(struct cw_dynstr *ds_p, int argc, char *argv[]) {
 	struct ogi_command *e;
 	char fullcmd[80];
 	if ((argc < 2))
@@ -1972,7 +1972,7 @@ static int handle_showogi(struct cw_dynstr **ds_p, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpogihtml(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_dumpogihtml(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char fullcmd[80];
 	struct ogi_command *e;

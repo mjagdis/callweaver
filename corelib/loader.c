@@ -175,7 +175,7 @@ static int unload_module(const char *name, int hangup)
 
 
 struct module_generator_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	const char *name;
 	int name_len;
 };
@@ -191,7 +191,7 @@ static int module_generator_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static void module_generator(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void module_generator(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct module_generator_args args = {
 		.ds_p = ds_p,
@@ -503,7 +503,7 @@ int load_modules(const int preload_only)
 
 
 struct handle_modlist_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int count;
 	const char *like;
 };
@@ -522,7 +522,7 @@ static int handle_modlist_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_modlist(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_modlist(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct handle_modlist_args args = {
 		.ds_p = ds_p,
@@ -547,7 +547,7 @@ static int handle_modlist(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int handle_load(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_load(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct load_module_args args;
 	const char *path;
@@ -575,7 +575,7 @@ static int handle_load(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 
 struct complete_fn_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	const char *word;
 	int word_len;
 };
@@ -592,7 +592,7 @@ static int complete_fn_one(const char *filename, lt_ptr data)
 	return 0;
 }
 
-static void complete_fn(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_fn(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_fn_args args;
 	char *p;
@@ -618,7 +618,7 @@ static void complete_fn(struct cw_dynstr **ds_p, char *argv[], int lastarg, int 
 }
 
 
-static int handle_reconfigure(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_reconfigure(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int x;
 
@@ -644,7 +644,7 @@ static int handle_reconfigure(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static void reconfigure_module_generator(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void reconfigure_module_generator(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *core[] = {
 		"extconfig",
@@ -665,7 +665,7 @@ static void reconfigure_module_generator(struct cw_dynstr **ds_p, char *argv[], 
 }
 
 
-static int handle_unload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_unload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int x;
 	int hangup = 0;

@@ -2209,7 +2209,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     return CW_BRIDGE_FAILED;
 }
 
-static int rtp_do_debug_ip(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int rtp_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -2240,7 +2240,7 @@ static int rtp_do_debug_ip(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int rtp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int rtp_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
@@ -2254,7 +2254,7 @@ static int rtp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
    
-static int rtp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int rtp_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 

@@ -623,7 +623,7 @@ struct shutdown_state {
 	int timeout;
 };
 
-static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int graceful, int timeout);
+static void shutdown_restart(struct cw_dynstr *ds_p, int doit, int graceful, int timeout);
 
 static void *quit_when_idle(void *data)
 {
@@ -681,7 +681,7 @@ static void *quit_when_idle(void *data)
 }
 
 
-static void shutdown_restart(struct cw_dynstr **ds_p, int doit, int graceful, int timeout)
+static void shutdown_restart(struct cw_dynstr *ds_p, int doit, int graceful, int timeout)
 {
 	static cw_mutex_t lock = CW_MUTEX_INIT_VALUE;
 	static struct shutdown_state state = {
@@ -821,7 +821,7 @@ static const char abort_halt_help[] =
 "       call operations.\n";
 
 
-static int handle_shutdown_now(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_shutdown_now(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -833,7 +833,7 @@ static int handle_shutdown_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_gracefully(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_shutdown_gracefully(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -848,7 +848,7 @@ static int handle_shutdown_gracefully(struct cw_dynstr **ds_p, int argc, char *a
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_when_convenient(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_shutdown_when_convenient(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -863,7 +863,7 @@ static int handle_shutdown_when_convenient(struct cw_dynstr **ds_p, int argc, ch
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_now(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_restart_now(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -875,7 +875,7 @@ static int handle_restart_now(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_gracefully(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_restart_gracefully(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -890,7 +890,7 @@ static int handle_restart_gracefully(struct cw_dynstr **ds_p, int argc, char *ar
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_when_convenient(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_restart_when_convenient(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -905,7 +905,7 @@ static int handle_restart_when_convenient(struct cw_dynstr **ds_p, int argc, cha
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_cancel(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_shutdown_restart_cancel(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -917,7 +917,7 @@ static int handle_shutdown_restart_cancel(struct cw_dynstr **ds_p, int argc, cha
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_shutdown_restart_status(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -928,9 +928,9 @@ static int handle_shutdown_restart_status(struct cw_dynstr **ds_p, int argc, cha
 	return RESULT_SUCCESS;
 }
 
-static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int core_dump(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	struct cw_dynstr *ds = NULL;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	int res;
 
 	CW_UNUSED(ds_p);
@@ -949,14 +949,12 @@ static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
 			"EOF\n",
 			_argv[0], cw_mainpid);
 
-		if (ds) {
-			if (!ds->error) {
-				cw_safe_system(ds->data);
-				res = RESULT_SUCCESS;
-			}
-
-			cw_dynstr_free(&ds);
+		if (!ds.error) {
+			cw_safe_system(ds.data);
+			res = RESULT_SUCCESS;
 		}
+
+		cw_dynstr_free(&ds);
 
 		if (unlikely(res != RESULT_SUCCESS))
 			cw_log(CW_LOG_ERROR, "Out of memory!\n");
@@ -966,10 +964,10 @@ static int core_dump(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 }
 
-static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int core_analyse(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char buf[1024];
-	struct cw_dynstr *cmd = NULL;
+	struct cw_dynstr cmd = CW_DYNSTR_INIT;
 	FILE *fd;
 	int i;
 
@@ -995,20 +993,18 @@ static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 	i = RESULT_FAILURE;
 
-	if (cmd) {
-		if (!cmd->error) {
-			if ((fd = popen(cmd->data, "r"))) {
-				while ((i = fread(buf, 1, sizeof(buf), fd)) > 0)
-					cw_dynstr_printf(ds_p, "%.*s", i, buf);
-				pclose(fd);
-			} else
-				cw_dynstr_printf(ds_p, "popen: %s\n", strerror(errno));
+	if (!cmd.error) {
+		if ((fd = popen(cmd.data, "r"))) {
+			while ((i = fread(buf, 1, sizeof(buf), fd)) > 0)
+				cw_dynstr_printf(ds_p, "%.*s", i, buf);
+			pclose(fd);
+		} else
+			cw_dynstr_printf(ds_p, "popen: %s\n", strerror(errno));
 
-			i = RESULT_SUCCESS;
-		}
-
-		cw_dynstr_free(&cmd);
+		i = RESULT_SUCCESS;
 	}
+
+	cw_dynstr_free(&cmd);
 
 	if (unlikely(i != RESULT_SUCCESS))
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
@@ -1017,7 +1013,7 @@ static int core_analyse(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int handle_bang(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_bang(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);

@@ -96,7 +96,7 @@ extern "C" {
     icd_status icd_member__increment_answered(icd_member * that);
 
 /* Prints the contents of the member object to the given file descriptor. */
-    icd_status icd_member__dump(icd_member * that, int verbosity, struct cw_dynstr **ds_p);
+    icd_status icd_member__dump(icd_member * that, int verbosity, struct cw_dynstr *ds_p);
 
 /* Sort functons for members cast as callers :) */
     int icd_member__cmp_call_start_time_order(icd_member * arg1, icd_member * arg2);
@@ -161,7 +161,7 @@ extern "C" {
 
 /* Set the dump function for this list */
     icd_status icd__member__set_dump_func(icd_member * that, icd_status(*dump_fn) (icd_member * list, int verbosity,
-            struct cw_dynstr **ds_p, void *extra), void *extra);
+            struct cw_dynstr *ds_p, void *extra), void *extra);
 
 /***** Fields *****/
 
@@ -189,7 +189,7 @@ extern "C" {
 /***** Predefined behaviours *****/
 
 /* Standard member list dump function */
-    icd_status icd_member__standard_dump(icd_member * that, int verbosity, struct cw_dynstr **ds_p, void *extra);
+    icd_status icd_member__standard_dump(icd_member * that, int verbosity, struct cw_dynstr *ds_p, void *extra);
 
 #ifdef __cplusplus
 }

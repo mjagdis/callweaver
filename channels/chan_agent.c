@@ -1508,7 +1508,7 @@ static int agent_logoff(char *agent, int soft)
 	return ret;
 }
 
-static int agent_logoff_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
+static int agent_logoff_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	int ret;
 	char *agent;
@@ -1553,7 +1553,7 @@ static struct cw_manager_message *action_agent_logoff(struct mansession *sess, c
 	return msg;
 }
 
-static void complete_agent_logoff_cmd(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_agent_logoff_cmd(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char name[CW_MAX_AGENT];
 	struct agent_pvt *p;
@@ -1571,7 +1571,7 @@ static void complete_agent_logoff_cmd(struct cw_dynstr **ds_p, char *argv[], int
 /**
  * Show agents in cli.
  */
-static int agents_show(struct cw_dynstr **ds_p, int argc, char **argv)
+static int agents_show(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	char username[CW_MAX_BUF];
 	char location[CW_MAX_BUF] = "";

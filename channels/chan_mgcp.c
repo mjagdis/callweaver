@@ -483,7 +483,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
                             int result, unsigned int ident, struct mgcp_request *resp);
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
 static int mgcp_do_reload(void);
-static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int mgcp_reload(struct cw_dynstr *ds_p, int argc, char *argv[]);
 
 static struct cw_channel *mgcp_request(const char *type, int format, void *data, int *cause);
 static int mgcp_call(struct cw_channel *ast, const char *dest);
@@ -1080,7 +1080,7 @@ static int mgcp_hangup(struct cw_channel *ast)
 	return 0;
 }
 
-static int mgcp_show_endpoints(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int mgcp_show_endpoints(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char iabuf[INET_ADDRSTRLEN];
 	struct mgcp_gateway  *g;
@@ -1124,7 +1124,7 @@ static struct cw_clicmd  cli_show_endpoints = {
 	.usage = show_endpoints_usage,
 };
 
-static int mgcp_audit_endpoint(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int mgcp_audit_endpoint(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
@@ -3987,7 +3987,7 @@ static struct cw_rtp_protocol mgcp_rtp = {
 	.set_rtp_peer = mgcp_set_rtp_peer,
 };
 
-static int mgcp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int mgcp_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -3998,7 +3998,7 @@ static int mgcp_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int mgcp_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int mgcp_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -4348,7 +4348,7 @@ static int mgcp_do_reload(void)
 	return 0;
 }
 
-static int mgcp_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int mgcp_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);

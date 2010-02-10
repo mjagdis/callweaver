@@ -159,7 +159,7 @@ static const char softhangup_help[] =
 "       the next time the driver reads or writes from the channel\n";
 
 
-static int handle_set_verbose(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_set_verbose(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int val = 0;
     int oldval = 0;
@@ -186,7 +186,7 @@ static int handle_set_verbose(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int handle_set_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_set_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int val = 0;
     int oldval = 0;
@@ -299,7 +299,7 @@ static char *format_uptimestr(time_t timeval)
     return strlen(timestr) ? strdup(timestr) : NULL;
 }
 
-static int handle_showuptime(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_showuptime(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     time_t curtime, tmptime;
     char *timestr;
@@ -337,7 +337,7 @@ static int handle_showuptime(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int handle_version(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_version(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -361,7 +361,7 @@ static int handle_version(struct cw_dynstr **ds_p, int argc, char *argv[])
 #define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
 struct handle_chanlist_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int concise;
 	int verbose;
 	int numchans;
@@ -427,7 +427,7 @@ static int handle_chanlist_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_chanlist(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_chanlist(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct handle_chanlist_args args;
 
@@ -487,7 +487,7 @@ static const char nodebugchan_help[] =
 "       Disables debugging on a specific channel.\n";
 
 
-static int handle_softhangup(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_softhangup(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct cw_channel *c = NULL;
 
@@ -505,7 +505,7 @@ static int handle_softhangup(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int handle_debuglevel(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_debuglevel(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     const char *filename = "<any>";
     int newlevel;
@@ -528,7 +528,7 @@ static int handle_debuglevel(struct cw_dynstr **ds_p, int argc, char *argv[])
 static int debugchan_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	struct cw_dynstr **ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
 	cw_channel_lock(chan);
 
@@ -543,7 +543,7 @@ static int debugchan_one(struct cw_object *obj, void *data)
 static int nodebugchan_one(struct cw_object *obj, void *data)
 {
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
-	struct cw_dynstr **ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
 	cw_channel_lock(chan);
 
@@ -556,7 +556,7 @@ static int nodebugchan_one(struct cw_object *obj, void *data)
 }
 
 /* XXX todo: merge next two functions!!! */
-static int handle_debugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_debugchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_channel *chan;
 
@@ -580,7 +580,7 @@ static int handle_debugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_nodebugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_nodebugchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_channel *chan;
 
@@ -605,7 +605,7 @@ static int handle_nodebugchan(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int handle_showchan(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char buf[2048];
     char cdrtime[256];
@@ -699,7 +699,7 @@ static int handle_showchan(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static void complete_show_channels(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_channels(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *choices[] = { "concise", "verbose" };
     int i;
@@ -713,20 +713,20 @@ static void complete_show_channels(struct cw_dynstr **ds_p, char *argv[], int la
 }
 
 
-static void complete_ch_3(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch_3(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 2)
 		cw_complete_channel(ds_p, argv[2], lastarg_len);
 }
 
-static void complete_ch_4(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch_4(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3)
 		cw_complete_channel(ds_p, argv[3], lastarg_len);
 }
 
 
-static int handle_help(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int handle_help(struct cw_dynstr *ds_p, int argc, char *argv[]);
 
 static struct cw_clicmd builtins[] = {
     {
@@ -843,7 +843,7 @@ static char *find_best(char *argv[])
 
 struct help_workhorse_args {
     char matchstr[80];
-    struct cw_dynstr **ds_p;
+    struct cw_dynstr *ds_p;
     int match;
 };
 
@@ -861,7 +861,7 @@ static int help_workhorse_one(struct cw_object *obj, void *data)
     return 0;
 }
 
-static int help_workhorse(struct cw_dynstr **ds_p, const char *match[])
+static int help_workhorse(struct cw_dynstr *ds_p, const char *match[])
 {
     struct help_workhorse_args args = {
         .match = 0,
@@ -878,7 +878,7 @@ static int help_workhorse(struct cw_dynstr **ds_p, const char *match[])
     return 0;
 }
 
-static int handle_help(struct cw_dynstr **ds_p, int argc, char *argv[]) {
+static int handle_help(struct cw_dynstr *ds_p, int argc, char *argv[]) {
     struct cw_clicmd *clicmd;
     int ret;
 
@@ -970,7 +970,7 @@ struct cli_generator_args {
     char matchstr[80];
     char *argv[CW_MAX_ARGS];
     char *word;
-    struct cw_dynstr **ds_p;
+    struct cw_dynstr *ds_p;
     int lastarg;
     int lastarg_len;
 };
@@ -997,7 +997,7 @@ static int cli_generator_one(struct cw_object *obj, void *data)
     return 0;
 }
 
-void cw_cli_generator(struct cw_dynstr **ds_p, char *cmd)
+void cw_cli_generator(struct cw_dynstr *ds_p, char *cmd)
 {
 	struct cli_generator_args args = {
 		.ds_p = ds_p,
@@ -1017,7 +1017,7 @@ void cw_cli_generator(struct cw_dynstr **ds_p, char *cmd)
 }
 
 
-void cw_cli_command(struct cw_dynstr **ds_p, char *cmd)
+void cw_cli_command(struct cw_dynstr *ds_p, char *cmd)
 {
 	char *argv[CW_MAX_ARGS];
 	struct cw_clicmd *clicmd;

@@ -430,7 +430,7 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *res
 }
 
 
-static int muxmon_cli(struct cw_dynstr **ds_p, int argc, char **argv)
+static int muxmon_cli(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     char *op;
     char *chan_name = NULL;

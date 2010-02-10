@@ -145,11 +145,11 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 	/* The first key-value pair will always be "Event: Log" so we can ignore that here */
 	for (i = 1; i < event->count; i++) {
 		if (event->map[(i << 1) + 1] - event->map[(i << 1) + 0] - 2 != sizeof("Message") - 1
-		|| memcmp(event->data->data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
+		|| memcmp(event->ds.data + event->map[(i << 1)], "Message", sizeof("Message") - 1)) {
 			for (j = 0; j < arraysize(keys); j++) {
 				if (event->map[(i << 1) + 1] - event->map[(i << 1)] - 2 == keys[j].l
-				&& !strncmp(event->data->data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
-					iov[keys[j].i_iov].iov_base = event->data->data + event->map[(i << 1) + 1];
+				&& !strncmp(event->ds.data + event->map[(i << 1)], keys[j].s, keys[j].l)) {
+					iov[keys[j].i_iov].iov_base = event->ds.data + event->map[(i << 1) + 1];
 					iov[keys[j].i_iov].iov_len = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2;
 					break;
 				}
@@ -165,7 +165,7 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 				level = atol(iov[1].iov_base);
 			}
 
-			p = event->data->data + event->map[(i << 1) + 1] + 2;
+			p = event->ds.data + event->map[(i << 1) + 1] + 2;
 			j = event->map[(i << 1) + 2] - event->map[(i << 1) + 1] - 2 - (sizeof("--END MESSAGE--\r\n") - 1);
 			while (j > 0) {
 				n = strcspn(p, "\r\n");
@@ -483,7 +483,7 @@ int reload_logger(int rotate)
 	return -1;
 }
 
-static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -495,7 +495,7 @@ static int handle_logger_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_rotate(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -510,7 +510,7 @@ static int handle_logger_rotate(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
-static int handle_logger_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;

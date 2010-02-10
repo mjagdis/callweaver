@@ -65,7 +65,7 @@
 #include "callweaver/icd/icd_module_api.h"
 
 /* public apis */
-int icd_module_command_agtpri(struct cw_dynstr **ds_p, int argc, char **argv);
+int icd_module_command_agtpri(struct cw_dynstr *ds_p, int argc, char **argv);
 static icd_plugable_fn *icd_module_get_plugable_fns(icd_caller * that);
 
 /* Private implemenations */
@@ -180,7 +180,7 @@ static icd_status init_icd_distributor_agent_priority_groups(icd_distributor * t
     return ICD_SUCCESS;
 }
 
-int icd_module_command_agtpri(struct cw_dynstr **ds_p, int argc, char **argv)
+int icd_module_command_agtpri(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     static const char *help[2] = { "help", "agtpri" };
 

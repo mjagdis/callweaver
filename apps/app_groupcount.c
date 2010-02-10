@@ -246,7 +246,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-static int group_show_channels(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int group_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	struct cw_group_info *gi = NULL;

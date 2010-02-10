@@ -562,7 +562,7 @@ static void send_digit_to_chan(struct chan_list *cl, char digit )
 }
 
 /*** CLI HANDLING ***/
-static int misdn_set_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_set_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc != 4 && argc != 5 && argc != 6 && argc != 7)
 		return RESULT_SHOWUSAGE; 
@@ -619,7 +619,7 @@ static int misdn_set_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_set_crypt_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_set_crypt_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE; 
 
@@ -627,7 +627,7 @@ static int misdn_set_crypt_debug(struct cw_dynstr **ds_p, int argc, char *argv[]
 }
 
 
-static int misdn_port_block(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_port_block(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -641,7 +641,7 @@ static int misdn_port_block(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_unblock(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_port_unblock(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -656,7 +656,7 @@ static int misdn_port_unblock(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int misdn_restart_port (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_restart_port (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
   
@@ -670,7 +670,7 @@ static int misdn_restart_port (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_up (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_port_up (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -684,7 +684,7 @@ static int misdn_port_up (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_port_down (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_port_down (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -698,7 +698,7 @@ static int misdn_port_down (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static inline void show_config_description (struct cw_dynstr **ds_p, enum misdn_cfg_elements elem)
+static inline void show_config_description (struct cw_dynstr *ds_p, enum misdn_cfg_elements elem)
 {
 	char section[BUFFERSIZE];
 	char name[BUFFERSIZE];
@@ -720,7 +720,7 @@ static inline void show_config_description (struct cw_dynstr **ds_p, enum misdn_
 		cw_dynstr_printf(ds_p, "[%s] %s\n\t%s\n", section, name, desc);
 }
 
-static int misdn_show_config (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_config (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;
@@ -865,14 +865,14 @@ static void reload_config(void)
 	}
 }
 
-static int misdn_reload (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_reload (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	cw_dynstr_printf(ds_p, "Reloading mISDN Config\n");
 	reload_config();
 	return 0;
 }
 
-static void print_bc_info (struct cw_dynstr **ds_p, struct chan_list* help, struct misdn_bchannel* bc)
+static void print_bc_info (struct cw_dynstr *ds_p, struct chan_list* help, struct misdn_bchannel* bc)
 {
 	struct cw_channel *cw=help->cw;
 	cw_dynstr_printf(ds_p,
@@ -933,7 +933,7 @@ static void print_bc_info (struct cw_dynstr **ds_p, struct chan_list* help, stru
   
 }
 
-static int misdn_show_cls (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_cls (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct chan_list *help=cl_te;
   
@@ -957,7 +957,7 @@ static int misdn_show_cls (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_show_cl (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_cl (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct chan_list *help=cl_te;
 
@@ -983,7 +983,7 @@ static int misdn_show_cl (struct cw_dynstr **ds_p, int argc, char *argv[])
 cw_mutex_t lock;
 int MAXTICS=8;
 
-static int misdn_set_tics (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_set_tics (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -993,7 +993,7 @@ static int misdn_set_tics (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_show_stacks (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_stacks (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
 
@@ -1010,7 +1010,7 @@ static int misdn_show_stacks (struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 
-static int misdn_show_ports_stats (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_ports_stats (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
 
@@ -1027,7 +1027,7 @@ static int misdn_show_ports_stats (struct cw_dynstr **ds_p, int argc, char *argv
 }
 
 
-static int misdn_show_port (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_show_port (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int port;
 	
@@ -1046,7 +1046,7 @@ static int misdn_show_port (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int misdn_send_cd (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_send_cd (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *nr; 
@@ -1074,7 +1074,7 @@ static int misdn_send_cd (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0; 
 }
 
-static int misdn_send_digit (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_send_digit (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *msg; 
@@ -1114,7 +1114,7 @@ static int misdn_send_digit (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0; 
 }
 
-static int misdn_toggle_echocancel (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_toggle_echocancel (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char *channame; 
 
@@ -1147,7 +1147,7 @@ static int misdn_toggle_echocancel (struct cw_dynstr **ds_p, int argc, char *arg
 	return 0; 
 }
 
-static int misdn_send_display (struct cw_dynstr **ds_p, int argc, char *argv[])
+static int misdn_send_display (struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char *channame; 
 	char *msg; 
@@ -1175,13 +1175,13 @@ static int misdn_send_display (struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS ;
 }
 
-static void complete_ch(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_ch(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3)
 		cw_complete_channel(ds_p, argv[3], lastarg_len);
 }
 
-static void complete_debug_port(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_debug_port(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	switch (lastarg) {
 		case 4:
@@ -1197,7 +1197,7 @@ static void complete_debug_port(struct cw_dynstr **ds_p, char *argv[], int lasta
 	}
 }
 
-static void complete_show_config(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_config(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char buffer[BUFFERSIZE];
 	enum misdn_cfg_elements elem;

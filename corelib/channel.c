@@ -240,7 +240,7 @@ struct cw_variable *cw_channeltype_list(void)
 #endif
 }
 
-static int show_channeltypes(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int show_channeltypes(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
@@ -906,7 +906,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 
 
 struct complete_channel_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	const char *prefix;
 	size_t prefix_len;
 };
@@ -928,7 +928,7 @@ static int complete_channel_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-void cw_complete_channel(struct cw_dynstr **ds_p, const char *prefix, size_t prefix_len)
+void cw_complete_channel(struct cw_dynstr *ds_p, const char *prefix, size_t prefix_len)
 {
 	struct complete_channel_args args = {
 		.ds_p = ds_p,

@@ -67,7 +67,7 @@ static char csvacct_path[CW_CONFIG_MAX_PATH];
 static int csvacct_offset;
 
 
-static void append_string(struct cw_dynstr **ds_p, const char *s)
+static void append_string(struct cw_dynstr *ds_p, const char *s)
 {
 	cw_dynstr_printf(ds_p, "\"");
 
@@ -84,25 +84,25 @@ static void append_string(struct cw_dynstr **ds_p, const char *s)
 }
 
 
-static void append_times(struct cw_dynstr **ds_p, const struct cw_cdr *cdr)
+static void append_times(struct cw_dynstr *ds_p, const struct cw_cdr *cdr)
 {
 	cw_dynstr_printf(ds_p, "%d,%d,", cdr->duration, cdr->billsec);
 }
 
 
-static void append_date(struct cw_dynstr **ds_p, const struct timeval tv)
+static void append_date(struct cw_dynstr *ds_p, const struct timeval tv)
 {
 	struct tm tm;
 
 	if (!cw_tvzero(tv)) {
 		cw_dynstr_need(ds_p, MAX_DATE_LEN + sizeof(",") - 1);
 		localtime_r(&tv.tv_sec, &tm);
-		(*ds_p)->used += strftime((*ds_p)->data + (*ds_p)->used, (*ds_p)->size - (*ds_p)->used, DATE_FORMAT ",", &tm);
+		ds_p->used += strftime(ds_p->data + ds_p->used, ds_p->size - ds_p->used, DATE_FORMAT ",", &tm);
 	}
 }
 
 
-static void build_csv_record(struct cw_dynstr **ds_p, const struct cw_cdr *cdr)
+static void build_csv_record(struct cw_dynstr *ds_p, const struct cw_cdr *cdr)
 {
 	append_string(ds_p, cdr->accountcode);
 	append_string(ds_p, cdr->src);
@@ -127,8 +127,8 @@ static void build_csv_record(struct cw_dynstr **ds_p, const struct cw_cdr *cdr)
 #endif
 
 	/* Replace trailing comma with a newline */
-	if ((*ds_p) && !(*ds_p)->error)
-		(*ds_p)->data[(*ds_p)->used - 1] = '\n';
+	if (!ds_p->error)
+		ds_p->data[ds_p->used - 1] = '\n';
 }
 
 
@@ -162,7 +162,7 @@ static int csvmaster_open(void)
 static int csv_log(struct cw_cdr *batch)
 {
 	struct cw_cdr *cdrset, *cdr;
-	struct cw_dynstr *ds = NULL;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 	pthread_mutex_lock(&csv_lock);
 
@@ -173,10 +173,10 @@ static int csv_log(struct cw_cdr *batch)
 			while ((cdr = cdrset)) {
 				build_csv_record(&ds, cdr);
 
-				if (ds && !ds->error) {
+				if (!ds.error) {
 					cdrset = cdrset->next;
 
-					fwrite(ds->data, 1, ds->used, csvmaster_fd);
+					fwrite(ds.data, 1, ds.used, csvmaster_fd);
 
 					if (!cw_strlen_zero(cdr->accountcode)) {
 						static char badacct = 0;
@@ -187,7 +187,7 @@ static int csv_log(struct cw_cdr *batch)
 						if (!strchr(cdr->accountcode, '/') && (cdr->accountcode[0] != '.' || cdr->accountcode[1] != '.')) {
 							if (snprintf(csvacct_path + csvacct_offset, sizeof(csvacct_path) - csvacct_offset, "%s.csv", cdr->accountcode) < sizeof(csvacct_path) - csvacct_offset) {
 								if (!(err = ((d = open_cloexec(csvacct_path, O_WRONLY|O_APPEND|O_CREAT, 0666)) < 0))) {
-									err = (write(d, ds->data, ds->used) != ds->used);
+									err = (write(d, ds.data, ds.used) != ds.used);
 									err |= fsync(d);
 									err |= close(d);
 								}
@@ -207,8 +207,7 @@ static int csv_log(struct cw_cdr *batch)
 
 					cw_dynstr_reset(&ds);
 				} else {
-					if (ds)
-						cw_dynstr_free(&ds);
+					cw_dynstr_free(&ds);
 					cw_log(CW_LOG_ERROR, "Out of memory!\n");
 					sleep(1);
 				}
@@ -221,8 +220,7 @@ static int csv_log(struct cw_cdr *batch)
 
 	pthread_mutex_unlock(&csv_lock);
 
-	if (ds)
-		cw_dynstr_free(&ds);
+	cw_dynstr_free(&ds);
 
 	return 0;
 }

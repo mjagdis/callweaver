@@ -315,7 +315,7 @@ static int read_message(int s, int nresp)
 	static char *key, *val;
 	static int lkey, lval = -1;
 	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
-	struct cw_dynstr *ds = NULL;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	int ds_lines = 0;
 	int level, res, i;
 
@@ -534,11 +534,10 @@ is_data:
 							}
 						} else {
 							if (msgtype == MSG_FOLLOWS) {
-								if (ds) {
-									smart_page((nresp >= 0), ds, ds_lines);
-									cw_dynstr_free(&ds);
-									ds_lines = 0;
-								}
+								if (!ds.error)
+									smart_page((nresp >= 0), &ds, ds_lines);
+								cw_dynstr_free(&ds);
+								ds_lines = 0;
 							}
 							state = 0;
 							msgtype = MSG_UNKNOWN;

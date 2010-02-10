@@ -238,9 +238,9 @@ static int blt_call(struct cw_channel *c, const char *dest);
 static int blt_write(struct cw_channel *chan, struct cw_frame *f);
 static int blt_indicate(struct cw_channel *chan, int cond);
 
-static int blt_show_information(struct cw_dynstr **, int, char**);
-static int blt_show_peers(struct cw_dynstr **, int, char **);
-static int blt_ag_sendcmd(struct cw_dynstr **, int, char **);
+static int blt_show_information(struct cw_dynstr *, int, char**);
+static int blt_show_peers(struct cw_dynstr *, int, char **);
+static int blt_ag_sendcmd(struct cw_dynstr *, int, char **);
 
 static int atcmd_cclk_read(blt_dev_t *);
 static int atcmd_cind_read(blt_dev_t *);
@@ -270,7 +270,7 @@ static int ag_unsol_cind(blt_dev_t *, const char *);
 static int ag_unsol_clip(blt_dev_t *, const char *);
 
 static int blt_parse_config(void);
-static void complete_device_2_ag(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len);
+static void complete_device_2_ag(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len);
 
 /*! Bluetooth: channel tech callback information */
 static const struct cw_channel_tech blt_tech = {

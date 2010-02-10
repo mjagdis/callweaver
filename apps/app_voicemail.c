@@ -5611,7 +5611,7 @@ static const char show_voicemail_zones_help[] =
 "Usage: show voicemail zones\n"
 "       Lists zone message formats\n";
 
-static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_voicemail_users(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_vm_user *vmu = users;
 	const char output_format[] = "%-10s %-5s %-25s %-10s %6s\n";
@@ -5665,7 +5665,7 @@ static int handle_show_voicemail_users(struct cw_dynstr **ds_p, int argc, char *
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_voicemail_zones(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	static const char output_format[] = "%-15s %-20s %-45s\n";
 	struct vm_zone *zone = zones;
@@ -5687,7 +5687,7 @@ static int handle_show_voicemail_zones(struct cw_dynstr **ds_p, int argc, char *
 	return RESULT_SUCCESS;
 }
 
-static void complete_show_voicemail_users(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_voicemail_users(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_vm_user *vmu;
 	const char *context = "";

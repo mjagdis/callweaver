@@ -588,7 +588,7 @@ static struct cw_channel *local_request(const char *drvtype, int format, void *d
 }
 
 /*--- locals_show: CLI command "local show channels" */
-static int locals_show(struct cw_dynstr **ds_p, int argc, char **argv)
+static int locals_show(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	struct local_pvt *p;
 

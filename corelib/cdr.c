@@ -819,14 +819,14 @@ void cw_cdr_detach(struct cw_cdr *cdr)
 static int cdrbe_print(struct cw_object *obj, void *data)
 {
 	struct cw_cdrbe *cdrbe = container_of(obj, struct cw_cdrbe, obj);
-	struct cw_dynstr **ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
 	cw_dynstr_printf(ds_p, "CDR registered backend: %s\n", cdrbe->name);
 	return 0;
 }
 
 
-static int handle_cli_status(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_cli_status(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 

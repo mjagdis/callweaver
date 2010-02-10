@@ -1105,7 +1105,7 @@ static int moh_off_one(struct cw_object *obj, void *data)
 }
 
 
-static int moh_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int moh_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *moh;
 	int x;
@@ -1144,7 +1144,7 @@ static int moh_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int cli_files_show(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int cli_files_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
 	int i;
@@ -1166,7 +1166,7 @@ static int cli_files_show(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int moh_classes_show(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int moh_classes_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
 

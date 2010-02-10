@@ -64,9 +64,9 @@
 
 struct cw_manager_message {
 	struct cw_object obj;
-	struct cw_dynstr *data;		/*!< The AMI formatted event data */
+	struct cw_dynstr ds;		/*!< The AMI formatted event data */
 	size_t count;			/*!< The number of key/value pairs in this event */
-	int map[0];			/*!< Offset to the start of key and value strings relative to data */
+	int map[0];			/*!< Offsets to the start of key and value strings in the msg data */
 };
 
 

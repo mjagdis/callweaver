@@ -69,7 +69,7 @@ static const char cdr_mysql_status_help[] =
 "Usage: cdr mysql status\n"
 "       Shows current connection status for cdr_mysql\n";
 
-static int handle_cdr_mysql_status(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_cdr_mysql_status(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);

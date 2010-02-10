@@ -764,7 +764,7 @@ static const char *visdn_intf_status_to_text(enum visdn_intf_status status)
 	return "*UNKNOWN*";
 }
 
-static void visdn_print_intf_details(struct cw_dynstr **ds_p, struct visdn_intf *intf)
+static void visdn_print_intf_details(struct cw_dynstr *ds_p, struct visdn_intf *intf)
 {
 	struct visdn_ic *ic = intf->current_ic;
 
@@ -979,7 +979,7 @@ static char *complete_show_visdn_interfaces(
 	return visdn_intf_complete(line, word, pos, state);
 }
 
-static int do_show_visdn_interfaces(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int do_show_visdn_interfaces(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 

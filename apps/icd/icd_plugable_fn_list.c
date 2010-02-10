@@ -212,7 +212,7 @@ icd_status icd_plugable_fn_list__remove_fns_by_element(icd_plugable_fn_list * th
 }
 
 /* Prints the contents of the list to the given file descriptor. */
-icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, struct cw_dynstr **ds_p)
+icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, struct cw_dynstr *ds_p)
 {
     icd_status ret = ICD_SUCCESS;
 

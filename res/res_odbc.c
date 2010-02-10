@@ -240,7 +240,7 @@ static int load_odbc_config(void)
 	return 0;
 }
 
-int odbc_dump_fd(struct cw_dynstr **ds_p, odbc_obj *obj)
+int odbc_dump_fd(struct cw_dynstr *ds_p, odbc_obj *obj)
 {
 	/* make sure the connection is up before we lie to our master.*/
 	odbc_sanity_check(obj);
@@ -248,19 +248,19 @@ int odbc_dump_fd(struct cw_dynstr **ds_p, odbc_obj *obj)
 	return 0;
 }
 
-static int odbc_connect_usage(struct cw_dynstr **ds_p)
+static int odbc_connect_usage(struct cw_dynstr *ds_p)
 {
 	cw_dynstr_printf(ds_p, "usage odbc connect <DSN>\n");
 	return 0;
 }
 
-static int odbc_disconnect_usage(struct cw_dynstr **ds_p)
+static int odbc_disconnect_usage(struct cw_dynstr *ds_p)
 {
 	cw_dynstr_printf(ds_p, "usage odbc disconnect <DSN>\n");
 	return 0;
 }
 
-static int odbc_show_command(struct cw_dynstr **ds_p, int argc, char **argv)
+static int odbc_show_command(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 	int x = 0;
@@ -282,7 +282,7 @@ static int odbc_show_command(struct cw_dynstr **ds_p, int argc, char **argv)
 	return 0;
 }
 
-static int odbc_disconnect_command(struct cw_dynstr **ds_p, int argc, char **argv)
+static int odbc_disconnect_command(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 
@@ -298,7 +298,7 @@ static int odbc_disconnect_command(struct cw_dynstr **ds_p, int argc, char **arg
 	return 0;
 }
 
-static int odbc_connect_command(struct cw_dynstr **ds_p, int argc, char **argv)
+static int odbc_connect_command(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	odbc_obj *obj;
 

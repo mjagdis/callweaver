@@ -265,7 +265,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 		}
 
 		if (chan->monitor->joinfiles && !cw_strlen_zero(chan->monitor->filename_base)) {
-			struct cw_dynstr *cmd = NULL;
+			struct cw_dynstr cmd = CW_DYNSTR_INIT;
 			/* This mapping is because that's what corelib/file.c does when asked to write wav49 */
 			const char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
@@ -292,15 +292,14 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 			if (execute)
 				cw_object_put(execute);
 
-			if (cmd && !cmd->error) {
-				cw_log(CW_LOG_DEBUG,"Executing: %s\n", cmd->data);
-				if (cw_safe_system(cmd->data) == -1)
-					cw_log(CW_LOG_WARNING, "Failed to execute: %s failed.\n", cmd->data);
+			if (!cmd.error) {
+				cw_log(CW_LOG_DEBUG,"Executing: %s\n", cmd.data);
+				if (cw_safe_system(cmd.data) == -1)
+					cw_log(CW_LOG_WARNING, "Failed to execute: %s failed.\n", cmd.data);
 			} else
 				cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
-			if (cmd)
-				cw_dynstr_free(&cmd);
+			cw_dynstr_free(&cmd);
 		}
 		
 		free(chan->monitor->format);

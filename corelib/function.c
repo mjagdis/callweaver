@@ -212,7 +212,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 }
 
 
-static void complete_show_functions(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_functions(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 2) {
 		if (!strncasecmp(argv[2], "like", lastarg_len))
@@ -224,7 +224,7 @@ static void complete_show_functions(struct cw_dynstr **ds_p, char *argv[], int l
 
 
 struct funcs_print_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -258,7 +258,7 @@ static int funcs_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_functions(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_functions(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct funcs_print_args args = {
 		.ds_p = ds_p,
@@ -280,7 +280,7 @@ static int handle_show_functions(struct cw_dynstr **ds_p, int argc, char *argv[]
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_function(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_function(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_func *acf;
 
@@ -303,7 +303,7 @@ static int handle_show_function(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 struct complete_show_func_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	char *word;
 	int word_len;
 };
@@ -318,7 +318,7 @@ static int complete_show_func_one(struct cw_object *obj, void *data)
 
 	return 0;
 }
-static void complete_show_function(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_function(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_func_args args = {
 		.ds_p = ds_p,

@@ -3885,7 +3885,7 @@ static int get_group(char *s)
     return group;
 }
 
-static void complete_span(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_span(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     int span;
 
@@ -3893,7 +3893,7 @@ static void complete_span(struct cw_dynstr **ds_p, char *argv[], int lastarg, in
         cw_dynstr_printf(ds_p, "%d\n", span);
 }
 
-static int handle_uc_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_uc_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int chan;
     unicall_pvt_t *tmp = NULL;
@@ -3932,7 +3932,7 @@ static int handle_uc_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int handle_uc_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_uc_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int chan;
     unicall_pvt_t *tmp;
@@ -3995,7 +3995,7 @@ static struct cw_clicmd uc_no_debug = {
     .usage = uc_no_debug_help,
 };
 
-static int unicall_destroy_channel(struct cw_dynstr **ds_p, int argc, char **argv)
+static int unicall_destroy_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     unicall_pvt_t *tmp;
     unicall_pvt_t *prev;
@@ -4019,7 +4019,7 @@ static int unicall_destroy_channel(struct cw_dynstr **ds_p, int argc, char **arg
     return RESULT_FAILURE;
 }
 
-static int unicall_show_channels(struct cw_dynstr **ds_p, int argc, char **argv)
+static int unicall_show_channels(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 #define FORMAT1 "%7s %-10.10s %-15.15s %-10.10s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-10.10s %-15.15s %-10.10s %-10.10s %-20.20s\n"
@@ -4056,7 +4056,7 @@ static int unicall_show_channels(struct cw_dynstr **ds_p, int argc, char **argv)
 #undef FORMAT2
 }
 
-static int unicall_show_channel(struct cw_dynstr **ds_p, int argc, char **argv)
+static int unicall_show_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     unicall_pvt_t *tmp = NULL;
     int channel;

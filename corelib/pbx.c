@@ -212,13 +212,13 @@ static inline struct cw_switch *pbx_findswitch(const char *name)
 static int switch_print(struct cw_object *obj, void *data)
 {
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
-	struct cw_dynstr **ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
         cw_dynstr_printf(ds_p, "%s: %s\n", sw->name, sw->description);
 	return 0;
 }
 
-static int handle_show_switches(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_switches(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -230,7 +230,7 @@ static int handle_show_switches(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 /*! \brief  handle_show_globals: CLI support for listing global variables */
 struct handle_show_globals_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int count;
 };
 
@@ -244,7 +244,7 @@ static int handle_show_globals_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_globals(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_globals(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct handle_show_globals_args args = {
 		.ds_p = ds_p,
@@ -261,7 +261,7 @@ static int handle_show_globals(struct cw_dynstr **ds_p, int argc, char *argv[])
 }
 
 /*! \brief  CLI support for setting global variables */
-static int handle_set_global(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_set_global(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     if (argc != 4)
         return RESULT_SHOWUSAGE;
@@ -2617,7 +2617,7 @@ static const char set_global_help[] =
  */
 
 /*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
-static int handle_show_hints(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_hints(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct cw_hint *hint;
     int num = 0;
@@ -2663,7 +2663,7 @@ static int handle_show_hints(struct cw_dynstr **ds_p, int argc, char *argv[])
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static void complete_show_dialplan_context(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_dialplan_context(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_context *c;
 
@@ -2694,7 +2694,7 @@ struct dialplan_counters
     int extension_existence;
 };
 
-static int show_dialplan_helper(struct cw_dynstr **ds_p, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
+static int show_dialplan_helper(struct cw_dynstr *ds_p, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
 {
     struct cw_context *c;
     int res=0, old_total_exten = dpc->total_exten;
@@ -2918,7 +2918,7 @@ static int show_dialplan_helper(struct cw_dynstr **ds_p, char *context, char *ex
     return res;
 }
 
-static int handle_show_dialplan(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_dialplan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char *exten = NULL, *context = NULL;
     /* Variables used for different counters */

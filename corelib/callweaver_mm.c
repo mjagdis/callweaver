@@ -306,7 +306,7 @@ int __cw_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, i
     }
 }
 
-static int handle_show_memory(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_memory(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;
@@ -369,7 +369,7 @@ struct file_summary
     struct file_summary *next;
 };
 
-static int handle_show_memory_summary(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_memory_summary(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char *fn = NULL;
     int x;

@@ -3491,7 +3491,7 @@ static int pbx_load_module(void)
 }
 
 /* CLI interface */
-static int ael2_debug_read(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_debug_read(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3501,7 +3501,7 @@ static int ael2_debug_read(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_tokens(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_debug_tokens(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3511,7 +3511,7 @@ static int ael2_debug_tokens(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_procs(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_debug_procs(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3521,7 +3521,7 @@ static int ael2_debug_procs(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_contexts(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_debug_contexts(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3531,7 +3531,7 @@ static int ael2_debug_contexts(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3541,7 +3541,7 @@ static int ael2_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_reload(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int ael2_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);

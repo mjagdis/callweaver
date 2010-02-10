@@ -222,7 +222,7 @@ int icd_listeners__notify(icd_listeners * that, icd_event * event)
 }
 
 /* Print the contents of the listener collection. */
-icd_status icd_listeners__dump(icd_listeners * that, struct cw_dynstr **ds_p)
+icd_status icd_listeners__dump(icd_listeners * that, struct cw_dynstr *ds_p)
 {
     CW_UNUSED(that);
     CW_UNUSED(ds_p);

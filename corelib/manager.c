@@ -151,7 +151,7 @@ static int snprintf_authority(char *buf, size_t buflen, int authority)
 }
 
 
-static int printf_authority(struct cw_dynstr **ds_p, int authority)
+static int printf_authority(struct cw_dynstr *ds_p, int authority)
 {
 	int i, used, sep = 0;
 
@@ -222,8 +222,8 @@ int cw_manager_send(struct mansession *sess, const struct message *req, struct c
 	int q_w_next;
 	int ret = -1;
 
-	if (*resp_p && (*resp_p)->data) {
-		if (!(*resp_p)->data->error && (!req || !req->actionid || !cw_manager_msg(resp_p, 1, cw_msg_tuple("ActionID", "%s", req->actionid)))) {
+	if (*resp_p) {
+		if (!(*resp_p)->ds.error && (!req || !req->actionid || !cw_manager_msg(resp_p, 1, cw_msg_tuple("ActionID", "%s", req->actionid)))) {
 			pthread_cleanup_push((void (*)(void *))pthread_mutex_unlock, &sess->lock);
 			pthread_mutex_lock(&sess->lock);
 
@@ -309,7 +309,7 @@ static const char showmancmd_help[] =
 
 
 struct complete_show_manact_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	char *word;
 	int word_len;
 };
@@ -325,7 +325,7 @@ static int complete_show_manact_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static void complete_show_manact(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manact(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_manact_args args = {
 		.ds_p = ds_p,
@@ -337,7 +337,7 @@ static void complete_show_manact(struct cw_dynstr **ds_p, char *argv[], int last
 }
 
 
-static int handle_show_manact(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_manact(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_object *it;
 	struct manager_action *act;
@@ -366,7 +366,7 @@ static const char showmancmds_help[] =
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
-static void complete_show_manacts(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manacts(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3) {
 		if (!strncasecmp(argv[3], "like", lastarg_len))
@@ -378,7 +378,7 @@ static void complete_show_manacts(struct cw_dynstr **ds_p, char *argv[], int las
 
 
 struct manacts_print_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -422,7 +422,7 @@ static int manacts_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_manacts(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_manacts(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct manacts_print_args args = {
 		.ds_p = ds_p,
@@ -456,7 +456,7 @@ static const char showlistener_help[] =
 
 
 struct listener_print_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 };
 
 #define MANLISTEN_FORMAT "%-10s %s\n"
@@ -477,7 +477,7 @@ static int listener_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_listener(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_listener(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct listener_print_args args = {
 		.ds_p = ds_p,
@@ -503,7 +503,7 @@ static const char showmanconn_help[] =
 
 
 struct mansess_print_args {
-	struct cw_dynstr **ds_p;
+	struct cw_dynstr *ds_p;
 };
 
 #define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
@@ -518,7 +518,7 @@ static int mansess_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_mansess(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_mansess(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mansess_print_args args = {
 		.ds_p = ds_p,
@@ -1103,10 +1103,10 @@ static struct cw_manager_message *action_command(struct mansession *sess, const 
 
 	if (cmd) {
 		if ((msg = cw_manager_response("Follows", NULL))) {
-			msg->data->used -= 2;
+			msg->ds.used -= 2;
 
-			cw_cli_command(&msg->data, cmd);
-			cw_dynstr_printf(&msg->data, "%s--END COMMAND--\r\n\r\n", (msg->data->data[msg->data->used - 1] != '\n' ? "\n" : ""));
+			cw_cli_command(&msg->ds, cmd);
+			cw_dynstr_printf(&msg->ds, "%s--END COMMAND--\r\n\r\n", (msg->ds.data[msg->ds.used - 1] != '\n' ? "\n" : ""));
 		}
 	} else
 		msg = cw_manager_response("Error", NULL);
@@ -1128,10 +1128,10 @@ static struct cw_manager_message *action_complete(struct mansession *sess, const
 
 	if (cmd) {
 		if ((msg = cw_manager_response("Completion", NULL))) {
-			msg->data->used -= 2;
+			msg->ds.used -= 2;
 
-			cw_cli_generator(&msg->data, cmd);
-			cw_dynstr_printf(&msg->data, "--END COMMAND--\r\n\r\n");
+			cw_cli_generator(&msg->ds, cmd);
+			cw_dynstr_printf(&msg->ds, "--END COMMAND--\r\n\r\n");
 		}
 	} else
 		msg = cw_manager_response("Error", NULL);
@@ -1615,7 +1615,7 @@ static void *manager_session_ami_read(void *data)
 
 int manager_session_ami(struct mansession *sess, const struct cw_manager_message *event)
 {
-	return cw_write_all(sess->fd, event->data->data, event->data->used);
+	return cw_write_all(sess->fd, event->ds.data, event->ds.used);
 }
 
 
@@ -1820,8 +1820,7 @@ static void manager_msg_free(struct cw_object *obj)
 	struct cw_manager_message *it = container_of(obj, struct cw_manager_message, obj);
 
 	cw_object_destroy(it);
-	if (it->data)
-		cw_dynstr_free(&it->data);
+	cw_dynstr_free(&it->ds);
 	free(it);
 }
 
@@ -1838,10 +1837,10 @@ static int add_msg(struct cw_manager_message **msg_p, size_t count, int map[], c
 		*msg_p = msg;
 
 		/* Drop the previous blank line termination marker */
-		msg->data->used -= 2;
-		o_len = msg->data->used;
+		msg->ds.used -= 2;
+		o_len = msg->ds.used;
 
-		if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
+		if (!cw_dynstr_vprintf(&msg->ds, fmt, ap)) {
 			for (i = 0; i < count; i++) {
 				msg->map[((o_count + i) << 1) + 0] = map[(i << 1) + 0] + o_len;
 				msg->map[((o_count + i) << 1) + 1] = map[(i << 1) + 1] + o_len;
@@ -1867,28 +1866,14 @@ static struct cw_manager_message *make_msg(size_t initsize, size_t chunk, size_t
 	struct cw_manager_message *msg;
 
 	if ((msg = malloc(sizeof(struct cw_manager_message) + sizeof(msg->map[0]) * ((count << 1) + 1)))) {
-		if (!initsize || (msg->data = cw_dynstr_alloc(initsize, chunk))) {
-			cw_object_init(msg, NULL, 1);
-			msg->obj.release = manager_msg_free;
-			msg->data = NULL;
-
-			if (!cw_dynstr_vprintf(&msg->data, fmt, ap)) {
-				msg->count = count;
-				memcpy(msg->map , map, ((count << 1) + 1) * sizeof(msg->map[0]));
-				goto out;
-			}
-		}
-
-		/* Out of memory to alloc or expand the dynstr but we can't log it here
-		 * because logging it just generates another event that will ultimately
-		 * come here and find it's out of memory and will log the fact causing
-		 * another event to be generated that will...
-		 */
-		cw_object_put(msg);
-		msg = NULL;
+		cw_object_init(msg, NULL, 1);
+		msg->obj.release = manager_msg_free;
+		cw_dynstr_init(&msg->ds, initsize, chunk);
+		cw_dynstr_vprintf(&msg->ds, fmt, ap);
+		msg->count = count;
+		memcpy(msg->map , map, ((count << 1) + 1) * sizeof(msg->map[0]));
 	}
 
-out:
 	return msg;
 }
 
@@ -1924,7 +1909,7 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	struct manager_event_args *args = data;
 
 	if ((it->readperm & args->category) == args->category && (it->send_events & args->category) == args->category) {
-		if (args->msg || (args->msg = make_msg(0, 0, args->count, args->map, args->fmt, args->ap))) {
+		if (args->msg || (args->msg = make_msg(0, 1, args->count, args->map, args->fmt, args->ap))) {
 			struct cw_manager_message *msg = cw_object_dup(args->msg);
 			cw_manager_send(it, NULL, &msg);
 		}

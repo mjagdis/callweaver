@@ -514,7 +514,7 @@ cnfout:
     return cnf;
 }
 
-static int confs_show(struct cw_dynstr **ds_p, int argc, char **argv)
+static int confs_show(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);
@@ -534,7 +534,7 @@ static struct cw_clicmd cli_show_confs =
     .usage = show_confs_usage,
 };
 
-static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
+static int conf_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
 {
     /* Process the command */
     char buf[1024] = "";
@@ -685,7 +685,7 @@ static int conf_cmd(struct cw_dynstr **ds_p, int argc, char **argv)
     return 0;
 }
 
-static void complete_confcmd(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_confcmd(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
     int x = 0;

@@ -200,7 +200,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
 static int connect_woomera(int *new_socket, woomera_profile *profile, int flags);
 static int init_woomera(void);
 static struct cw_channel *woomera_new(const char *type, int format, void *data, int *cause);
-static int woomera_cli(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int woomera_cli(struct cw_dynstr *ds_p, int argc, char *argv[]);
 static void tech_destroy(private_object *tech_pvt);
 static struct cw_channel *woomera_new(const char *type, int format, void *data, int *cause);
 static int tech_create_read_socket(private_object *tech_pvt);
@@ -1874,7 +1874,7 @@ static enum cw_bridge_result tech_bridge(struct cw_channel *chan_a, struct cw_ch
 }
 
 
-static int woomera_cli(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int woomera_cli(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc > 1) {
 		if (!strcmp(argv[1], "debug")) {

@@ -178,13 +178,13 @@ int cw_send_image(struct cw_channel *chan, char *filename)
 static int imager_print(struct cw_object *obj, void *data)
 {
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
-	struct cw_dynstr **ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
 	cw_dynstr_printf(ds_p, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));
 	return 0;
 }
 
-static int show_image_formats(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int show_image_formats(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 

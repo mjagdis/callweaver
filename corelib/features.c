@@ -1902,7 +1902,7 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int handle_showfeatures(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_showfeatures(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int i;
 	int fcount;
@@ -1963,7 +1963,7 @@ static struct cw_clicmd showfeatures = {
 	.usage = showfeatures_help,
 };
 
-static int handle_parkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_parkedcalls(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct parkeduser *cur;
 	int numparked = 0;

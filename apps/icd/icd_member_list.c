@@ -296,7 +296,7 @@ icd_member *icd_member_list__get_for_caller(icd_member_list * that, icd_caller *
 }
 
 /* Prints the contents of the member structures to the given file descriptor. */
-icd_status icd_member_list__dump(icd_member_list * that, int verbosity, struct cw_dynstr **ds_p)
+icd_status icd_member_list__dump(icd_member_list * that, int verbosity, struct cw_dynstr *ds_p)
 {
     assert(that != NULL);
     assert(((icd_list *) that)->dump_fn != NULL);
@@ -379,7 +379,7 @@ icd_status icd_member_list__remove_listener(icd_member_list * that, void *listen
 /**** Predefined Hooks ****/
 
 /* Standard member list dump function */
-icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr **ds_p, void *extra)
+icd_status icd_member_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr *ds_p, void *extra)
 {
     //static const int skipconst = 1;
     icd_list_iterator *iter;

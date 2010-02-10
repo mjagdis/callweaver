@@ -764,7 +764,7 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 }
 
 
-static int handle_valetparkedcalls(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_valetparkedcalls(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct valetparkeduser *cur;
 

@@ -87,7 +87,7 @@ char playtones_desc[] =
 /*
  * ADD INDICATION command stuff
  */
-static int handle_add_indication(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_add_indication(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     int created_country = 0;
@@ -129,7 +129,7 @@ static int handle_add_indication(struct cw_dynstr **ds_p, int argc, char *argv[]
 /*
  * REMOVE INDICATION command stuff
  */
-static int handle_remove_indication(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_remove_indication(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     
@@ -164,7 +164,7 @@ static int handle_remove_indication(struct cw_dynstr **ds_p, int argc, char *arg
 /*
  * SHOW INDICATIONS command stuff
  */
-static int handle_show_indications(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int handle_show_indications(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     char buf[256];

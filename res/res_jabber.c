@@ -213,7 +213,7 @@ static int jabber_manager_session(struct mansession *sess, const struct cw_manag
 
 	CW_UNUSED(sess);
 
-	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->data)))
+	if ((node = jabber_message_node_printf(globals.event_master, "CALLWEAVER EVENT", "%s", event->ds.data)))
 		jabber_message_node_push(&global_profile, node, Q_OUTBOUND);
 
 	return 0;
@@ -1722,7 +1722,7 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
 */
 static void *cli_command_thread(void *cli_command)
 {
-	struct cw_dynstr *ds = NULL;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 	cw_cli_command(&ds, (char *)cli_command);
 	cw_dynstr_free(&ds);

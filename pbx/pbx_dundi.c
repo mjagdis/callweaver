@@ -2192,7 +2192,7 @@ static __attribute__((noreturn)) void *process_precache(void *data)
 	}
 }
 
-static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -2204,7 +2204,7 @@ static int dundi_do_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_do_store_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -2216,7 +2216,7 @@ static int dundi_do_store_history(struct cw_dynstr **ds_p, int argc, char *argv[
 	return RESULT_SUCCESS;
 }
 
-static int dundi_flush(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_flush(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int stats=0;
 	if ((argc < 2) || (argc > 3))
@@ -2251,7 +2251,7 @@ static int dundi_flush(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -2263,7 +2263,7 @@ static int dundi_no_debug(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_no_store_history(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_no_store_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -2289,7 +2289,7 @@ static const char *model2str(int model)
 	}
 }
 
-static void complete_peer_4(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_peer_4(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char eid_str[20];
 	struct dundi_peer *p;
@@ -2323,7 +2323,7 @@ static void sort_results(struct dundi_result *results, int count)
 	qsort(results, count, sizeof(results[0]), rescomp);
 }
 
-static int dundi_do_lookup(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_do_lookup(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2364,7 +2364,7 @@ static int dundi_do_lookup(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_do_precache(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2389,7 +2389,7 @@ static int dundi_do_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_do_query(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_do_query(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res;
 	char tmp[256];
@@ -2429,7 +2429,7 @@ static int dundi_do_query(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char iabuf[INET_ADDRSTRLEN];
 	char eid_str[20];
@@ -2491,7 +2491,7 @@ static int dundi_show_peer(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_peers(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s %-15.15s     %-10.10s %-8.8s %-15.15s\n"
 #define FORMAT "%-20.20s %-15.15s %s %-10.10s %-8.8s %-15.15s\n"
@@ -2576,7 +2576,7 @@ static int dundi_show_peers(struct cw_dynstr **ds_p, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int dundi_show_trans(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_trans(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-22.22s %-5.5s %-5.5s %-3.3s %-3.3s %-3.3s\n"
 #define FORMAT "%-16.16s:%5d %-5.5d %-5.5d %-3.3d %-3.3d %-3.3d\n"
@@ -2600,7 +2600,7 @@ static int dundi_show_trans(struct cw_dynstr **ds_p, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int dundi_show_entityid(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_entityid(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char eid_str[20];
 
@@ -2616,7 +2616,7 @@ static int dundi_show_entityid(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int dundi_show_requests(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_requests(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-15s %-15s %-15s %-3.3s %-3.3s\n"
 #define FORMAT "%-15s %-15s %-15s %-3.3d %-3.3d\n"
@@ -2642,7 +2642,7 @@ static int dundi_show_requests(struct cw_dynstr **ds_p, int argc, char *argv[])
 
 /* Grok-a-dial DUNDi */
 
-static int dundi_show_mappings(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_mappings(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-7.7s %-12.12s %-10.10s %-5.5s %-25.25s\n"
 #define FORMAT "%-12.12s %-7d %-12.12s %-10.10s %-5.5s %-25.25s\n"
@@ -2667,7 +2667,7 @@ static int dundi_show_mappings(struct cw_dynstr **ds_p, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int dundi_show_precache(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int dundi_show_precache(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-12.12s %-12.12s %-10.10s\n"
 #define FORMAT "%-12.12s %-12.12s %02d:%02d:%02d\n"

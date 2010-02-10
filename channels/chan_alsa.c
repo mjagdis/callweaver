@@ -2892,7 +2892,7 @@ static struct cw_channel *alsa_request(const char *drvtype, int fmt, void *data,
 	return tmp;
 }
 
-static int console_autoanswer(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int console_autoanswer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;;
 	if ((argc != 1) && (argc != 2))
@@ -2912,7 +2912,7 @@ static int console_autoanswer(struct cw_dynstr **ds_p, int argc, char *argv[])
 	return res;
 }
 
-static void autoanswer_complete(struct cw_dynstr **ds_p, char *argv[], int lastarg, int lastarg_len)
+static void autoanswer_complete(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (!strncasecmp(argv[lastarg], "on", lastarg_len))
 		cw_dynstr_printf(ds_p, "on\n");
@@ -2927,7 +2927,7 @@ static const char autoanswer_usage[] =
 "       argument, displays the current on/off status of autoanswer.\n"
 "       The default value of autoanswer is in 'alsa.conf'.\n";
 
-static int console_answer(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int console_answer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -2958,7 +2958,7 @@ static const char sendtext_usage[] =
 "Usage: send text <message>\n"
 "       Sends a text message for display on the remote terminal.\n";
 
-static int console_sendtext(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int console_sendtext(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int tmparg = 2;
 	int res = RESULT_SUCCESS;
@@ -2999,7 +2999,7 @@ static const char answer_usage[] =
 "Usage: answer\n"
 "       Answers an incoming call on the console (ALSA) channel.\n";
 
-static int console_hangup(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int console_hangup(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SUCCESS;
 
@@ -3030,7 +3030,7 @@ static const char hangup_usage[] =
 "       Hangs up any call currently placed on the console.\n";
 
 
-static int console_dial(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int console_dial(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char tmp[256], *tmp2;
 	char *mye, *myc;

@@ -41,7 +41,7 @@ static const char devstate_cli_usage[] =
 "Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n";
 
-static int devstate_cli(struct cw_dynstr **ds_p, int argc, char *argv[]);
+static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[]);
 static struct cw_clicmd  cli_dev_state = {
 	.cmda = { "devstate", NULL },
 	.handler = devstate_cli,
@@ -50,7 +50,7 @@ static struct cw_clicmd  cli_dev_state = {
 };
 
 
-static int devstate_cli(struct cw_dynstr **ds_p, int argc, char *argv[])
+static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     if ((argc != 3) && (argc != 4) && (argc != 5))
         return RESULT_SHOWUSAGE;
