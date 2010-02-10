@@ -59,9 +59,12 @@ static inline struct cw_dynstr *cw_dynstr_alloc(size_t len, size_t chunk)
 
 
 static inline void cw_dynstr_reset(struct cw_dynstr **ds_p)
+	__attribute__ ((nonnull (1)));
+
+static inline void cw_dynstr_reset(struct cw_dynstr **ds_p)
 {
-	(*ds_p)->used = 0;
-	(*ds_p)->error = 0;
+	if (*ds_p)
+		(*ds_p)->used = (*ds_p)->error = 0;
 }
 
 
@@ -70,18 +73,27 @@ extern CW_API_PUBLIC int cw_dynstr_grow(struct cw_dynstr **ds_p, size_t len)
 
 
 static inline int cw_dynstr_need(struct cw_dynstr **ds_p, size_t len)
+	__attribute__ ((nonnull (1)));
+
+static inline int cw_dynstr_need(struct cw_dynstr **ds_p, size_t len)
 {
-	len += (*ds_p)->used;
-	if (len > (*ds_p)->size)
+	if (*ds_p)
+		len += (*ds_p)->used;
+	if (!(*ds_p) || len > (*ds_p)->size)
 		cw_dynstr_grow(ds_p, len);
-	return (*ds_p)->error;
+	return !(*ds_p) || (*ds_p)->error;
 }
 
 
-static inline void cw_dynstr_free(struct cw_dynstr **ds)
+static inline void cw_dynstr_free(struct cw_dynstr **ds_p)
+	__attribute__ ((nonnull (1)));
+
+static inline void cw_dynstr_free(struct cw_dynstr **ds_p)
 {
-	free(*ds);
-	*ds = NULL;
+	if (*ds_p) {
+		free(*ds_p);
+		*ds_p = NULL;
+	}
 }
 
 
