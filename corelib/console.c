@@ -346,13 +346,15 @@ static int read_message(int s, int nresp)
 
 								set_title(key);
 
-								putc('\n', stdout);
-								fputs(key, stdout);
-								putc('\n', stdout);
+								if (!option_quiet) {
+									putc('\n', stdout);
+									fputs(key, stdout);
+									putc('\n', stdout);
 
-								while (lkey > 0) key[--lkey] = '=';
-								fputs(key, stdout);
-								fputs("\n\n", stdout);
+									while (lkey > 0) key[--lkey] = '=';
+									fputs(key, stdout);
+									fputs("\n\n", stdout);
+								}
 							}
 						}
 						msgtype = MSG_UNKNOWN;
@@ -792,7 +794,7 @@ void *console(void *data)
 	}
 
 	do {
-		if (console_address)
+		if (console_address && !option_quiet)
 			fprintf(stderr, "Connecting to Callweaver at %s...\n", console_address);
 
 		if ((console_sock = console_connect(console_address, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, reconnect_time)) < 0)
@@ -803,23 +805,28 @@ void *console(void *data)
 		/* Dump the connection banner. We don't need it here */
 		while (read(console_sock, &c, 1) == 1 && c != '\n');
 
-		/* Make sure verbose and debug settings are what we want or higher
-		 * and enable events
-		 */
-		iov[0].iov_base = (void *)"Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ";
-		iov[0].iov_len = sizeof("Action: Version\r\n\r\nAction: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ") - 1;
-		iov[1].iov_base = buf;
-		iov[1].iov_len = snprintf(buf, sizeof(buf), "%d", option_verbose);
-		iov[2].iov_base = (void *)"\r\n\r\n";
-		iov[2].iov_len = sizeof("\r\n\r\n") - 1;
-		iov[3].iov_base = (void *)"Action: Command\r\nCommand: set debug atleast ";
-		iov[3].iov_len = sizeof("Action: Command\r\nCommand: set debug atleast ") - 1;
-		iov[4].iov_base = buf + iov[1].iov_len;
-		iov[4].iov_len = snprintf(buf + iov[1].iov_len, sizeof(buf) - iov[1].iov_len, "%d", option_debug);
-		iov[5].iov_base = (void *)"\r\n\r\n";
-		iov[5].iov_len = sizeof("\r\n\r\n") - 1;
-		cw_writev_all(console_sock, iov, 6);
-		read_message(console_sock, 4);
+		cw_write_all(console_sock, "Action: Version\r\n\r\n", sizeof("Action: Version\r\n\r\n") - 1);
+		read_message(console_sock, 1);
+
+		if (!option_quiet) {
+			/* Make sure verbose and debug settings are what we want or higher
+			 * and enable events
+			 */
+			iov[0].iov_base = (void *)"Action: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ";
+			iov[0].iov_len = sizeof("Action: Events\r\nEventmask: log,progress\r\n\r\nAction: Command\r\nCommand: set verbose atleast ") - 1;
+			iov[1].iov_base = buf;
+			iov[1].iov_len = snprintf(buf, sizeof(buf), "%d", option_verbose);
+			iov[2].iov_base = (void *)"\r\n\r\n";
+			iov[2].iov_len = sizeof("\r\n\r\n") - 1;
+			iov[3].iov_base = (void *)"Action: Command\r\nCommand: set debug atleast ";
+			iov[3].iov_len = sizeof("Action: Command\r\nCommand: set debug atleast ") - 1;
+			iov[4].iov_base = buf + iov[1].iov_len;
+			iov[4].iov_len = snprintf(buf + iov[1].iov_len, sizeof(buf) - iov[1].iov_len, "%d", option_debug);
+			iov[5].iov_base = (void *)"\r\n\r\n";
+			iov[5].iov_len = sizeof("\r\n\r\n") - 1;
+			cw_writev_all(console_sock, iov, 6);
+			read_message(console_sock, 3);
+		}
 
 		/* Ok, we're ready. If we are the internal console tell the core to boot if it hasn't already */
 		if (option_console && !fully_booted)
@@ -867,7 +874,8 @@ void *console(void *data)
 
 		rl_callback_handler_remove();
 		fflush(stdout);
-		fprintf(stderr, "\nDisconnected from CallWeaver server\n");
+		if (!option_quiet)
+			fprintf(stderr, "\nDisconnected from CallWeaver server\n");
 		set_title("");
 		close(console_sock);
 		console_sock = -1;

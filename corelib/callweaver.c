@@ -1440,6 +1440,7 @@ int callweaver_main(int argc, char *argv[])
 			option_highpriority++;
 			break;
 		case 'v':
+			option_quiet = 0;
 			option_verbose++;
 			break;
 		case 'M':
