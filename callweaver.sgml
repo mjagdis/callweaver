@@ -223,15 +223,6 @@
 		</listitem>
 	</varlistentry>
 	<varlistentry>
-		<term>-T</term>
-		<listitem>
-			<para>
-			Add timestamp to all non-command related output going to the console
-			when running with verbose and/or logging to the console.
-			</para>
-		</listitem>
-	</varlistentry>
-	<varlistentry>
 		<term>-U <replaceable class="parameter">user</replaceable></term>
 		<listitem>
 			<para>

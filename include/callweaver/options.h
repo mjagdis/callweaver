@@ -51,7 +51,6 @@ extern CW_API_PUBLIC int option_reconnect;
 extern CW_API_PUBLIC int fully_booted;
 extern CW_API_PUBLIC int option_exec_includes;
 extern CW_API_PUBLIC int option_cache_record_files;
-extern CW_API_PUBLIC int option_timestamp;
 extern CW_API_PUBLIC int option_transcode_slin;
 extern CW_API_PUBLIC int option_maxcalls;
 extern CW_API_PUBLIC double option_maxload;

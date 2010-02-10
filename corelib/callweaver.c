@@ -170,7 +170,6 @@ int option_initcrypto=0;
 int option_nocolor = 0;
 int option_dumpcore = 0;
 int option_cache_record_files = 0;
-int option_timestamp = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
@@ -1304,7 +1303,7 @@ static void cw_readconfig(void) {
 			option_verbose = atoi(v->value);
 		/* whether or not to force timestamping. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
-			option_timestamp = cw_true(v->value);
+			cw_log(CW_LOG_WARNING, "timestamp in callweaver.conf is deprecated and should be removed\n");
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
 			option_exec_includes = cw_true(v->value);
@@ -1456,9 +1455,6 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 't':
 			option_cache_record_files++;
-			break;
-		case 'T':
-			option_timestamp++;
 			break;
 		case 'x':
 			option_exec++;
