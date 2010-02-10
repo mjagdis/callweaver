@@ -1697,6 +1697,9 @@ int callweaver_main(int argc, char *argv[])
 
 	sa.sa_handler = SIG_IGN;
 	sigaction(SIGPIPE, &sa, NULL);
+	sigaction(SIGTSTP, &sa, NULL);
+	sigaction(SIGTTIN, &sa, NULL);
+	sigaction(SIGTTOU, &sa, NULL);
 
 	sa.sa_handler = child_handler;
 	sa.sa_flags = SA_NOCLDSTOP;
