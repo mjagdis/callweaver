@@ -36,16 +36,6 @@ AM_CFLAGS			= @CW_CFLAGS@
 
 EXTRA_DIST = substitute.mak
 
-utilitydir = ${cwutilsdir}
-utility_SCRIPTS = callweaver_cli
-CLEANFILES = $(utility_SCRIPTS)
-
-@substitute@
-
-callweaver_cli:
-	$(substitute) $(top_srcdir)/callweaver_cli.in > callweaver_cli
-	chmod +x callweaver_cli
-
 #############
 # MAN PAGES #
 #############
