@@ -18,3 +18,4 @@
 
 extern void *console(void *data);
 extern int console_oneshot(char *spec, char *cmd);
+extern void cw_console_cli_init(void);

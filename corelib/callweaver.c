@@ -1580,6 +1580,17 @@ int callweaver_main(int argc, char *argv[])
 	}
 #endif
 
+	cw_registry_init(&clicmd_registry, 1024);
+
+	/* The console commands are registered here so they will exist
+	 * locally in remote consoles as well as in the core server.
+	 * It is also worth noting that they are registered in the
+	 * core server regardless of whether a built in console is
+	 * enabled or not because command completion, help etc. are
+	 * always handled on the server side.
+	 */
+	cw_console_cli_init();
+
 	if (option_remote || option_exec) {
 		char *p;
 
@@ -1716,7 +1727,6 @@ int callweaver_main(int argc, char *argv[])
 	cw_registry_init(&channel_registry, 1024);
 	cw_registry_init(&device_registry, 1024);
 	cw_registry_init(&cdrbe_registry, 64);
-	cw_registry_init(&clicmd_registry, 1024);
 	cw_registry_init(&config_engine_registry, 64);
 	cw_registry_init(&format_registry, 128);
 	cw_registry_init(&func_registry, 4096);

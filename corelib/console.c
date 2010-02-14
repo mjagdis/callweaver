@@ -645,12 +645,12 @@ static void console_handler(char *s)
 					cw_safe_system(s+1);
 				else
 					cw_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
-			} else if (s[0] == '@') {
-				if (!strncmp(&s[1], "set prompt ", sizeof("set prompt ") - 1)) {
-					set_prompt(&s[sizeof("set prompt ") - 1]);
-					rl_set_prompt(prompt.data);
-				} else
-					fprintf(stderr, "unknown command: %s\n", s);
+			} else if (s[0] == '?') {
+				static struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+				cw_cli_command(&ds, s);
+				fwrite(ds.data, 1, ds.used, stdout);
+				cw_dynstr_reset(&ds);
 			} else if (option_remote && (!strcasecmp(s, "quit") || !strcasecmp(s, "exit"))) {
 				console_cleanup(NULL);
 				exit(0);
@@ -923,4 +923,108 @@ int console_oneshot(char *spec, char *cmd)
 	}
 
 	return n;
+}
+
+
+/*----------------------------------------------------------------------------*/
+
+
+static const char setprompt_help[] =
+"Usage: ?set prompt <prompt>\n"
+"       Set the command prompt used when the console is ready to\n"
+"       read a command. CallWeaver allows the prompt string to be\n"
+"       customized using the following special formats:\n"
+"         %%C*                 - reset colours and attributes to defaults\n"
+"         %%C<fg>              - set the foreground colour to colour <fg>\n"
+"         %%C<fg>;<bg>         - set the foreground and background colours\n"
+"                                to the given colour numbers\n"
+"         %%C{fg=<fg>,bg=<bg>} - set the foreground and background colours to\n"
+"                                the given colour numbers or names\n"
+"                                the available colour numbers and names depend\n"
+"                                on the terminal used but for ANSI compliant\n"
+"                                terminals would be:\n"
+"                                  0/black, 1/red, 2/green, 3/yellow, 4/blue,\n"
+"                                  5/magenta, 6/cyan, 7/white\n"
+"         %%C{attr,attr,...}   - set the specified attributes\n"
+"                                note that attributes may be combined with the\n"
+"                                colour name specification above but not all\n"
+"                                combinations work on all terminals\n"
+"                                the attributes known are:\n"
+"                                  altcharset, blink, bold, dim, invis,\n"
+"                                  protect, reverse, standout, underline\n"
+"         %%d                  - current date as YYYY-MM-DD\n"
+"         %%H                  - short remote hostname\n"
+"         %%h                  - full remote hostname\n"
+#ifdef linux
+"         %%l<n>               - load average\n"
+"                                  n = 1 - 1 minute load average\n"
+"                                  n = 2 - 5 minute load average\n"
+"                                  n = 3 - 15 minute load average\n"
+#endif
+"         %%t                  - time as HH:MM:SS\n"
+"         %%#                  - '#' if this is the built in console\n"
+"                                '>' if this is a remote console\n"
+"         %%%%                 - a single '%'\n";
+
+static int setprompt_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(ds_p);
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+
+	set_prompt(argv[2]);
+	rl_set_prompt(prompt.data);
+
+	return RESULT_SUCCESS;
+}
+
+
+static const char setevents_help[] =
+"Usage: ?set events <event>[,<event>...]\n"
+"       Sets the events that this console is to receive.\n"
+"       Events can be:\n"
+"           error, warning, notice, verbose, event, dtmf, debug\n";
+
+static int setevents_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	int i;
+
+	CW_UNUSED(ds_p);
+
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
+
+	cw_dynstr_printf(&ds, "Action: Events\r\nEventmask: %s", argv[2]);
+	for (i = 3; i < argc; i++)
+		cw_dynstr_printf(&ds, ",%s", argv[i]);
+	cw_dynstr_printf(&ds, "\r\n\r\n");
+
+	cw_write_all(console_sock, ds.data, ds.used);
+	read_message(console_sock, 1);
+
+	return RESULT_SUCCESS;
+}
+
+
+static struct cw_clicmd builtins[] = {
+    {
+        .cmda = { "?set", "prompt", NULL },
+        .handler = setprompt_handler,
+        .summary = "Set the prompt",
+        .usage = setprompt_help,
+    },
+    {
+        .cmda = { "?set", "events", NULL },
+        .handler = setevents_handler,
+        .summary = "Set the events to be logged to this console",
+        .usage = setevents_help,
+    },
+};
+
+
+void cw_console_cli_init(void)
+{
+    cw_cli_register_multiple(builtins, arraysize(builtins));
 }

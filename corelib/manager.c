@@ -1101,7 +1101,7 @@ static struct cw_manager_message *action_command(struct mansession *sess, const 
 
 	CW_UNUSED(sess);
 
-	if (cmd) {
+	if (cmd && *cmd != '?') {
 		if ((msg = cw_manager_response("Follows", NULL))) {
 			msg->ds.used -= 2;
 
