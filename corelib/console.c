@@ -36,6 +36,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include <callweaver/dynstr.h>
 #include <callweaver/app.h>
 #include <callweaver/cli.h>
 #include <callweaver/time.h>
@@ -56,7 +57,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #endif
 
 
-#define CALLWEAVER_PROMPT "%s*CLI> "
+#define CALLWEAVER_PROMPT "%H*CLI%# "
 
 
 static struct {
@@ -83,6 +84,8 @@ static int console_sock;
 static char remotehostname[MAXHOSTNAMELEN];
 static unsigned int remotepid;
 static char remoteversion[256];
+
+static struct cw_dynstr prompt = CW_DYNSTR_INIT;
 
 static char *clr_eol;
 
@@ -146,143 +149,143 @@ static void set_title(const char *text)
 }
 
 
+static int promptput(int c)
+{
+	cw_dynstr_printf(&prompt, "%c", c);
+	return c;
+}
+
+static void promptattr(const char **attr)
+{
+	cw_dynstr_printf(&prompt, "%c", RL_PROMPT_START_IGNORE);
+	terminal_write_attr(*attr, promptput);
+	cw_dynstr_printf(&prompt, "%c", RL_PROMPT_END_IGNORE);
+	free((void *)(*attr));
+	*attr = NULL;
+}
+
+static void set_prompt(const char *pfmt)
+{
+	struct tm tm;
+	struct timeval tv;
+	const char *t, *p;
+	const char *astart = NULL, *aend = NULL;
+
+	cw_dynstr_reset(&prompt);
+
+	if (!pfmt)
+		pfmt = CALLWEAVER_PROMPT;
+
+	t = pfmt;
+	while ((p = strchr(t, '%'))) {
+		cw_dynstr_printf(&prompt, "%.*s", (int)(p - t), t);
+		t = p + 1;
+#ifdef linux
+		FILE *LOADAVG;
+#endif
+
+		switch (*t) {
+			case 'C': { /* colour */
+				char *q = NULL;
+				int fg, bg, i;
+
+				if (aend)
+					promptattr(&aend);
+				if (t[1] == '{' && (p = strchr(&t[2], '}'))) {
+					q = alloca(p - &t[2] + 1);
+					memcpy(q, &t[2], p - &t[2]);
+					q[p - &t[2]] = '\0';
+					t = p;
+				} else if (t[1] == '*') {
+					t++;
+				} else if (sscanf(&t[1], "%d;%d%n", &fg, &bg, &i) >= 2 && fg >= 0 && fg <= 16 && bg >= 0 && bg <= 16) {
+					q = alloca(sizeof("fg=XX,bg=XX"));
+					sprintf(q, "fg=%d,bg=%d", fg, bg);
+					t += i;
+				} else if (sscanf(&t[1], "%d%n", &fg, &i) >= 1 && fg >= 0 && fg <= 16) {
+					q = alloca(sizeof("fg=XX"));
+					sprintf(q, "fg=%d", fg);
+					t += i;
+				}
+				if (q) {
+					terminal_highlight(&astart, &aend, q);
+					if (astart)
+						promptattr(&astart);
+				}
+				break;
+			}
+			case 'd': /* date */
+				cw_dynstr_need(&prompt, sizeof("YYYY-MM-DD"));
+				tv = cw_tvnow();
+				if (localtime_r(&(tv.tv_sec), &tm))
+					strftime(&prompt.data[prompt.used], prompt.size - prompt.used, "%Y-%m-%d", &tm);
+				break;
+			case 'H': /* short remote hostname */
+				if ((p = strchr(remotehostname, '.'))) {
+					cw_dynstr_printf(&prompt, "%.*s", (int)(p - remotehostname), remotehostname);
+					break;
+				}
+				/* fall through */
+			case 'h': /* remote hostname */
+				cw_dynstr_printf(&prompt, "%s", remotehostname);
+				break;
+#ifdef linux
+			case 'l': /* load avg */
+				t++;
+				if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
+					float avg1, avg2, avg3;
+					int actproc, totproc, npid, which;
+					fscanf(LOADAVG, "%f %f %f %d/%d %d", &avg1, &avg2, &avg3, &actproc, &totproc, &npid);
+					if (sscanf(t, "%d", &which) == 1) {
+						switch (which) {
+							case 1:
+								cw_dynstr_printf(&prompt, "%.2f", avg1);
+								break;
+							case 2:
+								cw_dynstr_printf(&prompt, "%.2f", avg2);
+								break;
+							case 3:
+								cw_dynstr_printf(&prompt, "%.2f", avg3);
+								break;
+							case 4:
+								cw_dynstr_printf(&prompt, "%d/%d", actproc, totproc);
+								break;
+							case 5:
+								cw_dynstr_printf(&prompt, "%d", npid);
+								break;
+						}
+					}
+				}
+				break;
+#endif
+			case 't': /* time */
+				cw_dynstr_need(&prompt, sizeof("HH:MM:SS"));
+				tv = cw_tvnow();
+				if (localtime_r(&(tv.tv_sec), &tm))
+					strftime(&prompt.data[prompt.used], prompt.size - prompt.used, "%H:%M:%S", &tm);
+				break;
+			case '#': /* process console or remote? */
+				cw_dynstr_printf(&prompt, "%c", (option_remote ? '>' : '#'));
+				break;
+			case '%': /* literal % */
+				cw_dynstr_printf(&prompt, "%c", '%');
+				break;
+			case '\0': /* % is last character - prevent bug */
+				t--;
+				break;
+		}
+		t++;
+	}
+	cw_dynstr_printf(&prompt, "%s", t);
+
+	if (aend)
+		promptattr(&aend);
+}
+
+
 static char *cli_prompt(void)
 {
-	static char prompt[200];
-	char *pfmt;
-	int color_used = 0;
-#if 0
-	char term_code[20];
-#endif
-
-	if ((pfmt = getenv("CALLWEAVER_PROMPT"))) {
-		char *t = pfmt, *p = prompt;
-		memset(prompt, 0, sizeof(prompt));
-		while (*t != '\0' && *p < sizeof(prompt)) {
-			if (*t == '%') {
-#if 0
-				int i;
-#endif
-				struct timeval tv;
-				struct tm tm;
-#ifdef linux
-				FILE *LOADAVG;
-#endif
-
-				t++;
-				switch (*t) {
-					case 'C': /* color */
-						t++;
-#if 0
-						if (sscanf(t, "%d;%d%n", &fgcolor, &bgcolor, &i) == 2) {
-							strncat(p, cw_term_color_code(term_code, fgcolor, bgcolor, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
-							t += i - 1;
-						} else if (sscanf(t, "%d%n", &fgcolor, &i) == 1) {
-							strncat(p, cw_term_color_code(term_code, fgcolor, 0, sizeof(term_code)),sizeof(prompt) - strlen(prompt) - 1);
-							t += i - 1;
-						}
-
-						/* If the color has been reset correctly, then there's no need to reset it later */
-						if ((fgcolor == COLOR_WHITE) && (bgcolor == COLOR_BLACK)) {
-							color_used = 0;
-						} else {
-							color_used = 1;
-						}
-#endif
-						break;
-					case 'd': /* date */
-						memset(&tm, 0, sizeof(struct tm));
-						tv = cw_tvnow();
-						if (localtime_r(&(tv.tv_sec), &tm)) {
-							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
-						}
-						break;
-					case 'h': /* remote hostname */
-						strncat(p, remotehostname, sizeof(prompt) - strlen(prompt) - 1);
-						break;
-					case 'H': { /* short remote hostname */
-						char *q = strchr(remotehostname, '.');
-						int n = (q ? q - remotehostname : strlen(remotehostname));
-						int l = sizeof(prompt) - strlen(prompt) - 1;
-						strncat(p, remotehostname, n > l ? l : n);
-						break;
-					}
-#ifdef linux
-					case 'l': /* load avg */
-						t++;
-						if ((LOADAVG = fopen("/proc/loadavg", "r"))) {
-							float avg1, avg2, avg3;
-							int actproc, totproc, npid, which;
-							fscanf(LOADAVG, "%f %f %f %d/%d %d",
-								&avg1, &avg2, &avg3, &actproc, &totproc, &npid);
-							if (sscanf(t, "%d", &which) == 1) {
-								switch (which) {
-									case 1:
-										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg1);
-										break;
-									case 2:
-										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg2);
-										break;
-									case 3:
-										snprintf(p, sizeof(prompt) - strlen(prompt), "%.2f", avg3);
-										break;
-									case 4:
-										snprintf(p, sizeof(prompt) - strlen(prompt), "%d/%d", actproc, totproc);
-										break;
-									case 5:
-										snprintf(p, sizeof(prompt) - strlen(prompt), "%d", npid);
-										break;
-								}
-							}
-						}
-						break;
-#endif
-					case 't': /* time */
-						memset(&tm, 0, sizeof(struct tm));
-						tv = cw_tvnow();
-						if (localtime_r(&(tv.tv_sec), &tm)) {
-							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
-						}
-						break;
-					case '#': /* process console or remote? */
-						if (! option_remote) {
-							strncat(p, "#", sizeof(prompt) - strlen(prompt) - 1);
-						} else {
-							strncat(p, ">", sizeof(prompt) - strlen(prompt) - 1);
-						}
-						break;
-					case '%': /* literal % */
-						strncat(p, "%", sizeof(prompt) - strlen(prompt) - 1);
-						break;
-					case '\0': /* % is last character - prevent bug */
-						t--;
-						break;
-				}
-				while (*p != '\0') {
-					p++;
-				}
-				t++;
-			} else {
-				*p = *t;
-				p++;
-				t++;
-			}
-		}
-		if (color_used) {
-			/* Force colors back to normal at end */
-#if 0
-			cw_term_color_code(term_code, COLOR_WHITE, COLOR_BLACK, sizeof(term_code));
-			if (strlen(term_code) > sizeof(prompt) - strlen(prompt)) {
-				strncat(prompt + sizeof(prompt) - strlen(term_code) - 1, term_code, strlen(term_code));
-			} else {
-				strncat(p, term_code, sizeof(term_code));
-			}
-#endif
-		}
-	} else
-		snprintf(prompt, sizeof(prompt), CALLWEAVER_PROMPT, remotehostname);
-
-	return (prompt);	
+	return prompt.data;
 }
 
 
@@ -486,10 +489,10 @@ static int read_message(int s, int nresp)
 									if (level != CW_EVENT_NUM_VERBOSE) {
 										fwrite(field[F_DATE].buf, 1, field_len[F_DATE], stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].on)
-											terminal_write_attr(level_attr[level].on);
+											terminal_write_attr(level_attr[level].on, putchar);
 										fwrite(field[F_LEVEL].buf, 1, field_len[F_LEVEL], stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].off)
-											terminal_write_attr(level_attr[level].off);
+											terminal_write_attr(level_attr[level].off, putchar);
 										putchar('[');
 										fwrite(field[F_THREADID].buf, 1, field_len[F_THREADID], stdout);
 										fwrite("]: ", 1, 3, stdout);
@@ -498,10 +501,10 @@ static int read_message(int s, int nresp)
 										fwrite(field[F_LINE].buf, 1, field_len[F_LINE], stdout);
 										putchar(' ');
 										if (bold_on)
-											terminal_write_attr(bold_on);
+											terminal_write_attr(bold_on, putchar);
 										fwrite(field[F_FUNCTION].buf, 1, field_len[F_FUNCTION], stdout);
 										if (bold_off)
-											terminal_write_attr(bold_off);
+											terminal_write_attr(bold_off, putchar);
 										fwrite(": ", 1, 2, stdout);
 									}
 									fwrite(key, 1, lval, stdout);
@@ -642,6 +645,12 @@ static void console_handler(char *s)
 					cw_safe_system(s+1);
 				else
 					cw_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
+			} else if (s[0] == '@') {
+				if (!strncmp(&s[1], "set prompt ", sizeof("set prompt ") - 1)) {
+					set_prompt(&s[sizeof("set prompt ") - 1]);
+					rl_set_prompt(prompt.data);
+				} else
+					fprintf(stderr, "unknown command: %s\n", s);
 			} else if (option_remote && (!strcasecmp(s, "quit") || !strcasecmp(s, "exit"))) {
 				console_cleanup(NULL);
 				exit(0);
@@ -831,6 +840,8 @@ void *console(void *data)
 		/* Ok, we're ready. If we are the internal console tell the core to boot if it hasn't already */
 		if (option_console && !fully_booted)
 			kill(cw_mainpid, SIGHUP);
+
+		set_prompt(getenv("CALLWEAVER_PROMPT"));
 
 		progress = 0;
 		prompting = 1;

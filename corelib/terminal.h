@@ -17,6 +17,6 @@
  */
 
 extern void terminal_highlight(const char **start, const char **end, const char *spec);
-extern int terminal_write_attr(const char *str);
+extern int terminal_write_attr(const char *str, int (*putc)(int));
 extern void terminal_init(void);
 extern void terminal_set_icon(const char *s);

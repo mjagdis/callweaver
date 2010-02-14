@@ -96,7 +96,7 @@ void terminal_highlight(const char **start, const char **end, const char *spec)
 		known = 0;
 
 		col = &fg;
-		if (l > 3) {
+		if (l >= 3) {
 			if (!strncmp(spec, "bg=", 3)) {
 				col = &bg;
 				spec += 3;
@@ -107,11 +107,19 @@ void terminal_highlight(const char **start, const char **end, const char *spec)
 			}
 		}
 
-		for (i = 0; i < sizeof(colours) / sizeof(colours[0]); i++) {
-			if (l == colours[i].len && !strncmp(spec, colours[i].name, l)) {
-				*col = i;
-				known = 1;
-				break;
+		i = strtol(spec, &tmp, 10);
+		if (tmp != spec && i < sizeof(colours) / sizeof(colours[0])) {
+			*col = i;
+			known = 1;
+		}
+
+		if (!known) {
+			for (i = 0; i < sizeof(colours) / sizeof(colours[0]); i++) {
+				if (l == colours[i].len && !strncmp(spec, colours[i].name, l)) {
+					*col = i;
+					known = 1;
+					break;
+				}
 			}
 		}
 
@@ -165,7 +173,7 @@ void terminal_highlight(const char **start, const char **end, const char *spec)
 		}
 
 		if (setab && bg != -1) {
-			p = tparm(setaf, bg);
+			p = tparm(setab, bg);
 			i = strlen(p);
 			bg_p = strcpy(alloca(i + 1), p);
 			l += i;
@@ -181,9 +189,9 @@ void terminal_highlight(const char **start, const char **end, const char *spec)
 }
 
 
-int terminal_write_attr(const char *str)
+int terminal_write_attr(const char *str, int (*func)(int))
 {
-	return putp(str);
+	return tputs(str, 1, func);
 }
 
 
