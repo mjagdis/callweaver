@@ -35,7 +35,7 @@
  */
 
 
-#if defined(__i386__) || defined(x86_64)
+#if defined(__i386__) || defined(__x86_64__)
 
 /*
  * Make sure gcc doesn't try to be clever and move things around
@@ -98,6 +98,9 @@ static inline unsigned long __cmpxchg(void *mutex,
 	volatile void *ptr, unsigned long old_n, unsigned long new_n, int size)
 {
 	unsigned long prev;
+
+	CW_UNUSED(mutex);
+
 	switch (size) {
 	case 1:
 		__asm__ __volatile__("lock ; cmpxchgb %b1,%2"
@@ -111,7 +114,7 @@ static inline unsigned long __cmpxchg(void *mutex,
 				     : "q"(new_n), "m"(*(volatile long *)(ptr)), "0"(old_n)
 				     : "memory");
 		return prev;
-#if defined(x86_64)
+#if defined(__x86_64__)
 	case 4:
 		__asm__ __volatile__("lock ; cmpxchgl %k1,%2"
 				     : "=a"(prev)
