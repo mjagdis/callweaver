@@ -201,16 +201,16 @@ void terminal_init(void)
 
 	if (isatty(fileno(stdout)) && (terminal_type = getenv("TERM"))) {
 		if (setupterm(terminal_type, fileno(stderr), &i) != ERR) {
-			if ((col_defaults = tigetstr("op")) && col_defaults != (char *)-1) {
+			if ((col_defaults = tigetstr((char *)"op")) && col_defaults != (char *)-1) {
 				col_defaults_len = strlen(col_defaults);
-				if ((setaf = tigetstr("setaf")) == (char *)-1)
+				if ((setaf = tigetstr((char *)"setaf")) == (char *)-1)
 					setaf = NULL;
-				if ((setab = tigetstr("setab")) == (char *)-1)
+				if ((setab = tigetstr((char *)"setab")) == (char *)-1)
 					setab = NULL;
 			} else
 				col_defaults = NULL;
 
-			if ((sgr = tigetstr("sgr")) && sgr != (char *)-1) {
+			if ((sgr = tigetstr((char *)"sgr")) && sgr != (char *)-1) {
 				attr_end = strdup(tparm(sgr, 0, 0, 0, 0, 0, 0, 0, 0, 0));
 				attr_end_len = strlen(attr_end);
 			} else
