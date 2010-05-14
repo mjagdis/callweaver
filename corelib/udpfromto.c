@@ -56,6 +56,8 @@ int cw_udpfromto_init(int s)
 #endif
 	return err;
 #else
+	CW_UNUSED(s);
+
 	return 0;
 #endif
 }
@@ -168,6 +170,9 @@ int cw_recvfromto(int s,
 	return err;
 #else 
 	/* fallback: call recvfrom */
+	CW_UNUSED(to);
+	CW_UNUSED(tolen);
+
 	return recvfrom(s, buf, len, flags, from, fromlen);
 #endif
 }
@@ -233,6 +238,9 @@ int cw_sendfromto(int s,
     return sendto(s, buf, len, flags, to, tolen);
 #else
 	/* fallback: call sendto() */
+	CW_UNUSED(from);
+	CW_UNUSED(fromlen);
+
 	return sendto(s, buf, len, flags, to, tolen);
 #endif
 }
