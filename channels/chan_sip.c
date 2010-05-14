@@ -5675,7 +5675,7 @@ static int add_header_contentLength(struct sip_request *req, int len)
 {
     char clen[10];
 
-    snprintf(clen, sizeof(clen), "%d", len);
+    snprintf(clen, sizeof(clen), "%10d", len);
     return add_header(req, "Content-Length", clen, SIP_DL_HEAD_CONTENTLENGHT);
 }
 
