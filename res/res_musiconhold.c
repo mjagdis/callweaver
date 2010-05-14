@@ -827,8 +827,10 @@ static int moh_scan_files(struct mohclass *class)
 		if (!S_ISREG(statbuf.st_mode))
 			goto discard;
 
-		if ((ext = strrchr(class->files[class->total_files] + dirnamelen + 1, '.')))
-			*ext = '\0';
+		if (!(ext = strrchr(class->files[class->total_files] + dirnamelen + 1, '.')))
+			goto discard;
+
+		*ext = '\0';
 
 		/* if the file is present in multiple formats, ensure we only put it into the list once */
 		for (i = 0; i < class->total_files; i++)
