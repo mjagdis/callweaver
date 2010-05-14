@@ -712,6 +712,8 @@ static void post_cdr(struct cw_cdr *submission)
 	}
 
 	cw_registry_iterate(&cdrbe_registry, post_cdrbe, submission);
+
+	cw_cdr_free(submission);
 }
 
 void cw_cdr_reset(struct cw_cdr *cdr, unsigned int flags)
