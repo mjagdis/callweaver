@@ -4882,7 +4882,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 			   struct cw_vm_user *res_vmu, const char *context, const char *prefix,
 			   int skipuser, int maxtries, int silent)
 {
-	int useadsi, valid=0, logretries=0;
+	int useadsi = 0, valid=0, logretries=0;
 	char password[CW_MAX_EXTENSION]="", *passptr;
 	struct cw_vm_user vmus, *vmu = NULL;
 
