@@ -2579,6 +2579,7 @@ static int sip_resend_reqresp(void *data)
             cw_log(CW_LOG_DEBUG, "Deleting this request of reqresp (too many time has passed to wait for stun responses (sip %d)\n", rr->p->stun_resreq_id);
         p->stun_needed = 0;
         sip_dealloc_headsdp_lines(rr->req);
+        free(rr->req);
         cw_object_put(rr->p);
         free(rr);
         return 0;
@@ -2630,6 +2631,8 @@ static int sip_resend_reqresp(void *data)
                      cw_rtp_get_stunstate(p->vrtp),
                      cw_udptl_get_stunstate(p->udptl));
         if ((rr->p->stun_resreq_id = cw_sched_add(sched, STUN_WAIT_RETRY_TIME, sip_resend_reqresp, rr)) < 0) {
+            sip_dealloc_headsdp_lines(rr->req);
+            free(rr->req);
             cw_object_put(rr->p);
             free(rr);
 	}
@@ -14755,8 +14758,10 @@ static int handle_message(void *data)
 		i = cw_mutex_trylock(&dialogue->lock);
 		if (!i && dialogue->owner && (i = cw_channel_trylock(dialogue->owner)))
 			cw_mutex_unlock(&dialogue->lock);
-		if (i)
+		if (i) {
+			cw_object_put(dialogue);
 			return 1;
+		}
 
 		/* If the dialogue already knows their tag the tag in the
 		 * message must match. If we don't have their tag yet any
@@ -14766,6 +14771,7 @@ static int handle_message(void *data)
 			cw_mutex_unlock(&dialogue->lock);
 			if (dialogue->owner)
 				cw_channel_unlock(dialogue->owner);
+			cw_object_put(dialogue);
 			dialogue = NULL;
 		}
 	}
@@ -14801,6 +14807,7 @@ static int handle_message(void *data)
 						cw_mutex_unlock(&dialogue->lock);
 						if (dialogue->owner)
 							cw_channel_unlock(dialogue->owner);
+						cw_object_put(dialogue);
 						dialogue = NULL;
 					}
 				}
