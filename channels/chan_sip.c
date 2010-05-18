@@ -1950,7 +1950,10 @@ static int retrans_pkt(void *data)
         return 0;
     } 
 
-    /* Too many retries */
+    /* If the method is now SIP_UNKNOWN we processed a response while waiting
+     * for the lock so we just need to discard the message. Otherwise we've
+     * reached the maximum retries for this packet without getting any response.
+     */
 
     /* Dequeue the packet. It is then exclusively ours even if we drop the
      * lock thus allowing an attempt to ack a late reply.
@@ -2161,26 +2164,22 @@ static void retrans_stop(struct sip_pvt *p, int seqno, int resp, enum sipmethod 
 	     */
             if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid))
             {
+                struct sip_request *old = *cur;
+
                 if (sipdebug && option_debug > 3)
                     cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s - reply received\n", sip_methods[sipmethod].text);
                 (*cur)->retransid = -1;
 
-                if (final)
-                {
-                    struct sip_request *old = *cur;
+                *cur = (*cur)->next;
 
-                    *cur = (*cur)->next;
+                cw_mutex_unlock(&p->lock);
 
-                    cw_mutex_unlock(&p->lock);
-
-		    cw_object_put(old->owner);
-                    free(old);
-		    return;
-                }
+                cw_object_put(old->owner);
+                free(old);
+                return;
             }
-	    else if (final)
-                (*cur)->method = SIP_UNKNOWN;
 
+            (*cur)->method = SIP_UNKNOWN;
             break;
         }
     }
@@ -3357,8 +3356,6 @@ static void sip_registry_release(struct cw_object *obj)
 /*! \brief   sip_destroy: Execute destrucion of call structure, release memory*/
 static void sip_destroy(struct sip_pvt *dialogue)
 {
-	struct sip_request *msg;
-
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
 
@@ -3398,9 +3395,16 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
 		cw_object_put(dialogue);
 
-	for (msg = dialogue->retrans; msg; msg = msg->next)
-		if (msg->retransid > -1 && !cw_sched_del(sched, msg->retransid))
+	while (dialogue->retrans) {
+		struct sip_request *msg = dialogue->retrans;
+		dialogue->retrans = dialogue->retrans->next;
+		if (msg->retransid > -1 && !cw_sched_del(sched, msg->retransid)) {
 			cw_object_put(dialogue);
+			sip_dealloc_headsdp_lines(msg);
+			free(msg);
+		} else
+			msg->method = SIP_UNKNOWN;
+	}
 
 	if (dialogue->registry) {
 		if (dialogue->registry->dialogue == dialogue) {
