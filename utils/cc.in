@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# We grep error messages so we need to be in a suitable default locale. Sorry!
+export LANG=C
+
 tmpfile="/tmp/$$"
 trap "rm -f '$tmpfile'*" 0
 
@@ -14,7 +17,7 @@ if [[ $status -ne 0 ]]; then
 	# Try eliminating known issues
 	OVERRIDE_CFLAGS=()
 	if [[ "$CC" = 'gcc' ]]; then
-		if grep 'declaration of ‘__cancel_buf’ shadows a previous local' "$tmpfile" > /dev/null 2>&1; then
+		if grep "declaration of '__cancel_buf' shadows a previous local" "$tmpfile" > /dev/null 2>&1; then
 			# There's a nested pthread_cleanup_push...pthread_cleanup_pop
 			echo "*** Ignoring pthread cleanup nesting"
 			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-Wno-shadow'
