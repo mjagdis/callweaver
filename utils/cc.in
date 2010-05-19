@@ -1,7 +1,7 @@
 #!/bin/bash
 
 tmpfile="/tmp/$$"
-trap "rm -f '$tmpfile'" 0
+trap "rm -f '$tmpfile'*" 0
 
 @REAL_CC@ "$@" > "$tmpfile" 2>&1
 status=$?
@@ -45,11 +45,14 @@ if [[ $status -ne 0 ]]; then
 		status=$?
 	fi
 
-	# If it still fails try eliminating preprocessor compile time optimizations
+	# If it still fails try eliminating preprocessor compile time optimizations.
+	# If that fails show the error messages from that attempt. If it succeeds show
+	# the error messages we had previously.
 	if [[ $status -ne 0 ]]; then
 		echo "*** Retry without preprocessor compile time optimizations"
-		@REAL_CC@ -DCW_DEBUG_COMPILE "$@" "${OVERRIDE_CFLAGS[@]}" > "$tmpfile" 2>&1
-		status=$?
+		@REAL_CC@ -DCW_DEBUG_COMPILE "$@" "${OVERRIDE_CFLAGS[@]}" > "$tmpfile.2" 2>&1
+		[[ $? -ne 0 ]] && mv -f "$tmpfile.2" "$tmpfile"
+		status=1
 	fi
 fi
 
