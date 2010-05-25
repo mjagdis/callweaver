@@ -7341,9 +7341,9 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 		add_header(msg, "Allow", ALLOWED_METHODS, SIP_DL_DONTCARE);
 
 		if (p->owner) {
-			char buf[] = "SIPADDHEADER0\000";
+			char buf[] = "SIPADDHEADER01";
 			struct cw_object *obj;
-			int i = 1;
+			int i = 2;
 
 			while ((obj = cw_registry_find(&p->owner->vars, 1, cw_hash_var_name(buf), buf))) {
 				struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
@@ -7372,7 +7372,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 						cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
 				}
 
-				sprintf(buf + sizeof(buf) - 2, "%.2d", i++);
+				sprintf(buf + sizeof(buf) - 3, "%.2d", i++);
 			}
 		}
 		if (sdp  &&  p->udptl  &&  (p->t38state == SIP_T38_OFFER_SENT_DIRECT)) {
@@ -17567,7 +17567,7 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *bu
 /*! \brief  sip_addheader: Add a SIP header */
 static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
 {
-    char varbuf[128];
+    char varbuf[sizeof("_SIPADDHEADERnn")];
     struct cw_var_t *var;
     int no = 0;
 
