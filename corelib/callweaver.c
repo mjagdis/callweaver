@@ -152,6 +152,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "console.h"
 
 
+/* From corelib/pbx.c */
+extern pthread_rwlock_t conlock;
+
+
 #if defined(_POSIX_TIMERS)
 #  if defined(_POSIX_MONOTONIC_CLOCK) && defined(__USE_XOPEN2K)
 clockid_t global_clock_monotonic = CLOCK_MONOTONIC;
@@ -1750,6 +1754,8 @@ int callweaver_main(int argc, char *argv[])
 
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_verbose("[ Initializing Custom Configuration Options ]");
+
+	pthread_rwlock_init(&conlock, NULL);
 
 	cw_registry_init(&atexit_registry, 1);
 	cw_registry_init(&channel_registry, 1024);

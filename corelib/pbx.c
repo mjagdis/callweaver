@@ -166,8 +166,8 @@ static int autofallthrough = 0;
 CW_MUTEX_DEFINE_STATIC(maxcalllock);
 static int countcalls = 0;
 
+pthread_rwlock_t conlock;
 static struct cw_context *contexts = NULL;
-CW_MUTEX_DEFINE_STATIC(conlock);         /* Lock for the cw_context list */
 
 CW_MUTEX_DEFINE_STATIC(hintlock);        /* Lock for extension state notifys */
 static int stateid = 1;
@@ -466,23 +466,22 @@ static int cw_extension_match(const char *pattern, const char *data)
 
 struct cw_context *cw_context_find(const char *name)
 {
-    struct cw_context *tmp;
-    unsigned int hash;
+	struct cw_context *tmp;
+	unsigned int hash;
     
-    cw_mutex_lock(&conlock);
-    if (name)
-    {
-        hash = cw_hash_string(name);
-        for (tmp = contexts; tmp; tmp = tmp->next)
-            if (hash == tmp->hash && !strcmp(name, tmp->name))
-                break;
-    }
-    else
-    {
-        tmp = contexts;
-    }
-    cw_mutex_unlock(&conlock);
-    return tmp;
+	if (name) {
+		pthread_rwlock_rdlock(&conlock);
+
+		hash = cw_hash_string(name);
+		for (tmp = contexts; tmp; tmp = tmp->next)
+			if (hash == tmp->hash && !strcmp(name, tmp->name))
+				break;
+
+		pthread_rwlock_unlock(&conlock);
+	} else
+		tmp = contexts;
+
+	return tmp;
 }
 
 #define STATUS_NO_CONTEXT    1
@@ -756,7 +755,7 @@ static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *va
 
 int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result)
 {
-	struct cw_dynargs av = CW_DYNARRAY_INIT;
+	struct cw_dynargs av;
 	char *args;
 	size_t i;
 	int offset, length;
@@ -790,6 +789,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 
 	while (i && isspace(src[i])) i--;
 
+	cw_dynargs_init(&av, 1, 1);
 	args = NULL;
 	if (!cw_split_args(&av, src, "\0", '(', &args)) {
 		if (args) {
@@ -857,6 +857,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	} else
 		result->error = 1;
 
+	cw_dynargs_free(&av);
 	return res;
 }
 
@@ -1111,7 +1112,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
     int stacklen = 0;
     int res = -1;
 
-    cw_mutex_lock(&conlock);
+    pthread_rwlock_rdlock(&conlock);
 
     e = pbx_find_extension(c, con, context, exten, priority, label, callerid, action, incstack, &stacklen, &status, &sw, &data, &foundcontext);
 
@@ -1125,10 +1126,10 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
         case HELPER_CANMATCH:
         case HELPER_EXISTS:
         case HELPER_MATCHMORE:
-            cw_mutex_unlock(&conlock);
+            pthread_rwlock_unlock(&conlock);
             break;
         case HELPER_EXEC:
-            cw_mutex_unlock(&conlock);
+            pthread_rwlock_unlock(&conlock);
             if (c->context != context)
                 cw_copy_string(c->context, context, sizeof(c->context));
             if (c->exten != exten)
@@ -1165,10 +1166,10 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
         case HELPER_EXISTS:
         case HELPER_MATCHMORE:
         case HELPER_FINDLABEL:
-            cw_mutex_unlock(&conlock);
+            pthread_rwlock_unlock(&conlock);
             break;
         case HELPER_EXEC:
-            cw_mutex_unlock(&conlock);
+            pthread_rwlock_unlock(&conlock);
             if (sw->exec)
                 res = sw->exec(c, (foundcontext ? foundcontext : context), exten, priority, callerid, data.data);
             else
@@ -1181,7 +1182,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
     }
     else
     {
-        cw_mutex_unlock(&conlock);
+        pthread_rwlock_unlock(&conlock);
         switch (status)
         {
         case STATUS_NO_CONTEXT:
@@ -1226,11 +1227,11 @@ static struct cw_exten *cw_hint_extension(struct cw_channel *c, const char *cont
     char *incstack[CW_PBX_MAX_STACK];
     int stacklen = 0;
 
-    cw_mutex_lock(&conlock);
+    pthread_rwlock_rdlock(&conlock);
 
     e = pbx_find_extension(c, NULL, context, exten, PRIORITY_HINT, NULL, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data, &foundcontext);
 
-    cw_mutex_unlock(&conlock);    
+    pthread_rwlock_rdlock(&conlock);
 
     cw_dynstr_free(&data);
 
@@ -2875,10 +2876,11 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
     
     length = sizeof(struct cw_context);
     length += strlen(name) + 1;
+
     if (!extcontexts)
     {
         local_contexts = &contexts;
-        cw_mutex_lock(&conlock);
+        pthread_rwlock_wrlock(&conlock);
     }
     else
     {
@@ -2890,7 +2892,7 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
         if (hash == tmp->hash && !strcmp(name, tmp->name))
         {
             if (!extcontexts)
-                cw_mutex_unlock(&conlock);
+                pthread_rwlock_unlock(&conlock);
             cw_log(CW_LOG_WARNING, "Failed to register context '%s' because it is already in use\n", name);
             return NULL;
         }
@@ -2919,7 +2921,7 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
     }
     
     if (!extcontexts)
-        cw_mutex_unlock(&conlock);
+        pthread_rwlock_unlock(&conlock);
     return tmp;
 }
 
@@ -4619,7 +4621,7 @@ void cw_context_destroy(struct cw_context *con, const char *registrar)
     struct cw_exten *e, *el, *en;
     struct cw_ignorepat *ipi, *ipl = NULL;
 
-    cw_mutex_lock(&conlock);
+    pthread_rwlock_wrlock(&conlock);
     tmp = contexts;
     while (tmp)
     {
@@ -4685,13 +4687,13 @@ void cw_context_destroy(struct cw_context *con, const char *registrar)
                 tmpil = NULL;
                 continue;
             }
-            cw_mutex_unlock(&conlock);
+            pthread_rwlock_unlock(&conlock);
             return;
         }
         tmpl = tmp;
         tmp = tmp->next;
     }
-    cw_mutex_unlock(&conlock);
+    pthread_rwlock_unlock(&conlock);
 }
 
 
@@ -4731,7 +4733,6 @@ void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *r
     cw_mutex_unlock(&hintlock);
 
     tmp = *extcontexts;
-    cw_mutex_lock(&conlock);
     if (registrar)
     {
         cw_context_destroy(NULL,registrar);
@@ -4752,15 +4753,16 @@ void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *r
     }
     if (lasttmp)
     {
+        pthread_rwlock_wrlock(&conlock);
         lasttmp->next = contexts;
         contexts = *extcontexts;
+        pthread_rwlock_unlock(&conlock);
         *extcontexts = NULL;
     }
     else
     {
         cw_log(CW_LOG_WARNING, "Requested contexts could not be merged\n");
     }
-    cw_mutex_unlock(&conlock);
 
     /* restore the watchers for hints that can be found; notify those that
        cannot be restored
@@ -4921,12 +4923,12 @@ int load_pbx(void)
  */
 int cw_lock_contexts()
 {
-    return cw_mutex_lock(&conlock);
+    return pthread_rwlock_rdlock(&conlock);
 }
 
 int cw_unlock_contexts()
 {
-    return cw_mutex_unlock(&conlock);
+    return pthread_rwlock_unlock(&conlock);
 }
 
 /*
