@@ -798,12 +798,14 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 		res = cw_function_exec_str(chan, cw_hash_string(src), src, args, result);
 
 		if (!res || errno != ENOENT) {
+#if 0
 			static int deprecated = 1;
 
 			if (unlikely(!args && deprecated)) {
 				cw_log(CW_LOG_WARNING, "%s is a function. Always use func() for functions with no args. Leaving the parentheses out is deprecated.\n", src);
 				deprecated = 0;
 			}
+#endif
 
 			normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
 
