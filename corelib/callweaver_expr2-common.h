@@ -19,6 +19,13 @@
 #include "callweaver/channel.h"
 
 
+/* printf format to use when converting a number (long double) to text */
+#define NUMBER_FORMAT	"%.18Lg"
+
+/* Maximum length that a number printed with NUMBER_FORMAT can ever be */
+#define MAX_NUMBER_LEN	32
+
+
 enum valtype {
 	CW_EXPR_number, CW_EXPR_string, CW_EXPR_numeric_string, CW_EXPR_arbitrary_string
 };
@@ -26,8 +33,8 @@ enum valtype {
 struct val {
 	enum valtype type;
 	union {
-		char *s;
 		long double n;
+		char s[1];
 	} u;
 };
 
@@ -38,3 +45,7 @@ struct parse_io
 	struct val *val;
 	const char *string;
 };
+
+
+extern struct val *cw_expr_make_str(enum valtype type, const char *s, size_t len);
+extern struct val *cw_expr_make_number(long double n);

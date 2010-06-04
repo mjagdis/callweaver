@@ -38,6 +38,39 @@
 #include "callweaver_expr2.h" /* the o/p of the bison on callweaver_expr2.y */
 
 
+struct val *cw_expr_make_str(enum valtype type, const char *s, size_t len)
+{
+	struct val *vp = NULL;
+	size_t size;
+
+	/* A value is always able to hold a number */
+	size = offsetof(struct val, u.s) + len + 1;
+	if ((vp = malloc(size >= sizeof(struct val) ? size : sizeof(struct val)))) {
+		vp->type = type;
+		memcpy(&vp->u.s[0], s, len);
+		vp->u.s[len] = '\0';
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+
+	return vp;
+}
+
+
+struct val *cw_expr_make_number(long double n)
+{
+	struct val *vp = NULL;
+
+	if ((vp = malloc(sizeof(*vp)))) {
+		vp->type = CW_EXPR_number;
+		vp->u.n  = n;
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+
+	return vp;
+
+}
+
+
 #define SET_COLUMNS \
 	do { \
 		yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
@@ -54,23 +87,14 @@
 	} while (0)
 
 #define SET_STRING \
-	do {		\
-		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
-			yylval_param->val->type = CW_EXPR_string; \
-			cw_split_args(NULL, yytext, "", '\0', NULL); \
-			if (!(yylval_param->val->u.s = strdup(yytext))) { \
-				free(yylval_param->val); \
-				yylval_param->val = NULL; \
-			} \
-		} \
+	do { \
+		cw_split_args(NULL, yytext, "", '\0', NULL); \
+		yylval_param->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng); \
 	} while (0)
 
 #define SET_NUMERIC\
 	do { \
-		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
-			yylval_param->val->type = CW_EXPR_number; \
-			yylval_param->val->u.n = strtold(yytext, NULL); \
-		} \
+		yylval_param->val = cw_expr_make_number(strtold(yytext, NULL)); \
 	} while (0)
 
 
@@ -232,12 +256,11 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 		if (!io.val) {
 			cw_dynstr_printf(result, "0");
 		} else {
-			if (io.val->type == CW_EXPR_number) {
+			if (io.val->type == CW_EXPR_number)
 				cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
-			} else {
+			else
 				cw_dynstr_printf(result, "%s", io.val->u.s);
-				free(io.val->u.s);
-			}
+
 			free(io.val);
 		}
 	} else

@@ -182,10 +182,10 @@
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 216 "callweaver_expr2.y"
+#line 225 "callweaver_expr2.y"
 {
 	struct val *val;
-	struct cw_dynargs *args;
+	struct cw_dynvals *args;
 	int tok;
 }
 /* Line 1489 of yacc.c.  */

@@ -25,6 +25,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "callweaver/dynarray.h"
 #include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 #include "callweaver/pbx.h"
@@ -35,6 +36,12 @@ typedef void *yyscan_t;
 #include "callweaver_expr2-common.h"
 
 
+/* Arglists are stored as dynamic arrays of vals (struct val *).
+ * This defines "struct cw_dynvals" and the cw_dynvals_* functions used to operate on it.
+ */
+CW_DYNARRAY_DECL(struct val *, vals)
+
+
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
@@ -42,52 +49,57 @@ extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
 
-static const char *math_name[] = {
-	[TOK_ACOSH      - TOK_ACOSH] = "ACOSH",
-	[TOK_ACOS       - TOK_ACOSH] = "ACOS",
-	[TOK_ASINH      - TOK_ACOSH] = "ASINH",
-	[TOK_ASIN       - TOK_ACOSH] = "ASIN",
-	[TOK_ATAN2      - TOK_ACOSH] = "ATAN2",
-	[TOK_ATANH      - TOK_ACOSH] = "ATANH",
-	[TOK_ATAN       - TOK_ACOSH] = "ATAN",
-	[TOK_CBRT       - TOK_ACOSH] = "CBRT",
-	[TOK_CEIL       - TOK_ACOSH] = "CEIL",
-	[TOK_COPYSIGN   - TOK_ACOSH] = "COPYSIGN",
-	[TOK_COSH       - TOK_ACOSH] = "COSH",
-	[TOK_COS        - TOK_ACOSH] = "COS",
-	[TOK_ERFC       - TOK_ACOSH] = "ERFC",
-	[TOK_ERF        - TOK_ACOSH] = "ERF",
-	[TOK_EXP2       - TOK_ACOSH] = "EXP2",
-	[TOK_EXP        - TOK_ACOSH] = "EXP",
-	[TOK_EXPM1      - TOK_ACOSH] = "EXPM1",
-	[TOK_FABS       - TOK_ACOSH] = "FABS",
-	[TOK_FDIM       - TOK_ACOSH] = "FDIM",
-	[TOK_FLOOR      - TOK_ACOSH] = "FLOOR",
-	[TOK_FMA        - TOK_ACOSH] = "FMA",
-	[TOK_FMAX       - TOK_ACOSH] = "FMAX",
-	[TOK_FMIN       - TOK_ACOSH] = "FMIN",
-	[TOK_FMOD       - TOK_ACOSH] = "FMOD",
-	[TOK_HYPOT      - TOK_ACOSH] = "HYPOT",
-	[TOK_LGAMMA     - TOK_ACOSH] = "LGAMMA",
-	[TOK_LOG10      - TOK_ACOSH] = "LOG10",
-	[TOK_LOG1P      - TOK_ACOSH] = "LOG1P",
-	[TOK_LOG2       - TOK_ACOSH] = "LOG2",
-	[TOK_LOGB       - TOK_ACOSH] = "LOGB",
-	[TOK_LOG        - TOK_ACOSH] = "LOG",
-	[TOK_NEARBYINT  - TOK_ACOSH] = "NEARBYINT",
-	[TOK_NEXTAFTER  - TOK_ACOSH] = "NEXTAFTER",
-	[TOK_NEXTTOWARD - TOK_ACOSH] = "NEXTTOWARD",
-	[TOK_POW        - TOK_ACOSH] = "POW",
-	[TOK_REMAINDER  - TOK_ACOSH] = "REMAINDER",
-	[TOK_RINT       - TOK_ACOSH] = "RINT",
-	[TOK_ROUND      - TOK_ACOSH] = "ROUND",
-	[TOK_SINH       - TOK_ACOSH] = "SINH",
-	[TOK_SIN        - TOK_ACOSH] = "SIN",
-	[TOK_SQRT       - TOK_ACOSH] = "SQRT",
-	[TOK_TANH       - TOK_ACOSH] = "TANH",
-	[TOK_TAN        - TOK_ACOSH] = "TAN",
-	[TOK_TGAMMA     - TOK_ACOSH] = "TGAMMA",
-	[TOK_TRUNC      - TOK_ACOSH] = "TRUNC",
+static struct {
+	const char *s;
+	size_t l;
+} math_name[] = {
+#define S(text)	{ .s = text, .l = sizeof(text) - 1 }
+	[TOK_ACOSH      - TOK_ACOSH] = S("ACOSH"),
+	[TOK_ACOS       - TOK_ACOSH] = S("ACOS"),
+	[TOK_ASINH      - TOK_ACOSH] = S("ASINH"),
+	[TOK_ASIN       - TOK_ACOSH] = S("ASIN"),
+	[TOK_ATAN2      - TOK_ACOSH] = S("ATAN2"),
+	[TOK_ATANH      - TOK_ACOSH] = S("ATANH"),
+	[TOK_ATAN       - TOK_ACOSH] = S("ATAN"),
+	[TOK_CBRT       - TOK_ACOSH] = S("CBRT"),
+	[TOK_CEIL       - TOK_ACOSH] = S("CEIL"),
+	[TOK_COPYSIGN   - TOK_ACOSH] = S("COPYSIGN"),
+	[TOK_COSH       - TOK_ACOSH] = S("COSH"),
+	[TOK_COS        - TOK_ACOSH] = S("COS"),
+	[TOK_ERFC       - TOK_ACOSH] = S("ERFC"),
+	[TOK_ERF        - TOK_ACOSH] = S("ERF"),
+	[TOK_EXP2       - TOK_ACOSH] = S("EXP2"),
+	[TOK_EXP        - TOK_ACOSH] = S("EXP"),
+	[TOK_EXPM1      - TOK_ACOSH] = S("EXPM1"),
+	[TOK_FABS       - TOK_ACOSH] = S("FABS"),
+	[TOK_FDIM       - TOK_ACOSH] = S("FDIM"),
+	[TOK_FLOOR      - TOK_ACOSH] = S("FLOOR"),
+	[TOK_FMA        - TOK_ACOSH] = S("FMA"),
+	[TOK_FMAX       - TOK_ACOSH] = S("FMAX"),
+	[TOK_FMIN       - TOK_ACOSH] = S("FMIN"),
+	[TOK_FMOD       - TOK_ACOSH] = S("FMOD"),
+	[TOK_HYPOT      - TOK_ACOSH] = S("HYPOT"),
+	[TOK_LGAMMA     - TOK_ACOSH] = S("LGAMMA"),
+	[TOK_LOG10      - TOK_ACOSH] = S("LOG10"),
+	[TOK_LOG1P      - TOK_ACOSH] = S("LOG1P"),
+	[TOK_LOG2       - TOK_ACOSH] = S("LOG2"),
+	[TOK_LOGB       - TOK_ACOSH] = S("LOGB"),
+	[TOK_LOG        - TOK_ACOSH] = S("LOG"),
+	[TOK_NEARBYINT  - TOK_ACOSH] = S("NEARBYINT"),
+	[TOK_NEXTAFTER  - TOK_ACOSH] = S("NEXTAFTER"),
+	[TOK_NEXTTOWARD - TOK_ACOSH] = S("NEXTTOWARD"),
+	[TOK_POW        - TOK_ACOSH] = S("POW"),
+	[TOK_REMAINDER  - TOK_ACOSH] = S("REMAINDER"),
+	[TOK_RINT       - TOK_ACOSH] = S("RINT"),
+	[TOK_ROUND      - TOK_ACOSH] = S("ROUND"),
+	[TOK_SINH       - TOK_ACOSH] = S("SINH"),
+	[TOK_SIN        - TOK_ACOSH] = S("SIN"),
+	[TOK_SQRT       - TOK_ACOSH] = S("SQRT"),
+	[TOK_TANH       - TOK_ACOSH] = S("TANH"),
+	[TOK_TAN        - TOK_ACOSH] = S("TAN"),
+	[TOK_TGAMMA     - TOK_ACOSH] = S("TGAMMA"),
+	[TOK_TRUNC      - TOK_ACOSH] = S("TRUNC"),
+#undef S
 };
 
 
@@ -149,18 +161,15 @@ static math_fff_t math_fff_func[] = {
 };
 
  
-static struct cw_dynargs *args_new(void);
-static struct cw_dynargs *args_push_null(struct cw_dynargs *arglist);
-static struct cw_dynargs *args_push_val(struct cw_dynargs *arglist, struct val *vp);
-static void free_args(struct cw_dynargs *);
-static void free_value(struct val *);
+static struct cw_dynvals *args_new(void);
+static struct cw_dynvals *args_push_null(struct cw_dynvals *arglist);
+static struct cw_dynvals *args_push_val(struct cw_dynvals *arglist, struct val *vp);
+static void args_free(struct cw_dynvals *);
 static int is_zero_or_null(struct val *);
 static int isstring(struct val *);
-static struct val *make_number(long double);
-static struct val *make_str(enum valtype type, const char *);
-static struct val *op_math_f(long double (*op)(long double), struct val *a);
-static struct val *op_math_ff(long double (*op)(long double, long double), struct val *a, struct val *b);
-static struct val *op_math_fff(long double (*op)(long double, long double, long double), struct val *a, struct val *b, struct val *c);
+static struct val *op_math_f(long double (* const op)(long double), struct val *a);
+static struct val *op_math_ff(long double (* const op)(long double, long double), struct val *a, struct val *b);
+static struct val *op_math_fff(long double (* const op)(long double, long double, long double), struct val *a, struct val *b, struct val *c);
 static struct val *op_and(struct val *, struct val *);
 static struct val *op_colon(struct val *, struct val *);
 static struct val *op_eqtilde(struct val *, struct val *);
@@ -180,7 +189,7 @@ static struct val *op_plus(struct val *, struct val *);
 static struct val *op_rem(struct val *, struct val *);
 static struct val *op_times(struct val *, struct val *);
 static int to_number(struct val *, int silent);
-static int to_string(struct val *);
+static const char *string_rep(struct val *, char buf[MAX_NUMBER_LEN]);
 
 /* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
 typedef struct yyltype
@@ -215,7 +224,7 @@ int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
 %union
 {
 	struct val *val;
-	struct cw_dynargs *args;
+	struct cw_dynvals *args;
 	int tok;
 }
 
@@ -257,27 +266,21 @@ extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %token <val> TOKEN
 
 
-%destructor { free_value($$); } expr TOKEN
-%destructor { free_args($$); } args args1
+%destructor { free($$); } expr TOKEN
+%destructor { args_free($$); } args args1
 
 %%
 
 start: expr	{
 			struct parse_io *p = parseio;
 
-			if ((p->val = malloc(sizeof(*p->val))))
-				memcpy(p->val, $1, sizeof(*p->val));
-			free($1);
-			if (!p->val)
+			if (!(p->val = $1))
 				YYABORT;
 		}
 	|	{/* nothing */
 			struct parse_io *p = parseio;
 
-			if ((p->val = malloc(sizeof(*p->val)))) {
-				p->val->type = CW_EXPR_string;
-				p->val->u.s = strdup("");
-			} else
+			if (!(p->val = cw_expr_make_str(CW_EXPR_string, "", 0)))
 				YYABORT;
 		}
 	;
@@ -366,92 +369,113 @@ math_fff:
 	;
 
 expr:	TOKEN TOK_LP args TOK_RP	{
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
+			struct cw_dynstr result = CW_DYNSTR_INIT;
+			char buf[MAX_NUMBER_LEN];
+			const struct parse_io *p = parseio;
+			const char *funcname;
+			char **argv;
+			int argc;
 			int res = 1;
 
 			$$ = NULL;
-			if (!cw_dynargs_need($3, 1) && to_string($1)) {
-				const struct parse_io *p = parseio;
-				struct cw_dynstr result = CW_DYNSTR_INIT;
 
-				$3->data[$3->used] = NULL;
-
-				if (!(res = (cw_function_exec(p->chan, cw_hash_string($1->u.s), $1->u.s, $3->used, &$3->data[0], &result) || result.error))) {
-					free($1->u.s);
-					if (!(res = (!($1->u.s = cw_dynstr_steal(&result)) && !($1->u.s = strdup(""))))) {
-						$1->type = CW_EXPR_arbitrary_string;
-						$$ = $1;
-						$1 = NULL;
+			if ((argv = malloc(sizeof(argv[0]) * ($3->used + 1)))) {
+				for (argc = 0; argc < $3->used; argc++) {
+					if ($3->data[argc]->type != CW_EXPR_number)
+						argv[argc] = $3->data[argc]->u.s;
+					else {
+						argv[argc] = (char *)ds.used;
+						cw_dynstr_printf(&ds, NUMBER_FORMAT "%c", $3->data[argc]->u.n, 0);
 					}
 				}
-				cw_dynstr_free(&result);
+
+				if (!ds.error) {
+					for (argc = 0; argc < $3->used; argc++) {
+						if ($3->data[argc]->type == CW_EXPR_number)
+							argv[argc] = &ds.data[(size_t)argv[argc]];
+					}
+
+					argv[argc] = NULL;
+
+					funcname = string_rep($1, buf);
+
+					if (!(res = (cw_function_exec(p->chan, cw_hash_string(funcname), funcname, argc, argv, &result) || result.error)))
+						$$ = cw_expr_make_str(CW_EXPR_arbitrary_string, result.data, result.used);
+
+					cw_dynstr_free(&result);
+				}
+
+				cw_dynstr_free(&ds);
+				free(argv);
 			}
 
-			free_value($1);
-			free_args($3);
+			free($1);
+			args_free($3);
 
 			if (res)
 				YYABORT;
 		}
 	| math_f TOK_LP expr TOK_RP	{ if (!($$ = op_math_f(math_f_func[$1 - TOK_ACOSH], $3))) YYABORT; }
-	| math_f			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+	| math_f			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
 	| math_ff TOK_LP expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_ff(math_ff_func[$1 - TOK_ATAN2], $3, $5))) YYABORT; }
-	| math_ff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+	| math_ff			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
 	| math_fff TOK_LP expr TOK_COMMA expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_fff(math_fff_func[$1 - TOK_FMA], $3, $5, $7))) YYABORT; }
-	| math_fff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+	| math_fff			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
 
 	| TOKEN   { if (!($$ = $1)) YYABORT; }
 	| TOK_LP expr TOK_RP { if (!($$ = $2)) YYABORT;
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_OR expr { if (!($$ = op_or ($1, $3))) YYABORT;
+	| expr TOK_OR expr { if (!($$ = op_or($1, $3))) YYABORT;
                          @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_AND expr { if (!($$ = op_and ($1, $3))) YYABORT;
+	| expr TOK_AND expr { if (!($$ = op_and($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
                           @$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQ expr { if (!($$ = op_eq ($1, $3))) YYABORT;
+	| expr TOK_EQ expr { if (!($$ = op_eq($1, $3))) YYABORT;
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_GT expr { if (!($$ = op_gt ($1, $3))) YYABORT;
+	| expr TOK_GT expr { if (!($$ = op_gt($1, $3))) YYABORT;
                          @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LT expr { if (!($$ = op_lt ($1, $3))) YYABORT;
+	| expr TOK_LT expr { if (!($$ = op_lt($1, $3))) YYABORT;
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_GE expr  { if (!($$ = op_ge ($1, $3))) YYABORT;
+	| expr TOK_GE expr  { if (!($$ = op_ge($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LE expr  { if (!($$ = op_le ($1, $3))) YYABORT;
+	| expr TOK_LE expr  { if (!($$ = op_le($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_NE expr  { if (!($$ = op_ne ($1, $3))) YYABORT;
+	| expr TOK_NE expr  { if (!($$ = op_ne($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_PLUS expr { if (!($$ = op_plus ($1, $3))) YYABORT;
+	| expr TOK_PLUS expr { if (!($$ = op_plus($1, $3))) YYABORT;
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MINUS expr { if (!($$ = op_minus ($1, $3))) YYABORT;
+	| expr TOK_MINUS expr { if (!($$ = op_minus($1, $3))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_MINUS expr %prec TOK_COMPL { if (!($$ = op_negate ($2))) YYABORT;
+	| TOK_MINUS expr %prec TOK_COMPL { if (!($$ = op_negate($2))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_COMPL expr   { if (!($$ = op_compl ($2))) YYABORT;
+	| TOK_COMPL expr   { if (!($$ = op_compl($2))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_MULT expr { if (!($$ = op_times ($1, $3))) YYABORT;
+	| expr TOK_MULT expr { if (!($$ = op_times($1, $3))) YYABORT;
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_DIV expr { if (!($$ = op_div ($1, $3))) YYABORT;
+	| expr TOK_DIV expr { if (!($$ = op_div($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MOD expr { if (!($$ = op_rem ($1, $3))) YYABORT;
+	| expr TOK_MOD expr { if (!($$ = op_rem($1, $3))) YYABORT;
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_COLON expr { if (!($$ = op_colon ($1, $3))) YYABORT;
+	| expr TOK_COLON expr { if (!($$ = op_colon($1, $3))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQTILDE expr { if (!($$ = op_eqtilde ($1, $3))) YYABORT;
+	| expr TOK_EQTILDE expr { if (!($$ = op_eqtilde($1, $3))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_COND expr TOK_COLONCOLON expr  { if (!($$ = op_cond ($1, $3, $5))) YYABORT;
@@ -460,61 +484,6 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 	;
 
 %%
-
-static struct val *make_number(long double n)
-{
-	struct val *vp = NULL;
-
-	if ((vp = malloc(sizeof(*vp)))) {
-		vp->type = CW_EXPR_number;
-		vp->u.n  = n;
-	} else
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
-
-	return vp;
-
-}
-
-static struct val *make_str(enum valtype type, const char *s)
-{
-	struct val *vp;
-
-	if ((vp = malloc(sizeof(*vp)))) {
-		if ((vp->u.s = strdup(s))) {
-			vp->type = type;
-			return vp;
-		}
-		free(vp);
-	}
-
-	cw_log(CW_LOG_ERROR, "Out of memory!\n");
-	return NULL;
-}
-
-
-static void
-free_args(struct cw_dynargs *args)
-{
-	if (args) {
-		int i;
-
-		for (i = 0; i < args->used; i++)
-			free(args->data[i]);
-
-		cw_dynargs_free(args);
-		free(args);
-	}
-}
-
-
-static void free_value(struct val *vp)
-{	
-	if (vp) {
-		if (vp->type != CW_EXPR_number)
-			free(vp->u.s);
-		free(vp);
-	}
-}
 
 
 static int to_number(struct val *vp, int silent)
@@ -556,17 +525,16 @@ static int to_number(struct val *vp, int silent)
 }
 
 
-static int to_string(struct val *vp)
+static const char *string_rep(struct val *vp, char buf[MAX_NUMBER_LEN])
 {
+	char *ret = &vp->u.s[0];
+
 	if (vp->type == CW_EXPR_number) {
-		if ((vp->u.s = malloc(32))) {
-			sprintf(vp->u.s, "%.18Lg", vp->u.n);
-			vp->type = CW_EXPR_numeric_string;
-		} else
-			cw_log(CW_LOG_WARNING,"Out of memory!\n");
+		sprintf(buf, NUMBER_FORMAT, vp->u.n);
+		ret = buf;
 	}
 
-	return vp->u.s != NULL;
+	return ret;
 }
 
 
@@ -632,22 +600,46 @@ static int is_zero_or_null(struct val *vp)
 }
 
 
-static struct cw_dynargs *args_new(void)
-{
-	struct cw_dynargs *arglist;
+static const struct val null_arg = {
+	.type = CW_EXPR_string,
+	.u.s = { [0] = '\0' },
+};
 
-	if ((arglist = malloc(sizeof(struct cw_dynargs))))
-		cw_dynargs_init(arglist, 1, CW_DYNARRAY_DEFAULT_CHUNK);
+
+static struct cw_dynvals *args_new(void)
+{
+	struct cw_dynvals *arglist;
+
+	if ((arglist = malloc(sizeof(struct cw_dynvals))))
+		cw_dynvals_init(arglist, 1, CW_DYNARRAY_DEFAULT_CHUNK);
 
 	return arglist;
 }
 
 
-static struct cw_dynargs *args_push_null(struct cw_dynargs *arglist)
+static void
+args_free(struct cw_dynvals *args)
+{
+	if (args) {
+		int i;
+
+		for (i = 0; i < args->used; i++)
+			if (args->data[i] != &null_arg)
+				free(args->data[i]);
+
+		cw_dynvals_free(args);
+		free(args);
+	}
+}
+
+
+static struct cw_dynvals *args_push_null(struct cw_dynvals *arglist)
 {
 	if (arglist) {
-		if (cw_dynargs_need(arglist, 1) || !(arglist->data[arglist->used++] = strdup(""))) {
-			free_args(arglist);
+		if (!cw_dynvals_need(arglist, 1))
+			arglist->data[arglist->used++] = (struct val *)&null_arg;
+		else {
+			args_free(arglist);
 			arglist = NULL;
 		}
 	}
@@ -656,19 +648,18 @@ static struct cw_dynargs *args_push_null(struct cw_dynargs *arglist)
 }
 
 
-static struct cw_dynargs *args_push_val(struct cw_dynargs *arglist, struct val *vp)
+static struct cw_dynvals *args_push_val(struct cw_dynvals *arglist, struct val *vp)
 {
 	if (arglist) {
-		if (!cw_dynargs_need(arglist, 1) && to_string(vp)) {
-			arglist->data[arglist->used++] = vp->u.s;
-			vp->u.s = NULL;
-		} else {
-			free_args(arglist);
+		if (!cw_dynvals_need(arglist, 1))
+			arglist->data[arglist->used++] = vp;
+		else {
+			free(vp);
+			args_free(arglist);
 			arglist = NULL;
 		}
 	}
 
-	free_value(vp);
 	return arglist;
 }
 
@@ -690,7 +681,7 @@ static struct val *op_math_f(long double (*op)(long double), struct val *a)
 		a->u.n = (*op)(a->u.n);
 		vp = a;
 	} else
-		free_value(a);
+		free(a);
 
 	return vp;
 }
@@ -704,9 +695,9 @@ static struct val *op_math_ff(long double (*op)(long double, long double), struc
 		a->u.n = (*op)(a->u.n, b->u.n);
 		vp = a;
 	} else
-		free_value(a);
+		free(a);
 
-	free_value(b);
+	free(b);
 	return vp;
 }
 
@@ -719,15 +710,15 @@ static struct val *op_math_fff(long double (*op)(long double, long double, long 
 		a->u.n = (*op)(a->u.n, b->u.n, c->u.n);
 		vp = a;
 	} else
-		free_value(a);
+		free(a);
 
-	free_value(b);
-	free_value(c);
+	free(b);
+	free(c);
 	return vp;
 }
 
 
-static struct val * op_or(struct val *a, struct val *b)
+static struct val *op_or(struct val *a, struct val *b)
 {
 	struct val *r = a;
 
@@ -736,114 +727,140 @@ static struct val * op_or(struct val *a, struct val *b)
 		b = a;
 	}
 
-	free_value(b);
+	free(b);
 	return r;
 }
-		
-static struct val * op_and(struct val *a, struct val *b)
+
+
+static struct val *op_and(struct val *a, struct val *b)
 {
 	struct val *r = a;
 
 	if (is_zero_or_null(a) || is_zero_or_null(b)) {
-		free_value(a);
-		r = make_number(0.0L);
+		free(a);
+		r = cw_expr_make_number(0.0L);
 	}
 
-	free_value(b);
+	free(b);
 	return r;
 }
 
-static struct val * op_eq(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
+static struct val *op_eq(struct val *a, struct val *b)
+{
 	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string(b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) == 0));
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) == 0);
+		a->type = CW_EXPR_number;
 	} else {
 		to_number(a, 0);
 		to_number(b, 0);
-		r = make_number((long double)(a->u.n == b->u.n));
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n == b->u.n);
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	free(b);
+	return a;
 }
 
-static struct val * op_gt(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
+static struct val *op_ne(struct val *a, struct val *b)
+{
 	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string (b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) > 0));
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) != 0);
+		a->type = CW_EXPR_number;
 	} else {
 		to_number(a, 0);
 		to_number(b, 0);
-		r = make_number((long double)(a->u.n > b->u.n));
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n != b->u.n);
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	free(b);
+	return a;
 }
 
-static struct val * op_lt(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
+static struct val *op_gt(struct val *a, struct val *b)
+{
 	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string(b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) < 0));
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) > 0);
+		a->type = CW_EXPR_number;
 	} else {
 		to_number(a, 0);
 		to_number(b, 0);
-		r = make_number((long double)(a->u.n < b->u.n));
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n > b->u.n);
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	free(b);
+	return a;
 }
 
-static struct val * op_ge(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
+static struct val *op_lt(struct val *a, struct val *b)
+{
 	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string(b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) >= 0));
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) < 0);
+		a->type = CW_EXPR_number;
 	} else {
 		to_number(a, 0);
 		to_number(b, 0);
-		r = make_number((long double)(a->u.n >= b->u.n));
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n < b->u.n);
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	free(b);
+	return a;
 }
 
-static struct val * op_le(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
+static struct val *op_ge(struct val *a, struct val *b)
+{
 	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string(b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) <= 0));
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) >= 0);
+		a->type = CW_EXPR_number;
 	} else {
 		to_number(a, 0);
 		to_number(b, 0);
-		r = make_number((long double)(a->u.n <= b->u.n));
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n >= b->u.n);
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	free(b);
+	return a;
 }
 
-static struct val * op_cond(struct val *a, struct val *b, struct val *c)
+
+static struct val *op_le(struct val *a, struct val *b)
+{
+	if (isstring(a) || isstring(b)) {
+		char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+		a->u.n = (long double)(strcoll(string_rep(a, bufa), string_rep(b, bufb)) <= 0);
+		a->type = CW_EXPR_number;
+	} else {
+		to_number(a, 0);
+		to_number(b, 0);
+		/* This should be the case. Unless isstring() is broken... */
+		a->type = CW_EXPR_number;
+		a->u.n = (long double)(a->u.n <= b->u.n);
+	}
+
+	free(b);
+	return a;
+}
+
+
+static struct val *op_cond(struct val *a, struct val *b, struct val *c)
 {
 	struct val *r = b;
 
@@ -852,199 +869,184 @@ static struct val * op_cond(struct val *a, struct val *b, struct val *c)
 		c = b;
 	}
 
-	free_value(a);
-	free_value(c);
+	free(a);
+	free(c);
 
 	return r;
 }
 
-static struct val * op_ne(struct val *a, struct val *b)
-{
-	struct val *r = NULL;
 
-	if (isstring(a) || isstring(b)) {
-		if (to_string(a) && to_string(b))
-			r = make_number((long double)(strcoll(a->u.s, b->u.s) != 0));
-	} else {
-		to_number(a, 0);
-		to_number(b, 0);
-		r = make_number((long double)(a->u.n != b->u.n));
+static struct val *op_plus(struct val *a, struct val *b)
+{
+	if (!to_number(a, 1)) {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
 	}
 
-	free_value(a);
-	free_value(b);
-	return r;
+	if (to_number(b, 1))
+		a->u.n += b->u.n;
+
+	free(b);
+	return a;
 }
 
-static struct val * op_plus(struct val *a, struct val *b)
-{
-	long double r = 0.0L;
 
-	if (to_number(a, 1)) {
-		r = a->u.n;
-		if (to_number(b, 1))
-			r += b->u.n;
+static struct val *op_minus(struct val *a, struct val *b)
+{
+	if (!to_number(a, 1)) {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
 	}
 
-	free_value(a);
-	free_value(b);
+	if (to_number(b, 1))
+		a->u.n -= b->u.n;
 
-	return make_number(r);
+	free(b);
+	return a;
 }
 
-static struct val * op_minus(struct val *a, struct val *b)
+
+static struct val *op_negate(struct val *a)
 {
-	long double r = 0.0L;
-
-	if (to_number(a, 1)) {
-		r = a->u.n;
-		if (to_number(b, 1))
-			r -= b->u.n;
-	}
-
-	free_value(a);
-	free_value(b);
-
-	return make_number(r);
-}
-
-static struct val * op_negate(struct val *a)
-{
-	long double r = 0.0L;
-
 	if (to_number(a, 1))
-		r = -a->u.n;
+		a->u.n = -a->u.n;
+	else {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
+	}
 
-	free_value(a);
-	return make_number(r);
+	return a;
 }
 
-static struct val * op_compl(struct val *a)
-{
-	struct val *v;
 
-	v = make_number(is_zero_or_null(a));
-	free_value(a);
-	return v;
+static struct val *op_compl(struct val *a)
+{
+	int v = is_zero_or_null(a);
+
+	a->type = CW_EXPR_number;
+	a->u.n = (long double)v;
+	return a;
 }
 
-static struct val * op_times(struct val *a, struct val *b)
-{
-	long double r = 0.0L;
 
+static struct val *op_times(struct val *a, struct val *b)
+{
 	if (to_number(a, 1) && to_number(b, 1))
-		r = a->u.n * b->u.n;
+		a->u.n *= b->u.n;
+	else {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
+	}
 
-	free_value(a);
-	free_value(b);
-
-	return make_number(r);
+	free(b);
+	return a;
 }
 
-static struct val * op_div(struct val *a, struct val *b)
-{
-	long double r = 0.0L;
 
+static struct val *op_div(struct val *a, struct val *b)
+{
 	if (to_number(a, 1)) {
 		if (to_number(b, 1) && b->u.n != 0.0L)
-			r = a->u.n / b->u.n;
+			a->u.n /= b->u.n;
 		else
-			r = INFINITY * a->u.n;
+			a->u.n = INFINITY * a->u.n;
+	} else {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
 	}
 
-	free_value(a);
-	free_value(b);
-
-	return make_number(r);
+	free(b);
+	return a;
 }
-	
-static struct val * op_rem(struct val *a, struct val *b)
+
+
+static struct val *op_rem(struct val *a, struct val *b)
 {
-	long double r = 0.0L;
-
 	if (to_number(a, 1) && to_number(b, 1) && b->u.n != 0.0L)
-		r = fmodl(a->u.n, b->u.n);
+		a->u.n = fmodl(a->u.n, b->u.n);
+	else {
+		a->type = CW_EXPR_number;
+		a->u.n = 0.0L;
+	}
 
-	free_value(a);
-	free_value(b);
-
-	return make_number(r);
+	free(b);
+	return a;
 }
 	
 
-static struct val * op_colon(struct val *a, struct val *b)
+static struct val *op_colon(struct val *a, struct val *b)
 {
 	regex_t rp;
 	regmatch_t rm[2];
 	char errbuf[256];
+	char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+	const char *sa;
 	struct val *v = NULL;
 	int eval;
 
-	if (to_string(a) && to_string(b)) {
-		if (!(eval = regcomp(&rp, b->u.s, REG_EXTENDED))) {
-			/* remember that patterns are anchored to the beginning of the line */
-			if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
-				if (rm[1].rm_so >= 0) {
-					*(a->u.s + rm[1].rm_eo) = '\0';
-					v = make_str(CW_EXPR_arbitrary_string, a->u.s + rm[1].rm_so);
-				} else
-					v = make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
-			} else {
-				if (rp.re_nsub == 0)
-					v = make_number(0.0L);
-				else
-					v = make_str(CW_EXPR_string, "");
-			}
-
-			regfree(&rp);
+	if (!(eval = regcomp(&rp, string_rep(b, bufb), REG_EXTENDED))) {
+		sa = string_rep(a, bufa);
+		/* remember that patterns are anchored to the beginning of the line */
+		if (regexec(&rp, sa, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
+			if (rm[1].rm_so >= 0)
+				v = cw_expr_make_str(CW_EXPR_arbitrary_string, &sa[rm[1].rm_so], rm[1].rm_eo - rm[1].rm_so);
+			else
+				v = cw_expr_make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
 		} else {
-			regerror(eval, &rp, errbuf, sizeof(errbuf));
-			cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
-			v = make_str(CW_EXPR_string, "");
+			if (rp.re_nsub == 0)
+				v = cw_expr_make_number(0.0L);
+			else
+				v = cw_expr_make_str(CW_EXPR_string, "", 0);
 		}
+
+		regfree(&rp);
+	} else {
+		regerror(eval, &rp, errbuf, sizeof(errbuf));
+		cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
+		v = cw_expr_make_str(CW_EXPR_string, "", 0);
 	}
 
-	free_value(a);
-	free_value(b);
+	free(a);
+	free(b);
 
 	return v;
 }
 	
 
-static struct val * op_eqtilde(struct val *a, struct val *b)
+static struct val *op_eqtilde(struct val *a, struct val *b)
 {
 	regex_t rp;
 	regmatch_t rm[2];
 	char errbuf[256];
-	int eval;
+	char bufa[MAX_NUMBER_LEN], bufb[MAX_NUMBER_LEN];
+	const char *sa;
 	struct val *v = NULL;
+	int eval;
 
-	if (to_string(a) && to_string(b)) {
-		if (!(eval = regcomp(&rp, b->u.s, REG_EXTENDED))) {
-			/* remember that patterns are anchored to the beginning of the line */
-			if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 ) {
-				if (rm[1].rm_so >= 0) {
-					*(a->u.s + rm[1].rm_eo) = '\0';
-					v = make_str(CW_EXPR_arbitrary_string, a->u.s + rm[1].rm_so);
-				} else
-					v = make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
-			} else {
-				if (rp.re_nsub == 0)
-					v = make_number(0.0L);
-				else
-					v = make_str(CW_EXPR_string, "");
-			}
-
-			regfree(&rp);
+	if (!(eval = regcomp(&rp, string_rep(b, bufb), REG_EXTENDED))) {
+		sa = string_rep(a, bufa);
+		/* remember that patterns are anchored to the beginning of the line */
+		if (regexec(&rp, sa, (size_t)2, rm, 0) == 0) {
+			if (rm[1].rm_so >= 0)
+				v = cw_expr_make_str(CW_EXPR_arbitrary_string, &sa[rm[1].rm_so], rm[1].rm_eo - rm[1].rm_so);
+			else
+				v = cw_expr_make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
 		} else {
-			regerror(eval, &rp, errbuf, sizeof(errbuf));
-			cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
-			v = make_str(CW_EXPR_string, "");
+			if (rp.re_nsub == 0)
+				v = cw_expr_make_number(0.0L);
+			else
+				v = cw_expr_make_str(CW_EXPR_string, "", 0);
 		}
+
+		regfree(&rp);
+	} else {
+		regerror(eval, &rp, errbuf, sizeof(errbuf));
+		cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
+		v = cw_expr_make_str(CW_EXPR_string, "", 0);
 	}
 
-	free_value(a);
-	free_value(b);
+	free(a);
+	free(b);
 
 	return v;
 }
