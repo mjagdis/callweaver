@@ -162,7 +162,7 @@ static void pick_path(const char *dbname, char *buf, size_t size) {
 	if (strchr(dbname, '/')) {
 		strncpy(buf, dbname, size);
 	} else {
-		snprintf(buf, size, "%s/%s.db", cw_config_CW_DB_DIR, dbname);
+		snprintf(buf, size, "%s/%s.db", cw_config[CW_DB_DIR], dbname);
 	}
 }
 

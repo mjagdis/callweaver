@@ -2444,7 +2444,7 @@ static void ael2_semantic_check(struct pval *item, int *arg_errs, int *arg_warns
 	struct argapp *apps=0;
 
 #ifdef AAL_ARGCHECK
-	rfilename = alloca(10 + strlen(cw_config_CW_VAR_DIR));
+	rfilename = alloca(strlen(cw_config_CW_VAR_DIR) + sizeof("/applist") - 1 + 1);
 	sprintf(rfilename, "%s/applist", cw_config_CW_VAR_DIR);
 	
 	apps = argdesc_parse(rfilename, &argapp_errs); /* giveth */
@@ -3458,38 +3458,36 @@ void cw_compile_ael2(struct cw_context **local_contexts, struct pval *root)
 
 static int pbx_load_module(void)
 {
-	int errcount, sem_err, sem_warn, sem_note;
 	char *rfilename;
 	struct cw_context *local_contexts=NULL, *con;
 	struct pval *parse_tree;
+	int errcount, sem_err, sem_warn, sem_note;
 
-	cw_log(CW_LOG_NOTICE, "Starting AEL load process.\n");
-	if (config[0] == '/')
-		rfilename = (char *)config;
-	else {
-		rfilename = alloca(strlen(config) + strlen(cw_config_CW_CONFIG_DIR) + 2);
-		sprintf(rfilename, "%s/%s", cw_config_CW_CONFIG_DIR, config);
-	}
-	cw_log(CW_LOG_NOTICE, "AEL load process: calculated config file name '%s'.\n", rfilename);
-	
+	rfilename = alloca(strlen(cw_config[CW_CONFIG_DIR]) + 1 + strlen(config) + 1);
+	sprintf(rfilename, "%s/%s", cw_config[CW_CONFIG_DIR], config);
+	cw_log(CW_LOG_NOTICE, "Loading AEL config file name '%s'.\n", rfilename);
+
 	parse_tree = ael2_parse(rfilename, &errcount);
-	cw_log(CW_LOG_NOTICE, "AEL load process: parsed config file name '%s'.\n", rfilename);
+	cw_log(CW_LOG_DEBUG, "AEL load process: parsed config file name '%s'.\n", rfilename);
+
 	ael2_semantic_check(parse_tree, &sem_err, &sem_warn, &sem_note);
 	if (errcount == 0 && sem_err == 0) {
-		cw_log(CW_LOG_NOTICE, "AEL load process: checked config file name '%s'.\n", rfilename);
+		cw_log(CW_LOG_DEBUG, "AEL load process: checked config file name '%s'.\n", rfilename);
+
 		cw_compile_ael2(&local_contexts, parse_tree);
-		cw_log(CW_LOG_NOTICE, "AEL load process: compiled config file name '%s'.\n", rfilename);
-		
+		cw_log(CW_LOG_DEBUG, "AEL load process: compiled config file name '%s'.\n", rfilename);
+
 		cw_merge_contexts_and_delete(&local_contexts, registrar);
-		cw_log(CW_LOG_NOTICE, "AEL load process: merged config file name '%s'.\n", rfilename);
+		cw_log(CW_LOG_DEBUG, "AEL load process: merged config file name '%s'.\n", rfilename);
+
 		for (con = cw_walk_contexts(NULL); con; con = cw_walk_contexts(con))
 			cw_context_verify_includes(con);
-		cw_log(CW_LOG_NOTICE, "AEL load process: verified config file name '%s'.\n", rfilename);
+		cw_log(CW_LOG_DEBUG, "AEL load process: verified config file name '%s'.\n", rfilename);
 	} else {
 		cw_log(CW_LOG_ERROR, "Sorry, but %d syntax errors and %d semantic errors were detected. It doesn't make sense to compile.\n", errcount, sem_err);
 	}
 	destroy_pval(parse_tree); /* free up the memory */
-	
+
 	return 0;
 }
 

@@ -236,21 +236,22 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+	struct cw_dynstr fn = CW_DYNSTR_INIT;
 	char *zErr;
-	char fn[PATH_MAX];
-	int res;
 	char *sql_cmd;
+	int res;
 
 	if (load_config(0))
 		return -1;
 
 	/* is the database there? */
-	snprintf(fn, sizeof(fn), "%s/master.db", cw_config_CW_LOG_DIR);
-	res = sqlite3_open(fn, &db);
-	if (!db) {
-		cw_log(CW_LOG_ERROR, "%s: Could not open database %s.\n", name, fn);
+	cw_dynstr_printf(&fn, "%s/master.db", cw_config[CW_LOG_DIR]);
+	res = sqlite3_open(fn.data, &db);
+	if (!db)
+		cw_log(CW_LOG_ERROR, "%s: Could not open database %s.\n", name, fn.data);
+	cw_dynstr_free(&fn);
+	if (!db)
 		return -1;
-	}
 
 	/* is the table there? */
 	sql_cmd = sqlite3_mprintf("SELECT COUNT(AcctId) FROM %q;", table);

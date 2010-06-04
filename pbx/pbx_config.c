@@ -495,239 +495,216 @@ static void complete_context_add_include(struct cw_dynstr *ds_p, char *argv[], i
  */
 static int handle_save_dialplan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	char filename[256];
+	char *filename;
 	struct cw_context *c;
 	struct cw_config *cfg;
 	struct cw_variable *v;
+	FILE *output;
 	int context_header_written;
 	int incomplete = 0; /* incomplete config write? */
-	FILE *output;
+	int res = RESULT_FAILURE;
 
 	if (! (static_config && !write_protect_config)) {
-		cw_dynstr_printf(ds_p,
-			"I can't save dialplan now, see '%s' example file.\n",
-			config);
+		cw_dynstr_printf(ds_p, "I can't save dialplan now, see '%s' example file.\n", config);
 		return RESULT_FAILURE;
 	}
 
 	if (argc != 2 && argc != 3) return RESULT_SHOWUSAGE;
 
-	if (cw_mutex_lock(&save_dialplan_lock)) {
-		cw_dynstr_printf(ds_p,
-			"Failed to lock dialplan saving (another proccess saving?)\n");
-		return RESULT_FAILURE;
-	}
+	cw_mutex_lock(&save_dialplan_lock);
 
 	/* have config path? */
 	if (argc == 3) {
 		/* is there extension.conf too? */
-		if (!strstr(argv[2], ".conf")) {
+		if (strstr(argv[2], ".conf")) {
+			filename = argv[2];
+		} else {
 			/* no, only directory path, check for last '/' occurence */
-			if (*(argv[2] + strlen(argv[2]) -1) == '/')
-				snprintf(filename, sizeof(filename), "%s%s",
-					argv[2], config);
-			else
-				/* without config extensions.conf, add it */
-				snprintf(filename, sizeof(filename), "%s/%s",
-					argv[2], config);
-		} else
-			/* there is an .conf */
-			snprintf(filename, sizeof(filename), argv[2]);
-	} else
+			filename = alloca(strlen(argv[2]) + 1 + strlen(config) + 1);
+			sprintf(filename, "%s%s%s", argv[2], (*(argv[2] + strlen(argv[2]) -1) == '/' ? "" : "/"), config);
+		}
+	} else {
 		/* no config file, default one */
-		snprintf(filename, sizeof(filename), "%s/%s",
-			(char *)cw_config_CW_CONFIG_DIR, config);
+		filename = alloca(strlen(cw_config[CW_CONFIG_DIR]) + 1 + strlen(config) + 1);
+		sprintf(filename, "%s/%s", cw_config[CW_CONFIG_DIR], config);
+	}
 
 	cfg = cw_config_load("extensions.conf");
 
-	/* try to lock contexts list */
-	if (cw_lock_contexts()) {
-		cw_dynstr_printf(ds_p, "Failed to lock contexts list\n");
-		cw_mutex_unlock(&save_dialplan_lock);
-		cw_config_destroy(cfg);
-		return RESULT_FAILURE;
-	}
+	cw_lock_contexts();
 
 	/* create new file ... */
-	if (!(output = fopen(filename, "wt"))) {
-		cw_dynstr_printf(ds_p, "Failed to create file '%s'\n",
-			filename);
-		cw_unlock_contexts();
-		cw_mutex_unlock(&save_dialplan_lock);
-		cw_config_destroy(cfg);
-		return RESULT_FAILURE;
-	}
+	if ((output = fopen(filename, "wt"))) {
+		/* fireout general info */
+		fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\npriorityjumping=%s\n\n",
+			static_config ? "yes" : "no",
+			write_protect_config ? "yes" : "no",
+			autofallthrough_config ? "yes" : "no",
+			clearglobalvars_config ? "yes" : "no",
+			option_priority_jumping ? "yes" : "no");
 
-	/* fireout general info */
-	fprintf(output, "[general]\nstatic=%s\nwriteprotect=%s\nautofallthrough=%s\nclearglobalvars=%s\npriorityjumping=%s\n\n",
-		static_config ? "yes" : "no",
-		write_protect_config ? "yes" : "no",
-		autofallthrough_config ? "yes" : "no",
-		clearglobalvars_config ? "yes" : "no",
-		option_priority_jumping ? "yes" : "no");
-
-	if ((v = cw_variable_browse(cfg, "globals"))) {
-		fprintf(output, "[globals]\n");
-		while(v) {
-			fprintf(output, "%s => %s\n", v->name, v->value);
-			v = v->next;
-		}
-		fprintf(output, "\n");
-	}
-
-	cw_config_destroy(cfg);
-	
-	/* walk all contexts */
-	c = cw_walk_contexts(NULL);
-	while (c) {
-		context_header_written = 0;
-	
-		/* try to lock context and fireout all info */	
-		if (!cw_lock_context(c)) {
-			struct cw_exten *e, *last_written_e = NULL;
-			struct cw_include *i;
-			struct cw_ignorepat *ip;
-			struct cw_sw *sw;
-
-			/* registered by this module? */
-			if (!strcmp(cw_get_context_registrar(c), registrar)) {
-				fprintf(output, "[%s]\n", cw_get_context_name(c));
-				context_header_written = 1;
+		if ((v = cw_variable_browse(cfg, "globals"))) {
+			fprintf(output, "[globals]\n");
+			while(v) {
+				fprintf(output, "%s => %s\n", v->name, v->value);
+				v = v->next;
 			}
+			fprintf(output, "\n");
+		}
 
-			/* walk extensions ... */
-			e = cw_walk_context_extensions(c, NULL);
-			while (e) {
-				struct cw_exten *p;
+		/* walk all contexts */
+		c = cw_walk_contexts(NULL);
+		while (c) {
+			context_header_written = 0;
+	
+			/* try to lock context and fireout all info */
+			if (!cw_lock_context(c)) {
+				struct cw_exten *e, *last_written_e = NULL;
+				struct cw_include *i;
+				struct cw_ignorepat *ip;
+				struct cw_sw *sw;
 
-				/* fireout priorities */
-				p = cw_walk_extension_priorities(e, NULL);
-				while (p) {
-					if (!strcmp(cw_get_extension_registrar(p),
-						registrar)) {
+				/* registered by this module? */
+				if (!strcmp(cw_get_context_registrar(c), registrar)) {
+					fprintf(output, "[%s]\n", cw_get_context_name(c));
+					context_header_written = 1;
+				}
+
+				/* walk extensions ... */
+				e = cw_walk_context_extensions(c, NULL);
+				while (e) {
+					struct cw_exten *p;
+
+					/* fireout priorities */
+					p = cw_walk_extension_priorities(e, NULL);
+					while (p) {
+						if (!strcmp(cw_get_extension_registrar(p),
+							registrar)) {
 			
-						/* make empty line between different extensions */	
-						if (last_written_e != NULL &&
-							strcmp(cw_get_extension_name(last_written_e),
-								cw_get_extension_name(p)))
-							fprintf(output, "\n");
-						last_written_e = p;
+							/* make empty line between different extensions */
+							if (last_written_e != NULL &&
+								strcmp(cw_get_extension_name(last_written_e),
+									cw_get_extension_name(p)))
+								fprintf(output, "\n");
+							last_written_e = p;
 				
+							if (!context_header_written) {
+								fprintf(output, "[%s]\n", cw_get_context_name(c));
+								context_header_written = 1;
+							}
+
+							if (cw_get_extension_priority(p)!=PRIORITY_HINT) {
+								char *tempdata;
+								const char *el = cw_get_extension_label(p);
+								char label[128] = "";
+
+								tempdata = cw_get_extension_app_data(p);
+
+								if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
+									incomplete = 1; // error encountered or label is > 125 chars
+
+								if (cw_get_extension_matchcid(p)) {
+									fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
+										cw_get_extension_name(p),
+										cw_get_extension_cidmatch(p),
+										cw_get_extension_priority(p),
+										label,
+										cw_get_extension_app(p),
+										tempdata);
+								} else {
+									fprintf(output, "exten => %s,%d%s,%s(%s)\n",
+										cw_get_extension_name(p),
+										cw_get_extension_priority(p),
+										label,
+										cw_get_extension_app(p),
+										tempdata);
+								}
+							} else {
+								fprintf(output, "exten => %s,hint,%s\n",
+									cw_get_extension_name(p),
+									cw_get_extension_app(p));
+							}
+						}
+						p = cw_walk_extension_priorities(e, p);
+					}
+
+					e = cw_walk_context_extensions(c, e);
+				}
+
+				/* written any extensions? ok, write space between exten & inc */
+				if (last_written_e) fprintf(output, "\n");
+
+				/* walk through includes */
+				i = cw_walk_context_includes(c, NULL);
+				while (i) {
+					if (!strcmp(cw_get_include_registrar(i), registrar)) {
+						if (!context_header_written) {
+							fprintf(output, "[%s]\n", cw_get_context_name(c));
+							context_header_written = 1;
+						}
+						fprintf(output, "include => %s\n", cw_get_include_name(i));
+					}
+					i = cw_walk_context_includes(c, i);
+				}
+
+				if (cw_walk_context_includes(c, NULL))
+					fprintf(output, "\n");
+
+				/* walk through switches */
+				sw = cw_walk_context_switches(c, NULL);
+				while (sw) {
+					if (!strcmp(cw_get_switch_registrar(sw), registrar)) {
+						if (!context_header_written) {
+							fprintf(output, "[%s]\n", cw_get_context_name(c));
+							context_header_written = 1;
+						}
+						fprintf(output, "switch => %s/%s\n",
+							cw_get_switch_name(sw),
+							cw_get_switch_data(sw));
+					}
+					sw = cw_walk_context_switches(c, sw);
+				}
+
+				if (cw_walk_context_switches(c, NULL))
+					fprintf(output, "\n");
+
+				/* fireout ignorepats ... */
+				ip = cw_walk_context_ignorepats(c, NULL);
+				while (ip) {
+					if (!strcmp(cw_get_ignorepat_registrar(ip), registrar)) {
 						if (!context_header_written) {
 							fprintf(output, "[%s]\n", cw_get_context_name(c));
 							context_header_written = 1;
 						}
 
-						if (cw_get_extension_priority(p)!=PRIORITY_HINT) {
-							char *tempdata;
-							const char *el = cw_get_extension_label(p);
-							char label[128] = "";
-
-							tempdata = cw_get_extension_app_data(p);
-
-							if (el && (snprintf(label, sizeof(label), "(%s)", el) != (strlen(el) + 2)))
-								incomplete = 1; // error encountered or label is > 125 chars
-
-							if (cw_get_extension_matchcid(p)) {
-								fprintf(output, "exten => %s/%s,%d%s,%s(%s)\n",
-								    cw_get_extension_name(p),
-								    cw_get_extension_cidmatch(p),
-								    cw_get_extension_priority(p),
-								    label,
-								    cw_get_extension_app(p),
-								    tempdata);
-							} else {
-								fprintf(output, "exten => %s,%d%s,%s(%s)\n",
-								    cw_get_extension_name(p),
-								    cw_get_extension_priority(p),
-								    label,
-								    cw_get_extension_app(p),
-								    tempdata);
-							}
-						} else {
-							fprintf(output, "exten => %s,hint,%s\n",
-							    cw_get_extension_name(p),
-							    cw_get_extension_app(p));
-						}
+						fprintf(output, "ignorepat => %s\n", cw_get_ignorepat_name(ip));
 					}
-					p = cw_walk_extension_priorities(e, p);
+					ip = cw_walk_context_ignorepats(c, ip);
 				}
 
-				e = cw_walk_context_extensions(c, e);
-			}
+				cw_unlock_context(c);
+			} else
+				incomplete = 1;
 
-			/* written any extensions? ok, write space between exten & inc */
-			if (last_written_e) fprintf(output, "\n");
+			c = cw_walk_contexts(c);
+		}
 
-			/* walk through includes */
-			i = cw_walk_context_includes(c, NULL);
-			while (i) {
-				if (!strcmp(cw_get_include_registrar(i), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", cw_get_context_name(c));
-						context_header_written = 1;
-					}
-					fprintf(output, "include => %s\n",
-						cw_get_include_name(i));
-				}
-				i = cw_walk_context_includes(c, i);
-			}
+		fclose(output);
+	} else
+		cw_dynstr_printf(ds_p, "Failed to create file '%s'\n", filename);
 
-			if (cw_walk_context_includes(c, NULL))
-				fprintf(output, "\n");
-
-			/* walk through switches */
-			sw = cw_walk_context_switches(c, NULL);
-			while (sw) {
-				if (!strcmp(cw_get_switch_registrar(sw), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", cw_get_context_name(c));
-						context_header_written = 1;
-					}
-					fprintf(output, "switch => %s/%s\n",
-						cw_get_switch_name(sw),
-						cw_get_switch_data(sw));
-				}
-				sw = cw_walk_context_switches(c, sw);
-			}
-
-			if (cw_walk_context_switches(c, NULL))
-				fprintf(output, "\n");
-
-			/* fireout ignorepats ... */
-			ip = cw_walk_context_ignorepats(c, NULL);
-			while (ip) {
-				if (!strcmp(cw_get_ignorepat_registrar(ip), registrar)) {
-					if (!context_header_written) {
-						fprintf(output, "[%s]\n", cw_get_context_name(c));
-						context_header_written = 1;
-					}
-
-					fprintf(output, "ignorepat => %s\n",
-						cw_get_ignorepat_name(ip));
-				}
-				ip = cw_walk_context_ignorepats(c, ip);
-			}
-
-			cw_unlock_context(c);
-		} else
-			incomplete = 1;
-
-		c = cw_walk_contexts(c);
-	}	
 
 	cw_unlock_contexts();
+	cw_config_destroy(cfg);
 	cw_mutex_unlock(&save_dialplan_lock);
-	fclose(output);
 
-	if (incomplete) {
+	if (!incomplete) {
+		cw_dynstr_printf(ds_p, "Dialplan successfully saved into '%s'\n", filename);
+		res = RESULT_SUCCESS;
+	} else
 		cw_dynstr_printf(ds_p, "Saved dialplan is incomplete\n");
-		return RESULT_FAILURE;
-	}
 
-	cw_dynstr_printf(ds_p, "Dialplan successfully saved into '%s'\n",
-		filename);
-	return RESULT_SUCCESS;
+	return res;
 }
 
 /*

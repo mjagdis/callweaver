@@ -128,8 +128,8 @@ static int osp_build(struct cw_config *cfg, char *cat)
 		osp->handle = -1;
 	}
 	cw_copy_string(osp->name, cat, sizeof(osp->name));
-	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", cw_config_CW_KEY_DIR, cat);
-	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", cw_config_CW_KEY_DIR, cat);
+	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", cw_config[CW_KEY_DIR], cat);
+	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", cw_config[CW_KEY_DIR], cat);
 	osp->maxconnections=OSP_DEFAULT_MAX_CONNECTIONS;
 	osp->retrydelay = OSP_DEFAULT_RETRY_DELAY;
 	osp->retrylimit = OSP_DEFAULT_RETRY_LIMIT;
@@ -142,18 +142,18 @@ static int osp_build(struct cw_config *cfg, char *cat)
 			if (v->value[0] == '/')
 				cw_copy_string(osp->localpvtkey, v->value, sizeof(osp->localpvtkey));
 			else
-				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", cw_config_CW_KEY_DIR , v->value);
+				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", cw_config[CW_KEY_DIR], v->value);
 		} else if (!strcasecmp(v->name, "localcert")) {
 			if (v->value[0] == '/')
 				cw_copy_string(osp->localcert, v->value, sizeof(osp->localcert));
 			else
-				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", cw_config_CW_KEY_DIR, v->value);
+				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", cw_config[CW_KEY_DIR], v->value);
 		} else if (!strcasecmp(v->name, "cacert")) {
 			if (osp->cacount < MAX_CERTS) {
 				if (v->value[0] == '/')
 					cw_copy_string(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]));
 				else
-					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", cw_config_CW_KEY_DIR, v->value);
+					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", cw_config[CW_KEY_DIR], v->value);
 				osp->cacount++;
 			} else
 				cw_log(CW_LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
@@ -189,7 +189,7 @@ static int osp_build(struct cw_config *cfg, char *cat)
 		v = v->next;
 	}
 	if (osp->cacount < 1) {
-		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s-cacert.pem", cw_config_CW_KEY_DIR, cat);
+		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s-cacert.pem", cw_config[CW_KEY_DIR], cat);
 		osp->cacount++;
 	}
 	for (x=0;x<osp->cacount;x++)

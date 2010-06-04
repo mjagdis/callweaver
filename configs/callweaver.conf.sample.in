@@ -11,6 +11,7 @@ cwvarlibdir = @cwvardir@
 cwdbdir = @cwdbdir@
 cwogidir = @cwogidir@
 cwspooldir = @cwspooldir@
+cwmonitordir = @cwspooldir@/monitor
 cwrundir = @cwrundir@
 cwlogdir = @cwlogdir@
 cwsoundsdir = @cwsoundsdir@
@@ -22,13 +23,12 @@ enableunsafeunload = no
 
 ; Changing the following lines may compromise your security.
 [files]
-; cwctl is the name of the local control socket. It is created
-; in cwrundir and Callweaver listens for manager and remote
-; console connections on it.
+; cwsocket is the name of the local control socket. Callweaver
+; listens for manager and remote console connections on it.
 ; IMPORTANT: connections on this socket are preauthenticated
 ; and do not require login as do other manager connections.
 ; See below for options to secure it.
-;cwctl = callweaver.ctl
+;cwsocket = @cwrundir@/callweaver.ctl
 ;
 ; cwctlgroup sets the group for the local control socket.
 ; This may be any group of which cwrunuser is a member

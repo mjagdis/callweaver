@@ -79,7 +79,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define MAX_PACKET_SIZE 8192
 
-extern char cw_config_CW_KEY_DIR[];
 
 static const char tdesc[] = "Distributed Universal Number Discovery (DUNDi)";
 

@@ -40,9 +40,6 @@ int header_simple_table(struct variable *, oid *, size_t *, int, size_t *, Write
 int register_sysORTable(oid *, size_t, const char *);
 int unregister_sysORTable(oid *, size_t);
 
-/* Not defined in header files */
-extern char cw_config_CW_SOCKET[];
-
 /* Forward declaration */
 static void init_callweaver_mib(void);
 
@@ -637,8 +634,8 @@ static u_char *cw_var_Config(struct variable *vp, oid *name, size_t *length,
         long_ret = getpid();
         return (u_char *) &long_ret;
     case CWCONFSOCKET:
-        *var_len = strlen(cw_config_CW_SOCKET);
-        return (u_char *) cw_config_CW_SOCKET;
+        *var_len = strlen(cw_config[CW_SOCKET]);
+        return (u_char *) cw_config[CW_SOCKET];
     default:
         break;
     }

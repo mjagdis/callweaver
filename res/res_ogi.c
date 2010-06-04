@@ -219,7 +219,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 
 static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
-	char tmp[256];
+	struct cw_dynstr tmp = CW_DYNSTR_INIT;
 	pid_t pid;
 	int toast[2];
 	int fromast[2];
@@ -232,8 +232,11 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		return launch_netscript(script, argv, fds, efd, opid);
 	
 	if (script[0] != '/') {
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)cw_config_CW_OGI_DIR, script);
-		script = tmp;
+		cw_dynstr_printf(&tmp, "%s/%s", cw_config[CW_OGI_DIR], script);
+		if (!tmp.error)
+			script = tmp.data;
+		else
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 	}
 	if (access(script,X_OK)!=0) {
                cw_log(CW_LOG_ERROR, "OGI script does not exists or not in executable format: %s\n", script );
@@ -324,6 +327,8 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	}
 
 	*opid = pid;
+
+	cw_dynstr_free(&tmp);
 	return 0;
 		
 }

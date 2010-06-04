@@ -45,6 +45,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #define DEBUG_MUTEX_CANLOG 0
 
+#include "callweaver/dynstr.h"
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
 #include "callweaver/options.h"
@@ -76,9 +77,9 @@ static struct {
 
 struct logchannel {
 	struct mansession *sess;
-	int facility; 			/* syslog facility */
-	char filename[256];		/* Filename */
-	struct logchannel *next;	/* Next channel in chain */
+	int facility;
+	const char *filename;
+	struct logchannel *next;
 };
 
 static struct logchannel *logchannels = NULL;
@@ -295,31 +296,38 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 			return NULL;
 		}
 
-		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
+		chan->filename = strdup(channel);
 		addr.sa.sa_family = AF_INTERNAL;
 
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
-		snprintf(chan->filename, sizeof(chan->filename), "%s%s%s%s%s",
-			(channel[0] != '/' ? cw_config_CW_LOG_DIR : ""),
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+		cw_dynstr_printf(&ds, "%s%s%s%s%s",
+			(channel[0] != '/' ? cw_config[CW_LOG_DIR] : ""),
 			(channel[0] != '/' ? "/" : ""),
 			channel,
 			(cfg_appendhostname ? "." : ""),
 			(cfg_appendhostname ? hostname : ""));
+		if (!ds.error)
+			chan->filename = cw_dynstr_steal(&ds);
+		cw_dynstr_free(&ds);
 		addr.sa.sa_family = AF_PATHNAME;
 	}
 
-	cw_copy_string(addr.sun.sun_path, chan->filename, sizeof(addr.sun.sun_path));
-	logmask = manager_str_to_eventmask(components);
+	if (chan->filename) {
+		cw_copy_string(addr.sun.sun_path, chan->filename, sizeof(addr.sun.sun_path));
+		logmask = manager_str_to_eventmask(components);
 
-	if (!(chan->sess = manager_session_start(logger_manager_session, -1, &addr, NULL, logmask, 0, logmask))) {
+		if ((chan->sess = manager_session_start(logger_manager_session, -1, &addr, NULL, logmask, 0, logmask)))
+			return chan;
+
 		/* Can't log here, since we're called with a lock */
 		fprintf(stderr, "Logger Warning: Unable to start logging to '%s': %s\n", chan->filename, strerror(errno));
-		free(chan);
-		return NULL;
 	}
 
-	return chan;
+	free(chan);
+	return NULL;
 }
 
 void close_logger(void)
@@ -409,7 +417,6 @@ void cw_queue_log(const char *queuename, const char *callid, const char *agent, 
 
 static void queue_log_init(void)
 {
-	char filename[256];
 	int reloaded = 0;
 
 	cw_mutex_lock(&qloglock);
@@ -418,9 +425,14 @@ static void queue_log_init(void)
 		fclose(qlog);
 		qlog = NULL;
 	}
-	snprintf(filename, sizeof(filename), "%s/%s", (char *)cw_config_CW_LOG_DIR, "queue_log");
+
 	if (logfiles.queue_log) {
-		qlog = fopen(filename, "a");
+		struct cw_dynstr filename = CW_DYNSTR_INIT;
+
+		cw_dynstr_printf(&filename, "%s/%s", cw_config[CW_LOG_DIR], "queue_log");
+		if (!filename.error)
+			qlog = fopen(filename.data, "a");
+		cw_dynstr_free(&filename);
 	}
 	cw_mutex_unlock(&qloglock);
 	if (reloaded) 
@@ -431,9 +443,6 @@ static void queue_log_init(void)
 
 int reload_logger(int rotate)
 {
-	char old[CW_CONFIG_MAX_PATH] = "";
-	char new[CW_CONFIG_MAX_PATH];
-	FILE *myf;
 	int x;
 
 	cw_mutex_lock(&loglock);
@@ -443,26 +452,41 @@ int reload_logger(int rotate)
 		rotate = 0;
 	eventlog = NULL;
 
-	mkdir((char *)cw_config_CW_LOG_DIR, 0755);
-	snprintf(old, sizeof(old), "%s/%s", (char *)cw_config_CW_LOG_DIR, EVENTLOG);
+	mkdir(cw_config[CW_LOG_DIR], 0755);
 
 	if (logfiles.event_log) {
+		struct cw_dynstr old = CW_DYNSTR_INIT;
+
+		cw_dynstr_printf(&old, "%s/%s", cw_config[CW_LOG_DIR], EVENTLOG);
+
 		if (rotate) {
-			for (x=0;;x++) {
-				snprintf(new, sizeof(new), "%s/%s.%d", (char *)cw_config_CW_LOG_DIR, EVENTLOG,x);
-				myf = fopen((char *)new, "r");
-				if (myf) 	/* File exists */
-					fclose(myf);
-				else
+			struct cw_dynstr new = CW_DYNSTR_INIT;
+			size_t mark;
+
+			cw_dynstr_printf(&new, "%s/%s.", cw_config[CW_LOG_DIR], EVENTLOG);
+			mark = cw_dynstr_end(&new);
+
+			for (x = 0; ; x++) {
+				struct stat st;
+
+				cw_dynstr_printf(&new, "%d", x);
+
+				if (stat(new.data, &st))
 					break;
+
+				cw_dynstr_truncate(&new, mark);
 			}
 	
-			/* do it */
-			if (rename(old,new))
-				fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old, new);
+			if (!old.error && !new.error) {
+				if (rename(old.data, new.data))
+					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old.data, new.data);
+			}
+
+			cw_dynstr_free(&new);
 		}
 
-		eventlog = fopen(old, "a");
+		eventlog = fopen(old.data, "a");
+		cw_dynstr_free(&old);
 	}
 
 	cw_mutex_unlock(&loglock);
@@ -587,7 +611,7 @@ static struct cw_clicmd rotate_logger_cli = {
 
 int init_logger(void)
 {
-	char tmp[256];
+	int res = -1;
 
 	/* register the relaod logger cli command */
 	cw_cli_register(&reload_logger_cli);
@@ -602,20 +626,25 @@ int init_logger(void)
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
-		mkdir((char *)cw_config_CW_LOG_DIR, 0755);
-		snprintf(tmp, sizeof(tmp), "%s/%s", (char *)cw_config_CW_LOG_DIR, EVENTLOG);
-		eventlog = fopen((char *)tmp, "a");
-		if (eventlog) {
+		struct cw_dynstr fname = CW_DYNSTR_INIT;
+
+		mkdir(cw_config[CW_LOG_DIR], 0755);
+
+		cw_dynstr_printf(&fname, "%s/%s", cw_config[CW_LOG_DIR], EVENTLOG);
+
+		if (!fname.error && (eventlog = fopen(fname.data, "a"))) {
 			cw_log(CW_LOG_EVENT, "Started CallWeaver Event Logger\n");
 			if (option_verbose)
-				cw_verbose("CallWeaver Event Logger Started %s\n",(char *)tmp);
-			return 0;
+				cw_verbose("CallWeaver Event Logger Started %s\n", fname.data);
+			res = 0;
 		} else 
 			cw_log(CW_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	} else
-		return 0;
 
-	return -1;
+		cw_dynstr_free(&fname);
+	} else
+		res = 0;
+
+	return res;
 }
 
 

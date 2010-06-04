@@ -1405,17 +1405,20 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 
 static struct adsi_script *compile_script(char *script)
 {
-	FILE *f;
-	char fn[256];
 	char buf[256];
+	FILE *f;
+	char *fn;
 	char *c;
+	struct adsi_script *scr;
 	int lineno=0;
 	int x, err;
-	struct adsi_script *scr;
+
 	if (script[0] == '/')
-		cw_copy_string(fn, script, sizeof(fn));
-	else
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)cw_config_CW_CONFIG_DIR, script);
+		fn = script;
+	else {
+		fn = alloca(strlen(cw_config[CW_CONFIG_DIR]) + 1 + strlen(script) + 1);
+		sprintf(fn, "%s/%s", cw_config[CW_CONFIG_DIR], script);
+	}
 	f = fopen(fn, "r");
 	if (!f) {
 		cw_log(CW_LOG_WARNING, "Can't open file '%s'\n", fn);

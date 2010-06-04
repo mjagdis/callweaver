@@ -485,7 +485,7 @@ void __cw_mm_init(void)
     cw_cli_register(&show_memory_allocations_cli);
     cw_cli_register(&show_memory_summary_cli);
     
-    snprintf(filename, sizeof(filename), "%s/mmlog", (char *) cw_config_CW_LOG_DIR);
+    snprintf(filename, sizeof(filename), "%s/mmlog", cw_config[CW_LOG_DIR]);
     mmlog = fopen(filename, "a+");
     if (option_verbose)
         cw_verbose("CallWeaver Malloc Debugger Started (see %s))\n", filename);

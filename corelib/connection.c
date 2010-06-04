@@ -56,7 +56,7 @@ static const socklen_t salen[] = {
 };
 
 
-int cw_address_parse(cw_address_t *addr, char *spec)
+int cw_address_parse(cw_address_t *addr, const char *spec)
 {
 	char *port;
 	int portno;

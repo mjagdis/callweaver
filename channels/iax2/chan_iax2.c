@@ -8904,7 +8904,7 @@ static int __unload_module(void)
 
 static int unload_module(void)
 {
-	if (strcasecmp(cw_config_CW_ENABLE_UNSAFE_UNLOAD, "yes")) {
+	if (!option_enableunsafeunload) {
 		cw_log(CW_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
 		return -1;
 	}

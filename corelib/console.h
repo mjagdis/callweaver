@@ -17,5 +17,5 @@
  */
 
 extern void *console(void *data);
-extern int console_oneshot(char *spec, char *cmd);
+extern int console_oneshot(const char *spec, const char *cmd);
 extern void cw_console_cli_init(void);

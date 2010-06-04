@@ -132,7 +132,7 @@ static const char sql_insert_cmd[] =
 	");";
 
 
-static char dbpath[PATH_MAX];
+static char *dbpath;
 
 static pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -345,15 +345,17 @@ static int unload_module(void)
 
 static int reconfig_module(void)
 {
-	int res;
+	int res = -1;
 
 	pthread_mutex_lock(&sqlite3_lock);
 
-	/* FIXME: this should be coming from a conf file */
-	snprintf(dbpath, sizeof(dbpath), "%s/cdr.db", cw_config_CW_LOG_DIR);
+	if ((dbpath = malloc(strlen(cw_config[CW_LOG_DIR]) + sizeof("/cdr.db") - 1 + 1))) {
+		/* FIXME: this should be coming from a conf file */
+		sprintf(dbpath, "%s/cdr.db", cw_config[CW_LOG_DIR]);
 
-	if ((res = dbopen(1)))
-		dbclose();
+		if ((res = dbopen(1)))
+			dbclose();
+	}
 
 	pthread_mutex_unlock(&sqlite3_lock);
 

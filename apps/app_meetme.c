@@ -947,7 +947,7 @@ static int conf_run(struct cw_channel *chan, struct cw_conference *conf, int con
 
     if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER))
     {
-        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",cw_config_CW_SPOOL_DIR,conf->confno,user->user_no);
+        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",cw_config[CW_SPOOL_DIR],conf->confno,user->user_no);
         cw_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
     }
 

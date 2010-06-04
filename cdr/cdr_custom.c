@@ -61,7 +61,7 @@ static const char desc[] = "Customizable Comma Separated Values CDR Backend";
 static pthread_mutex_t csv_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct cw_channel *chan;
-static char csvmaster_path[CW_CONFIG_MAX_PATH];
+static const char *csvmaster_path;
 static char format[1024] = "";
 
 static FILE *csvmaster_fd;
@@ -147,7 +147,7 @@ static int load_config(int reload)
 
 	pthread_mutex_lock(&csv_lock);
 
-	format[0] = csvmaster_path[0] = '\0';
+	format[0] = '\0';
 
 	if ((cfg = cw_config_load("cdr_custom.conf"))) {
 		var = cw_variable_browse(cfg, "mappings");
@@ -157,7 +157,9 @@ static int load_config(int reload)
 					cw_log(CW_LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
 				strncpy(format, var->value, sizeof(format) - 2);
 				strcat(format,"\n");
-				snprintf(csvmaster_path, sizeof(csvmaster_path), "%s/%s/%s", cw_config_CW_LOG_DIR, name, var->name);
+
+				if ((csvmaster_path = malloc(strlen(cw_config[CW_LOG_DIR]) + 1 + strlen(name) + 1 + strlen(var->value) + 1)))
+					sprintf((char *)csvmaster_path, "%s/%s/%s", cw_config[CW_LOG_DIR], name, var->name);
 			} else
 				cw_log(CW_LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
 			if (var->next)
@@ -165,7 +167,8 @@ static int load_config(int reload)
 			var = var->next;
 		}
 		cw_config_destroy(cfg);
-		res = 0;
+		if (csvmaster_path)
+			res = 0;
 	} else {
 		if (reload)
 			cw_log(CW_LOG_WARNING, "Failed to reload configuration file.\n");

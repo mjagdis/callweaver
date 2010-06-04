@@ -2758,7 +2758,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
     char ipaddr[20];
     char regseconds[20] = "0";
     
-    const char *sysname = cw_config_CW_SYSTEM_NAME;
+    const char *sysname = cw_config[CW_SYSTEM_NAME];
     const char *syslabel = NULL;
     time_t nowtime;
 

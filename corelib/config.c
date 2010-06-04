@@ -550,8 +550,8 @@ static int process_text_line(struct cw_config *cfg, struct cw_category **cat, ch
 
 static struct cw_config *config_text_file_load(const char *filename, struct cw_config *cfg)
 {
-	char fn[256];
 	char buf[8192];
+	const char *fn;
 	char *new_buf, *comment_p, *process_buf;
 	FILE *f;
 	int lineno=0;
@@ -559,13 +559,14 @@ static struct cw_config *config_text_file_load(const char *filename, struct cw_c
 	struct cw_category *cat = NULL;
 	int count = 0;
 	struct stat statbuf;
-	
+
 	cat = cw_config_get_current_category(cfg);
 
 	if (filename[0] == '/') {
-		cw_copy_string(fn, filename, sizeof(fn));
+		fn = filename;
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", (char *)cw_config_CW_CONFIG_DIR, filename);
+		fn = alloca(strlen(cw_config[CW_CONFIG_DIR]) + 1 + strlen(filename) + 1);
+		sprintf((char *)fn, "%s/%s", cw_config[CW_CONFIG_DIR], filename);
 	}
 
 #if defined(HAVE_GLOB_H)
@@ -588,7 +589,7 @@ static struct cw_config *config_text_file_load(const char *filename, struct cw_c
 			/* loop over expanded files */
 			int i;
 			for (i=0; i<globbuf.gl_pathc; i++) {
-				cw_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
+				fn = globbuf.gl_pathv[i];
 #endif
 	do {
 		if (stat(fn, &statbuf)) {

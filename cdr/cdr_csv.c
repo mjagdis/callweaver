@@ -60,10 +60,10 @@ static const char desc[] = "Comma Separated Values CDR Backend";
 
 static pthread_mutex_t csv_lock = PTHREAD_MUTEX_INITIALIZER;
 
-static char csvmaster_path[CW_CONFIG_MAX_PATH];
+static const char *csvmaster_path;
 static FILE *csvmaster_fd;
 
-static char csvacct_path[CW_CONFIG_MAX_PATH];
+static char *csvacct_path;
 static int csvacct_offset;
 
 
@@ -249,13 +249,25 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	snprintf(csvmaster_path, sizeof(csvmaster_path), "%s/%s/%s", cw_config_CW_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
-	csvacct_offset = snprintf(csvacct_path, sizeof(csvacct_path), "%s/%s/", cw_config_CW_LOG_DIR, CSV_LOG_DIR);
+	char *mpath;
+	size_t len = strlen(cw_config[CW_LOG_DIR]) + 1 + sizeof(CSV_LOG_DIR) - 1 + 1;
+	int res = -1;
 
-	csvmaster_open();
+	if ((mpath = malloc(len + sizeof(CSV_MASTER) - 1 + 1))) {
+		if ((csvacct_path = malloc(len + 1))) {
+			csvmaster_path = mpath;
+			sprintf(mpath, "%s/%s/%s", cw_config[CW_LOG_DIR], CSV_LOG_DIR, CSV_MASTER);
+			csvacct_offset = sprintf(csvacct_path, "%s/%s/", cw_config[CW_LOG_DIR], CSV_LOG_DIR);
 
-	cw_cdrbe_register(&cdrbe);
-	return 0;
+			csvmaster_open();
+
+			cw_cdrbe_register(&cdrbe);
+			res = 0;
+		} else
+			free(mpath);
+	}
+
+	return res;
 }
 
 

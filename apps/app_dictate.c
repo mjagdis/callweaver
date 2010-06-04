@@ -78,12 +78,12 @@ static int play_and_wait(struct cw_channel *chan, const char *file, const char *
 static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char filein[256];
-	char dftbase[256];
+	struct cw_dynstr path = CW_DYNSTR_INIT;
 	struct cw_flags flags = {0};
-	char *path = NULL, *base;
 	struct cw_filestream *fs;
 	struct cw_frame *f = NULL;
 	struct localuser *u;
+	size_t mark;
 	int ffactor = 320 * 80,
 		res = 0,
 		done = 0,
@@ -92,17 +92,11 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct c
 		samples = 0,
 		speed = 1,
 		digit = 0,
-		len = 0,
-		maxlen = 0,
 		mode = 0;
 
 	CW_UNUSED(result);
 
 	LOCAL_USER_ADD(u);
-	
-	snprintf(dftbase, sizeof(dftbase), "%s/dictate", cw_config_CW_SPOOL_DIR);
-	
-	base = (argc > 0 && argv[0][0] ? argv[0] : dftbase);
 
 	oldr = chan->readformat;
 	if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR)) < 0) {
@@ -113,25 +107,26 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct c
 
 	cw_answer(chan);
 	cw_safe_sleep(chan, 200);
+
+	if (argc > 0 && argv[0][0])
+		cw_dynstr_printf(&path, "%s/", argv[0]);
+	else
+		cw_dynstr_printf(&path, "%s/dictate/", cw_config[CW_SPOOL_DIR]);
+	mark = cw_dynstr_end(&path);
+
+	mkdir(path.data, 0755);
+
 	for(res = 0; !res;) {
 		if (cw_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
 			cw_strlen_zero(filein)) {
 			res = -1;
 			break;
 		}
-		
-		mkdir(base, 0755);
-		len = strlen(base) + strlen(filein) + 2;
-		if (!path || len > maxlen) {
-			path = alloca(len);
-			memset(path, 0, len);
-			maxlen = len;
-		} else {
-			memset(path, 0, maxlen);
-		}
 
-		snprintf(path, len, "%s/%s", base, filein);
-		fs = cw_writefile(path, "wav", NULL, O_CREAT|O_APPEND, 0, 0700);
+		cw_dynstr_truncate(&path, mark);
+		cw_dynstr_printf(&path, "%s", filein);
+
+		fs = cw_writefile(path.data, "wav", NULL, O_CREAT|O_APPEND, 0, 0700);
 		mode = DMODE_PLAY;
 		memset(&flags, 0, sizeof(flags));
 		cw_set_flag(&flags, DFLAG_PAUSE);
@@ -248,7 +243,7 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						if (lastop != DFLAG_PLAY) {
 							lastop = DFLAG_PLAY;
 							cw_stopstream(chan);
-							fs = cw_openstream(chan, path, chan->language);
+							fs = cw_openstream(chan, path.data, chan->language);
 							cw_seekstream(fs, samples, SEEK_SET);
 							chan->stream = NULL;
 						}
@@ -288,7 +283,7 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						} else {
 							oflags |= O_APPEND;
 						}
-						fs = cw_writefile(path, "wav", NULL, oflags, 0, 0700);
+						fs = cw_writefile(path.data, "wav", NULL, oflags, 0, 0700);
 						if (cw_test_flag(&flags, DFLAG_TRUNC)) {
 							cw_seekstream(fs, 0, SEEK_SET);
 							cw_clear_flag(&flags, DFLAG_TRUNC);
@@ -308,6 +303,8 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct c
 	if (oldr) {
 		cw_set_read_format(chan, oldr);
 	}
+
+	cw_dynstr_free(&path);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

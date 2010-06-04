@@ -611,10 +611,12 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct c
 	}
 
 	if (recbase) {
-		char filename[512];
-		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",cw_config_CW_MONITOR_DIR, recbase, time(NULL));
-		if ((args.fd = open(filename, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
-			cw_log(CW_LOG_WARNING, "Cannot open %s for recording\n", filename);
+		struct cw_dynstr filename = CW_DYNSTR_INIT;
+
+		cw_dynstr_printf(&filename, "%s/%s.%ld.raw", cw_config[CW_MONITOR_DIR], recbase, time(NULL));
+		if ((args.fd = open(filename.data, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)
+			cw_log(CW_LOG_WARNING, "Cannot open %s for recording\n", filename.data);
+		cw_dynstr_free(&filename);
 	}
 
 	waitms = 100;

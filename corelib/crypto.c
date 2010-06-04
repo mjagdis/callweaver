@@ -172,7 +172,7 @@ struct cw_key *cw_key_get(const char *kname, int ktype)
 	return key;
 }
 
-static struct cw_key *try_load_key (char *dir, char *fname, int ifd, int ofd, int *not2)
+static struct cw_key *try_load_key(const char *dir, const char *fname, int ifd, int ofd, int *not2)
 {
 	int ktype = 0;
 	char *c = NULL;
@@ -498,14 +498,14 @@ static void crypto_load(int ifd, int ofd)
 	}
 	cw_mutex_unlock(&keylock);
 	/* Load new keys */
-	dir = opendir((char *)cw_config_CW_KEY_DIR);
+	dir = opendir(cw_config[CW_KEY_DIR]);
 	if (dir) {
 		while((ent = readdir(dir))) {
-			try_load_key((char *)cw_config_CW_KEY_DIR, ent->d_name, ifd, ofd, &note);
+			try_load_key(cw_config[CW_KEY_DIR], ent->d_name, ifd, ofd, &note);
 		}
 		closedir(dir);
 	} else
-		cw_log(CW_LOG_WARNING, "Unable to open key directory '%s'\n", (char *)cw_config_CW_KEY_DIR);
+		cw_log(CW_LOG_WARNING, "Unable to open key directory '%s'\n", cw_config[CW_KEY_DIR]);
 	if (note) {
 		cw_log(CW_LOG_NOTICE, "Please run the command 'init keys' to enter the passcodes for the keys\n");
 	}
@@ -572,9 +572,9 @@ static int init_keys(struct cw_dynstr *ds_p, int argc, char *argv[])
 	while(key) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
-			kn = key->fn + strlen(cw_config_CW_KEY_DIR) + 1;
+			kn = key->fn + strlen(cw_config[CW_KEY_DIR]) + 1;
 			cw_copy_string(tmp, kn, sizeof(tmp));
-			try_load_key((char *)cw_config_CW_KEY_DIR, tmp, -1, -1, &ign);
+			try_load_key(cw_config[CW_KEY_DIR], tmp, -1, -1, &ign);
 		}
 		key = key->next;
 	}

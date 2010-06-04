@@ -34,6 +34,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/dynstr.h"
 #include "callweaver/sched.h"
 #include "callweaver/options.h"
 #include "callweaver/channel.h"
@@ -88,20 +89,6 @@ static int file_exists(char *filename)
 	return 0;
 }
 
-static void make_filename(char *buf, int len, char *filename, char *preflang, char *ext)
-{
-	if (filename[0] == '/') {
-		if (preflang && strlen(preflang))
-			snprintf(buf, len, "%s-%s.%s", filename, preflang, ext);
-		else
-			snprintf(buf, len, "%s.%s", filename, ext);
-	} else {
-		if (preflang && strlen(preflang))
-			snprintf(buf, len, "%s/%s/%s-%s.%s", cw_config_CW_VAR_DIR, "images", filename, preflang, ext);
-		else
-			snprintf(buf, len, "%s/%s/%s.%s", cw_config_CW_VAR_DIR, "images", filename, ext);
-	}
-}
 
 struct read_image_args {
 	char *filename;
@@ -112,32 +99,52 @@ struct read_image_args {
 
 static int read_image_try(struct cw_object *obj, void *data)
 {
+	struct cw_dynstr fname = CW_DYNSTR_INIT;
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	struct read_image_args *args = data;
+	int res = 0;
 
 	if (img->format & args->format) {
 		char *tmp = strdupa(img->exts);
 		char *stringp = tmp;
 		char *e;
+		size_t mark;
+
+		if (args->filename[0] != '/')
+			cw_dynstr_printf(&fname, "%s/images/", cw_config[CW_VAR_DIR]);
+
+		if (args->lang && args->lang[0])
+			cw_dynstr_printf(&fname, "%s-%s.", args->filename, args->lang);
+		else
+			cw_dynstr_printf(&fname, "%s.", args->filename);
+
+		mark = cw_dynstr_end(&fname);
 
 		while ((e = strsep(&stringp, "|,"))) {
-			char buf[CW_CONFIG_MAX_PATH];
 			size_t len;
-			make_filename(buf, sizeof(buf), args->filename, args->lang, e);
-			if ((len = file_exists(buf))) {
-				int fd = open(buf, O_RDONLY);
+
+			cw_dynstr_printf(&fname, "%s", e);
+
+			if ((len = file_exists(fname.data))) {
+				int fd = open(fname.data, O_RDONLY);
 				if (fd > -1) {
 					if (!img->identify || img->identify(fd)) {
 						lseek(fd, 0, SEEK_SET);
 						args->frame = img->read_image(fd, len); 
 					} else
-						cw_log(CW_LOG_WARNING, "%s does not appear to be a %s file\n", buf, img->name);
+						cw_log(CW_LOG_WARNING, "%s does not appear to be a %s file\n", fname.data, img->name);
 					close(fd);
 				} else
-					cw_log(CW_LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
-				return 1;
+					cw_log(CW_LOG_WARNING, "Unable to open '%s': %s\n", fname.data, strerror(errno));
+
+				res = 1;
+				break;
 			}
+
+			cw_dynstr_truncate(&fname, mark);
 		}
+
+		cw_dynstr_free(&fname);
 	}
 
 	return 0;

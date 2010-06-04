@@ -120,7 +120,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 		char *channel_name, *p;
 
 		/* Create monitoring directory if needed */
-		if (mkdir(cw_config_CW_MONITOR_DIR, 0770) < 0) {
+		if (mkdir(cw_config[CW_MONITOR_DIR], 0770) < 0) {
 			if (errno != EEXIST) {
 				cw_log(CW_LOG_WARNING, "Unable to create audio monitor directory: %s\n",
 					strerror(errno));
@@ -146,16 +146,16 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 				cw_safe_system(tmp);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
-						directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
+						directory ? "" : cw_config[CW_MONITOR_DIR], fname_base);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
-						directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
+						directory ? "" : cw_config[CW_MONITOR_DIR], fname_base);
 			cw_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
 		} else {
 			cw_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%lu",
-						cw_config_CW_MONITOR_DIR, seq);
+						cw_config[CW_MONITOR_DIR], seq);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%lu",
-						cw_config_CW_MONITOR_DIR, seq);
+						cw_config[CW_MONITOR_DIR], seq);
 			seq++;
 			cw_mutex_unlock(&monitorlock);
 
@@ -164,7 +164,7 @@ static int __cw_monitor_start(	struct cw_channel *chan, const char *format_spec,
 					*p = '-';
 				}
 				snprintf(monitor->filename_base, FILENAME_MAX, "%s/%ld-%s",
-						 cw_config_CW_MONITOR_DIR, time(NULL),channel_name);
+						 cw_config[CW_MONITOR_DIR], time(NULL),channel_name);
 				monitor->filename_changed = 1;
 			} else {
 				cw_log(CW_LOG_ERROR,"Failed to allocate Memory\n");
@@ -270,7 +270,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 			const char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
-			const char *dir = (directory ? "" : cw_config_CW_MONITOR_DIR);
+			const char *dir = (directory ? "" : cw_config[CW_MONITOR_DIR]);
 			struct cw_var_t *execute;
 			struct cw_var_t *execute_args;
 
@@ -338,7 +338,7 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 			cw_safe_system(tmp);
 		}
 
-		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : cw_config_CW_MONITOR_DIR, fname_base);
+		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : cw_config[CW_MONITOR_DIR], fname_base);
 	} else {
 		cw_log(CW_LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}

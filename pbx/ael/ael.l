@@ -62,6 +62,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include "callweaver/dynstr.h"
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
@@ -394,26 +395,25 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 	}
 
 \#include[ \t]+\"[^\"]+\" {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		FILE *in1;
-		char fnamebuf[1024],*p1,*p2;
+		char *p1,*p2;
 		int error = 1;	/* don't use the file if set */
 		p1 = strchr(yytext,'"');
 		p2 = strrchr(yytext,'"');
 		if ( include_stack_index >= MAX_INCLUDE_DEPTH ) {
 			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Includes nested too deeply! Wow!!! How did you do that?\n", my_file, my_lineno, my_col);
-		} else if ( (int)(p2-p1) > sizeof(fnamebuf) - 1 ) {
-			cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Filename is incredibly way too long (%d chars!). Inclusion ignored!\n", my_file, my_lineno, my_col, yyleng - 10);
 		} else {
 			int i;
-			strncpy(fnamebuf, p1, p2-p1);
-			fnamebuf[p2-p1] = 0;
+			cw_dynstr_printf(&ds, "%.*s", (int)(p2 - p1), p1);
 			for (i=0; i<include_stack_index; i++) {
-				if ( !strcmp(fnamebuf,include_stack[i].fname )) {
+				if ( !strcmp(ds.data,include_stack[i].fname )) {
 					cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Nice Try!!! But %s has already been included (perhaps by another file), and would cause an infinite loop of file inclusions!!! Include directive ignored\n",
-						my_file, my_lineno, my_col, fnamebuf);
+						my_file, my_lineno, my_col, ds.data);
 					break;
 				}
 			}
+			cw_dynstr_reset(&ds);
 			if (i == include_stack_index)
 				error = 0;	/* we can use this file */
 		}
@@ -421,28 +421,24 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 			*p2 = 0;
 			/* relative vs. absolute */
 			if (*(p1+1) != '/')
-				snprintf(fnamebuf, sizeof(fnamebuf), "%s/%s", cw_config_CW_CONFIG_DIR, p1 + 1);
+				cw_dynstr_printf(&ds, "%s/%s", cw_config[CW_CONFIG_DIR], p1 + 1);
 			else
-#ifdef STANDALONE
-				strncpy(fnamebuf, p1 + 1, sizeof(fnamebuf) - 1);
-#else
-				cw_copy_string(fnamebuf, p1 + 1, sizeof(fnamebuf));
-#endif
-			in1 = fopen( fnamebuf, "r" );
+				cw_dynstr_printf(&ds, "%s", p1 + 1);
+			in1 = fopen(ds.data, "r");
 			if ( ! in1 ) {
-				cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, fnamebuf);
+				cw_log(CW_LOG_ERROR,"File=%s, line=%d, column=%d: Couldn't find the include file: %s; ignoring the Include directive!\n", my_file, my_lineno, my_col, ds.data);
 			} else {
 				char *buffer;
 				struct stat stats;
-				stat(fnamebuf, &stats);
+				stat(ds.data, &stats);
 				buffer = (char*)malloc(stats.st_size+1);
 				fread(buffer, 1, stats.st_size, in1);
 				buffer[stats.st_size] = 0;
-				cw_log(CW_LOG_NOTICE,"  --Read in included file %s, %d chars\n",fnamebuf, (int)stats.st_size);
+				cw_log(CW_LOG_NOTICE,"  --Read in included file %s, %d chars\n", ds.data, (int)stats.st_size);
 				fclose(in1);
 
 				include_stack[include_stack_index].fname = my_file;
-				my_file = strdup(fnamebuf);
+				my_file = cw_dynstr_steal(&ds);
 				include_stack[include_stack_index].lineno = my_lineno;
 				include_stack[include_stack_index].colno = my_col+yyleng;
 				include_stack[include_stack_index++].bufstate = YY_CURRENT_BUFFER;
@@ -454,6 +450,7 @@ includes	{ STORE_POS; return KW_INCLUDES;}
 				BEGIN(INITIAL);
 			}
 		}
+		cw_dynstr_free(&ds);
 	}
 
 <<EOF>>		{

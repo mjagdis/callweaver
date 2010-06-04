@@ -56,13 +56,13 @@ static const char tdesc[] = "Indicator for whether a voice mailbox has messages 
 
 static int hasvoicemail_internal(const char *context, const char *box, const char *folder)
 {
-	char vmpath[256];
+	struct cw_dynstr vmpath = CW_DYNSTR_INIT;
 	DIR *vmdir;
 	struct dirent *vment;
 	int count=0;
 
-	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)cw_config_CW_SPOOL_DIR, context, box, folder);
-	if ((vmdir = opendir(vmpath))) {
+	cw_dynstr_printf(&vmpath, "%s/voicemail/%s/%s/%s", cw_config[CW_SPOOL_DIR], context, box, folder);
+	if ((vmdir = opendir(vmpath.data))) {
 		/* No matter what the format of VM, there will always be a .txt file for each message. */
 		while ((vment = readdir(vmdir))) {
 			if (!strncmp(vment->d_name + 7, ".txt", 4)) {
@@ -72,6 +72,7 @@ static int hasvoicemail_internal(const char *context, const char *box, const cha
 		}
 		closedir(vmdir);
 	}
+	cw_dynstr_free(&vmpath);
 	return count;
 }
 

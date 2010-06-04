@@ -38,26 +38,38 @@
 
 
 /* provided in callweaver.c */
+enum cw_config_name {
+	CW_CONFIG_DIR,
+	CW_SPOOL_DIR,
+	CW_MONITOR_DIR,
+	CW_VAR_DIR,
+	CW_LOG_DIR,
+	CW_OGI_DIR,
+	CW_DB,
+	CW_DB_DIR,
+	CW_KEY_DIR,
+	CW_PID,
+	CW_SOCKET,
+	CW_RUN_DIR,
+	CW_RUN_USER,
+	CW_RUN_GROUP,
+	CW_CTL_PERMISSIONS,
+	CW_CTL_GROUP,
+	CW_CTL,
+	CW_SYSTEM_NAME,
+	CW_SOUNDS_DIR,
+	CW_MOD_DIR,
+
+	CW_CONFIG_DEPRECATED,
+	CW_CONFIG_UNKNOWN,
+};
+
+extern CW_API_PUBLIC const char *cw_config[];
+
+extern CW_API_PUBLIC enum cw_config_name cw_config_name2key(const char *name);
+
 extern CW_API_PUBLIC int callweaver_main(int argc, char *argv[]);
-extern CW_API_PUBLIC char cw_config_CW_CONFIG_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_CONFIG_FILE[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_SPOOL_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_MONITOR_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_VAR_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_LOG_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_OGI_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_DB[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_DB_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_KEY_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_PID[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_CTL_PERMISSIONS[];
-extern CW_API_PUBLIC char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_CTL[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_SYSTEM_NAME[20];
-extern CW_API_PUBLIC char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
-extern CW_API_PUBLIC char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
+
 
 /* Provided by version.c */
 extern const char cw_version_string[];

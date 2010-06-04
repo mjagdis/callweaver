@@ -232,10 +232,10 @@ static char *build_filename(const char *filename, const char *ext)
 		if (fn)
 			snprintf(fn, fnsize, "%s.%s", filename, type);
 	} else {
-		fnsize = strlen(cw_config_CW_SOUNDS_DIR) + strlen(filename) + strlen(type) + 3;
+		fnsize = strlen(cw_config[CW_SOUNDS_DIR]) + strlen(filename) + strlen(type) + 3;
 		fn = malloc(fnsize);
 		if (fn)
-			snprintf(fn, fnsize, "%s/%s.%s", cw_config_CW_SOUNDS_DIR, filename, type);
+			snprintf(fn, fnsize, "%s/%s.%s", cw_config[CW_SOUNDS_DIR], filename, type);
 	}
 
 	return fn;

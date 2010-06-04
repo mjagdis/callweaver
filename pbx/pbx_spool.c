@@ -56,7 +56,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  */
 
 static const char tdesc[] = "Outgoing Spool Support";
-static char qdir[255];
+
+static const char *qdir;
 
 struct outgoing {
 	char fn[256];
@@ -342,20 +343,23 @@ static int scan_service(char *fn, time_t now, time_t atime)
 
 static __attribute__((noreturn)) void *scan_thread(void *data)
 {
-	CW_UNUSED(data);
-
-	char fn[256];
 	struct stat st;
+	struct cw_dynstr fn = CW_DYNSTR_INIT;
 	DIR *dir;
 	struct dirent *de;
+	size_t mark;
 	time_t last = 0, next = 0, now;
 	int res;
 	int dirstatfailed = 0;
 	int diropenfailed = 0;
 
+	CW_UNUSED(data);
+
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 	for (;;) {
+		pthread_cleanup_push((void (*)(void *))cw_dynstr_free, &fn);
+
 		/* Wait a sec */
 		pthread_testcancel();
 		sleep(1);
@@ -391,29 +395,34 @@ static __attribute__((noreturn)) void *scan_thread(void *data)
 
 		pthread_cleanup_push((void (*)(void *))closedir, dir);
 
+		cw_dynstr_printf(&fn, "%s/", qdir);
+		mark = cw_dynstr_end(&fn);
+
 		while ((de = readdir(dir))) {
 			if (de->d_name[0] == '.')
 				continue;
 
-			snprintf(fn, sizeof(fn), "%s/%s", qdir, de->d_name);
-			if (stat(fn, &st)) {
+			cw_dynstr_truncate(&fn, mark);
+			cw_dynstr_printf(&fn, "%s", de->d_name);
+
+			if (stat(fn.data, &st)) {
 				pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-				cw_log(CW_LOG_ERROR, "Unable to stat %s: %s, deleting\n", fn, strerror(errno));
+				cw_log(CW_LOG_ERROR, "Unable to stat %s: %s, deleting\n", fn.data, strerror(errno));
 				pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				unlink(fn);
+				unlink(fn.data);
 				continue;
 			}
 
 			if (S_ISREG(st.st_mode)) {
 				if (st.st_mtime <= now) {
 					pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-					res = scan_service(fn, now, st.st_atime);
+					res = scan_service(fn.data, now, st.st_atime);
 					if (res > 0) {
 						/* Update next service time */
 						if (!next || (res < next))
 							next = res;
 					} else if (res)
-						cw_log(CW_LOG_ERROR, "Failed to scan service '%s'\n", fn);
+						cw_log(CW_LOG_ERROR, "Failed to scan service '%s'\n", fn.data);
 					pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 				} else {
 					/* Update "next" update if necessary */
@@ -423,7 +432,10 @@ static __attribute__((noreturn)) void *scan_thread(void *data)
 			}
 		}
 
+		cw_dynstr_reset(&fn);
+
 		pthread_cleanup_pop(1);
+		pthread_cleanup_pop(0);
 	}
 }
 
@@ -435,26 +447,37 @@ static int unload_module(void)
 	int res = 0;
 
 	if (!pthread_equal(scan_thread_id, CW_PTHREADT_NULL)) {
-		res |= pthread_cancel(scan_thread_id);
-    		res |= pthread_kill(scan_thread_id, SIGURG);
+		pthread_cancel(scan_thread_id);
+		pthread_kill(scan_thread_id, SIGURG);
+		pthread_join(scan_thread_id, NULL);
 		scan_thread_id = CW_PTHREADT_NULL;
 	}
+
+	if (qdir) {
+		free((char *)qdir);
+		qdir = NULL;
+	}
+
 	return res;
 }
 
 static int load_module(void)
 {
-	snprintf(qdir, sizeof(qdir), "%s/%s", cw_config_CW_SPOOL_DIR, "outgoing");
-	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
-		cw_log(CW_LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
-		return 0;
+	int res = -1;
+
+	if ((qdir = malloc(strlen(cw_config[CW_SPOOL_DIR]) + 1 + sizeof("outgoing") - 1 + 1))) {
+		sprintf((char *)qdir, "%s/%s", cw_config[CW_SPOOL_DIR], "outgoing");
+
+		if (!mkdir(qdir, 0700) || errno == EEXIST) {
+			if (!cw_pthread_create(&scan_thread_id, &global_attr_default, scan_thread, NULL))
+				res = 0;
+			else
+				cw_log(CW_LOG_WARNING, "Unable to create thread :(\n");
+		} else
+			cw_log(CW_LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 	}
 
-	if (cw_pthread_create(&scan_thread_id, &global_attr_detached, scan_thread, NULL) == -1) {
-		cw_log(CW_LOG_WARNING, "Unable to create thread :(\n");
-		return -1;
-	}
-	return 0;
+	return res;
 }
 
 

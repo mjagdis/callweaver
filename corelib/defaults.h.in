@@ -13,6 +13,7 @@
 #define cwsocketfile_default   "@cwsocketfile@"
 #define cwlogdir_default       "@cwlogdir@"
 #define cwspooldir_default     "@cwspooldir@"
+#define cwmonitordir_default   "@cwspooldir@/monitor"
 #define cwdatadir_default      "@cwdatadir@"
 #define cwdocdir_default       "@cwdocdir@"
 #define cwkeydir_default       "@cwkeydir@"

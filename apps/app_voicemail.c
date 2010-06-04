@@ -276,8 +276,6 @@ static char odbc_table[80];
 #define DELETE(a,b,c) (vm_delete(c))
 #endif
 
-static char VM_SPOOL_DIR[CW_CONFIG_MAX_PATH];
-
 static char ext_pass_cmd[128];
 
 static const char tdesc[] = "Comedian Mail (Voicemail System)";
@@ -603,24 +601,26 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 	/*  There's probably a better way of doing this. */
 	/*  That's why I've put the password change in a separate function. */
 	/*  This could also be done with a database function */
-	
-	FILE *configin;
-	FILE *configout;
-	int linenum=0;
 	char inbuf[256];
 	char orig[256];
 	char currcontext[256] ="";
-	char tmpin[CW_CONFIG_MAX_PATH];
-	char tmpout[CW_CONFIG_MAX_PATH];
-	char *user, *pass, *rest, *tempcontext;
 	struct stat statbuf;
+	char *tmpin;
+	char *tmpout;
+	FILE *configin;
+	FILE *configout;
+	char *user, *pass, *rest, *tempcontext;
+	int linenum=0;
 
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
 	tempcontext = NULL;
-	snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", cw_config_CW_CONFIG_DIR);
-	snprintf(tmpout, sizeof(tmpout), "%s/voicemail.conf.new", cw_config_CW_CONFIG_DIR);
+	linenum = strlen(cw_config[CW_CONFIG_DIR]);
+	tmpin = alloca(linenum + sizeof("/voicemail.conf"));
+	tmpout = alloca(linenum + sizeof("/voicemail.conf.new"));
+	sprintf(tmpin, "%s/voicemail.conf", cw_config[CW_CONFIG_DIR]);
+	sprintf(tmpout, "%s/voicemail.conf.new", cw_config[CW_CONFIG_DIR]);
 	configin = fopen(tmpin,"r");
 	if (configin)
 		configout = fopen(tmpout,"w+");
@@ -635,7 +635,7 @@ static void vm_change_password(struct cw_vm_user *vmu, const char *newpassword)
 			fclose(configout);
 		else
 			cw_log(CW_LOG_WARNING, "Warning: Unable to open '%s' for writing: %s\n", tmpout, strerror(errno));
-			return;
+		return;
 	}
 
 	while (!feof(configin)) {
@@ -719,7 +719,7 @@ static void vm_change_password_shell(struct cw_vm_user *vmu, char *newpassword)
 
 static int make_dir(char *dest, int len, const char *context, const char *ext, const char *mailbox)
 {
-	return snprintf(dest, len, "%s%s/%s/%s", VM_SPOOL_DIR, context, ext, mailbox);
+	return snprintf(dest, len, "%s/voicemail/%s/%s/%s", cw_config[CW_SPOOL_DIR], context, ext, mailbox);
 }
 
 static int make_file(char *dest, int len, char *dir, int num)
@@ -1837,7 +1837,7 @@ static int invent_message(struct cw_channel *chan, char *context, char *ext, int
 {
 	int res;
 	char fn[256];
-	snprintf(fn, sizeof(fn), "%s%s/%s/greet", VM_SPOOL_DIR, context, ext);
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet", cw_config[CW_SPOOL_DIR], context, ext);
 	RETRIEVE(fn, -1);
 	if (cw_fileexists(fn, NULL, NULL)) {
 		res = cw_streamfile(chan, fn, chan->language);
@@ -2118,7 +2118,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		context = cur + 1;
 	} else
 		context = "default";
-	snprintf(fn, sizeof(fn), "%s/%s/%s/%s", VM_SPOOL_DIR, context, tmp, folder);
+	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/%s", cw_config[CW_SPOOL_DIR], context, tmp, folder);
 	dir = opendir(fn);
 	if (!dir)
 		return 0;
@@ -2174,7 +2174,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	} else
 		context = "default";
 	if (newmsgs) {
-		snprintf(fn, sizeof(fn), "%s/%s/%s/INBOX", VM_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/INBOX", cw_config[CW_SPOOL_DIR], context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -2187,7 +2187,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 	}
 	if (oldmsgs) {
-		snprintf(fn, sizeof(fn), "%s/%s/%s/Old", VM_SPOOL_DIR, context, tmp);
+		snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/Old", cw_config[CW_SPOOL_DIR], context, tmp);
 		dir = opendir(fn);
 		if (dir) {
 			while ((de = readdir(dir))) {
@@ -2328,10 +2328,10 @@ static int leave_voicemail(struct cw_channel *chan, char *ext, struct leave_vm_o
 	else
 		cw_copy_string(ext_context, vmu->context, sizeof(ext_context));
 	if (cw_test_flag(options, OPT_BUSY_GREETING))
-		snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
+		snprintf(prefile, sizeof(prefile), "%s/voicemail/%s/%s/busy", cw_config[CW_SPOOL_DIR], vmu->context, ext);
 	else if (cw_test_flag(options, OPT_UNAVAIL_GREETING))
-		snprintf(prefile, sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, ext);
-	snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
+		snprintf(prefile, sizeof(prefile), "%s/voicemail/%s/%s/unavail", cw_config[CW_SPOOL_DIR], vmu->context, ext);
+	snprintf(tempfile, sizeof(tempfile), "%s/voicemail/%s/%s/temp", cw_config[CW_SPOOL_DIR], vmu->context, ext);
 	RETRIEVE(tempfile, -1);
 	if (cw_fileexists(tempfile, NULL, NULL))
 		cw_copy_string(prefile, tempfile, sizeof(prefile));
@@ -3418,7 +3418,7 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 				/* if (cw_play_and_wait(chan, "vm-savedto"))
 					break;
 				*/
-				snprintf(todir, sizeof(todir), "%s%s/%s/INBOX",  VM_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
+				snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  cw_config[CW_SPOOL_DIR], vmtmp->context, vmtmp->mailbox);
 				snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
 				snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
 				cw_log(CW_LOG_DEBUG, "%s", sys);
@@ -3628,7 +3628,7 @@ static int play_message_callerid(struct cw_channel *chan, struct vm_state *vms, 
 		}
 		if (i != MAX_NUM_CID_CONTEXTS){ /* internal context? */
 			if (!res) {
-				snprintf(prefile, sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, context, callerid);
+				snprintf(prefile, sizeof(prefile), "%s/voicemail/%s/%s/greet", cw_config[CW_SPOOL_DIR], context, callerid);
 				if (!cw_strlen_zero(prefile)) {
 				/* See if we can find a recorded name for this person instead of their extension number */
 					if (cw_fileexists(prefile, NULL, NULL)) {
@@ -4575,7 +4575,7 @@ static int vm_newuser(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm
 
 	/* If forcename is set, have the user record their name */	
 	if (cw_test_flag(vmu, VM_FORCENAME)) {
-		snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/greet", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
@@ -4583,11 +4583,11 @@ static int vm_newuser(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm
 
 	/* If forcegreetings is set, have the user record their greetings */
 	if (cw_test_flag(vmu, VM_FORCEGREET)) {
-		snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/unavail", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
-		snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
+		snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/busy", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 		cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 		if (cmd < 0 || cmd == 't' || cmd == '#')
 			return cmd;
@@ -4621,15 +4621,15 @@ static int vm_options(struct cw_channel *chan, struct cw_vm_user *vmu, struct vm
 			retries = 0;
 		switch (cmd) {
 		case '1':
-			snprintf(prefile,sizeof(prefile), "%s%s/%s/unavail", VM_SPOOL_DIR, vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/unavail", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-unv",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 			break;
 		case '2': 
-			snprintf(prefile,sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/busy", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-busy",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 			break;
 		case '3': 
-			snprintf(prefile,sizeof(prefile), "%s%s/%s/greet", VM_SPOOL_DIR, vmu->context, vms->username);
+			snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/greet", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 			break;
 		case '4': 
@@ -4711,7 +4711,7 @@ static int vm_tempgreeting(struct cw_channel *chan, struct cw_vm_user *vmu, stru
 		bytes += adsi_voice_mode(buf + bytes, 0);
 		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 	}
-	snprintf(prefile,sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+	snprintf(prefile,sizeof(prefile), "%s/voicemail/%s/%s/temp", cw_config[CW_SPOOL_DIR], vmu->context, vms->username);
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
@@ -5083,9 +5083,9 @@ static int vm_execmain(struct cw_channel *chan, int argc, char **argv, struct cw
 	/* Set language from config to override channel language */
 	if (!cw_strlen_zero(vmu->language))
 		cw_copy_string(chan->language, vmu->language, sizeof(chan->language));
-	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
+	snprintf(vms.curdir, sizeof(vms.curdir), "%s/voicemail/%s", cw_config[CW_SPOOL_DIR], vmu->context);
 	mkdir(vms.curdir, 0700);
-	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s/%s", VM_SPOOL_DIR, vmu->context, vms.username);
+	snprintf(vms.curdir, sizeof(vms.curdir), "%s/voicemail/%s/%s", cw_config[CW_SPOOL_DIR], vmu->context, vms.username);
 	mkdir(vms.curdir, 0700);
 	/* Retrieve old and new message counts */
 	res = open_mailbox(&vms, vmu, 1);
@@ -6154,7 +6154,7 @@ static int unload_module(void)
 {
 	int res = 0;
 
-	if (strcasecmp(cw_config_CW_ENABLE_UNSAFE_UNLOAD, "yes")) {
+	if (!option_enableunsafeunload) {
 		cw_log(CW_LOG_WARNING, "Unload disabled for this module due to instability. To allow this, set enableunsafeunload => yes in callweaver.conf.\n");
 		return -1;
 	}
@@ -6184,9 +6184,6 @@ static int load_module(void)
 
 	cw_cli_register(&show_voicemail_users_cli);
 	cw_cli_register(&show_voicemail_zones_cli);
-
-	/* compute the location of the voicemail spool directory */
-	snprintf(VM_SPOOL_DIR, sizeof(VM_SPOOL_DIR), "%s/voicemail/", cw_config_CW_SPOOL_DIR);
 
 	cw_install_vm_functions(has_voicemail, messagecount);
 

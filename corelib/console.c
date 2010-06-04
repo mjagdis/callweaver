@@ -684,7 +684,7 @@ static void console_handler(char *s)
 }
 
 
-static int console_connect(char *spec, int events, time_t timelimit)
+static int console_connect(const char *spec, int events, time_t timelimit)
 {
 	cw_address_t addr;
 	socklen_t salen;
@@ -897,7 +897,7 @@ void *console(void *data)
 }
 
 
-int console_oneshot(char *spec, char *cmd)
+int console_oneshot(const char *spec, const char *cmd)
 {
 	struct iovec iov[3];
 	char c;
@@ -909,7 +909,7 @@ int console_oneshot(char *spec, char *cmd)
 
 		iov[0].iov_base = (void *)"Action: Command\r\nCommand: ";
 		iov[0].iov_len = sizeof("Action: Command\r\nCommand: ") - 1;
-		iov[1].iov_base = cmd;
+		iov[1].iov_base = (void *)cmd;
 		iov[1].iov_len = strlen(cmd);
 		iov[2].iov_base = (void *)"\r\n\r\n";
 		iov[2].iov_len = sizeof("\r\n\r\n") - 1;

@@ -42,43 +42,16 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 /* function_config_read()  */
 static int function_config_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	static const struct {
-		const char *key, *value;
-	} keytab[] = {
-#if 0
-		/* These doesn't seem to be available outside callweaver.c */
-		{ "cwrunuser", cw_config_CW_RUN_USER },
-		{ "cwrungroup", cw_config_CW_RUN_GROUP },
-		{ "cwmoddir", cw_config_CW_MOD_DIR },
-#endif
-		{ "cwctlpermissions", cw_config_CW_CTL_PERMISSIONS },
-		{ "cwctlgroup", cw_config_CW_CTL_GROUP },
-		{ "cwctl", cw_config_CW_CTL },
-		{ "cwdb", cw_config_CW_DB },
-		{ "cwetcdir", cw_config_CW_CONFIG_DIR },
-		{ "cwconfigdir", cw_config_CW_CONFIG_DIR },
-		{ "cwspooldir", cw_config_CW_SPOOL_DIR },
-		{ "cwvarlibdir", cw_config_CW_VAR_DIR },
-		{ "cwvardir", cw_config_CW_VAR_DIR },
-		{ "cwdbdir", cw_config_CW_DB_DIR },
-		{ "cwlogdir", cw_config_CW_LOG_DIR },
-		{ "cwogidir", cw_config_CW_OGI_DIR },
-		{ "cwsoundsdir", cw_config_CW_SOUNDS_DIR },
-		{ "cwrundir", cw_config_CW_RUN_DIR },
-		{ "systemname", cw_config_CW_SYSTEM_NAME },
-		{ "enableunsafeunload", cw_config_CW_ENABLE_UNSAFE_UNLOAD },
-	};
 	int i;
 
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
 
 	if (result) {
-		for (i = 0; i < arraysize(keytab); i++) {
-			if (!strcasecmp(keytab[i].key, argv[0])) {
-				cw_dynstr_printf(result, "%s", keytab[i].value);
-				return 0;
-			}
+		i = cw_config_name2key(argv[0]);
+		if (i != CW_CONFIG_UNKNOWN && i != CW_CONFIG_DEPRECATED) {
+			cw_dynstr_printf(result, "%s", cw_config[i]);
+			return 0;
 		}
 		cw_log(CW_LOG_ERROR, "Config setting '%s' not known.\n", argv[0]);
 		return -1;

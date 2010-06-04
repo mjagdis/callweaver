@@ -145,35 +145,27 @@ static char *convert(char *lastname)
  *           '*' for skipped entry from directory
  */
 static int play_mailbox_owner(struct cw_channel *chan, const char *context, const char *dialcontext, const char *ext, const char *name) {
+	struct cw_dynstr fn = CW_DYNSTR_INIT;
 	int res = 0;
 	int loop = 3;
-	char fn[256];
-	char fn2[256];
 
 	/* Check for the VoiceMail2 greeting first */
-	snprintf(fn, sizeof(fn), "%s/voicemail/%s/%s/greet",
-		(char *)cw_config_CW_SPOOL_DIR, context, ext);
+	cw_dynstr_printf(&fn, "%s/voicemail/%s/%s/greet", cw_config[CW_SPOOL_DIR], context, ext);
 
-	/* Otherwise, check for an old-style Voicemail greeting */
-	snprintf(fn2, sizeof(fn2), "%s/vm/%s/greet",
-		(char *)cw_config_CW_SPOOL_DIR, ext);
-
-	if (cw_fileexists(fn, NULL, chan->language)) {
-		res = cw_streamfile(chan, fn, chan->language);
-		if (!res) {
-			res = cw_waitstream(chan, CW_DIGIT_ANY);
-		}
-		cw_stopstream(chan);
-	} else if (cw_fileexists(fn2, NULL, chan->language)) {
-		res = cw_streamfile(chan, fn2, chan->language);
-		if (!res) {
-			res = cw_waitstream(chan, CW_DIGIT_ANY);
-		}
-		cw_stopstream(chan);
-	} else {
-		res = cw_say_character_str(chan, !cw_strlen_zero(name) ? name : ext,
-					CW_DIGIT_ANY, chan->language);
+	if (!(res = cw_fileexists(fn.data, NULL, chan->language))) {
+		/* Otherwise, check for an old-style Voicemail greeting */
+		cw_dynstr_printf(&fn, "%s/vm/%s/greet", cw_config[CW_SPOOL_DIR], ext);
+		res = cw_fileexists(fn.data, NULL, chan->language);
 	}
+
+	if (res) {
+		if (!(res = cw_streamfile(chan, fn.data, chan->language)))
+			res = cw_waitstream(chan, CW_DIGIT_ANY);
+		cw_stopstream(chan);
+	} else
+		res = cw_say_character_str(chan, (!cw_strlen_zero(name) ? name : ext), CW_DIGIT_ANY, chan->language);
+
+	cw_dynstr_free(&fn);
 
 	while (loop) {
 		if (!res) {

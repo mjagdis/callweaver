@@ -38,6 +38,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
 
+#include "callweaver/dynstr.h"
 #include "callweaver/lock.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
@@ -58,8 +59,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static volatile uint8_t message_ref;    /* arbitary message ref */
 static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
 
-static char log_file[255];
-static char spool_dir[255];
+static const char *log_file;
+static const char *spool_dir;
 
 static void *sms_app;
 static const char sms_name[] = "SMS";
@@ -1124,20 +1125,23 @@ static void sms_readfile(sms_t *h, char *fn)
 /*! \brief white a received text message to a file */
 static void sms_writefile(sms_t *h)
 {
-    char fn[200] = "";
-    char fn2[200] = "";
+    struct cw_dynstr fn = CW_DYNSTR_INIT;
+    struct cw_dynstr fn2 = CW_DYNSTR_INIT;
     FILE *o;
     unsigned int p;
     uint16_t v;
 
-    cw_copy_string(fn, spool_dir, sizeof(fn));
-    mkdir(fn, 0777);            /* ensure it exists */
-    snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
-    mkdir(fn, 0777);            /* ensure it exists */
-    cw_copy_string(fn2, fn, sizeof(fn2));
-    snprintf(fn2 + strlen(fn2), sizeof(fn2) - strlen(fn2), "/%s.%s-%u", h->queue, isodate (h->scts), seq++);
-    snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/.%s", fn2 + strlen(fn) + 1);
-    o = fopen(fn, "w");
+    cw_dynstr_printf(&fn, "%s", spool_dir);
+    mkdir(fn.data, 0777);            /* ensure it exists */
+
+    cw_dynstr_printf(&fn, "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
+    mkdir(fn.data, 0777);            /* ensure it exists */
+
+    cw_dynstr_printf(&fn2, "%s", fn.data);
+    cw_dynstr_printf(&fn2, "/%s.%s-%u", h->queue, isodate (h->scts), seq++);
+    cw_dynstr_printf(&fn, "/.%s", fn2.data + fn.used + 1);
+
+    o = fopen(fn.data, "w");
     if (o)
     {
         if (h->oa[0])
@@ -1215,11 +1219,13 @@ static void sms_writefile(sms_t *h)
         if (h->rp)
             fprintf(o, "rp=1\n");
         fclose(o);
-        if (rename(fn, fn2))
-            unlink(fn);
+        if (rename(fn.data, fn2.data))
+            unlink(fn.data);
         else
-            cw_log(CW_LOG_DEBUG, "Received to %s\n", fn2);
+            cw_log(CW_LOG_DEBUG, "Received to %s\n", fn2.data);
     }
+    cw_dynstr_free(&fn);
+    cw_dynstr_free(&fn2);
 }
 
 /*! \brief read dir skipping dot files... */
@@ -1331,29 +1337,30 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
 /*! \brief find and fill in next message, or send a REL if none waiting */
 static void sms_nextoutgoing(sms_t *h)
 {
-    char fn[100 + NAME_MAX] = "";
-    DIR *d;
-    char more = 0;
     uint8_t tx_msg[256];
+    struct cw_dynstr fn = CW_DYNSTR_INIT;
+    DIR *d;
     struct dirent *f;
+    char more = 0;
 
-    cw_copy_string(fn, spool_dir, sizeof(fn));
-    mkdir(fn, 0777);                /* ensure it exists */
+    cw_dynstr_printf(&fn, "%s", spool_dir);
+    mkdir(fn.data, 0777);                /* ensure it exists */
     h->rx = 0;                      /* outgoing message */
-    snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", h->smsc  ?  "mttx"  :  "motx");
-    mkdir(fn, 0777);                /* ensure it exists */
-    d = opendir(fn);
+    cw_dynstr_printf(&fn, "/%s", (h->smsc ? "mttx" : "motx"));
+    mkdir(fn.data, 0777);                /* ensure it exists */
+    d = opendir(fn.data);
     if (d)
     {
         if ((f = readdirqueue(d, h->queue)))
         {
-            snprintf(fn + strlen(fn), sizeof(fn) - strlen(fn), "/%s", f->d_name);
-            sms_readfile(h, fn);
+            cw_dynstr_printf(&fn, "/%s", f->d_name);
+            sms_readfile(h, fn.data);
             if (readdirqueue(d, h->queue))
                 more = 1;              /* more to send */
         }
         closedir(d);
     }
+    cw_dynstr_free(&fn);
     if (h->da[0]  ||  h->oa[0])             /* message to send */
     {
         uint8_t p = 2;
@@ -1916,13 +1923,25 @@ static int unload_module(void)
 
 static int load_module(void)
 {
+    char *sdir;
+    int res = -1;
+
     if (!smsgen.is_initialized)
         cw_object_init_obj(&smsgen.obj, CW_OBJECT_CURRENT_MODULE, 0);
 
-    snprintf(log_file, sizeof(log_file), "%s/sms", cw_config_CW_LOG_DIR);
-    snprintf(spool_dir, sizeof(spool_dir), "%s/sms", cw_config_CW_SPOOL_DIR);
-    sms_app = cw_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
-    return 0;
+    if ((sdir = malloc(strlen(cw_config[CW_SPOOL_DIR]) + sizeof("/sms") - 1 + 1))) {
+        if ((log_file = malloc(strlen(cw_config[CW_LOG_DIR]) + sizeof("/sms") - 1 + 1))) {
+            sprintf(sdir, "%s/sms", cw_config[CW_SPOOL_DIR]);
+            spool_dir = sdir;
+            sprintf((char *)log_file, "%s/sms", cw_config[CW_LOG_DIR]);
+
+            sms_app = cw_register_function(sms_name, sms_exec, sms_synopsis, sms_syntax, sms_descrip);
+            res = 0;
+        } else
+            free(sdir);
+    }
+
+    return res;
 }
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, sms_synopsis)

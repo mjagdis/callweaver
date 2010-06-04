@@ -684,10 +684,10 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 			chan->priority = 1;
 
 //			snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
-			if (cw_strlen_zero(cw_config_CW_SYSTEM_NAME))
+			if (cw_strlen_zero(cw_config[CW_SYSTEM_NAME]))
 				snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
 			else
-				snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%s-%li.%d", cw_config_CW_SYSTEM_NAME, (long) time(NULL), uniqueint++);
+				snprintf(chan->uniqueid, sizeof(chan->uniqueid), "%s-%li.%d", cw_config[CW_SYSTEM_NAME], (long) time(NULL), uniqueint++);
 
 			cw_mutex_init(&chan->lock);
 			cw_var_registry_init(&chan->vars, 1024);

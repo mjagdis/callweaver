@@ -66,7 +66,7 @@ struct cw_connection {
 
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
-extern CW_API_PUBLIC int cw_address_parse(cw_address_t *addr, char *spec);
+extern CW_API_PUBLIC int cw_address_parse(cw_address_t *addr, const char *spec);
 extern CW_API_PUBLIC int cw_address_print(char *buf, ssize_t buflen, const cw_address_t *addr);
 
 extern CW_API_PUBLIC struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, struct cw_object *pvt_obj, int domain);

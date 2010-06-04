@@ -170,13 +170,13 @@ int option_initcrypto=0;
 int option_nocolor = 0;
 int option_dumpcore = 0;
 int option_cache_record_files = 0;
-int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
 int option_maxcalls = 0;
 double option_maxload = 0.0;
 int option_dontwarn = 0;
 int option_priority_jumping = 1;
+int option_enableunsafeunload = 0;
 int fully_booted = 0;
 char record_cache_dir[CW_CACHE_DIR_LEN] = cwtmpdir_default;
 char debug_filename[CW_FILENAME_MAX] = "";
@@ -191,27 +191,56 @@ time_t cw_lastreloadtime;
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
 
-char cw_config_CW_CONFIG_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_CONFIG_FILE[CW_CONFIG_MAX_PATH];
-char cw_config_CW_SPOOL_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_MONITOR_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_VAR_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_LOG_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_OGI_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_DB[CW_CONFIG_MAX_PATH];
-char cw_config_CW_DB_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_KEY_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_PID[CW_CONFIG_MAX_PATH];
-char cw_config_CW_SOCKET[CW_CONFIG_MAX_PATH];
-char cw_config_CW_RUN_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_RUN_USER[CW_CONFIG_MAX_PATH];
-char cw_config_CW_RUN_GROUP[CW_CONFIG_MAX_PATH];
-char cw_config_CW_CTL_PERMISSIONS[6] = "660";
-char cw_config_CW_CTL_GROUP[CW_CONFIG_MAX_PATH];
-char cw_config_CW_CTL[CW_CONFIG_MAX_PATH] = "callweaver.ctl";
-char cw_config_CW_SYSTEM_NAME[20];
-char cw_config_CW_SOUNDS_DIR[CW_CONFIG_MAX_PATH];
-char cw_config_CW_ENABLE_UNSAFE_UNLOAD[20];
+static struct {
+	const char *key;
+	enum cw_config_name value;
+} cw_config_name_map[] = {
+	{ "cwetcdir",           CW_CONFIG_DIR        },
+	{ "cwconfigdir",        CW_CONFIG_DIR        },
+	{ "cwspooldir",         CW_SPOOL_DIR         },
+	{ "cwmonitordir",       CW_MONITOR_DIR       },
+	{ "cwvarlibdir",        CW_VAR_DIR           },
+	{ "cwvardir",           CW_VAR_DIR           },
+	{ "cwlogdir",           CW_LOG_DIR           },
+	{ "cwogidir",           CW_OGI_DIR           },
+	{ "cwdb",               CW_DB                },
+	{ "cwdbdir",            CW_DB_DIR            },
+	{ "cwkeydir",           CW_KEY_DIR           },
+	{ "cwpid",              CW_PID               },
+	{ "cwsocket",           CW_SOCKET            },
+	{ "cwrundir",           CW_RUN_DIR           },
+	{ "cwrunuser",          CW_RUN_USER          },
+	{ "cwrungroup",         CW_RUN_GROUP         },
+	{ "cwctlpermissions",   CW_CTL_PERMISSIONS   },
+	{ "cwctlowner",         CW_CONFIG_DEPRECATED },
+	{ "cwctlgroup",         CW_CTL_GROUP         },
+	{ "cwctl",              CW_CTL               },
+	{ "systemname",         CW_SYSTEM_NAME       },
+	{ "cwsoundsdir",        CW_SOUNDS_DIR        },
+	{ "cwmoddir",           CW_MOD_DIR           },
+};
+const char *cw_config[] = {
+	[CW_CONFIG_DIR]      = cwconfdir_default,
+	[CW_SPOOL_DIR]       = cwspooldir_default,
+	[CW_MONITOR_DIR]     = cwmonitordir_default,
+	[CW_VAR_DIR]         = cwvardir_default,
+	[CW_LOG_DIR]         = cwlogdir_default,
+	[CW_OGI_DIR]         = cwogidir_default,
+	[CW_DB]              = cwdbfile_default,
+	[CW_DB_DIR]          = cwdbdir_default,
+	[CW_KEY_DIR]         = cwkeydir_default,
+	[CW_PID]             = cwpidfile_default,
+	[CW_SOCKET]          = cwsocketfile_default,
+	[CW_RUN_DIR]         = cwrundir_default,
+	[CW_RUN_USER]        = cwrunuser_default,
+	[CW_RUN_GROUP]       = cwrungroup_default,
+	[CW_CTL_PERMISSIONS] = "660",
+	[CW_CTL_GROUP]       = "",
+	[CW_CTL]             = "callweaver.ctl",
+	[CW_SYSTEM_NAME]     = "",
+	[CW_SOUNDS_DIR]      = cwsoundsdir_default,
+	[CW_MOD_DIR]         = cwmoddir_default,
+};
 
 static char **_argv;
 static int restart = 0;
@@ -404,14 +433,14 @@ static void lockfile_sighandler(int sig)
 }
 
 
-static void lockfile_release(char *lockfile)
+static void lockfile_release(const char *lockfile)
 {
 	if (unlink(lockfile))
 		fprintf(stderr, "lockfile_release: %s: %s", lockfile, strerror(errno));
 }
 
 
-static int lockfile_rewrite(char *lockfile, pid_t pid)
+static int lockfile_rewrite(const char *lockfile, pid_t pid)
 {
 	char buf[UINT_MAX_LEN + 1];
 	int d, len;
@@ -433,7 +462,7 @@ static int lockfile_rewrite(char *lockfile, pid_t pid)
 }
 
 
-static int lockfile_claim(char *lockfile)
+static int lockfile_claim(const char *lockfile)
 {
 	char buf[UINT_MAX_LEN + 1];
 	struct sigaction oldsa[3];
@@ -582,7 +611,7 @@ static void quit_handler(void *data)
 
 	if (!pthread_equal(lthread, CW_PTHREADT_NULL)) {
 		pthread_cancel(lthread);
-		unlink(cw_config_CW_SOCKET);
+		unlink(cw_config[CW_SOCKET]);
 	}
 
 	if (option_verbose || option_console || option_nofork)
@@ -599,7 +628,7 @@ static void quit_handler(void *data)
 		pthread_join(tid, NULL);
 	}
 
-	lockfile_release(cw_config_CW_PID);
+	lockfile_release(cw_config[CW_PID]);
 
 	if (local_restart) {
 		int x;
@@ -1208,96 +1237,89 @@ static int show_cli_help(void) {
 	return 0;
 }
 
-static void cw_readconfig(void) {
+
+enum cw_config_name cw_config_name2key(const char *name)
+{
+	enum cw_config_name res;
+	int i;
+
+	res = CW_CONFIG_UNKNOWN;
+	for (i = 0; i < arraysize(cw_config_name_map); i++) {
+		if (!strcasecmp(name, cw_config_name_map[i].key)) {
+			res = cw_config_name_map[i].value;
+			break;
+		}
+	}
+
+	return res;
+}
+
+
+static void cw_readconfig(const char *config)
+{
+	static const char *section[] = { "general", "files", "directories" };
+	const char *orig[arraysize(cw_config)];
 	struct cw_config *cfg;
 	struct cw_variable *v;
-	char *config = cw_config_CW_CONFIG_FILE;
+	int i;
 
-	if (option_overrideconfig == 1) {
-		cfg = cw_config_load(cw_config_CW_CONFIG_FILE);
-		if (!cfg)
-			cw_log(CW_LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", cw_config_CW_CONFIG_FILE);
-	} else {
-		cfg = cw_config_load(config);
+	if (!(cfg = cw_config_load(config))) {
+		cw_log(CW_LOG_ERROR, "Unable to open master config file '%s'\n", config);
+		exit(EX_NOINPUT);
 	}
 
-	/* init with buildtime config */
+	memcpy(orig, cw_config, sizeof(cw_config));
 
-	cw_copy_string(cw_config_CW_RUN_USER, cwrunuser_default, sizeof(cw_config_CW_RUN_USER));
-	cw_copy_string(cw_config_CW_RUN_GROUP, cwrungroup_default, sizeof(cw_config_CW_RUN_GROUP));
-	cw_copy_string(cw_config_CW_CONFIG_DIR, cwconfdir_default, sizeof(cw_config_CW_CONFIG_DIR));
-	cw_copy_string(cw_config_CW_SPOOL_DIR, cwspooldir_default, sizeof(cw_config_CW_SPOOL_DIR));
-	lt_dlsetsearchpath(cwmoddir_default);
- 	snprintf(cw_config_CW_MONITOR_DIR, sizeof(cw_config_CW_MONITOR_DIR) - 1, "%s/monitor", cw_config_CW_SPOOL_DIR);
-	cw_copy_string(cw_config_CW_VAR_DIR, cwvardir_default, sizeof(cw_config_CW_VAR_DIR));
-	cw_copy_string(cw_config_CW_LOG_DIR, cwlogdir_default, sizeof(cw_config_CW_LOG_DIR));
-	cw_copy_string(cw_config_CW_OGI_DIR, cwogidir_default, sizeof(cw_config_CW_OGI_DIR));
-	cw_copy_string(cw_config_CW_DB, cwdbfile_default, sizeof(cw_config_CW_DB));
-	cw_copy_string(cw_config_CW_DB_DIR, cwdbdir_default, sizeof(cw_config_CW_DB_DIR));
-	cw_copy_string(cw_config_CW_KEY_DIR, cwkeydir_default, sizeof(cw_config_CW_KEY_DIR));
-	cw_copy_string(cw_config_CW_PID, cwpidfile_default, sizeof(cw_config_CW_PID));
-	cw_copy_string(cw_config_CW_SOCKET, cwsocketfile_default, sizeof(cw_config_CW_SOCKET));
-	cw_copy_string(cw_config_CW_RUN_DIR, cwrundir_default, sizeof(cw_config_CW_RUN_DIR));
-	cw_copy_string(cw_config_CW_SOUNDS_DIR, cwsoundsdir_default, sizeof(cw_config_CW_SOUNDS_DIR));
-
-	/* no callweaver.conf? no problem, use buildtime config! */
-	if (!cfg) {
-		return;
-	}
-	v = cw_variable_browse(cfg, "general");
-	while (v) {
-		if (!strcasecmp(v->name, "cwrunuser")) {
-			cw_copy_string(cw_config_CW_RUN_USER, v->value, sizeof(cw_config_CW_RUN_USER));
-		} else if (!strcasecmp(v->name, "cwrungroup")) {
-			cw_copy_string(cw_config_CW_RUN_GROUP, v->value, sizeof(cw_config_CW_RUN_GROUP));
+	/* Note that we allow these settings to appear in any of the "global",
+	 * "files" or "directories" section. The distinction between them is
+	 * unimportant and meaningless.
+	 */
+	for (i = 0; i < arraysize(section); i++) {
+		for (v = cw_variable_browse(cfg, section[i]); v; v = v->next) {
+			int j = cw_config_name2key(v->name);
+			switch (j) {
+				case CW_CONFIG_DEPRECATED:
+					cw_log(CW_LOG_ERROR, "%s in section %s of %s is deprecated and will be ignored.\n", v->name, section[i], config);
+					break;
+				case CW_CONFIG_UNKNOWN:
+					cw_log(CW_LOG_ERROR, "%s in section %s of %s is not a known option.\n", v->name, section[i], config);
+					break;
+				default:
+					if (strcmp(cw_config[j], v->value))
+						cw_config[j] = strdup(v->value);
+					break;
+			}
 		}
-		v = v->next;
 	}
-	v = cw_variable_browse(cfg, "files");
-	while (v) {
-		if (!strcasecmp(v->name, "cwctlpermissions")) {
-			cw_copy_string(cw_config_CW_CTL_PERMISSIONS, v->value, sizeof(cw_config_CW_CTL_PERMISSIONS));
-		} else if (!strcasecmp(v->name, "cwctlowner")) {
-			cw_log(CW_LOG_WARNING, "cwctlowner in callweaver.conf is deprecated - only the group can be changed\n");
-		} else if (!strcasecmp(v->name, "cwctlgroup")) {
-			cw_copy_string(cw_config_CW_CTL_GROUP, v->value, sizeof(cw_config_CW_CTL_GROUP));
-		} else if (!strcasecmp(v->name, "cwctl")) {
-			cw_copy_string(cw_config_CW_CTL, v->value, sizeof(cw_config_CW_CTL));
-		} else if (!strcasecmp(v->name, "cwdb")) {
-			cw_copy_string(cw_config_CW_DB, v->value, sizeof(cw_config_CW_DB));
+
+	lt_dlsetsearchpath(cw_config[CW_MOD_DIR]);
+
+	/* DEPRECATED */
+	if (cw_config[CW_SPOOL_DIR] != orig[CW_SPOOL_DIR] && cw_config[CW_MONITOR_DIR] == orig[CW_MONITOR_DIR]) {
+		if ((cw_config[CW_MONITOR_DIR] = malloc(strlen(cw_config[CW_SPOOL_DIR]) + sizeof("/monitor") - 1 + 1)))
+			sprintf((char *)cw_config[CW_MONITOR_DIR], "%s/monitor", cw_config[CW_SPOOL_DIR]);
+		cw_log(CW_LOG_WARNING, "Setting cwspooldir sets cwmonitordir to <cwspooldir>/monitor as well. This is deprecated. Please set cwmonitordir explicitly in %s\n", config);
+	}
+
+	/* DEPRECATED */
+	if (cw_config[CW_CTL] != orig[CW_CTL])
+		cw_log(CW_LOG_WARNING, "cwctl is deprecated. Please set cwsocket explicitly in %s\n", config);
+
+	/* DEPRECATED */
+	if (cw_config[CW_RUN_DIR] != orig[CW_RUN_DIR]) {
+		if (cw_config[CW_PID] == orig[CW_PID]) {
+			if ((cw_config[CW_PID] = malloc(strlen(cw_config[CW_RUN_DIR]) + sizeof("/callweaver.pid") - 1 + 1)))
+				sprintf((char *)cw_config[CW_PID], "%s/callweaver.pid", cw_config[CW_RUN_DIR]);
+			cw_log(CW_LOG_WARNING, "Setting cwrundir sets cwpid to <cwrundir>/callweaver.pid as well. This is deprecated. Please set cwpid explicitly in %s\n", config);
 		}
-		v = v->next;
-	}
-	v = cw_variable_browse(cfg, "directories");
-	while(v) {
-		if (!strcasecmp(v->name, "cwetcdir")) {
-			cw_copy_string(cw_config_CW_CONFIG_DIR, v->value, sizeof(cw_config_CW_CONFIG_DIR));
-		} else if (!strcasecmp(v->name, "cwspooldir")) {
-			cw_copy_string(cw_config_CW_SPOOL_DIR, v->value, sizeof(cw_config_CW_SPOOL_DIR));
-			snprintf(cw_config_CW_MONITOR_DIR, sizeof(cw_config_CW_MONITOR_DIR) - 1, "%s/monitor", v->value);
-		} else if (!strcasecmp(v->name, "cwvarlibdir")) {
-			cw_copy_string(cw_config_CW_VAR_DIR, v->value, sizeof(cw_config_CW_VAR_DIR));
-		} else if (!strcasecmp(v->name, "cwdbdir")) {
-			cw_copy_string(cw_config_CW_DB_DIR, v->value, sizeof(cw_config_CW_DB_DIR));
-		} else if (!strcasecmp(v->name, "cwlogdir")) {
-			cw_copy_string(cw_config_CW_LOG_DIR, v->value, sizeof(cw_config_CW_LOG_DIR));
-		} else if (!strcasecmp(v->name, "cwogidir")) {
-			cw_copy_string(cw_config_CW_OGI_DIR, v->value, sizeof(cw_config_CW_OGI_DIR));
-		} else if (!strcasecmp(v->name, "cwsoundsdir")) {
-			cw_copy_string(cw_config_CW_SOUNDS_DIR, v->value, sizeof(cw_config_CW_SOUNDS_DIR));
-		} else if (!strcasecmp(v->name, "cwrundir")) {
-			snprintf(cw_config_CW_PID, sizeof(cw_config_CW_PID), "%s/%s", v->value, "callweaver.pid");
-			snprintf(cw_config_CW_SOCKET, sizeof(cw_config_CW_SOCKET), "%s/%s", v->value, cw_config_CW_CTL);
-			cw_copy_string(cw_config_CW_RUN_DIR, v->value, sizeof(cw_config_CW_RUN_DIR));
-		} else if (!strcasecmp(v->name, "cwmoddir")) {
-			lt_dlsetsearchpath(v->value);
-		} else if (!strcasecmp(v->name, "cwkeydir")) { 
-			cw_copy_string(cw_config_CW_KEY_DIR, v->value, sizeof(cw_config_CW_KEY_DIR)); 
+		if (cw_config[CW_SOCKET] == orig[CW_SOCKET]) {
+			if ((cw_config[CW_SOCKET] = malloc(strlen(cw_config[CW_RUN_DIR]) + 1 + strlen(cw_config[CW_CTL]) + 1)))
+				sprintf((char *)cw_config[CW_SOCKET], "%s/%s", cw_config[CW_RUN_DIR], cw_config[CW_CTL]);
+			cw_log(CW_LOG_WARNING, "Setting cwrundir sets cwsocket to <cwrundir>/<cwctl> as well. This is deprecated. Please set cwsocket explicitly in %s\n", config);
 		}
-		v = v->next;
 	}
-	v = cw_variable_browse(cfg, "options");
-	while(v) {
+
+	for (v = cw_variable_browse(cfg, "options"); v; v = v->next) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose = atoi(v->value);
@@ -1360,15 +1382,22 @@ static void cw_readconfig(void) {
 				option_maxload = 0.0;
 			}
 		} else if (!strcasecmp(v->name, "systemname")) {
-			cw_copy_string(cw_config_CW_SYSTEM_NAME, v->value, sizeof(cw_config_CW_SYSTEM_NAME));
+			cw_config[CW_SYSTEM_NAME] = strdup(v->value);
 		}
 		else if (!strcasecmp(v->name, "enableunsafeunload"))
 		{
-			cw_copy_string(cw_config_CW_ENABLE_UNSAFE_UNLOAD, v->value, sizeof(cw_config_CW_ENABLE_UNSAFE_UNLOAD));
+			option_enableunsafeunload = cw_true(v->value);
 		}
-		v = v->next;
 	}
+
 	cw_config_destroy(cfg);
+
+	for (i = 0; i < arraysize(cw_config); i++) {
+		if (!cw_config[i]) {
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
+			exit(EX_OSERR);
+		}
+	}
 }
 
 
@@ -1379,17 +1408,15 @@ int callweaver_main(int argc, char *argv[])
 #if defined(__linux__)
 	cap_t caps;
 #endif
+	const char *config = cwconffile_default;
 	char *xarg = NULL;
 	struct group *gr;
 	struct passwd *pw;
-	char *runuser = NULL, *rungroup = NULL;
+	const char *runuser = NULL, *rungroup = NULL;
 	uid_t uid;
 	pid_t pid;
 	int c;
 
-	/* init with default */
-	cw_copy_string(cw_config_CW_CONFIG_FILE, cwconffile_default, sizeof(cw_config_CW_CONFIG_FILE));
-	
 	/* Remember original args for restart */
 	if (!(_argv = malloc((argc + 1) * sizeof(_argv[0])))) {
 		fprintf(stderr, "Out of memory!\n");
@@ -1462,8 +1489,7 @@ int callweaver_main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			cw_copy_string((char *)cw_config_CW_CONFIG_FILE,optarg,sizeof(cw_config_CW_CONFIG_FILE));
-			option_overrideconfig++;
+			config = optarg;
 			break;
 		case 'i':
 			option_initcrypto++;
@@ -1494,7 +1520,7 @@ int callweaver_main(int argc, char *argv[])
 
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_verbose("[ Reading Master Configuration ]");
-	cw_readconfig();
+	cw_readconfig(config);
 
 	if (option_dumpcore) {
 		struct rlimit l;
@@ -1514,9 +1540,9 @@ int callweaver_main(int argc, char *argv[])
 		setuid(getuid());
 	} else {
 		if (!runuser)
-			runuser = cw_config_CW_RUN_USER;
+			runuser = cw_config[CW_RUN_USER];
 		if (!rungroup)
-			rungroup = cw_config_CW_RUN_GROUP;
+			rungroup = cw_config[CW_RUN_GROUP];
 
 		if (!(gr = getgrnam(rungroup))) {
 			fprintf(stderr, "No such group '%s'!\n", rungroup);
@@ -1608,9 +1634,9 @@ int callweaver_main(int argc, char *argv[])
 			argv[0][0] = '$';
 
 		if (option_exec)
-			exit(console_oneshot(cw_config_CW_SOCKET, xarg));
+			exit(console_oneshot(cw_config[CW_SOCKET], xarg));
 
-		console(cw_config_CW_SOCKET);
+		console((void *)cw_config[CW_SOCKET]);
 		exit(EX_OK);
 	}
 
@@ -1660,7 +1686,7 @@ int callweaver_main(int argc, char *argv[])
 		}
 	}
 
-	switch (lockfile_claim(cw_config_CW_PID)) {
+	switch (lockfile_claim(cw_config[CW_PID])) {
 		case 0: /* Already running */
 			fprintf(stderr, "CallWeaver already running. Use \"callweaver -r\" to connect.\n");
 			/* Fall through */
@@ -1677,8 +1703,8 @@ int callweaver_main(int argc, char *argv[])
 			 * over all future responsibilities. Update the pid file
 			 * accordingly.
 			 */
-			if (lockfile_rewrite(cw_config_CW_PID, pid))
-				fprintf(stderr, "Unable to rewrite pid file '%s' after forking: %s\n", cw_config_CW_PID, strerror(errno));
+			if (lockfile_rewrite(cw_config[CW_PID], pid))
+				fprintf(stderr, "Unable to rewrite pid file '%s' after forking: %s\n", cw_config[CW_PID], strerror(errno));
 			_exit(0);
 		}
 

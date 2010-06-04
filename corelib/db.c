@@ -104,8 +104,8 @@ static int dbinit(void)
 	char *sql;
 
 	cw_mutex_lock(&dblock);
- 	globals.dbdir = cw_config_CW_DB_DIR;
-	globals.dbfile = cw_config_CW_DB;
+	globals.dbdir = cw_config[CW_DB_DIR];
+	globals.dbfile = cw_config[CW_DB];
 	globals.tablename = "odb";
 	
 	

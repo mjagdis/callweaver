@@ -2127,7 +2127,7 @@ static void listener_pvt_free(struct cw_object *obj)
 }
 
 
-static void manager_listen(char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
+static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
 {
 	cw_address_t addr;
 	struct cw_connection *listener;
@@ -2253,21 +2253,21 @@ int manager_reload(void)
 	}
 
 	/* Start the listener for pre-authenticated consoles */
-	manager_listen(cw_config_CW_SOCKET, manager_session_ami, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
+	manager_listen(cw_config[CW_SOCKET], manager_session_ami, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
 
-	if (!cw_strlen_zero(cw_config_CW_CTL_PERMISSIONS)) {
+	if (!cw_strlen_zero(cw_config[CW_CTL_PERMISSIONS])) {
 		mode_t p;
-		sscanf(cw_config_CW_CTL_PERMISSIONS, "%o", (int *) &p);
-		if ((chmod(cw_config_CW_SOCKET, p)) < 0)
-			cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", cw_config_CW_SOCKET, strerror(errno));
+		sscanf(cw_config[CW_CTL_PERMISSIONS], "%o", (int *) &p);
+		if ((chmod(cw_config[CW_SOCKET], p)) < 0)
+			cw_log(CW_LOG_WARNING, "Unable to change file permissions of %s: %s\n", cw_config[CW_SOCKET], strerror(errno));
 	}
 
-	if (!cw_strlen_zero(cw_config_CW_CTL_GROUP)) {
+	if (!cw_strlen_zero(cw_config[CW_CTL_GROUP])) {
 		struct group *grp;
-		if ((grp = getgrnam(cw_config_CW_CTL_GROUP)) == NULL)
-			cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config_CW_CTL_GROUP);
-		else if (chown(cw_config_CW_SOCKET, -1, grp->gr_gid) < 0)
-			cw_log(CW_LOG_WARNING, "Unable to change group of %s to %s: %s\n", cw_config_CW_SOCKET, cw_config_CW_CTL_GROUP, strerror(errno));
+		if ((grp = getgrnam(cw_config[CW_CTL_GROUP])) == NULL)
+			cw_log(CW_LOG_WARNING, "Unable to find gid of group %s\n", cw_config[CW_CTL_GROUP]);
+		else if (chown(cw_config[CW_SOCKET], -1, grp->gr_gid) < 0)
+			cw_log(CW_LOG_WARNING, "Unable to change group of %s to %s: %s\n", cw_config[CW_SOCKET], cw_config[CW_CTL_GROUP], strerror(errno));
 	}
 
 	/* DEPRECATED */
