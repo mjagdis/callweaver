@@ -223,7 +223,7 @@ static int handle_show_switches(cw_dynstr_t *ds_p, int argc, char *argv[])
 	CW_UNUSED(argv);
 
 	cw_dynstr_printf(ds_p, "\n    -= Registered CallWeaver Alternative Switches =-\n");
-	cw_registry_iterate_ordered(&cdrbe_registry, switch_print, ds_p);
+	cw_registry_iterate_ordered(&switch_registry, switch_print, ds_p);
 	return RESULT_SUCCESS;
 }
 
