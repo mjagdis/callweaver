@@ -40,6 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
+#include "callweaver/app.h"
 #include "callweaver/pbx.h"
 #include "callweaver/options.h"
 #include "callweaver/module.h"
@@ -622,14 +623,16 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 
 static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct cw_flags *peerflags)
 {
+	args_t args = CW_DYNARRAY_INIT;
 	struct cw_var_t *tmpvar;
 	int res=-1;
 	struct localuser *u;
-	char *peers, *timeout, *tech, *number, *rest, *cur;
+	char **peers, *timeout, *tech, *number, *cur;
 	char privdb[256], *s;
 	char privcid[256];
 	char privintro[1024];
 	char  announcemsg[256] = "", *ann;
+	int npeers;
 	int inputkey;
 	struct outchan *outgoing=NULL, *tmp;
 	struct cw_channel *peer;
@@ -677,15 +680,73 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	char *dblgoto = NULL;
 	char *jumpdst = NULL;
 
-	if (argc < 1 || argc > 4)
+	peers = NULL;
+
+	if (argv > 0) {
+		/* If the first argument starts with '{' we have a channel group. The last
+		 * member is the last argument that ends with '}' and all the arguments in
+		 * between are the already separated channels that are members of this group.
+		 * Note that by making the end marker the _last_ argument ending with '}'
+		 * we avoid issues with a possibly channel spec expanding to something ending
+		 * with '}' but we also require that none of the timeout, options or url
+		 * optional trailing arguments can end in '}'. This is currently the case.
+		 */
+		if (argv[0][0] == '{') {
+			int i;
+
+			for (i = argc - 1; i >= 0; i--) {
+				int j = strlen(argv[i]) - 1;
+				if (argv[i][j] == '}') {
+					argv[i][j--] = '\0';
+					while (j && isspace(argv[i][j]))
+						argv[i][j--] = '\0';
+
+					argv[0]++;
+					while (argv[0][0] && isspace(argv[0][0]))
+						argv[0]++;
+
+					peers = argv;
+					npeers = i + 1;
+					argc -= (i + 1);
+					argv += (i + 1);
+					break;
+				}
+			}
+		}
+
+		if (!peers) {
+			/* Old style. There is one argument. If there is a channel group
+			 * all the channels are packed into this one argument with '&'
+			 * separating them. In this case there is no way to protect against
+			 * an expansion that contains '&' itself.
+			 */
+			char *p = argv[0];
+			args.used = 0;
+			do {
+				cw_dynarray_need(&args, 1);
+				args.data[args.used++] = p;
+				if ((p = strchr(p, '&')))
+					*(p++) = '\0';
+			} while (p);
+
+			peers = args.data;
+			npeers = args.used;
+			argc--;
+			argv++;
+		}
+	}
+
+	/* Now we should have found what we're going to call and we should have
+	 * at most 3 arguments, timeout, options and url left.
+	 */
+	if (!peers || argc > 3)
 		return cw_function_syntax(dial_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	peers = argv[0];
-	timeout = (argc > 1 && argv[1][0] ? argv[1] : NULL);
-	options = (argc > 2 && argv[2][0] ? argv[2] : NULL);
-	url = (argc > 3 && argv[3][0] ? argv[3] : NULL);
+	timeout = (argc > 0 && argv[0][0] ? argv[0] : NULL);
+	options = (argc > 1 && argv[1][0] ? argv[1] : NULL);
+	url = (argc > 2 && argv[2][0] ? argv[2] : NULL);
 
 	if (option_debug) {
 		if (url)
@@ -1061,15 +1122,11 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, CW_KEYWORD_OUTBOUND_GROUP, "OUTBOUND_GROUP");
 
-	cur = peers;
-	do {
-		/* Remember where to start next time */
-		rest = strchr(cur, '&');
-		if (rest) {
-			*rest = 0;
-			rest++;
-		}
-		/* Get a technology/[device:]number pair */
+	while (npeers) {
+		cur = peers[0];
+		peers++;
+		npeers--;
+
 		tech = cur;
 		number = strchr(tech, '/');
 		if (!number) {
@@ -1117,8 +1174,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			cw_log(CW_LOG_NOTICE, "Unable to create channel of type '%s/%s' (cause %d - %s)\n", tech, numsubst, cause, cw_cause2str(cause));
 			free(tmp);
 			HANDLE_CAUSE(cause, chan);
-			cur = rest;
-			if (!cur)
+			if (!npeers)
 				chan->hangupcause = cause;
 			continue;
 		}
@@ -1156,7 +1212,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			if (!tmp->chan) {
 				free(tmp);
 				HANDLE_CAUSE(cause, chan);
-				cur = rest;
 				continue;
 			}
 		}
@@ -1221,7 +1276,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				cw_verbose(VERBOSE_PREFIX_3 "Couldn't call %s\n", numsubst);
 			cw_hangup(tmp->chan);
 			free(tmp);
-			cur = rest;
 			continue;
 		} else {
 			senddialevent(chan, tmp->chan);
@@ -1243,8 +1297,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		/* If this line is up, don't try anybody else */
 		if (outgoing->chan->_state == CW_STATE_UP)
 			break;
-		cur = rest;
-	} while (cur);
+	}
 
 	if (outbound_group)
 		cw_object_put(outbound_group);
@@ -1530,9 +1583,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			cw_parseable_goto(peer, dblgoto);
 			peer->priority++;
 			cw_pbx_start(peer);
-			hanguptree(outgoing, NULL);
-			LOCAL_USER_REMOVE(u);
-			return 0;
+			goto out;
 		}
 
 		if (hasmacro && proc_name) {
@@ -1601,7 +1652,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			if (inputkey != '#') {
 				strncpy(status, "NOANSWER", sizeof(status) - 1);
 				cw_hangup(peer);
-				return 0;
+				goto out;
 			}
 		}		
 		if (!res) {
@@ -1696,6 +1747,8 @@ out:
 		free(config.end_sound);
 	if (config.warning_sound)
 		free(config.warning_sound);
+
+	cw_dynarray_free(&args);
 
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	cw_log(CW_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);

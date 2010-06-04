@@ -3,7 +3,7 @@
 //
 
 proc std-exten-ael( ext , dev ) {
-        Dial(${dev}/${ext},20);
+        Dial({ "${dev}/${ext}" },20);
         switch(${DIALSTATUS}) {
         case BUSY:
                 Voicemail(b${ext});
@@ -41,7 +41,7 @@ instructions:
 	};
 	500 => {
 		Playback(demo-abouttotry);
-		Dial(IAX2/guest@pbx.digium.com);
+		Dial({ "IAX2/guest@pbx.digium.com" });
 		Playback(demo-nogo);
 		goto s,instructions;
 	};
