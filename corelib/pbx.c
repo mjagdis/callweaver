@@ -810,7 +810,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 		i = cw_dynstr_end(result);
 		res = cw_function_exec_str(chan, cw_hash_string(src), src, args, result);
 
-		if (!res || errno != ENOENT) {
+		if (!res) {
 #if 0
 			static int deprecated = 1;
 
@@ -826,7 +826,8 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 				memmove(&result->data[i], &result->data[i + offset], length);
 
 			cw_dynstr_truncate(result, i + length);
-		} else if (args)
+			res = result->error;
+		} else if (args && errno == ENOENT)
 			cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
 	}
 
@@ -872,16 +873,12 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 					if (start[len + 1] == '{') {
 						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', error);
 
-						if (!ds.error)
-							pbx_retrieve_substr(chan, vars, ds.data, ds.used, res);
-						else
+						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, res))
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
 						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', error);
 
-						if (!ds.error) {
-							cw_expr(ds.data, res);
-						} else
+						if (ds.error || (cw_expr(ds.data, res),res->error))
 							dst->error = 1;
 					}
 
