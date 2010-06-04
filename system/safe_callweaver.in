@@ -180,7 +180,7 @@ core_analyse()
 		if [[ "$outfile" == '-' ]]; then
 			rm -f "$tmpfile".*
 		else
-			gzip -9 "$tmpfile".*.txt
+			gzip -9 "$tmpfile".*.txt 2> /dev/null
 		fi
 	fi
 }
