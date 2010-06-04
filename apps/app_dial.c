@@ -1,8 +1,10 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2010, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
@@ -62,84 +64,133 @@ static const char tdesc[] = "Dialing Application";
 static void *dial_app;
 static const char dial_name[] = "Dial";
 static const char dial_synopsis[] = "Place a call and connect to the current channel";
-static const char dial_syntax[] = "Dial(Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
+static const char dial_syntax[] = "Dial({ Technology/resource[, Technology2/reseource2...] }[, timeout[, [option|URL]...]])\n"
+				"or Dial(Technology/resource[&Technology2/resource2...][, timeout][, options][, URL])";
 static const char dial_descrip[] =
 "Requests one or more channels and places specified outgoing calls on them.\n"
 "As soon as a channel answers, the Dial app will answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
 "which first answered. All other calls placed by the Dial app will be hung up.\n"
+"\n"
 "If a timeout is not specified, the Dial application will wait indefinitely\n"
 "until either one of the called channels answers, the user hangs up, or all\n"
-"channels return busy or error. The dialer will return 0 if it\n"
-"was unable to place the call, or the timeout expired.\n"
-"  For the Privacy and Screening Modes, the DIALSTATUS variable will be set to DONTCALL, \n"
+"channels return busy or error. The dialer will return 0 if it was unable to\n"
+"place the call, or the timeout expired.\n"
+"\n"
+"For the Privacy and Screening Modes, the DIALSTATUS variable will be set to DONTCALL, \n"
 "if the called party chooses to send the calling party to the 'Go Away' script, and \n"
-"the DIALSTATUS variable will be set to TORTURE, if the called party wants to send the caller to \n"
-"the TORTURE scripts\n"
-"  This application returns -1 if the originating channel hangs up, or if the\n"
-"call is bridged and either of the parties in the bridge terminate the call.\n"
-"The option string may contain zero or more of the following characters:\n"
-"      'd' -- allow the calling user to dial a 1 digit extension while waiting for a call to\n"
-"             be answered exiting to that extension if it exists in the context defined by\n"
-"             ${EXITCONTEXT} or the current context.\n"
-"      't' -- allow the called user to transfer the calling user by hitting #.\n"
-"      'T' -- allow the calling user to transfer the call by hitting #.\n"
-"      'w' -- allow the called user to write the conversation to disk via Monitor\n"
-"      'W' -- allow the calling user to write the conversation to disk via Monitor\n"
-"      'f' -- Forces callerid to be set as the extension of the line \n"
-"             making/redirecting the outgoing call. For example, some PSTNs\n"
-"             don't allow callerids from other extensions then the ones\n"
-"             that are assigned to you.\n"
-"      'o' -- Original (inbound) Caller*ID should be placed on the outbound leg of the call\n" 
-"             instead of using the destination extension (old style callweaver behavior)\n"
-"      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
-"      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
-"                      with the specified class.\n"
-"      'M(x[^arg])' -- Executes the Proc (x with ^ delim arg list) upon connect of the call.\n"
-"                      Also, the Proc can set the PROC_RESULT variable to do the following:\n"
-"                     -- ABORT - Hangup both legs of the call.\n"
-"                     -- CONGESTION - Behave as if line congestion was encountered.\n"
-"                     -- BUSY - Behave as if a busy signal was encountered.\n"
-"                     -- CONTINUE - Hangup the called party and continue on in the dialplan.\n"
-"                     -- GOTO:<context>^<exten>^<priority> - Transfer the call.\n"
-"      'h' -- allow callee to hang up by hitting *.\n"
-"      'H' -- allow caller to hang up by hitting *.\n"
-"      'C' -- reset call detail record for this call.\n"
-"      'P[(x)]' -- privacy mode, using 'x' as database if provided, or the extension is used if not provided.\n"
-"      'p' -- screening mode.  Basically Privacy mode without memory.\n"
-"       'n' -- modifier for screen/privacy mode. No intros are to be saved in the priv-callerintros dir.\n"
-"       'N' -- modifier for screen/privacy mode. if callerID is present, do not screen the call.\n"
-"      'g' -- goes on in context if the destination channel hangs up\n"
-"      'G(context^exten^pri)' -- If the call is answered transfer both parties to the specified exten.\n"
-"      'A(x)' -- play an announcement to the called party, using x as file\n"
-"      'R' -- wait for # to be pressed before bridging the call\n"
-"      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
-"      'J(context^exten^pri)' -- When the caller hangs up, send the destination channel to the specified extension.\n"
-"      'D([called][:calling])'  -- Send DTMF strings *after* called party has answered, but before the\n"
-"             call gets bridged. The 'called' DTMF string is sent to the called party, and the\n"
-"             'calling' DTMF string is sent to the calling party. Both parameters can be used alone.\n"  	
-"      'L(x[:y][:z])' -- Limit the call to 'x' ms warning when 'y' ms are left\n"
-"             repeated every 'z' ms) Only 'x' is required, 'y' and 'z' are optional.\n"
-"             The following special variables are optional:\n"
-"             * LIMIT_PLAYAUDIO_CALLER    yes|no (default yes)\n"
-"                                         Play sounds to the caller.\n"
-"             * LIMIT_PLAYAUDIO_CALLEE    yes|no\n"
-"                                         Play sounds to the callee.\n"
-"             * LIMIT_TIMEOUT_FILE        File to play when time is up.\n"
-"             * LIMIT_CONNECT_FILE        File to play when call begins.\n"
-"             * LIMIT_WARNING_FILE        File to play as warning if 'y' is defined.\n"
-"                        'timeleft' is a special sound macro to auto-say the time \n"
-"                        left and is the default.\n"
-"  In addition to transferring the call, a call may be parked and then picked\n"
+"the DIALSTATUS variable will be set to TORTURE, if the called party wants to send the\n"
+"caller to the TORTURE scripts\n"
+"\n"
+"This application returns -1 if the originating channel hangs up, or if the call is\n"
+"bridged and either of the parties in the bridge terminate the call.\n"
+"\n"
+"Options may be expressed as individual arguments or may be grouped in a single argument,\n"
+"the only rule being that, if you are using the (recommended) Dial({...}, ...) syntax, an\n"
+"option that takes a (...) MUST always end a group. That is to say: \"abc\", \"a, b, c\",\n"
+"\"a, b(x), c\", \"ab(x), c\" are all legal but \"ab(x)c\" and \"a, b(x)c\" are only legal\n"
+"when you use the Dial(...&..., ...) syntax.\n"
+"\n"
+"A URL is simply an option that starts with \"http\" and ends at the end of the current\n"
+"argument.\n"
+"\n"
+"The option may contain zero or more of the following:\n"
+"    A(x)\n"
+"        - Play an announcement to the called party, using x as file\n"
+"    C\n"
+"        - Reset call detail record for this call.\n"
+"    D([called][:calling])\n"
+"        - Send DTMF strings *after* called party has answered, but before the\n"
+"          call gets bridged. The 'called' DTMF string is sent to the called party, and the\n"
+"          'calling' DTMF string is sent to the calling party. Both parameters can be used alone.\n"
+"    d\n"
+"        - Allow the calling user to dial a 1 digit extension while waiting for a call to\n"
+"          be answered exiting to that extension if it exists in the context defined by\n"
+"          ${EXITCONTEXT} or the current context.\n"
+"    f\n"
+"        - Forces callerid to be set as the extension of the line \n"
+"          making/redirecting the outgoing call. For example, some PSTNs\n"
+"          don't allow callerids from other extensions then the ones\n"
+"          that are assigned to you.\n"
+"    G(context^exten^pri)\n"
+"        - If the call is answered transfer both parties to the specified exten.\n"
+"    g\n"
+"        - Goes on in context if the destination channel hangs up\n"
+"    H\n"
+"        - Allow caller to hang up by hitting *.\n"
+"    h\n"
+"        - Allow callee to hang up by hitting *.\n"
+"    J(context^exten^pri)\n"
+"        - When the caller hangs up, send the destination channel to the specified extension.\n"
+"    L(x[:y][:z])\n"
+"        - Limit the call to 'x' ms warning when 'y' ms are left repeated every 'z' ms)\n"
+"          Only 'x' is required, 'y' and 'z' are optional.\n"
+"          The following special variables are optional:\n"
+"              * LIMIT_PLAYAUDIO_CALLER    yes|no (default yes)\n"
+"                                          Play sounds to the caller.\n"
+"              * LIMIT_PLAYAUDIO_CALLEE    yes|no\n"
+"                                          Play sounds to the callee.\n"
+"              * LIMIT_TIMEOUT_FILE        File to play when time is up.\n"
+"              * LIMIT_CONNECT_FILE        File to play when call begins.\n"
+"              * LIMIT_WARNING_FILE        File to play as warning if 'y' is defined.\n"
+"                                          'timeleft' is a special sound macro to auto-say\n"
+"                                          the time left and is the default.\n"
+"    m[(class)]\n"
+"        - provide hold music to the calling party until answered (optionally with the\n"
+"          specified class.\n"
+"    M(x[^arg])\n"
+"        - Executes the Proc (x with ^ delim arg list) upon connect of the call.\n"
+"          Also, the Proc can set the PROC_RESULT variable to do the following:\n"
+"              * ABORT\n"
+"                    - Hangup both legs of the call.\n"
+"              * CONGESTION\n"
+"                    - Behave as if line congestion was encountered.\n"
+"              * BUSY\n"
+"                    - Behave as if a busy signal was encountered.\n"
+"              * CONTINUE\n"
+"                    - Hangup the called party and continue on in the dialplan.\n"
+"              * GOTO:<context>^<exten>^<priority>\n"
+"                    - Transfer the call.\n"
+"    N\n"
+"        - modifier for screen/privacy mode. if callerID is present, do not screen the call.\n"
+"    n\n"
+"        - modifier for screen/privacy mode. No intros are to be saved in the priv-callerintros dir.\n"
+"    o\n"
+"        - Original (inbound) Caller*ID should be placed on the outbound leg of the call\n"
+"          instead of using the destination extension (old style callweaver behavior)\n"
+"    P[(x)]\n"
+"        - privacy mode, using 'x' as database if provided, or the extension is used if not provided.\n"
+"    p\n"
+"        - screening mode.  Basically Privacy mode without memory.\n"
+"    R\n"
+"        - wait for # to be pressed before bridging the call\n"
+"    r\n"
+"        - indicate ringing to the calling party, pass no audio until answered.\n"
+"    S(x)\n"
+"        - hangup the call after x seconds AFTER called party picked up\n"
+"    t\n"
+"        - allow the called user to transfer the calling user by hitting #.\n"
+"    T\n"
+"        - allow the calling user to transfer the call by hitting #.\n"
+"    w\n"
+"        - allow the called user to write the conversation to disk via Monitor\n"
+"    W\n"
+"        - allow the calling user to write the conversation to disk via Monitor\n"
+"\n"
+"In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
-"  The optional URL will be sent to the called party if the channel supports it.\n"
-"  If the OUTBOUND_GROUP variable is set, all peer channels created by this\n"
-"  application will be put into that group (as in SetGroup).\n"
-"  This application sets the following channel variables upon completion:\n"
+"\n"
+"The optional URL will be sent to the called party if the channel supports it.\n"
+"\n"
+"If the OUTBOUND_GROUP variable is set, all peer channels created by this\n"
+"application will be put into that group (as in SetGroup).\n"
+"\n"
+"This application sets the following channel variables upon completion:\n"
 "      DIALEDTIME    Time from dial to answer\n" 
 "      ANSWEREDTIME  Time for actual call\n"
-"      DIALSTATUS    The status of the call as a text string, one of\n"
-"             CHANUNAVAIL | CONGESTION | NOANSWER | BUSY | ANSWER | CANCEL | DONTCALL | TORTURE\n"
+"      DIALSTATUS    The status of the call as a text string, one of:\n"
+"                    CHANUNAVAIL, CONGESTION, NOANSWER, BUSY, ANSWER\n"
+"                    CANCEL, DONTCALL or TORTURE\n"
 "";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
@@ -628,46 +679,42 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	int res=-1;
 	struct localuser *u;
 	char **peers, *timeout, *tech, *number, *cur;
-	char privdb[256], *s;
+	char *privdb = NULL;
 	char privcid[256];
 	char privintro[1024];
-	char  announcemsg[256] = "", *ann;
+	char *announcemsg = NULL;
 	int npeers;
 	int inputkey;
 	struct outchan *outgoing=NULL, *tmp;
 	struct cw_channel *peer;
 	int to;
-	int hasmacro = 0;
-	int privacy=0;
-	int screen=0;
-	int no_save_intros = 0;
-	int no_screen_callerid = 0;
-	int announce=0;
-	int resetcdr=0;
-	int waitpound=0;
+	struct {
+		unsigned int newsyntax:1;
+		unsigned int privacy:1;
+		unsigned int screen:1;
+		unsigned int no_save_intros:1;
+		unsigned int no_screen_callerid:1;
+		unsigned int resetcdr:1;
+		unsigned int waitpound:1;
+	} opt;
+	unsigned int flags = 0;
 	int numbusy = 0;
 	int numcongestion = 0;
 	int numnochan = 0;
 	int cause;
 	char numsubst[CW_MAX_EXTENSION];
 	char restofit[CW_MAX_EXTENSION];
-	char *options = NULL;
 	char *newnum;
 	char *l;
 	char *url=NULL; /* JDG */
 	int privdb_val=0;
 	unsigned int calldurationlimit=0;
-	char *cdl;
 	time_t now;
 	struct cw_bridge_config config;
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq=0;
-	char *limitptr;
-	char limitdata[256];
-	char *sdtmfptr;
 	char *dtmfcalled=NULL, *dtmfcalling=NULL;
-	char *stack,*var;
 	char *mac = NULL, *proc_name = NULL;
 	char status[256];
 	char toast[80];
@@ -691,7 +738,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		 * with '}' but we also require that none of the timeout, options or url
 		 * optional trailing arguments can end in '}'. This is currently the case.
 		 */
-		if (argv[0][0] == '{') {
+		if ((opt.newsyntax = (argv[0][0] == '{'))) {
 			int i;
 
 			for (i = argc - 1; i >= 0; i--) {
@@ -736,17 +783,253 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		}
 	}
 
-	/* Now we should have found what we're going to call and we should have
-	 * at most 3 arguments, timeout, options and url left.
-	 */
-	if (!peers || argc > 3)
+	if (!peers)
 		return cw_function_syntax(dial_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	timeout = (argc > 0 && argv[0][0] ? argv[0] : NULL);
-	options = (argc > 1 && argv[1][0] ? argv[1] : NULL);
-	url = (argc > 2 && argv[2][0] ? argv[2] : NULL);
+	timeout = NULL;
+	if (argc)
+		timeout = *(argv++);
+
+	memset(&opt, 0, sizeof(opt));
+	memset(&config, 0, sizeof(config));
+
+	while (argv[0] && argv[0][0]) {
+		char *end;
+
+		if (argv[0][1] == '(') {
+			if (opt.newsyntax) {
+				if (*(end = argv[0] + strlen(argv[0]) - 1) != ')')
+					end = NULL;
+			} else
+				end = strchr(argv[0], ')');
+
+			if (end)
+				*end = '\0';
+			else {
+				cw_log(CW_LOG_ERROR, "Missing ')' after %s\n", argv[0]);
+				goto err;
+			}
+		} else
+			end = &argv[0][0];
+
+		if (argv[0][1] == '(') {
+			switch (argv[0][0]) {
+				case 'A':
+					announcemsg = &argv[0][2];
+					break;
+
+				case 'D':
+					dtmfcalled = &argv[0][2];
+					if ((dtmfcalling = strchr(&argv[0][2], ':')))
+						*(dtmfcalling++) = '\0';
+					break;
+
+				case 'G':
+					dblgoto = &argv[0][2];
+					break;
+
+				case 'H':
+					flags |= DIAL_ALLOWDISCONNECT_OUT;
+					break;
+
+				case 'J':
+					jumpdst = &argv[0][2];
+					break;
+
+				case 'L':
+					if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLER, "LIMIT_PLAYAUDIO_CALLER"))) {
+						if (cw_true(tmpvar->value))
+							cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+						cw_object_put(tmpvar);
+					} else
+						cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+
+					if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLEE, "LIMIT_PLAYAUDIO_CALLEE"))) {
+						if (cw_true(tmpvar->value))
+							cw_set_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
+						cw_object_put(tmpvar);
+					}
+
+					if (!cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING)
+					&& !cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING))
+						cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+
+					if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_CONNECT_FILE, "LIMIT_CONNECT_FILE"))) {
+						config.start_sound = strdup(tmpvar->value);
+						cw_object_put(tmpvar);
+					} else
+						config.start_sound = NULL;
+
+					if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_TIMEOUT_FILE, "LIMIT_TIMEOUT_FILE"))) {
+						config.end_sound = strdup(tmpvar->value);
+						cw_object_put(tmpvar);
+					}
+
+					if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_WARNING_FILE, "LIMIT_WARNING_FILE"))) {
+						config.warning_sound = strdup(tmpvar->value);
+						cw_object_put(tmpvar);
+					} else
+						config.warning_sound = strdup("timeleft");
+
+					playargs = sscanf(&argv[0][2], "%ld:%ld:%ld", &timelimit, &play_warning, &warning_freq);
+
+					if (!timelimit) {
+						timelimit = play_warning = warning_freq = 0;
+						cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+						cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
+						free(config.warning_sound);
+						config.warning_sound = NULL;
+					}
+					/* undo effect of S(x) in case they are both used */
+					calldurationlimit = 0;
+					/* more efficient do it like S(x) does since no advanced opts*/
+					if (!play_warning && !config.start_sound && !config.end_sound && timelimit) {
+						calldurationlimit = timelimit/1000;
+						timelimit = play_warning = warning_freq = 0;
+						cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
+						cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
+						if (option_verbose > 2)
+							cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
+					} else if (option_verbose > 2) {
+						cw_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
+						cw_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
+						cw_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
+						cw_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
+						cw_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
+						cw_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
+						cw_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", config.start_sound ? config.start_sound : "UNDEF");
+						cw_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", config.warning_sound ? config.warning_sound : "UNDEF");
+						cw_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", config.end_sound ? config.end_sound : "UNDEF");
+					}
+					break;
+
+				case 'M':
+					proc_name = &argv[0][2];
+					break;
+
+				case 'm':
+					mohclass = &argv[0][2];
+					break;
+
+				case 'P':
+					opt.privacy = 1;
+					privdb = &argv[0][2];
+					break;
+
+				case 'S':
+					calldurationlimit = atoi(&argv[0][2]);
+					if (option_verbose > 2)
+						cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
+					break;
+
+				default:
+					cw_log(CW_LOG_ERROR, "Unknown option %s)\n", argv[0]);
+					goto err;
+			}
+		} else {
+			switch (argv[0][0]) {
+				case 'C':
+					opt.resetcdr = 1;
+					break;
+
+				case 'd':
+					cw_set_flag(peerflags, DIAL_HALT_ON_DTMF);
+					break;
+
+				case 'f':
+					flags |= DIAL_FORCECALLERID;
+					break;
+
+				case 'g':
+					cw_set_flag(peerflags, DIAL_GO_ON);
+					break;
+
+				case 'H':
+					cw_set_flag(peerflags, DIAL_ALLOWDISCONNECT_OUT);
+					break;
+
+				case 'h':
+					if (!strcmp(&argv[0][1], "ttp")) {
+						flags = DIAL_NOFORWARDHTML;
+						url = argv[0];
+						end = argv[0] + strlen(argv[0]);
+					} else {
+						flags |= DIAL_ALLOWDISCONNECT_IN;
+						cw_set_flag(peerflags, DIAL_ALLOWDISCONNECT_IN);
+					}
+					break;
+
+				case 'm':
+					flags |= DIAL_MUSICONHOLD;
+					break;
+
+				case 'N':
+					opt.no_screen_callerid = 1;
+					break;
+
+				case 'n':
+					opt.no_save_intros = 1;
+					break;
+
+				case 'o':
+					cw_set_flag(peerflags, DIAL_PRESERVE_CALLERID);
+					break;
+
+				case 'P':
+					opt.privacy = 1;
+					break;
+
+				case 'p':
+					opt.screen = 1;
+					break;
+
+				case 'r':
+					flags |= DIAL_RINGBACKONLY;
+					break;
+
+				case 'R':
+					opt.waitpound = 1;
+					break;
+
+				case 'T':
+					flags |= DIAL_ALLOWREDIRECT_OUT;
+					break;
+
+				case 't':
+					flags |= DIAL_ALLOWREDIRECT_IN;
+					break;
+
+				case 'W':
+					cw_set_flag(peerflags, DIAL_MONITOR_OUT);
+					break;
+
+				case 'w':
+					cw_set_flag(peerflags, DIAL_MONITOR_IN);
+					break;
+
+				case 'A':
+				case 'D':
+				case 'G':
+				case 'J':
+				case 'L':
+				case 'M':
+				case 'S':
+					cw_log(CW_LOG_ERROR, "Missing '(' after %c\n", argv[0][0]);
+					goto err;
+
+				default:
+					cw_log(CW_LOG_ERROR, "Unknown option %c at %s\n", argv[0][0], argv[0]);
+					goto err;
+			}
+		}
+
+		if (end)
+			argv[0] = end + 1;
+		if (!argv[0][0])
+			argv++;
+	}
 
 	if (option_debug) {
 		if (url)
@@ -755,288 +1038,21 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			cw_log(CW_LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
 	}
 
-	memset(&config,0,sizeof(struct cw_bridge_config));
-
-	if (options) {
-		/* Extract call duration limit */
-		if ((cdl = strstr(options, "S("))) {
-			calldurationlimit=atoi(cdl+2);
-			if (option_verbose > 2)
-				cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
-		}
-
-		/* Extract DTMF strings to send upon successfull connect */
-		if ((sdtmfptr = strstr(options, "D("))) {
-			dtmfcalled = cw_strdupa(sdtmfptr + 2);
-			dtmfcalling = strchr(dtmfcalled, ')');
-			if (dtmfcalling)
-				*dtmfcalling = '\0';
-			dtmfcalling = strchr(dtmfcalled, ':');
-			if (dtmfcalling) {
-				*dtmfcalling = '\0';
-				dtmfcalling++;
-			}				
-			/* Overwrite with X's what was the sdtmf info */
-			while (*sdtmfptr && (*sdtmfptr != ')')) 
-				*(sdtmfptr++) = 'X';
-			if (*sdtmfptr)
-				*sdtmfptr = 'X';
-			else 
-				cw_log(CW_LOG_WARNING, "D( Data lacking trailing ')'\n");
-		}
-  
-		/* XXX LIMIT SUPPORT */
-		if ((limitptr = strstr(options, "L("))) {
-			cw_copy_string(limitdata, limitptr + 2, sizeof(limitdata));
-			/* Overwrite with X's what was the limit info */
-			while (*limitptr && (*limitptr != ')')) 
-				*(limitptr++) = 'X';
-			if (*limitptr)
-				*limitptr = 'X';
-			/* Now find the end */
-			limitptr = strchr(limitdata, ')');
-			if (limitptr)
-				*limitptr = '\0';
-			else
-				cw_log(CW_LOG_WARNING, "Limit Data lacking trailing ')'\n");
-
-			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLER, "LIMIT_PLAYAUDIO_CALLER"))) {
-				if (cw_true(tmpvar->value))
-					cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
-				cw_object_put(tmpvar);
-			} else
-				cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
-
-			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_PLAYAUDIO_CALLEE, "LIMIT_PLAYAUDIO_CALLEE"))) {
-				if (cw_true(tmpvar->value))
-					cw_set_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
-				cw_object_put(tmpvar);
-			}
-
-			if (!cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING)
-			&& !cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING))
-				cw_set_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
-
-			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_CONNECT_FILE, "LIMIT_CONNECT_FILE"))) {
-				config.start_sound = strdup(tmpvar->value);
-				cw_object_put(tmpvar);
-			} else
-				config.start_sound = NULL;
-
-			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_TIMEOUT_FILE, "LIMIT_TIMEOUT_FILE"))) {
-				config.end_sound = strdup(tmpvar->value);
-				cw_object_put(tmpvar);
-			}
-
-			if ((tmpvar = pbx_builtin_getvar_helper(chan, CW_KEYWORD_LIMIT_WARNING_FILE, "LIMIT_WARNING_FILE"))) {
-				config.warning_sound = strdup(tmpvar->value);
-				cw_object_put(tmpvar);
-			} else
-				config.warning_sound = strdup("timeleft");
-
-			var = stack = limitdata;
-
-			var = strsep(&stack, ":");
-			if (var) {
-				timelimit = atol(var);
-				playargs++;
-				var = strsep(&stack, ":");
-				if (var) {
-					play_warning = atol(var);
-					playargs++;
-					var = strsep(&stack, ":");
-					if (var) {
-						warning_freq = atol(var);
-						playargs++;
-					}
-				}
-			}
-		  
-			if (!timelimit) {
-				timelimit = play_warning = warning_freq = 0;
-				cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
-				cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
-				if (config.warning_sound) {
-					free(config.warning_sound);
-					config.warning_sound = NULL;
-				}
-			}
-			/* undo effect of S(x) in case they are both used */
-			calldurationlimit = 0; 
-			/* more efficient do it like S(x) does since no advanced opts*/
-			if (!play_warning && !config.start_sound && !config.end_sound && timelimit) {
-				calldurationlimit = timelimit/1000;
-				timelimit = play_warning = warning_freq = 0;
-				cw_clear_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING);
-				cw_clear_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING);
-				if (option_verbose > 2)
-					cw_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %u seconds.\n", calldurationlimit);
-			} else if (option_verbose > 2) {
-				cw_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
-				cw_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
-				cw_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
-				cw_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", cw_test_flag(&config.features_caller, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
-				cw_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", cw_test_flag(&config.features_callee, CW_FEATURE_PLAY_WARNING) ? "yes" : "no");
-				cw_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
-				cw_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", config.start_sound ? config.start_sound : "UNDEF");
-				cw_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", config.warning_sound ? config.warning_sound : "UNDEF");
-				cw_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", config.end_sound ? config.end_sound : "UNDEF");
-			}
-		}
-		
-		/* XXX # REQUEST ANNOUNCE SUPPORT */
-		if (strchr(options, 'R')) {
-			waitpound = 1;
-		}		
-
-		/* XXX ANNOUNCE SUPPORT */
-		if ((ann = strstr(options, "A("))) {
-			announce = 1;
-			cw_copy_string(announcemsg, ann + 2, sizeof(announcemsg));
-			/* Overwrite with X's what was the announce info */
-			while (*ann && (*ann != ')')) 
-				*(ann++) = 'X';
-			if (*ann)
-				*ann = 'X';
-			/* Now find the end of the announce */
-			ann = strchr(announcemsg, ')');
-			if (ann)
-				*ann = '\0';
-			else {
-				cw_log(CW_LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
-				announce = 0;
-			}
-		}
-
-		/* Get the goto from the dial option string */
-		if ((mac = strstr(options, "G("))) {
-
-
-			dblgoto = cw_strdupa(mac + 2);
-			while (*mac && (*mac != ')'))
-				*(mac++) = 'X';
-			if (*mac) {
-				*mac = 'X';
-				mac = strchr(dblgoto, ')');
-				if (mac)
-					*mac = '\0';
-				else {
-					cw_log(CW_LOG_WARNING, "Goto flag set without trailing ')'\n");
-					dblgoto = NULL;
-				}
-			} else {
-				cw_log(CW_LOG_WARNING, "Could not find exten to which we should jump.\n");
-				dblgoto = NULL;
-			}
-		}
-
-		/* Get the jump destination from the dial option string */
-		if ((mac = strstr(options, "J("))) {
-			jumpdst = cw_strdupa(mac + 2);
-			while (*mac && (*mac != ')'))
-				*(mac++) = 'X';
-			if (*mac) {
-				*mac = 'X';
-				mac = strchr(jumpdst, ')');
-				if (mac)
-					*mac = '\0';
-				else {
-					cw_log(CW_LOG_WARNING, "Destination jump flag set without trailing ')'\n");
-					jumpdst = NULL;
-				}
-			} else {
-				cw_log(CW_LOG_WARNING, "Could not find exten to which we should jump.\n");
-				jumpdst = NULL;
-			}
-		}
-
-		/* Get the proc name from the dial option string */
-		if ((mac = strstr(options, "M("))) {
-			hasmacro = 1;
-			proc_name = cw_strdupa(mac + 2);
-			while (*mac && (*mac != ')'))
-				*(mac++) = 'X';
-			if (*mac) {
-				*mac = 'X';
-				mac = strchr(proc_name, ')');
-				if (mac)
-					*mac = '\0';
-				else {
-					cw_log(CW_LOG_WARNING, "Proc flag set without trailing ')'\n");
-					hasmacro = 0;
-				}
-			} else {
-				cw_log(CW_LOG_WARNING, "Could not find macro to which we should jump.\n");
-				hasmacro = 0;
-			}
-		}
-		/* Get music on hold class */
-		if ((mac = strstr(options, "m("))) {
-			mohclass = cw_strdupa(mac + 2);
-			mac++; /* Leave the "m" in the string */
-			while (*mac && (*mac != ')'))
-				*(mac++) = 'X';
-			if (*mac) {
-				*mac = 'X';
-				mac = strchr(mohclass, ')');
-				if (mac)
-					*mac = '\0';
-				else {
-					cw_log(CW_LOG_WARNING, "Music on hold class specified without trailing ')'\n");
-					mohclass = NULL;
-				}
-			} else {
-				cw_log(CW_LOG_WARNING, "Could not find music on hold class to use, assuming default.\n");
-				mohclass=NULL;
-			}
-		}
-		/* Extract privacy info from transfer */
-		if ((s = strstr(options, "P("))) {
-			privacy = 1;
-			cw_copy_string(privdb, s + 2, sizeof(privdb));
-			/* Overwrite with X's what was the privacy info */
-			while (*s && (*s != ')')) 
-				*(s++) = 'X';
-			if (*s)
-				*s = 'X';
-			/* Now find the end of the privdb */
-			s = strchr(privdb, ')');
-			if (s)
-				*s = '\0';
-			else {
-				cw_log(CW_LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
-				privacy = 0;
-			}
-		} else if (strchr(options, 'P')) {
-			/* No specified privdb */
-			privacy = 1;
-		} else if (strchr(options, 'p')) {
-			screen = 1;
-		} else if (strchr(options, 'C')) {
-			resetcdr = 1;
-		}
-		if (strchr(options, 'n')) {
-			no_save_intros = 1;
-		} 
-		if (strchr(options, 'N')) {
-			no_screen_callerid = 1;
-		}
-	}
-	if (resetcdr && chan->cdr)
+	if (opt.resetcdr && chan->cdr)
 		cw_cdr_reset(chan->cdr, 0);
-	if (privacy && cw_strlen_zero(privdb)) {
-		/* If privdb is not specified and we are using privacy, copy from extension */
-		cw_copy_string(privdb, chan->exten, sizeof(privdb));
+	if (opt.privacy && cw_strlen_zero(privdb)) {
+		/* If privdb is not specified and we are using privacy, use extension */
+		privdb = chan->exten;
 	}
-	if (privacy || screen) {
+	if (opt.privacy || opt.screen) {
 		char callerid[60];
 
 		l = chan->cid.cid_num;
 		if (!cw_strlen_zero(l)) {
 			cw_shrink_phone_number(l);
-			if( privacy ) {
+			if (opt.privacy) {
 				if (option_verbose > 2)
-					cw_verbose( VERBOSE_PREFIX_3  "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
+					cw_verbose( VERBOSE_PREFIX_3  "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, opt.privacy, l);
 				privdb_val = cw_privacy_check(privdb, l);
 			}
 			else {
@@ -1063,12 +1079,12 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		
 		cw_copy_string(privcid,l,sizeof(privcid));
 
-		if( strncmp(privcid,"NOCALLERID",10) != 0 && no_screen_callerid ) { /* if callerid is set, and no_screen_callerid is set also */  
+		if( strncmp(privcid,"NOCALLERID",10) != 0 && opt.no_screen_callerid ) {
 			if (option_verbose > 2)
 				cw_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", privcid);
 			privdb_val = CW_PRIVACY_ALLOW;
 		}
-		else if( no_screen_callerid && strncmp(privcid,"NOCALLERID",10) == 0 ) {
+		else if (opt.no_screen_callerid && strncmp(privcid,"NOCALLERID",10) == 0) {
 			if (option_verbose > 2)
 				cw_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", privdb_val);
 		}
@@ -1135,29 +1151,14 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		}
 		*number = '\0';
 		number++;
-		tmp = malloc(sizeof(struct outchan));
-		if (!tmp) {
-			cw_log(CW_LOG_WARNING, "Out of memory\n");
+
+		if (!(tmp = calloc(1, sizeof(struct outchan)))) {
+			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 			goto out;
 		}
-		memset(tmp, 0, sizeof(struct outchan));
-		if (options) {
-			cw_set2_flag(tmp, strchr(options, 't'), DIAL_ALLOWREDIRECT_IN);
-			cw_set2_flag(tmp, strchr(options, 'T'), DIAL_ALLOWREDIRECT_OUT);
-			cw_set2_flag(tmp, strchr(options, 'r'), DIAL_RINGBACKONLY);	
-			cw_set2_flag(tmp, strchr(options, 'm'), DIAL_MUSICONHOLD);	
-			cw_set2_flag(tmp, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			cw_set2_flag(peerflags, strchr(options, 'H'), DIAL_ALLOWDISCONNECT_OUT);	
-			cw_set2_flag(tmp, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			cw_set2_flag(peerflags, strchr(options, 'h'), DIAL_ALLOWDISCONNECT_IN);
-			cw_set2_flag(tmp, strchr(options, 'f'), DIAL_FORCECALLERID);	
-			cw_set2_flag(tmp, url, DIAL_NOFORWARDHTML);	
-			cw_set2_flag(peerflags, strchr(options, 'w'), DIAL_MONITOR_IN);	
-			cw_set2_flag(peerflags, strchr(options, 'W'), DIAL_MONITOR_OUT);	
-			cw_set2_flag(peerflags, strchr(options, 'd'), DIAL_HALT_ON_DTMF);	
-			cw_set2_flag(peerflags, strchr(options, 'g'), DIAL_GO_ON);	
-			cw_set2_flag(peerflags, strchr(options, 'o'), DIAL_PRESERVE_CALLERID);	
-		}
+
+		tmp->flags = flags;
+
 		cw_copy_string(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
@@ -1291,7 +1292,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */
-		cw_set_flag(tmp, DIAL_STILLGOING);	
+		cw_set_flag(tmp, DIAL_STILLGOING);
 		tmp->next = outgoing;
 		outgoing = tmp;
 		/* If this line is up, don't try anybody else */
@@ -1367,7 +1368,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
  			cw_log(CW_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			cw_channel_sendurl( peer, url );
  		}
-		if (privacy || screen) {
+		if (opt.privacy || opt.screen) {
 			int res2;
 			int loopcount = 0;
 			if( privdb_val == CW_PRIVACY_UNKNOWN ) {
@@ -1380,12 +1381,12 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				   target extension was picked up. We are going to have to kill some
 				   time and make the caller believe the peer hasn't picked up yet */
 
-				if ( strchr(options, 'm') ) {
+				if (flags & DIAL_MUSICONHOLD) {
 					cw_indicate(chan, -1);
 					cw_moh_start(chan, mohclass);
-				} else if ( strchr(options, 'r') ) {
-					cw_indicate(chan, CW_CONTROL_RINGING);
+				} else if (flags & DIAL_RINGBACKONLY) {
 					sentringing++;
+					cw_indicate(chan, CW_CONTROL_RINGING);
 				}
 
 				/* Start autoservice on the other chan ?? */
@@ -1395,7 +1396,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					do {
 						if (!res2)
 							res2 = cw_play_and_wait(peer,"priv-callpending");
-						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+						if( res2 < '1' || (opt.privacy && res2>'5') || (opt.screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						
 						/* priv-callpending script: 
@@ -1403,13 +1404,13 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 						*/
 						if (!res2)
 							res2 = cw_play_and_wait(peer,privintro);
-						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+						if( res2 < '1' || (opt.privacy && res2>'5') || (opt.screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
 							res2 = 0;
 						/* now get input from the called party, as to their choice */
 						if( !res2 ) {
-							if( privacy )
+							if (opt.privacy)
 								res2 = cw_play_and_wait(peer,"priv-callee-options");
-							if( screen )
+							if (opt.screen)
 								res2 = cw_play_and_wait(peer,"screen-callee-options");
 						}
 						/* priv-callee-options script:
@@ -1429,33 +1430,33 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 							 Dial 3 to send this callerr to the torture menus.
 							 Dial 4 to send this caller to a simple "go away" menu.
 						*/
-						if( !res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4') ) {
+						if( !res2 || res2 < '1' || (opt.privacy && res2 > '5') || (opt.screen && res2 > '4') ) {
 							/* invalid option */
 							res2 = cw_play_and_wait(peer,"vm-sorry");
 						}
 						loopcount++; /* give the callee a couple chances to make a choice */
-					} while( (!res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4')) && loopcount < 2 );
+					} while( (!res2 || res2 < '1' || (opt.privacy && res2 > '5') || (opt.screen && res2 > '4')) && loopcount < 2 );
 				}
 
 				switch(res2) {
 				case '1':
-					if( privacy ) {
+					if (opt.privacy) {
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
-						cw_privacy_set(privdb,privcid,CW_PRIVACY_ALLOW);
+						cw_privacy_set(privdb, privcid, CW_PRIVACY_ALLOW);
 					}
 					break;
 				case '2':
-					if( privacy ) {
+					if (opt.privacy) {
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n", privdb, privcid);
-						cw_privacy_set(privdb,privcid,CW_PRIVACY_DENY);
+						cw_privacy_set(privdb, privcid, CW_PRIVACY_DENY);
 					}
-					if ( strchr(options, 'm') ) {
+					if (flags & DIAL_MUSICONHOLD) {
 						cw_moh_stop(chan);
-					} else if ( strchr(options, 'r') ) {
+					} else if (sentringing) {
+						sentringing = 0;
 						cw_indicate(chan, -1);
-						sentringing=0;
 					}
 					res2 = cw_autoservice_stop(chan);
 					cw_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
@@ -1463,54 +1464,54 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					goto out;
 					break;
 				case '3':
-					if( privacy ) {
-						cw_privacy_set(privdb,privcid,CW_PRIVACY_TORTURE);
+					if (opt.privacy) {
+						cw_privacy_set(privdb, privcid, CW_PRIVACY_TORTURE);
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n", privdb, privcid);
 					}
 					cw_copy_string(status, "TORTURE", sizeof(status));
 					
 					res = 0;
-					if ( strchr(options, 'm') ) {
+					if (flags & DIAL_MUSICONHOLD) {
 						cw_moh_stop(chan);
-					} else if ( strchr(options, 'r') ) {
+					} else if (sentringing) {
+						sentringing = 0;
 						cw_indicate(chan, -1);
-						sentringing=0;
 					}
 					res2 = cw_autoservice_stop(chan);
 					cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 					goto out; /* Is this right? */
 					break;
 				case '4':
-					if( privacy ) {
+					if (opt.privacy) {
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n", privdb, privcid);
-						cw_privacy_set(privdb,privcid,CW_PRIVACY_KILL);
+						cw_privacy_set(privdb, privcid, CW_PRIVACY_KILL);
 					}
 
 					cw_copy_string(status, "DONTCALL", sizeof(status));
 					res = 0;
-					if ( strchr(options, 'm') ) {
+					if (flags & DIAL_MUSICONHOLD) {
 						cw_moh_stop(chan);
-					} else if ( strchr(options, 'r') ) {
+					} else if (sentringing) {
+						sentringing = 0;
 						cw_indicate(chan, -1);
-						sentringing=0;
 					}
 					res2 = cw_autoservice_stop(chan);
 					cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
 					goto out; /* Is this right? */
 					break;
 				case '5':
-					if( privacy ) {
+					if (opt.privacy) {
 						if (option_verbose > 2)
 							cw_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
-						cw_privacy_set(privdb,privcid,CW_PRIVACY_ALLOW);
+						cw_privacy_set(privdb, privcid, CW_PRIVACY_ALLOW);
 					
-						if ( strchr(options, 'm') ) {
+						if (flags & DIAL_MUSICONHOLD) {
 							cw_moh_stop(chan);
-						} else if ( strchr(options, 'r') ) {
+						} else if (sentringing) {
+							sentringing = 0;
 							cw_indicate(chan, -1);
-							sentringing=0;
 						}
 						res2 = cw_autoservice_stop(chan);
 						cw_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
@@ -1524,11 +1525,11 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
 					if (option_verbose > 2)
 						cw_log(CW_LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
-					if ( strchr(options, 'm') ) {
+					if (flags & DIAL_MUSICONHOLD) {
 						cw_moh_stop(chan);
-					} else if ( strchr(options, 'r') ) {
+					} else if (sentringing) {
+						sentringing = 0;
 						cw_indicate(chan, -1);
-						sentringing=0;
 					}
 					res2 = cw_autoservice_stop(chan);
 					cw_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
@@ -1536,16 +1537,16 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					goto out;
 					break;
 				}
-				if ( strchr(options, 'm') ) {
+				if (flags & DIAL_MUSICONHOLD) {
 					cw_moh_stop(chan);
-				} else if ( strchr(options, 'r') ) {
+				} else if (sentringing) {
+					sentringing = 0;
 					cw_indicate(chan, -1);
-					sentringing=0;
 				}
 				res2 = cw_autoservice_stop(chan);
 				/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
 				   just clog things up, and it's not useful information, not being tied to a CID */
-				if( strncmp(privcid,"NOCALLERID",10) == 0 || no_save_intros ) {
+				if( strncmp(privcid,"NOCALLERID",10) == 0 || opt.no_save_intros ) {
 					cw_filedelete(privintro, NULL);
 					if( cw_fileexists(privintro,NULL,NULL ) )
 						cw_log(CW_LOG_NOTICE,"privacy: cw_filedelete didn't do its job on %s\n", privintro);
@@ -1554,7 +1555,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				}
 			}
 		}
-		if (announce && announcemsg[0]) {
+		if (announcemsg && announcemsg[0]) {
 			/* Start autoservice on the other chan */
 			res = cw_autoservice_start(chan);
 			/* Now Stream the File */
@@ -1586,7 +1587,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			goto out;
 		}
 
-		if (hasmacro && proc_name) {
+		if (proc_name) {
 			res = cw_autoservice_start(chan);
 			if (res) {
 				cw_log(CW_LOG_ERROR, "Unable to start autoservice on calling channel\n");
@@ -1614,7 +1615,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					}
 					else if (!strcasecmp(tmpvar->value, "CONGESTION") || !strcasecmp(tmpvar->value, "CHANUNAVAIL")) {
 						cw_copy_string(status, tmpvar->value, sizeof(status));
-						cw_set_flag(peerflags, DIAL_GO_ON);	
+						cw_set_flag(peerflags, DIAL_GO_ON);
 						res = -1;
 					}
 					else if (!strcasecmp(tmpvar->value, "CONTINUE")) {
@@ -1622,7 +1623,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 						   the context / exten / priority or perhaps 
 						   the next priority in the current exten is desired.
 						*/
-						cw_set_flag(peerflags, DIAL_GO_ON);	
+						cw_set_flag(peerflags, DIAL_GO_ON);
 						res = -1;
 					} else if (!strcasecmp(tmpvar->value, "ABORT")) {
 						/* Hangup both ends unless the caller has the g flag */
@@ -1646,7 +1647,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				}
 			}
 		}
-		if (waitpound) {
+		if (opt.waitpound) {
 			cw_indicate(chan, CW_CONTROL_RINGING);
 			inputkey = cw_waitfordigit(peer, 6000);
 			if (inputkey != '#') {
@@ -1741,20 +1742,18 @@ out:
 
 	hanguptree(outgoing, NULL);
 
-	if (config.start_sound)
-		free(config.start_sound);
-	if (config.end_sound)
-		free(config.end_sound);
-	if (config.warning_sound)
-		free(config.warning_sound);
-
-	cw_dynarray_free(&args);
-
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	cw_log(CW_LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 
 	if ((cw_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != CW_PBX_KEEPALIVE))
 		res = 0;
+
+err:
+	free(config.start_sound);
+	free(config.end_sound);
+	free(config.warning_sound);
+
+	cw_dynargs_free(&args);
 
 	LOCAL_USER_REMOVE(u);
 	return res;
