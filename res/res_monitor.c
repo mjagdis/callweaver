@@ -296,8 +296,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 				cw_log(CW_LOG_DEBUG,"Executing: %s\n", cmd.data);
 				if (cw_safe_system(cmd.data) == -1)
 					cw_log(CW_LOG_WARNING, "Failed to execute: %s failed.\n", cmd.data);
-			} else
-				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+			}
 
 			cw_dynstr_free(&cmd);
 		}

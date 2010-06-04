@@ -633,12 +633,16 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                         pbx_substitute_variables(chan, NULL, sw->data, data);
 
 		    res = 0;
-                    if (action == HELPER_CANMATCH && asw->canmatch)
-                        res = asw->canmatch(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
-                    else if (action == HELPER_MATCHMORE && asw->matchmore)
-                        res = asw->matchmore(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
-                    else if (asw->exists)
-                        res = asw->exists(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+		    if (!data->error) {
+                        if (action == HELPER_CANMATCH && asw->canmatch)
+                            res = asw->canmatch(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+                        else if (action == HELPER_MATCHMORE && asw->matchmore)
+                            res = asw->matchmore(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+                        else if (asw->exists)
+                            res = asw->exists(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+		    }
+
+		    cw_dynstr_reset(data);
 
                     if (res)
                     {
@@ -648,7 +652,6 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                         return NULL;
                     }
 
-		    cw_dynstr_reset(data);
                     cw_object_put(asw);
                 }
                 else
@@ -843,7 +846,7 @@ static void cw_copy_escape(cw_dynstr_t *ds_p, const char *s)
 	}
 }
 
-static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst, char stop)
+static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst, char stop, int *error)
 {
 	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	cw_dynstr_t rds = CW_DYNSTR_INIT;
@@ -867,14 +870,14 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 						res = &rds;
 
 					if (start[len + 1] == '{') {
-						skip = expand_string(chan, vars, &start[len + 2], &ds, '}');
+						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', error);
 
 						if (!ds.error)
 							pbx_retrieve_substr(chan, vars, ds.data, ds.used, res);
 						else
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
-						skip = expand_string(chan, vars, &start[len + 2], &ds, ']');
+						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', error);
 
 						if (!ds.error) {
 							cw_expr(ds.data, res);
@@ -917,11 +920,21 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 	if (len)
 		cw_dynstr_printf(dst, "%.*s", len, start);
 
+	if (inquote)
+		*error = 1;
+
 	return (&start[len] - src);
 }
 void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst)
 {
-	expand_string(chan, vars, src, dst, '\0');
+	int error = 0;
+
+	expand_string(chan, vars, src, dst, '\0', &error);
+
+	if (error) {
+		cw_log(CW_LOG_ERROR, "Unmatched quote in: %s\n", src);
+		dst->error = 1;
+	}
 }
 
 
@@ -961,19 +974,21 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
             c->priority = priority;
             cw_dynstr_reset(&data);
             pbx_substitute_variables(c, NULL, e->data, &data);
-            cw_manager_event(EVENT_FLAG_CALL, "Newexten",
-                7,
-                cw_msg_tuple("Channel",     "%s", c->name),
-                cw_msg_tuple("Context",     "%s", c->context),
-                cw_msg_tuple("Extension",   "%s", c->exten),
-                cw_msg_tuple("Priority",    "%d", c->priority),
-                cw_msg_tuple("Application", "%s", e->app),
-                cw_msg_tuple("AppData",     "%s", data.data),
-                cw_msg_tuple("Uniqueid",    "%s", c->uniqueid)
-            );
-            res = cw_function_exec_str(c, e->apphash, e->app, data.data, NULL);
-            if (res && errno == ENOENT)
-                cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", e->app);
+            if (!data.error) {
+                cw_manager_event(EVENT_FLAG_CALL, "Newexten",
+                    7,
+                    cw_msg_tuple("Channel",     "%s", c->name),
+                    cw_msg_tuple("Context",     "%s", c->context),
+                    cw_msg_tuple("Extension",   "%s", c->exten),
+                    cw_msg_tuple("Priority",    "%d", c->priority),
+                    cw_msg_tuple("Application", "%s", e->app),
+                    cw_msg_tuple("AppData",     "%s", data.data),
+                    cw_msg_tuple("Uniqueid",    "%s", c->uniqueid)
+                );
+                res = cw_function_exec_str(c, e->apphash, e->app, data.data, NULL);
+                if (res && errno == ENOENT)
+                    cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", e->app);
+            }
 	    break;
         default:
             cw_log(CW_LOG_WARNING, "Huh (%d)?\n", action);

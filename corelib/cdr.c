@@ -311,10 +311,8 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 					cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
 					break;
 				}
-			} else {
-				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+			} else
 				break;
-			}
 			cw_dynstr_reset(&ds);
 		}
 	}

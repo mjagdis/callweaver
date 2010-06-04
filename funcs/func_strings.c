@@ -127,17 +127,15 @@ static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, cw_
 		cw_dynstr_t ds = CW_DYNSTR_INIT;
 		int fieldcount = 0;
 
-		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds)) {
-			if (!ds.error) {
-				char *p = ds.data;
+		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds) && !ds.error) {
+			char *p = ds.data;
 
-				/* FIXME: should we use cw_separate_app_args here to get quoting right */
-				while (strsep(&p, argv[1]))
-					fieldcount++;
-				cw_dynstr_printf(result, "%d", fieldcount);
-			} else
+			/* FIXME: should we use cw_separate_app_args here to get quoting right */
+			while (strsep(&p, argv[1]))
+				fieldcount++;
+			cw_dynstr_printf(result, "%d", fieldcount);
+		} else
 				result->error = 1;
-		}
 
 		cw_dynstr_free(&ds);
 	}
@@ -292,56 +290,59 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, cw_dynst
 
 		pbx_substitute_variables(chan, NULL, tmp, &varvalue);
 
-		tmp2 = varvalue.data;
-		curfieldnum = 1;
-		while ((tmp2 != NULL) && (field != NULL)) {
-			char *nextgroup = strsep(&field, "&");
-			int num1 = 0, num2 = MAXRESULT;
-			char trashchar;
+		if (!varvalue.error) {
+			tmp2 = varvalue.data;
+			curfieldnum = 1;
+			while ((tmp2 != NULL) && (field != NULL)) {
+				char *nextgroup = strsep(&field, "&");
+				int num1 = 0, num2 = MAXRESULT;
+				char trashchar;
 
-			if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
-				/* range with both start and end */
-			} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
-			/* range with end */
-				num1 = 0;
-			} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
-				/* range with start */
-				num2 = MAXRESULT;
-			} else if (sscanf(nextgroup, "%d", &num1) == 1) {
-				/* single number */
-				num2 = num1;
-			} else {
-				cw_log(CW_LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
-				return -1;
-			}
+				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
+					/* range with both start and end */
+				} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
+				/* range with end */
+					num1 = 0;
+				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
+					/* range with start */
+					num2 = MAXRESULT;
+				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
+					/* single number */
+					num2 = num1;
+				} else {
+					cw_log(CW_LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
+					return -1;
+				}
 
-			/* Get to start, if any */
-			if (num1 > 0) {
-				while ((tmp2 != (char *)NULL + 1) && (curfieldnum < num1)) {
-					tmp2 = index(tmp2, d) + 1;
+				/* Get to start, if any */
+				if (num1 > 0) {
+					while ((tmp2 != (char *)NULL + 1) && (curfieldnum < num1)) {
+						tmp2 = index(tmp2, d) + 1;
+						curfieldnum++;
+					}
+				}
+
+				/* Most frequent problem is the expectation of reordering fields */
+				if ((num1 > 0) && (curfieldnum > num1)) {
+					cw_log(CW_LOG_WARNING, "We're already past the field you wanted?\n");
+				}
+
+				/* Re-null tmp2 if we added 1 to NULL */
+				if (tmp2 == (char *)NULL + 1)
+					tmp2 = NULL;
+
+				/* Output fields until we either run out of fields or num2 is reached */
+				while ((tmp2 != NULL) && (curfieldnum <= num2)) {
+					char *tmp3 = strsep(&tmp2, ds);
+
+					cw_dynstr_printf(result, "%s%s", (!first ? ds : ""), tmp3);
+
+					first = 0;
 					curfieldnum++;
 				}
 			}
-
-			/* Most frequent problem is the expectation of reordering fields */
-			if ((num1 > 0) && (curfieldnum > num1)) {
-				cw_log(CW_LOG_WARNING, "We're already past the field you wanted?\n");
-			}
-
-			/* Re-null tmp2 if we added 1 to NULL */
-			if (tmp2 == (char *)NULL + 1)
-				tmp2 = NULL;
-
-			/* Output fields until we either run out of fields or num2 is reached */
-			while ((tmp2 != NULL) && (curfieldnum <= num2)) {
-				char *tmp3 = strsep(&tmp2, ds);
-
-				cw_dynstr_printf(result, "%s%s", (!first ? ds : ""), tmp3);
-
-				first = 0;
-				curfieldnum++;
-			}
-		}
+		} else
+			result->error = 1;
 
 		cw_dynstr_free(&varvalue);
 	}

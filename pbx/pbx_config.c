@@ -1104,18 +1104,13 @@ static int pbx_load_module(void)
 		option_priority_jumping = !cw_false(cw_variable_retrieve(cfg, "general",
 									   "priorityjumping"));
 
-		v = cw_variable_browse(cfg, "globals");
-		while(v) {
+		for (v = cw_variable_browse(cfg, "globals"); v; v = v->next) {
 			pbx_substitute_variables(NULL, NULL, v->value, &ds);
-			if (!ds.error) {
+			if (!ds.error)
 				pbx_builtin_setvar_helper(NULL, v->name, ds.data);
-				cw_dynstr_reset(&ds);
-				v = v->next;
-			} else {
-				cw_dynstr_free(&ds);
-				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+			else
 				return -1;
-			}
+			cw_dynstr_reset(&ds);
 		}
 		cxt = cw_category_browse(cfg, NULL);
 		while(cxt) {
@@ -1139,89 +1134,91 @@ static int pbx_load_module(void)
 							if (!ext)
 								ext = (char *)"";
 							pbx_substitute_variables(NULL, NULL, ext, &ds);
-							cidmatch = strchr(ds.data, '/');
-							if (cidmatch) {
-								*cidmatch = '\0';
-								cidmatch++;
-								cw_shrink_phone_number(cidmatch);
-							}
-							pri = strsep(&stringp, ",");
-							if (!pri)
-								pri = (char *)"";
-							label = strchr(pri, '(');
-							if (label) {
-								*label = '\0';
-								label++;
-								end = strchr(label, ')');
-								if (end)
-									*end = '\0';
-								else
-									cw_log(CW_LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
-							}
-							plus = strchr(pri, '+');
-							if (plus) {
-								*plus = '\0';
-								plus++;
-							}
-							if (!strcmp(pri,"hint"))
-								ipri=PRIORITY_HINT;
-							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
-								if (lastpri > -2)
-									ipri = lastpri + 1;
-								else
-									cw_log(CW_LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
-							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
-								if (lastpri > -2)
-									ipri = lastpri;
-								else
-									cw_log(CW_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-							} else  {
-								if (sscanf(pri, "%d", &ipri) != 1) {
-									if ((ipri = cw_findlabel_extension2(NULL, con, ds.data, pri, cidmatch)) < 1) {
-										cw_log(CW_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
-										ipri = 0;
+							if (!ds.error) {
+								cidmatch = strchr(ds.data, '/');
+								if (cidmatch) {
+									*cidmatch = '\0';
+									cidmatch++;
+									cw_shrink_phone_number(cidmatch);
+								}
+								pri = strsep(&stringp, ",");
+								if (!pri)
+									pri = (char *)"";
+								label = strchr(pri, '(');
+								if (label) {
+									*label = '\0';
+									label++;
+									end = strchr(label, ')');
+									if (end)
+										*end = '\0';
+									else
+										cw_log(CW_LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
+								}
+								plus = strchr(pri, '+');
+								if (plus) {
+									*plus = '\0';
+									plus++;
+								}
+								if (!strcmp(pri,"hint"))
+									ipri=PRIORITY_HINT;
+								else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
+									if (lastpri > -2)
+										ipri = lastpri + 1;
+									else
+										cw_log(CW_LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
+								} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
+									if (lastpri > -2)
+										ipri = lastpri;
+									else
+										cw_log(CW_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
+								} else  {
+									if (sscanf(pri, "%d", &ipri) != 1) {
+										if ((ipri = cw_findlabel_extension2(NULL, con, ds.data, pri, cidmatch)) < 1) {
+											cw_log(CW_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
+											ipri = 0;
+										}
 									}
 								}
-							}
-							appl = stringp;
-							if (!appl)
-								appl = (char *)"";
-							/* Find the first occurrence of either '(' or ',' */
-							firstc = strchr(appl, ',');
-							firstp = strchr(appl, '(');
-							if (firstc && ((!firstp) || (firstc < firstp))) {
-								/* comma found, no parenthesis */
-								/* or both found, but comma found first */
-								appl = strsep(&stringp, ",");
-								data = stringp;
-							} else if ((!firstc) && (!firstp)) {
-								/* Neither found */
-								data = (char *)"";
-							} else {
-								/* Final remaining case is parenthesis found first */
-								appl = strsep(&stringp, "(");
-								data = stringp;
-								end = strrchr(data, ')');
-								if ((end = strrchr(data, ')'))) {
-									*end = '\0';
+								appl = stringp;
+								if (!appl)
+									appl = (char *)"";
+								/* Find the first occurrence of either '(' or ',' */
+								firstc = strchr(appl, ',');
+								firstp = strchr(appl, '(');
+								if (firstc && ((!firstp) || (firstc < firstp))) {
+									/* comma found, no parenthesis */
+									/* or both found, but comma found first */
+									appl = strsep(&stringp, ",");
+									data = stringp;
+								} else if ((!firstc) && (!firstp)) {
+									/* Neither found */
+									data = (char *)"";
 								} else {
-									cw_log(CW_LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+									/* Final remaining case is parenthesis found first */
+									appl = strsep(&stringp, "(");
+									data = stringp;
+									end = strrchr(data, ')');
+									if ((end = strrchr(data, ')'))) {
+										*end = '\0';
+									} else {
+										cw_log(CW_LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+									}
 								}
-							}
 
-							if (!data)
-								data = (char *)"";
-							appl = cw_skip_blanks(appl);
-							if (ipri) {
-								if (plus)
-									ipri += atoi(plus);
-								lastpri = ipri;
-								if(!option_dontwarn) {
-									if (!strcmp(ds.data, "_."))
-										cw_log(CW_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-								}
-								if (cw_add_extension2(con, 0, ds.data, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
-									cw_log(CW_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+								if (!data)
+									data = (char *)"";
+								appl = cw_skip_blanks(appl);
+								if (ipri) {
+									if (plus)
+										ipri += atoi(plus);
+									lastpri = ipri;
+									if(!option_dontwarn) {
+										if (!strcmp(ds.data, "_."))
+											cw_log(CW_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
+									}
+									if (cw_add_extension2(con, 0, ds.data, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
+										cw_log(CW_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+									}
 								}
 							}
 
@@ -1230,11 +1227,11 @@ static int pbx_load_module(void)
 						    cw_log(CW_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						pbx_substitute_variables(NULL, NULL, v->value, &ds);
-						if (cw_context_add_include2(con, ds.data, registrar))
+						if (!ds.error && cw_context_add_include2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
 						pbx_substitute_variables(NULL, NULL, v->value, &ds);
-						if (cw_context_add_ignorepat2(con, ds.data, registrar))
+						if (!ds.error && cw_context_add_ignorepat2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp;
@@ -1244,14 +1241,16 @@ static int pbx_load_module(void)
 						else
 							cw_dynstr_printf(&ds, "%s", v->value);
 
-						stringp = ds.data;
-						appl = strsep(&stringp, "/");
-						data = strsep(&stringp, "");
+						if (!ds.error) {
+							stringp = ds.data;
+							appl = strsep(&stringp, "/");
+							data = strsep(&stringp, "");
 
-						if (!data)
-							data = (char *)"";
-						if (cw_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							cw_log(CW_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+							if (!data)
+								data = (char *)"";
+							if (cw_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
+								cw_log(CW_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
+						}
 					}
 
 					cw_dynstr_reset(&ds);

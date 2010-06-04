@@ -23,6 +23,8 @@
 
 #include <string.h>
 
+#include "callweaver/logger.h"
+
 
 #define CW_DYNARRAY_DEFAULT_CHUNK (64 - 1)
 
@@ -102,8 +104,11 @@ typedef CW_DYNARRAY(void) cw_dynarray_generic_t;
 		if ((__ndata[0] = realloc(__ndata[(__ptr->size == 0 && sizeof(__ptr->data[0]) == 1 ? 1 : 0)], __space))) { \
 			__ptr->size = __space / sizeof(*__ptr->data); \
 			__ptr->data = __ndata[0]; \
-		} else \
+		} else { \
+			cw_dynarray_free(__ptr); \
 			__ptr->error = 1; \
+			cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
+		} \
 	} \
 	__ptr->error; \
 })
@@ -115,12 +120,12 @@ typedef CW_DYNARRAY(void) cw_dynarray_generic_t;
  *	\param da_p	dynamic array to free
  */
 #define cw_dynarray_free(da_p) ({ \
-	typeof(da_p) __ptr = (da_p); \
-	if (__ptr->size) { \
-		free(__ptr->data); \
-		__ptr->data = NULL; \
+	typeof(da_p) __ptr_free = (da_p); \
+	if (__ptr_free->size) { \
+		free(__ptr_free->data); \
+		__ptr_free->data = NULL; \
 	} \
-	__ptr->used = __ptr->size = __ptr->error = 0; \
+	__ptr_free->used = __ptr_free->size = __ptr_free->error = 0; \
 })
 
 

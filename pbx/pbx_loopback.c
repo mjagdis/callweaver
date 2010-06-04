@@ -80,9 +80,6 @@ static const char tdesc[] = "Loopback Switch";
 		cw_dynstr_free(&ds); \
 		cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
 		if (!strcasecmp(newcontext, context)) return -1; \
-	} else { \
-		cw_dynstr_free(&ds); \
-		cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
 	}
 
 

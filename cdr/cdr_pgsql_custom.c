@@ -194,6 +194,8 @@ static int pgsql_log(struct cw_cdr *batch)
 					chan->cdr = cdr;
 					pbx_substitute_variables(chan, NULL, sql_tmp_cmd.data, &cmd_ds);
 
+					cw_dynstr_reset(&sql_tmp_cmd);
+
 					if (!cmd_ds.error) {
 						cdrset = cdrset->next;
 
@@ -221,9 +223,6 @@ static int pgsql_log(struct cw_cdr *batch)
 					}
 				}
 
-				cw_dynstr_free(&cmd_ds);
-				cw_dynstr_free(&sql_tmp_cmd);
-				cw_log(CW_LOG_ERROR, "Out of memory!\n");
 				sleep(1);
 			}
 		}

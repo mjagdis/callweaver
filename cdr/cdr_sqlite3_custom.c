@@ -168,39 +168,39 @@ static int sqlite3_log(struct cw_cdr *batch)
 
 				chan->cdr = cdr;
 				pbx_substitute_variables(chan, NULL, sql_tmp_cmd, &cmd_ds);
-				do_escape(&esc_ds, &cmd_ds);
-
 				sqlite3_free(sql_tmp_cmd);
 
-				if (!cmd_ds.error && !esc_ds.error) {
-					cdrset = cdrset->next;
+				if (!cmd_ds.error) {
+					do_escape(&esc_ds, &cmd_ds);
 
-					for (count = 0; count < 5; count++) {
-						zErr = NULL;
-						res = sqlite3_exec(db, esc_ds.data, NULL, NULL, &zErr);
+					if (!!esc_ds.error) {
+						cdrset = cdrset->next;
 
-						if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-							break;
+						for (count = 0; count < 5; count++) {
+							zErr = NULL;
+							res = sqlite3_exec(db, esc_ds.data, NULL, NULL, &zErr);
 
-						if (zErr)
+							if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
+								break;
+
+							if (zErr)
+								sqlite3_free(zErr);
+
+							usleep(200);
+						}
+
+						if (zErr) {
+							cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, esc_ds.data);
 							sqlite3_free(zErr);
+						}
 
-						usleep(200);
+						cw_dynstr_reset(&esc_ds);
+						cw_dynstr_reset(&cmd_ds);
+						continue;
 					}
-
-					if (zErr) {
-						cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, esc_ds.data);
-						sqlite3_free(zErr);
-					}
-
-					cw_dynstr_reset(&esc_ds);
-					cw_dynstr_reset(&cmd_ds);
-				} else {
-					cw_dynstr_free(&esc_ds);
-					cw_dynstr_free(&cmd_ds);
-					cw_log(CW_LOG_ERROR, "Out of memory!\n");
-					sleep(1);
 				}
+
+				sleep(1);
 			}
 		}
 

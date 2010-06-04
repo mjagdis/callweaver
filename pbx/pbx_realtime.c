@@ -202,34 +202,32 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 		}
 
 		if (v_app && !cw_strlen_zero(v_app->value)) {
-			if (v_appdata && !cw_strlen_zero(v_appdata->value)) {
+			if (v_appdata && !cw_strlen_zero(v_appdata->value))
 				pbx_substitute_variables(chan, NULL, v_appdata->value, &appdata);
-				if (appdata.error)
-					goto out;
-			} else
-				cw_dynstr_printf(&appdata, "%s", "");
 
-			if (option_verbose > 2)
-	 		    cw_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
-				    exten, context, priority,
-			            v_app->value,
-				    chan->name,
-				    appdata.data
-			    );
-			cw_manager_event(EVENT_FLAG_CALL, "Newexten",
-				7,
-				cw_msg_tuple("Channel",     "%s\r\n", chan->name),
-				cw_msg_tuple("Context",     "%s\r\n", chan->context),
-				cw_msg_tuple("Extension",   "%s\r\n", chan->exten),
-				cw_msg_tuple("Priority",    "%d\r\n", chan->priority),
-				cw_msg_tuple("Application", "%s\r\n", v_app->value),
-				cw_msg_tuple("AppData",     "%s\r\n", appdata.data),
-				cw_msg_tuple("Uniqueid",    "%s\r\n", chan->uniqueid)
-			);
-			res = cw_function_exec_str(chan, cw_hash_string(v_app->value), v_app->value, appdata.data, NULL);
-			if (res && errno == ENOENT)
-				cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", v_app->value);
-out:
+			if (!appdata.error) {
+				if (option_verbose > 2)
+					cw_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
+						exten, context, priority,
+						v_app->value,
+						chan->name,
+						appdata.data
+					);
+				cw_manager_event(EVENT_FLAG_CALL, "Newexten",
+					7,
+					cw_msg_tuple("Channel",     "%s\r\n", chan->name),
+					cw_msg_tuple("Context",     "%s\r\n", chan->context),
+					cw_msg_tuple("Extension",   "%s\r\n", chan->exten),
+					cw_msg_tuple("Priority",    "%d\r\n", chan->priority),
+					cw_msg_tuple("Application", "%s\r\n", v_app->value),
+					cw_msg_tuple("AppData",     "%s\r\n", appdata.data),
+					cw_msg_tuple("Uniqueid",    "%s\r\n", chan->uniqueid)
+				);
+				res = cw_function_exec_str(chan, cw_hash_string(v_app->value), v_app->value, appdata.data, NULL);
+				if (res && errno == ENOENT)
+					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", v_app->value);
+			}
+
 			cw_dynstr_free(&appdata);
 		}
 

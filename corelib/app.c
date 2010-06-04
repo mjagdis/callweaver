@@ -1061,8 +1061,7 @@ int cw_separate_app_args(args_t *args, char *buf, char delim)
 			for (i = 0; i < args->used; i++)
 				cw_log(CW_LOG_DEBUG, "argv[%lu]: %s\n", (unsigned long)i, args->data[i]);
 		}
-	} else
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	}
 
 	return args->error;
 }

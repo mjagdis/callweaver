@@ -235,8 +235,6 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		cw_dynstr_printf(&tmp, "%s/%s", cw_config[CW_OGI_DIR], script);
 		if (!tmp.error)
 			script = tmp.data;
-		else
-			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 	}
 	if (access(script,X_OK)!=0) {
                cw_log(CW_LOG_ERROR, "OGI script does not exists or not in executable format: %s\n", script );
@@ -1175,28 +1173,34 @@ static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
 	struct cw_channel *chan2;
+	int res = RESULT_SHOWUSAGE;
 
-	if ((argc != 4) && (argc != 5))
-		return RESULT_SHOWUSAGE;
+	if (argc == 4 || argc == 5) {
+		res = RESULT_SUCCESS;
 
-	chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
+		chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
 
-	if (chan) {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		if (chan) {
+			cw_dynstr_t ds = CW_DYNSTR_INIT;
 
-		pbx_substitute_variables(chan2, NULL, argv[4], &ds);
-		fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
-		cw_dynstr_free(&ds);
-	} else {
-		fdprintf(ogi->fd, "200 result=0\n");
+			pbx_substitute_variables(chan2, NULL, argv[4], &ds);
+
+			if (!ds.error)
+				fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
+			else
+				res = RESULT_FAILURE;
+
+			cw_dynstr_free(&ds);
+		} else
+			fdprintf(ogi->fd, "200 result=0\n");
+
+		if (chan2 && (chan2 != chan)) {
+			cw_channel_unlock(chan2);
+			cw_object_put(chan2);
+		}
 	}
 
-	if (chan2 && (chan2 != chan)) {
-		cw_channel_unlock(chan2);
-		cw_object_put(chan2);
-	}
-
-	return RESULT_SUCCESS;
+	return res;
 }
 
 

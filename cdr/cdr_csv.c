@@ -206,11 +206,8 @@ static int csv_log(struct cw_cdr *batch)
 					}
 
 					cw_dynstr_reset(&ds);
-				} else {
-					cw_dynstr_free(&ds);
-					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				} else
 					sleep(1);
-				}
 			}
 		}
 

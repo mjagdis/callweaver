@@ -69,17 +69,20 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 		cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 		s = cw_strdupa(argv[0]);
-		appname = strsep(&s, "(");
-		if (s) {
-			endargs = strrchr(s, ')');
-			if (endargs)
-				*endargs = '\0';
-			pbx_substitute_variables(chan, NULL, s, &ds);
-		}
-		if (appname) {
-			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, ds.data, NULL);
-			if (res && errno == ENOENT)
-				cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", appname);
+		if ((appname = strsep(&s, "("))) {
+			if (s) {
+				endargs = strrchr(s, ')');
+				if (endargs)
+					*endargs = '\0';
+				pbx_substitute_variables(chan, NULL, s, &ds);
+			}
+
+			res = -1;
+			if (!ds.error) {
+				res = cw_function_exec_str(chan, cw_hash_string(appname), appname, ds.data, NULL);
+				if (res && errno == ENOENT)
+					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", appname);
+			}
 		}
 
 		cw_dynstr_free(&ds);

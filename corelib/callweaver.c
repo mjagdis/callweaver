@@ -983,9 +983,6 @@ static int core_dump(cw_dynstr_t *ds_p, int argc, char *argv[])
 		}
 
 		cw_dynstr_free(&ds);
-
-		if (unlikely(res != RESULT_SUCCESS))
-			cw_log(CW_LOG_ERROR, "Out of memory!\n");
 	}
 
 	return res;
@@ -1033,9 +1030,6 @@ static int core_analyse(cw_dynstr_t *ds_p, int argc, char *argv[])
 	}
 
 	cw_dynstr_free(&cmd);
-
-	if (unlikely(i != RESULT_SUCCESS))
-		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
 	return i;
 }

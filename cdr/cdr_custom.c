@@ -113,11 +113,8 @@ static int custom_log(struct cw_cdr *batch)
 					cdrset = cdrset->next;
 					fputs(ds.data, csvmaster_fd);
 					cw_dynstr_reset(&ds);
-				} else {
-					cw_dynstr_free(&ds);
-					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				} else
 					sleep(1);
-				}
 			}
 		}
 
