@@ -670,16 +670,16 @@ ${OUTBOUND_GROUP}		Default groups for peer channels (as in SetGroup)
 
 The chanisavail() application sets the following variables:
 -----------------------------------------------------------
-${AVAILCHAN}		* the name of the available channel if one was found	
-${AVAILORIGCHAN} 	* the canonical channel name that was used to create the channel
-${AVAILSTATUS}		* Status of requested channel
+${AVAILCHAN}		the name of the available channel if one was found
+${AVAILORIGCHAN} 	the canonical channel name that was used to create the channel
+${AVAILSTATUS}		Status of requested channel
 
-When using macros in the dialplan, these variables are available
+When using procs in the dialplan, these variables are available
 ---------------------------------------------------------
-${MACRO_EXTEN}		* The calling extensions
-${MACRO_CONTEXT}	* The calling context
-${MACRO_PRIORITY}	* The calling priority
-${MACRO_OFFSET}		Offset to add to priority at return from macro
+${PROC_EXTEN}		The calling extensions
+${PROC_CONTEXT}		The calling context
+${PROC_PRIORITY}	The calling priority
+${PROC_OFFSET}		Offset to add to priority at return from macro
 
 If you compile with OSP support in the SIP channel, these
 variables are used:
