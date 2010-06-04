@@ -19,6 +19,7 @@
 #ifndef _CALLWEAVER_CALLWEAVER_EXPR_H
 #define _CALLWEAVER_CALLWEAVER_EXPR_H
 
+#include "callweaver/channel.h"
 #include "callweaver/dynstr.h"
 
 
@@ -34,7 +35,7 @@
 extern "C" {
 #endif
 
-extern CW_API_PUBLIC int cw_expr(const char *expr, struct cw_dynstr *result);
+extern CW_API_PUBLIC int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

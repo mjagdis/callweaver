@@ -16,8 +16,11 @@
  * at the top of the source tree.
  */
 
+#include "callweaver/channel.h"
+
+
 enum valtype {
-	CW_EXPR_number, CW_EXPR_string, CW_EXPR_numeric_string
+	CW_EXPR_number, CW_EXPR_string, CW_EXPR_numeric_string, CW_EXPR_arbitrary_string
 };
 
 struct val {
@@ -30,7 +33,8 @@ struct val {
 
 struct parse_io
 {
-	const char *string;
-	struct val *val;
 	yyscan_t scanner;
+	struct cw_channel *chan;
+	struct val *val;
+	const char *string;
 };

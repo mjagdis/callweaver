@@ -144,6 +144,8 @@ static char *expr2_token_subst(const char *mess);
 \:\:	{ SET_COLUMNS; return TOK_COLONCOLON;}
 \(	{ SET_COLUMNS; return TOK_LP;}
 \)	{ SET_COLUMNS; return TOK_RP;}
+\,	{ SET_COLUMNS; return TOK_COMMA;}
+
 \$\{	{
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -164,7 +166,7 @@ static char *expr2_token_subst(const char *mess);
 		return TOKEN;
 	}
 
-(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|$[^{]|[a-zA-Z0-9,.;_^#@\x80-\xff])+	{
+(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|$[^{]|[a-zA-Z0-9.;_^#@\x80-\xff])+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
@@ -228,18 +230,19 @@ static char *expr2_token_subst(const char *mess);
 int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int cw_expr(const char *expr, struct cw_dynstr *result)
+int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 {
 	struct parse_io io;
 	int return_value = 0;
-	
+
 	memset(&io, 0, sizeof(io));
+	io.chan = chan;
 	io.string = expr;  /* to pass to the error routine */
-	
+
 	cw_yylex_init(&io.scanner);
-	
+
 	cw_yy_scan_string(expr, io.scanner);
-	
+
 	if (!cw_yyparse((void *) &io)) {
 		if (!io.val) {
 			cw_dynstr_printf(result, "0");
@@ -302,7 +305,8 @@ static const char *expr2_token_equivs1[] =
 	[TOK_COLON] = "TOK_COLON",
 	[TOK_EQTILDE] = "TOK_EQTILDE",
 	[TOK_RP] = "TOK_RP",
-	[TOK_LP] = "TOK_LP"
+	[TOK_LP] = "TOK_LP",
+	[TOK_COMMA] = "TOK_COMMA",
 };
 
 static const char *expr2_token_equivs2[] =
@@ -327,7 +331,8 @@ static const char *expr2_token_equivs2[] =
 	[TOK_COLON] = ":",
 	[TOK_EQTILDE] = "=~",
 	[TOK_RP] = ")",
-	[TOK_LP] = "("
+	[TOK_LP] = "(",
+	[TOK_COMMA] = ",",
 };
 
 
