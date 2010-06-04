@@ -39,9 +39,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/app.h"
 #include "callweaver/localtime.h"
 
-/* Maximum length of any variable */
-#define MAXRESULT	1024
-
 
 static void *fieldqty_function;
 static const char fieldqty_func_name[] = "FIELDQTY";
@@ -300,17 +297,17 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, cw_dynst
 			curfieldnum = 1;
 			while ((tmp2 != NULL) && (field != NULL)) {
 				char *nextgroup = strsep(&field, "&");
-				int num1 = 0, num2 = MAXRESULT;
+				int num1 = 0, num2 = INT_MAX;
 				char trashchar;
 
 				if (sscanf(nextgroup, "%d-%d", &num1, &num2) == 2) {
 					/* range with both start and end */
 				} else if (sscanf(nextgroup, "-%d", &num2) == 1) {
-				/* range with end */
+					/* range with end */
 					num1 = 0;
 				} else if ((sscanf(nextgroup, "%d%c", &num1, &trashchar) == 2) && (trashchar == '-')) {
 					/* range with start */
-					num2 = MAXRESULT;
+					num2 = INT_MAX;
 				} else if (sscanf(nextgroup, "%d", &num1) == 1) {
 					/* single number */
 					num2 = num1;
