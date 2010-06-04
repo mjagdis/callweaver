@@ -204,12 +204,12 @@ extern CW_API_PUBLIC int cw_app_group_list_unlock(void);
  *
  * \param args     The args struct to be filled in with pointers to the separated arguments
  * \param buf      The string to be parsed (this must be a writable copy, as it will be modified)
- * \param delim    The character to be used to delimit arguments
+ * \param delim    List of characters to be used to delimit arguments
  *
  * \return Non-zero on error
 */
 typedef CW_DYNARRAY(char *) args_t;
-extern CW_API_PUBLIC int cw_separate_app_args(args_t *args, char *buf, char delim);
+extern CW_API_PUBLIC int cw_separate_app_args(args_t *args, char *buf, const char *delim);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 extern CW_API_PUBLIC int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);

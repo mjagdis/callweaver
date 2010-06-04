@@ -4948,7 +4948,7 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 	int ret;
 
 	if (!goto_string || !(prio = cw_strdupa(goto_string))
-	|| cw_separate_app_args(&args, prio, ',') || args.used > 3)
+	|| cw_separate_app_args(&args, prio, ",") || args.used > 3)
 		return cw_function_syntax("Goto([[context, ]extension, ]priority)");
 
 	prio = args.data[args.used - 1];

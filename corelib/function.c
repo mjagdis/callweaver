@@ -198,7 +198,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 		cw_verbose(VERBOSE_PREFIX_3 "%s: Call %s(%s)\n", (chan ? chan->name : "[no channel]"), name, argstr);
 
 	ret = -1;
-	if (!cw_separate_app_args(&args, argstr, ','))
+	if (!cw_separate_app_args(&args, argstr, ","))
 		ret = cw_function_exec(chan, hash, name, args.used, &args.data[0], result);
 
 	cw_dynarray_free(&args);

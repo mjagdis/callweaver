@@ -981,10 +981,10 @@ int cw_app_group_list_unlock(void)
 }
 
 
-int cw_separate_app_args(args_t *args, char *buf, char delim)
+int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 {
 	if (option_debug && option_verbose > 6)
-		cw_log(CW_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
+		cw_log(CW_LOG_DEBUG, "delim=\"%s\", args: %s\n", delim, buf);
 
 	cw_dynarray_reset(args);
 	args->used = 0;
@@ -1020,7 +1020,7 @@ int cw_separate_app_args(args_t *args, char *buf, char delim)
 						inquote = !inquote;
 						if (!*(++next)) break;
 						continue;
-					} else if (*next == delim && !inquote)
+					} else if (strchr(delim, *next) && !inquote)
 						break;
 
 					*(end++) = *(next++);

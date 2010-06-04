@@ -41,10 +41,6 @@ extern "C" {
 
 #define CW_MAX_CMD_LEN 	16
 
-#define CW_MAX_ARGS 64
-
-#define CW_CLI_COMPLETE_EOF	"_EOF_"
-
 
 /*! \brief A command line entry */ 
 struct cw_clicmd {

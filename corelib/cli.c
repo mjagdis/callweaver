@@ -43,6 +43,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
+#include "callweaver/app.h"
 
 
 static int cw_clicmd_qsort_compare(const void *a, const void *b)
@@ -81,7 +82,7 @@ static int clicmd_object_match(struct cw_object *obj, const void *pattern)
     int m, i;
 
     /* start optimistic */
-    m= 1;
+    m = 1;
     for (i = 0; m && i < args->ncmds; i++) {
         /* If there are no more words in the candidate command, then we're there. */
         if (!clicmd->cmda[i] && !args->exact)
@@ -110,21 +111,23 @@ struct cw_registry clicmd_registry = {
 
 static struct cw_clicmd *find_cli(char *cmds[], int exact)
 {
-    struct match_args args = {
-        .cmds = cmds,
-        .exact = exact,
-    };
-    struct cw_object *obj;
+	struct match_args args = {
+		.cmds = cmds,
+		.exact = exact,
+	};
+	struct cw_object *obj;
+	struct cw_clicmd *clicmd;
 
-    for (args.ncmds = 0; cmds[args.ncmds]; args.ncmds++);
+	for (args.ncmds = 0; cmds[args.ncmds]; args.ncmds++);
 
-    for (; args.ncmds; args.ncmds--) {
-        obj = cw_registry_find(&clicmd_registry, 0, 0, &args);
-        if (obj) {
-            return container_of(obj, struct cw_clicmd, obj);
-        }
-    }
-    return NULL;
+	clicmd = NULL;
+	for (; args.ncmds; args.ncmds--) {
+		if ((obj = cw_registry_find(&clicmd_registry, 0, 0, &args))) {
+			clicmd = container_of(obj, struct cw_clicmd, obj);
+			break;
+		}
+	}
+	return clicmd;
 }
 
 
@@ -803,241 +806,147 @@ static struct cw_clicmd builtins[] = {
 };
 
 
-static void join(char *dest, size_t destsize, const char *w[], int tws)
-{
-    int x;
-    /* Join words into a string */
-    if (!dest || destsize < 1) {
-        return;
-    }
-    dest[0] = '\0';
-    for (x=0;w[x];x++) {
-        if (x)
-            strncat(dest, " ", destsize - strlen(dest) - 1);
-        strncat(dest, w[x], destsize - strlen(dest) - 1);
-    }
-    if (tws && !cw_strlen_zero(dest))
-        strncat(dest, " ", destsize - strlen(dest) - 1);
-}
-
-static char *find_best(char *argv[])
-{
-    static char cmdline[80];
-    struct cw_clicmd *clicmd;
-    int x;
-
-    /* See how close we get, then print the  */
-    char *myargv[CW_MAX_CMD_LEN];
-    for (x=0;x<CW_MAX_CMD_LEN;x++)
-        myargv[x]=NULL;
-    for (x=0;argv[x];x++) {
-        myargv[x] = argv[x];
-        if (!(clicmd = find_cli(myargv, -1)))
-            break;
-        cw_object_put(clicmd);
-    }
-    join(cmdline, sizeof(cmdline), (const char **)myargv, 0);
-    return cmdline;
-}
-
-
 struct help_workhorse_args {
-    char matchstr[80];
-    cw_dynstr_t *ds_p;
-    int match;
+	char **match;
+	cw_dynstr_t *ds_p;
 };
 
 static int help_workhorse_one(struct cw_object *obj, void *data)
 {
-    char fullcmd[80];
-    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
-    struct help_workhorse_args *args = data;
+	struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
+	struct help_workhorse_args *args = data;
+	size_t mark;
+	int i;
 
-    join(fullcmd, sizeof(fullcmd), clicmd->cmda, 0);
+	for (i = 0; args->match[i]; i++)
+		if (strcasecmp(args->match[i], clicmd->cmda[i]))
+			goto out;
 
-    if (!args->match || !strncasecmp(args->matchstr, fullcmd, strlen(args->matchstr)))
-        cw_dynstr_printf(args->ds_p, "%25.25s  %s\n", fullcmd, clicmd->summary);
+	mark = cw_dynstr_end(args->ds_p);
 
-    return 0;
+	/* Assumption: the literal words of commands do not contain whitespace
+	 * quotes, backslashes or anything else that would need escaping if a
+	 * subsequent cw_separate_app_args() is to return the correct data.
+	 */
+	for (i = 0; clicmd->cmda[i]; i++)
+		cw_dynstr_printf(args->ds_p, "%s%s", (i ? " " : ""), clicmd->cmda[i]);
+
+	if (!args->ds_p->error) {
+		if (args->ds_p->used - mark < 25)
+			cw_dynstr_printf(args->ds_p, "%.*s", 25 - (int)(args->ds_p->used - mark), "                         ");
+		cw_dynstr_printf(args->ds_p, "%s\n", clicmd->summary);
+	}
+
+out:
+	return 0;
 }
 
-static int help_workhorse(cw_dynstr_t *ds_p, const char *match[])
+static int help_workhorse(cw_dynstr_t *ds_p, char **match)
 {
     struct help_workhorse_args args = {
-        .match = 0,
-        .matchstr = "",
+        .match = match,
         .ds_p = ds_p,
     };
-
-    if (match) {
-        args.match = 1;
-        join(args.matchstr, sizeof(args.matchstr), match, 0);
-    }
 
     cw_registry_iterate_ordered(&clicmd_registry, help_workhorse_one, &args);
     return 0;
 }
 
 static int handle_help(cw_dynstr_t *ds_p, int argc, char *argv[]) {
-    struct cw_clicmd *clicmd;
-    int ret;
+	struct cw_clicmd *clicmd;
+	int ret;
 
-    ret = RESULT_SHOWUSAGE;
-    if (argc == 0)
-        ret = RESULT_SUCCESS;
-    else if (argc > 1) {
-        ret = RESULT_SUCCESS;
-        clicmd = find_cli(argv + 1, 1);
-        if (clicmd) {
-            if (clicmd->usage)
-                cw_dynstr_printf(ds_p, "%s", clicmd->usage);
-            else
-                cw_dynstr_printf(ds_p, "No help available\n");
-            cw_object_put(clicmd);
-        } else {
-            clicmd = find_cli(argv + 1, -1);
-            if (clicmd) {
-                ret = help_workhorse(ds_p, (const char **)argv + 1);
-                cw_object_put(clicmd);
-            } else
-                cw_dynstr_printf(ds_p, "No such command\n");
-        }
-    } else
-        ret = help_workhorse(ds_p, NULL);
+	ret = RESULT_SHOWUSAGE;
+	if (argc == 0)
+		ret = RESULT_SUCCESS;
+	else if (argc > 1) {
+		ret = RESULT_SUCCESS;
+		if ((clicmd = find_cli(argv + 1, 1))) {
+			cw_dynstr_printf(ds_p, "%s", (clicmd->usage ? clicmd->usage : "No help available\n"));
+			cw_object_put(clicmd);
+		} else if ((clicmd = find_cli(argv + 1, -1))) {
+			ret = help_workhorse(ds_p, argv + 1);
+			cw_object_put(clicmd);
+		} else
+			cw_dynstr_printf(ds_p, "No such command\n");
+	} else
+		ret = help_workhorse(ds_p, NULL);
 
-    return ret;
-}
-
-static void parse_args(char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
-{
-    char *cur;
-    int x = 0;
-    int quoted = 0;
-    int escaped = 0;
-    int whitespace = 1;
-
-    *trailingwhitespace = 0;
-
-    cur = s;
-    while (*s) {
-        if ((*s == '"') && !escaped) {
-            quoted = !quoted;
-            if (quoted & whitespace) {
-                /* If we're starting a quoted string, coming off white space, start a new argument */
-                if (x >= (max - 1)) {
-                    cw_log(CW_LOG_WARNING, "Too many arguments, truncating\n");
-                    break;
-                }
-                argv[x++] = cur;
-                whitespace = 0;
-            }
-            escaped = 0;
-        } else if (((*s == ' ') || (*s == '\t')) && !(quoted || escaped)) {
-            /* If we are not already in whitespace, and not in a quoted string or
-               processing an escape sequence, and just entered whitespace, then
-               finalize the previous argument and remember that we are in whitespace
-            */
-            if (!whitespace) {
-                *(cur++) = '\0';
-                whitespace = 1;
-            }
-        } else if ((*s == '\\') && !escaped) {
-            escaped = 1;
-        } else {
-            if (whitespace) {
-                /* If we are coming out of whitespace, start a new argument */
-                if (x >= (max - 1)) {
-                    cw_log(CW_LOG_WARNING, "Too many arguments, truncating\n");
-                    break;
-                }
-                argv[x++] = cur;
-                whitespace = 0;
-            }
-            *(cur++) = *s;
-            escaped = 0;
-        }
-        s++;
-    }
-    /* Null terminate */
-    *(cur++) = '\0';
-    argv[x] = NULL;
-    *argc = x;
-    *trailingwhitespace = whitespace;
+	return ret;
 }
 
 
 struct cli_generator_args {
-    char matchstr[80];
-    char *argv[CW_MAX_ARGS];
-    char *word;
-    cw_dynstr_t *ds_p;
-    int lastarg;
-    int lastarg_len;
+	args_t av;
+	cw_dynstr_t *ds_p;
+	int lastarg_len;
 };
 
 static int cli_generator_one(struct cw_object *obj, void *data)
 {
-    struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
-    struct cli_generator_args *args = data;
-    int i;
+	struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
+	struct cli_generator_args *args = data;
+	int i;
 
-    for (i = 0; i < args->lastarg; i++) {
-        if (!clicmd->cmda[i] || strcasecmp(args->argv[i], clicmd->cmda[i]))
-            break;
-    }
+	for (i = 0; i < args->av.used; i++) {
+		if (!clicmd->cmda[i] || strcasecmp(args->av.data[i], clicmd->cmda[i]))
+			break;
+	}
 
-    /* If we matched everything we were given we have a result. */
-    if (i == args->lastarg && clicmd->cmda[i]) {
-        if (!strncasecmp(clicmd->cmda[i], args->argv[args->lastarg], args->lastarg_len))
-            cw_dynstr_printf(args->ds_p, "%s\r\n", clicmd->cmda[i]);
-    } else if (!clicmd->cmda[i] && clicmd->generator) {
-        clicmd->generator(args->ds_p, args->argv, args->lastarg, args->lastarg_len);
-    }
+	/* If we matched everything we were given we have a result. */
+	if (i == args->av.used && clicmd->cmda[i]) {
+		if (!strncasecmp(clicmd->cmda[i], args->av.data[args->av.used], args->lastarg_len))
+			cw_dynstr_printf(args->ds_p, "%s\r\n", clicmd->cmda[i]);
+	} else if (!clicmd->cmda[i] && clicmd->generator)
+		clicmd->generator(args->ds_p, args->av.data, args->av.used, args->lastarg_len);
 
-    return 0;
+	return 0;
 }
 
 void cw_cli_generator(cw_dynstr_t *ds_p, char *cmd)
 {
 	struct cli_generator_args args = {
+		.av = CW_DYNARRAY_INIT,
 		.ds_p = ds_p,
 	};
-	int tws;
 
-	parse_args(cmd, &args.lastarg, args.argv, arraysize(args.argv) - 1, &tws);
-	join(args.matchstr, sizeof(args.matchstr), (const char **)args.argv, tws);
-	if (tws || args.lastarg == 0)
-		args.argv[args.lastarg] = (char *)"";
-	else
-		args.lastarg--;
+	if (!cw_separate_app_args(&args.av, cmd, " \t")) {
+		if (args.av.used == 0)
+			args.av.data[0] = (char *)"";
+		else
+			args.av.used--;
 
-	args.lastarg_len = strlen(args.argv[args.lastarg]);
+		args.lastarg_len = strlen(args.av.data[args.av.used]);
 
-	cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
+		cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
+	}
+
+	cw_dynarray_free(&args);
 }
 
 
 void cw_cli_command(cw_dynstr_t *ds_p, char *cmd)
 {
-	char *argv[CW_MAX_ARGS];
+	args_t args = CW_DYNARRAY_INIT;
 	struct cw_clicmd *clicmd;
-	int argc;
-	int tws;
 
-	parse_args(cmd, &argc, argv, sizeof(argv) / sizeof(argv[0]), &tws);
-	/* We need at least one entry, or ignore */
-	if (argc > 0) {
-		clicmd = find_cli(argv, 0);
+	if (!cw_separate_app_args(&args, cmd, " \t") && args.used > 0) {
+		if (args.used && !args.data[args.used - 1][0])
+			args.data[--args.used] = NULL;
+
+		clicmd = find_cli(args.data, 0);
 		if (clicmd) {
-			switch (clicmd->handler(ds_p, argc, argv)) {
-			case RESULT_SHOWUSAGE:
-				cw_dynstr_printf(ds_p, "%s", clicmd->usage);
-				break;
-		    }
+			switch (clicmd->handler(ds_p, args.used, args.data)) {
+				case RESULT_SHOWUSAGE:
+					cw_dynstr_printf(ds_p, "%s", clicmd->usage);
+					break;
+			}
 			cw_object_put(clicmd);
 		} else
-			cw_dynstr_printf(ds_p, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+			cw_dynstr_printf(ds_p, "No such command. Type \"help\" for help.\n");
 	}
+
+	cw_dynarray_free(&args);
 }
 
 

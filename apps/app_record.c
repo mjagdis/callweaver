@@ -160,7 +160,7 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 		args_t piece = CW_DYNARRAY_INIT;
 
 		/* Separate each piece out by the format specifier */
-		cw_separate_app_args(&piece, argv[0], '%');
+		cw_separate_app_args(&piece, argv[0], "%");
 
 		if (!piece.error) {
 			do {
