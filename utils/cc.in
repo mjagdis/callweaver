@@ -37,8 +37,10 @@ if [[ $status -ne 0 ]]; then
 
 		if grep 'error #2215: definition at end of file not followed by a semicolon or a declarator' "$tmpfile" > /dev/null 2>&1; then
 			# YACC/Bison generates not-quite-valid code for %union
+			# and may define exernal functions with no previous declaration
 			echo "*** Ignoring missing semicolon at end of file (YACC/Bison generated code?)"
 			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd2215'
+			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd1418'
 		fi
 	fi
 
