@@ -2,6 +2,23 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2010, Eris Associates Limited, UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ *
+ * This is a rewrite of the previous code:
+ *
  * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -71,42 +88,11 @@ struct val *cw_expr_make_number(long double n)
 }
 
 
-#define SET_COLUMNS \
-	do { \
-		yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
-		yylloc_param->last_column += yyleng - 1; \
-		yylloc_param->first_line = yylloc_param->last_line = 1; \
-	} while (0)
-
-#define SET_EOF	\
-	do { \
-		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
-			yylval_param->val->type = CW_EXPR_string; \
-			yylval_param->val->u.s = strdup(yytext); \
-		} \
-	} while (0)
-
-#define SET_STRING \
-	do { \
-		cw_split_args(NULL, yytext, "", '\0', NULL); \
-		yylval_param->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng); \
-	} while (0)
-
-#define SET_NUMERIC\
-	do { \
-		yylval_param->val = cw_expr_make_number(strtold(yytext, NULL)); \
-	} while (0)
-
-
-void cw_yyset_column(int column_no, yyscan_t yyscanner);
-int cw_yyget_column(yyscan_t yyscanner);
-
-
 #ifndef YY_NO_INPUT
 #  ifdef __cplusplus
-    static int yyinput (yyscan_t yyscanner) __attribute__ (( unused ));
+    static int yyinput(yyscan_t yyscanner) __attribute__ ((__unused__));
 #  else
-    static int input  (yyscan_t yyscanner) __attribute__ (( unused ));
+    static int input(yyscan_t yyscanner) __attribute__ ((__unused__));
 #  endif
 #endif
 
@@ -132,97 +118,94 @@ int cw_yyget_column(yyscan_t yyscanner);
 
 %%
 
-\|	{ SET_COLUMNS; return TOK_OR;}
-\&	{ SET_COLUMNS; return TOK_AND;}
-\=	{ SET_COLUMNS; return TOK_EQ;}
-\|\|	{ SET_COLUMNS; return TOK_OR;}
-\&\&	{ SET_COLUMNS; return TOK_AND;}
-\=\=	{ SET_COLUMNS; return TOK_EQ;}
-\=~	{ SET_COLUMNS; return TOK_EQTILDE;}
-\>	{ SET_COLUMNS; return TOK_GT;}
-\<	{ SET_COLUMNS; return TOK_LT;}
-\>\=	{ SET_COLUMNS; return TOK_GE;}
-\<\=	{ SET_COLUMNS; return TOK_LE;}
-\!\=	{ SET_COLUMNS; return TOK_NE;}
-\+	{ SET_COLUMNS; return TOK_PLUS;}
-\-	{ SET_COLUMNS; return TOK_MINUS;}
-\*	{ SET_COLUMNS; return TOK_MULT;}
-\/	{ SET_COLUMNS; return TOK_DIV;}
-\%	{ SET_COLUMNS; return TOK_MOD;}
-\?	{ SET_COLUMNS; return TOK_COND;}
-\!	{ SET_COLUMNS; return TOK_COMPL;}
-\:	{ SET_COLUMNS; return TOK_COLON;}
-\:\:	{ SET_COLUMNS; return TOK_COLONCOLON;}
-\(	{ SET_COLUMNS; return TOK_LP;}
-\)	{ SET_COLUMNS; return TOK_RP;}
-\,	{ SET_COLUMNS; return TOK_COMMA;}
+\|		{ return TOK_OR; }
+\&		{ return TOK_AND; }
+\=		{ return TOK_EQ; }
+\|\|		{ return TOK_OR; }
+\&\&		{ return TOK_AND; }
+\=\=		{ return TOK_EQ; }
+\=~		{ return TOK_EQTILDE; }
+\>		{ return '>'; }
+\<		{ return '<'; }
+\>\=		{ return TOK_GE; }
+\<\=		{ return TOK_LE; }
+\!\=		{ return TOK_NE; }
+\+		{ return '+'; }
+\-		{ return '-'; }
+\*		{ return '*'; }
+\/		{ return '/'; }
+\%		{ return '%'; }
+\?		{ return '?'; }
+\!		{ return '!'; }
+\:		{ return ':'; }
+\:\:		{ return TOK_COLONCOLON; }
+\(		{ return '('; }
+\)		{ return ')'; }
+\,		{ return ','; }
 
-ACOSH	{ SET_COLUMNS; return TOK_ACOSH; }
-ACOS	{ SET_COLUMNS; return TOK_ACOS; }
-ASINH	{ SET_COLUMNS; return TOK_ASINH; }
-ASIN	{ SET_COLUMNS; return TOK_ASIN; }
-ATAN2	{ SET_COLUMNS; return TOK_ATAN2; }
-ATAN	{ SET_COLUMNS; return TOK_ATAN; }
-CBRT	{ SET_COLUMNS; return TOK_CBRT; }
-CEIL	{ SET_COLUMNS; return TOK_CEIL; }
-COPYSIGN	{ SET_COLUMNS; return TOK_COPYSIGN; }
-COSH	{ SET_COLUMNS; return TOK_COSH; }
-COS	{ SET_COLUMNS; return TOK_COS; }
-ERFC	{ SET_COLUMNS; return TOK_ERFC; }
-ERF	{ SET_COLUMNS; return TOK_ERF; }
-EXP2	{ SET_COLUMNS; return TOK_EXP2; }
-EXP	{ SET_COLUMNS; return TOK_EXP; }
-EXPM1	{ SET_COLUMNS; return TOK_EXPM1; }
-FABS	{ SET_COLUMNS; return TOK_FABS; }
-FDIM	{ SET_COLUMNS; return TOK_FDIM; }
-FLOOR	{ SET_COLUMNS; return TOK_FLOOR; }
-FMA	{ SET_COLUMNS; return TOK_FMA; }
-FMAX	{ SET_COLUMNS; return TOK_FMAX; }
-FMIN	{ SET_COLUMNS; return TOK_FMIN; }
-FMOD	{ SET_COLUMNS; return TOK_FMOD; }
-HYPOT	{ SET_COLUMNS; return TOK_HYPOT; }
-LGAMMA	{ SET_COLUMNS; return TOK_LGAMMA; }
-LOG10	{ SET_COLUMNS; return TOK_LOG10; }
-LOG1P	{ SET_COLUMNS; return TOK_LOG1P; }
-LOG2	{ SET_COLUMNS; return TOK_LOG2; }
-LOGB	{ SET_COLUMNS; return TOK_LOGB; }
-LOG	{ SET_COLUMNS; return TOK_LOG; }
-NEARBYINT	{ SET_COLUMNS; return TOK_NEARBYINT; }
-NEXTAFTER	{ SET_COLUMNS; return TOK_NEXTAFTER; }
-NEXTTOWARD	{ SET_COLUMNS; return TOK_NEXTTOWARD; }
-POW	{ SET_COLUMNS; return TOK_POW; }
-REMAINDER	{ SET_COLUMNS; return TOK_REMAINDER; }
-RINT	{ SET_COLUMNS; return TOK_RINT; }
-ROUND	{ SET_COLUMNS; return TOK_ROUND; }
-SINH	{ SET_COLUMNS; return TOK_SINH; }
-SIN	{ SET_COLUMNS; return TOK_SIN; }
-SQRT	{ SET_COLUMNS; return TOK_SQRT; }
-TANH	{ SET_COLUMNS; return TOK_TANH; }
-TAN	{ SET_COLUMNS; return TOK_TAN; }
-TGAMMA	{ SET_COLUMNS; return TOK_TGAMMA; }
-TRUNC	{ SET_COLUMNS; return TOK_TRUNC; }
+ACOSH		{ return (yylval->tok = TOK_ACOSH); }
+ACOS		{ return (yylval->tok = TOK_ACOS); }
+ASINH		{ return (yylval->tok = TOK_ASINH); }
+ASIN		{ return (yylval->tok = TOK_ASIN); }
+ATAN2		{ return (yylval->tok = TOK_ATAN2); }
+ATAN		{ return (yylval->tok = TOK_ATAN); }
+CBRT		{ return (yylval->tok = TOK_CBRT); }
+CEIL		{ return (yylval->tok = TOK_CEIL); }
+COPYSIGN	{ return (yylval->tok = TOK_COPYSIGN); }
+COSH		{ return (yylval->tok = TOK_COSH); }
+COS		{ return (yylval->tok = TOK_COS); }
+ERFC		{ return (yylval->tok = TOK_ERFC); }
+ERF		{ return (yylval->tok = TOK_ERF); }
+EXP2		{ return (yylval->tok = TOK_EXP2); }
+EXP		{ return (yylval->tok = TOK_EXP); }
+EXPM1		{ return (yylval->tok = TOK_EXPM1); }
+FABS		{ return (yylval->tok = TOK_FABS); }
+FDIM		{ return (yylval->tok = TOK_FDIM); }
+FLOOR		{ return (yylval->tok = TOK_FLOOR); }
+FMA		{ return (yylval->tok = TOK_FMA); }
+FMAX		{ return (yylval->tok = TOK_FMAX); }
+FMIN		{ return (yylval->tok = TOK_FMIN); }
+FMOD		{ return (yylval->tok = TOK_FMOD); }
+HYPOT		{ return (yylval->tok = TOK_HYPOT); }
+LGAMMA		{ return (yylval->tok = TOK_LGAMMA); }
+LOG10		{ return (yylval->tok = TOK_LOG10); }
+LOG1P		{ return (yylval->tok = TOK_LOG1P); }
+LOG2		{ return (yylval->tok = TOK_LOG2); }
+LOGB		{ return (yylval->tok = TOK_LOGB); }
+LOG		{ return (yylval->tok = TOK_LOG); }
+NEARBYINT	{ return (yylval->tok = TOK_NEARBYINT); }
+NEXTAFTER	{ return (yylval->tok = TOK_NEXTAFTER); }
+NEXTTOWARD	{ return (yylval->tok = TOK_NEXTTOWARD); }
+POW		{ return (yylval->tok = TOK_POW); }
+REMAINDER	{ return (yylval->tok = TOK_REMAINDER); }
+RINT		{ return (yylval->tok = TOK_RINT); }
+ROUND		{ return (yylval->tok = TOK_ROUND); }
+SINH		{ return (yylval->tok = TOK_SINH); }
+SIN		{ return (yylval->tok = TOK_SIN); }
+SQRT		{ return (yylval->tok = TOK_SQRT); }
+TANH		{ return (yylval->tok = TOK_TANH); }
+TAN		{ return (yylval->tok = TOK_TAN); }
+TGAMMA		{ return (yylval->tok = TOK_TGAMMA); }
+TRUNC		{ return (yylval->tok = TOK_TRUNC); }
 
 -?[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 
 -?(inf(inity)?|INF(INITY)?)	{
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 
 nan|NAN|NaN	{
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 
 (\'[^']*\'|\"(\\\"|[^"])*\"|\\.|[a-zA-Z0-9.;_^#@\x80-\xff])+	{
-		SET_COLUMNS;
-		SET_STRING;
+		cw_split_args(NULL, yytext, "", '\0', NULL);
+		yylval->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng);
 		return TOKEN;
 	}
 
@@ -231,14 +214,9 @@ nan|NAN|NaN	{
 
 %%
 
-/* I'm putting the interface routine to the whole parse here in the flexer input file
-   mainly because of all the flexer initialization that has to be done. Shouldn't matter
-   where it is, as long as it's somewhere. I didn't want to define a prototype for the
-   cw_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
-	UGH! that would be inappropriate. */
 
-int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
-int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
+extern int cw_yyparse(void *);
+
 
 int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 {
@@ -246,16 +224,16 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 
 	memset(&io, 0, sizeof(io));
 	io.chan = chan;
-	io.string = expr;  /* to pass to the error routine */
+	io.string = expr;
 
 	cw_yylex_init_extra(&io, &io.scanner);
 
 	cw_yy_scan_string(expr, io.scanner);
 
 	if (!cw_yyparse((void *) &io)) {
-		if (!io.val) {
+		if (!io.val)
 			cw_dynstr_printf(result, "0");
-		} else {
+		else {
 			if (io.val->type == CW_EXPR_number)
 				cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
 			else
@@ -277,11 +255,13 @@ int extra_error_message_supplied = 0;
 extern CW_API_PUBLIC void cw_expr_register_extra_error_info(const char *message);
 extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
 
+
 void cw_expr_register_extra_error_info(const char *message)
 {
 	extra_error_message_supplied = 1;
 	strcpy(extra_error_message, message);
 }
+
 
 void cw_expr_clear_extra_error_info(void)
 {
@@ -293,24 +273,25 @@ void cw_expr_clear_extra_error_info(void)
 int cw_yyerror(const char *s,  yyltype *loc, struct parse_io *parseio)
 {
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
-	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
+	struct yyguts_t *yyg = (struct yyguts_t*)(parseio->scanner);
 	size_t n;
 
 	CW_UNUSED(loc);
 
-	n = (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
+	n = (extra_error_message_supplied ? strlen(extra_error_message) + 1 : 0)
+		+ strlen(s)
+		+ (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 
-	if (!cw_dynstr_need(&ds, n + 2)) {
+	if (!cw_dynstr_need(&ds, n + 1)) {
 		memset(ds.data, ' ', n);
-		ds.data[n] = '^';
-		ds.data[n + 1] = 0;
+		ds.data[n] = '\0';
 
-		cw_log(CW_LOG_WARNING, "%s%s%s; Input:\n%s\n%s\n",
+		cw_log(CW_LOG_WARNING, "%s%s%s: %s\n  %s^ here\n",
 			(extra_error_message_supplied ? extra_error_message : ""),
 			(extra_error_message_supplied ? " " : ""),
 			s, parseio->string, ds.data);
 	}
 
 	cw_dynstr_free(&ds);
-	return(0);
+	return 0;
 }

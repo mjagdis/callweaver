@@ -8208,6 +8208,23 @@ static yyconst yy_state_type yy_NUL_trans[246] =
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2010, Eris Associates Limited, UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ *
+ * This is a rewrite of the previous code:
+ *
  * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -8277,42 +8294,11 @@ struct val *cw_expr_make_number(long double n)
 }
 
 
-#define SET_COLUMNS \
-	do { \
-		yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
-		yylloc_param->last_column += yyleng - 1; \
-		yylloc_param->first_line = yylloc_param->last_line = 1; \
-	} while (0)
-
-#define SET_EOF	\
-	do { \
-		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
-			yylval_param->val->type = CW_EXPR_string; \
-			yylval_param->val->u.s = strdup(yytext); \
-		} \
-	} while (0)
-
-#define SET_STRING \
-	do { \
-		cw_split_args(NULL, yytext, "", '\0', NULL); \
-		yylval_param->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng); \
-	} while (0)
-
-#define SET_NUMERIC\
-	do { \
-		yylval_param->val = cw_expr_make_number(strtold(yytext, NULL)); \
-	} while (0)
-
-
-void cw_yyset_column(int column_no, yyscan_t yyscanner);
-int cw_yyget_column(yyscan_t yyscanner);
-
-
 #ifndef YY_NO_INPUT
 #  ifdef __cplusplus
-    static int yyinput (yyscan_t yyscanner) __attribute__ (( unused ));
+    static int yyinput(yyscan_t yyscanner) __attribute__ ((__unused__));
 #  else
-    static int input  (yyscan_t yyscanner) __attribute__ (( unused ));
+    static int input(yyscan_t yyscanner) __attribute__ ((__unused__));
 #  endif
 #endif
 
@@ -8325,7 +8311,7 @@ int cw_yyget_column(yyscan_t yyscanner);
 #  pragma warning(push, 1)
 #endif
 
-#line 8329 "callweaver_expr2f.c"
+#line 8315 "callweaver_expr2f.c"
 
 #define INITIAL 0
 
@@ -8548,10 +8534,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 133 "callweaver_expr2.l"
+#line 119 "callweaver_expr2.l"
 
 
-#line 8555 "callweaver_expr2f.c"
+#line 8541 "callweaver_expr2f.c"
 
     yylval = yylval_param;
 
@@ -8628,392 +8614,389 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 135 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_OR;}
+#line 121 "callweaver_expr2.l"
+{ return TOK_OR; }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 136 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_AND;}
+#line 122 "callweaver_expr2.l"
+{ return TOK_AND; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 137 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EQ;}
+#line 123 "callweaver_expr2.l"
+{ return TOK_EQ; }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 138 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_OR;}
+#line 124 "callweaver_expr2.l"
+{ return TOK_OR; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 139 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_AND;}
+#line 125 "callweaver_expr2.l"
+{ return TOK_AND; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 140 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EQ;}
+#line 126 "callweaver_expr2.l"
+{ return TOK_EQ; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 141 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EQTILDE;}
+#line 127 "callweaver_expr2.l"
+{ return TOK_EQTILDE; }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 142 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_GT;}
+#line 128 "callweaver_expr2.l"
+{ return '>'; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 143 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LT;}
+#line 129 "callweaver_expr2.l"
+{ return '<'; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 144 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_GE;}
+#line 130 "callweaver_expr2.l"
+{ return TOK_GE; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 145 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LE;}
+#line 131 "callweaver_expr2.l"
+{ return TOK_LE; }
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 146 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_NE;}
+#line 132 "callweaver_expr2.l"
+{ return TOK_NE; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 147 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_PLUS;}
+#line 133 "callweaver_expr2.l"
+{ return '+'; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 148 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_MINUS;}
+#line 134 "callweaver_expr2.l"
+{ return '-'; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 149 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_MULT;}
+#line 135 "callweaver_expr2.l"
+{ return '*'; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 150 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_DIV;}
+#line 136 "callweaver_expr2.l"
+{ return '/'; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 151 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_MOD;}
+#line 137 "callweaver_expr2.l"
+{ return '%'; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 152 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COND;}
+#line 138 "callweaver_expr2.l"
+{ return '?'; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 153 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COMPL;}
+#line 139 "callweaver_expr2.l"
+{ return '!'; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 154 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COLON;}
+#line 140 "callweaver_expr2.l"
+{ return ':'; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 155 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COLONCOLON;}
+#line 141 "callweaver_expr2.l"
+{ return TOK_COLONCOLON; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 156 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LP;}
+#line 142 "callweaver_expr2.l"
+{ return '('; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 157 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_RP;}
+#line 143 "callweaver_expr2.l"
+{ return ')'; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 158 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COMMA;}
+#line 144 "callweaver_expr2.l"
+{ return ','; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 160 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ACOSH; }
+#line 146 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ACOSH); }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 161 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ACOS; }
+#line 147 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ACOS); }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 162 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ASINH; }
+#line 148 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ASINH); }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 163 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ASIN; }
+#line 149 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ASIN); }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 164 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ATAN2; }
+#line 150 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ATAN2); }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 165 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ATAN; }
+#line 151 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ATAN); }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 166 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_CBRT; }
+#line 152 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_CBRT); }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 167 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_CEIL; }
+#line 153 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_CEIL); }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 168 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COPYSIGN; }
+#line 154 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_COPYSIGN); }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 169 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COSH; }
+#line 155 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_COSH); }
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 170 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_COS; }
+#line 156 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_COS); }
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 171 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ERFC; }
+#line 157 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ERFC); }
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 172 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ERF; }
+#line 158 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ERF); }
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 173 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EXP2; }
+#line 159 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_EXP2); }
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 174 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EXP; }
+#line 160 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_EXP); }
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 175 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_EXPM1; }
+#line 161 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_EXPM1); }
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 176 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FABS; }
+#line 162 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FABS); }
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 177 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FDIM; }
+#line 163 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FDIM); }
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 178 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FLOOR; }
+#line 164 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FLOOR); }
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 179 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FMA; }
+#line 165 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FMA); }
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 180 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FMAX; }
+#line 166 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FMAX); }
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 181 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FMIN; }
+#line 167 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FMIN); }
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 182 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_FMOD; }
+#line 168 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_FMOD); }
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 183 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_HYPOT; }
+#line 169 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_HYPOT); }
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 184 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LGAMMA; }
+#line 170 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LGAMMA); }
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 185 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LOG10; }
+#line 171 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LOG10); }
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 186 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LOG1P; }
+#line 172 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LOG1P); }
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 187 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LOG2; }
+#line 173 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LOG2); }
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 188 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LOGB; }
+#line 174 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LOGB); }
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 189 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_LOG; }
+#line 175 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_LOG); }
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 190 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_NEARBYINT; }
+#line 176 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_NEARBYINT); }
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 191 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_NEXTAFTER; }
+#line 177 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_NEXTAFTER); }
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 192 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_NEXTTOWARD; }
+#line 178 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_NEXTTOWARD); }
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 193 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_POW; }
+#line 179 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_POW); }
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 194 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_REMAINDER; }
+#line 180 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_REMAINDER); }
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 195 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_RINT; }
+#line 181 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_RINT); }
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 196 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_ROUND; }
+#line 182 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_ROUND); }
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 197 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_SINH; }
+#line 183 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_SINH); }
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 198 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_SIN; }
+#line 184 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_SIN); }
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 199 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_SQRT; }
+#line 185 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_SQRT); }
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 200 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_TANH; }
+#line 186 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_TANH); }
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 201 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_TAN; }
+#line 187 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_TAN); }
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 202 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_TGAMMA; }
+#line 188 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_TGAMMA); }
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 203 "callweaver_expr2.l"
-{ SET_COLUMNS; return TOK_TRUNC; }
+#line 189 "callweaver_expr2.l"
+{ return (yylval->tok = TOK_TRUNC); }
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 205 "callweaver_expr2.l"
+#line 191 "callweaver_expr2.l"
 {
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 211 "callweaver_expr2.l"
+#line 196 "callweaver_expr2.l"
 {
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 217 "callweaver_expr2.l"
+#line 201 "callweaver_expr2.l"
 {
-		SET_COLUMNS;
-		SET_NUMERIC;
+		yylval->val = cw_expr_make_number(strtold(yytext, NULL));
 		return TOKEN;
 	}
 	YY_BREAK
 case 72:
 /* rule 72 can match eol */
 YY_RULE_SETUP
-#line 223 "callweaver_expr2.l"
+#line 206 "callweaver_expr2.l"
 {
-		SET_COLUMNS;
-		SET_STRING;
+		cw_split_args(NULL, yytext, "", '\0', NULL);
+		yylval->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng);
 		return TOKEN;
 	}
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 229 "callweaver_expr2.l"
+#line 212 "callweaver_expr2.l"
 {}
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 232 "callweaver_expr2.l"
+#line 215 "callweaver_expr2.l"
 ECHO;
 	YY_BREAK
-#line 9017 "callweaver_expr2f.c"
+#line 9000 "callweaver_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -10187,18 +10170,13 @@ void cw_yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 232 "callweaver_expr2.l"
+#line 215 "callweaver_expr2.l"
 
 
 
-/* I'm putting the interface routine to the whole parse here in the flexer input file
-   mainly because of all the flexer initialization that has to be done. Shouldn't matter
-   where it is, as long as it's somewhere. I didn't want to define a prototype for the
-   cw_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
-	UGH! that would be inappropriate. */
 
-int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
-int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
+extern int cw_yyparse(void *);
+
 
 int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 {
@@ -10206,16 +10184,16 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 
 	memset(&io, 0, sizeof(io));
 	io.chan = chan;
-	io.string = expr;  /* to pass to the error routine */
+	io.string = expr;
 
 	cw_yylex_init_extra(&io, &io.scanner);
 
 	cw_yy_scan_string(expr, io.scanner);
 
 	if (!cw_yyparse((void *) &io)) {
-		if (!io.val) {
+		if (!io.val)
 			cw_dynstr_printf(result, "0");
-		} else {
+		else {
 			if (io.val->type == CW_EXPR_number)
 				cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
 			else
@@ -10237,11 +10215,13 @@ int extra_error_message_supplied = 0;
 extern CW_API_PUBLIC void cw_expr_register_extra_error_info(const char *message);
 extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
 
+
 void cw_expr_register_extra_error_info(const char *message)
 {
 	extra_error_message_supplied = 1;
 	strcpy(extra_error_message, message);
 }
+
 
 void cw_expr_clear_extra_error_info(void)
 {
@@ -10253,25 +10233,26 @@ void cw_expr_clear_extra_error_info(void)
 int cw_yyerror(const char *s,  yyltype *loc, struct parse_io *parseio)
 {
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
-	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
+	struct yyguts_t *yyg = (struct yyguts_t*)(parseio->scanner);
 	size_t n;
 
 	CW_UNUSED(loc);
 
-	n = (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
+	n = (extra_error_message_supplied ? strlen(extra_error_message) + 1 : 0)
+		+ strlen(s)
+		+ (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 
-	if (!cw_dynstr_need(&ds, n + 2)) {
+	if (!cw_dynstr_need(&ds, n + 1)) {
 		memset(ds.data, ' ', n);
-		ds.data[n] = '^';
-		ds.data[n + 1] = 0;
+		ds.data[n] = '\0';
 
-		cw_log(CW_LOG_WARNING, "%s%s%s; Input:\n%s\n%s\n",
+		cw_log(CW_LOG_WARNING, "%s%s%s: %s\n  %s^ here\n",
 			(extra_error_message_supplied ? extra_error_message : ""),
 			(extra_error_message_supplied ? " " : ""),
 			s, parseio->string, ds.data);
 	}
 
 	cw_dynstr_free(&ds);
-	return(0);
+	return 0;
 }
 

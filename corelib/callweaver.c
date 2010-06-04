@@ -1,8 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Based on Asterisk written by Mark Spencer <markster@digium.com>
- *  Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 2007 - 2010, Eris Associates Limited, UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -13,6 +14,10 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
+ *
+ * Based on Asterisk written by Mark Spencer <markster@digium.com>
+ *  Copyright (C) 1999 - 2005, Digium, Inc.
+ * Asterisk is a trade mark registered by Digium, Inc.
  */
 
 
@@ -24,6 +29,10 @@
  * \arg \ref ConfigFiles
  *
  * \section copyright Copyright and author
+ *
+ * Copyright (C) 2007 - 2010, Eris Associates Limited, UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * Based on Asterisk written by Mark Spencer <markster@digium.com>
  *  Copyright (C) 1999 - 2005, Digium, Inc.

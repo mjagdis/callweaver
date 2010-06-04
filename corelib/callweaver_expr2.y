@@ -1,5 +1,25 @@
 %{
-/* Written by Pace Willisson (pace@blitz.com) 
+/*
+ * CallWeaver -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2010, Eris Associates Limited, UK
+ *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ *
+ * This is a rewrite of the previous code:
+ *
+ * Written by Pace Willisson (pace@blitz.com)
  * and placed in the public domain.
  *
  * Largely rewritten by J.T. Conklin (jtc@wimsey.com)
@@ -44,7 +64,6 @@ CW_DYNARRAY_DECL(struct val *, vals)
 
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
-#define YYERROR_VERBOSE 1
 extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
@@ -103,7 +122,7 @@ static struct {
 };
 
 
-typedef long double (*math_f_t)(long double);
+typedef long double (* const math_f_t)(long double);
 static math_f_t math_f_func[] = {
 	[TOK_ACOSH      - TOK_ACOSH] = &acoshl,
 	[TOK_ACOS       - TOK_ACOSH] = &acosl,
@@ -140,7 +159,7 @@ static math_f_t math_f_func[] = {
 	[TOK_TRUNC      - TOK_ACOSH] = &truncl,
 };
 
-typedef long double (*math_ff_t)(long double, long double);
+typedef long double (* const math_ff_t)(long double, long double);
 static math_ff_t math_ff_func[] = {
 	[TOK_ATAN2      - TOK_ATAN2] = &atan2l,
 	[TOK_COPYSIGN   - TOK_ATAN2] = &copysignl,
@@ -155,7 +174,7 @@ static math_ff_t math_ff_func[] = {
 	[TOK_REMAINDER  - TOK_ATAN2] = &remainderl,
 };
 
-typedef long double (*math_fff_t)(long double, long double, long double);
+typedef long double (* const math_fff_t)(long double, long double, long double);
 static math_fff_t math_fff_func[] = {
 	[TOK_FMA        - TOK_FMA  ] = &fmal,
 };
@@ -190,35 +209,12 @@ static struct val *op_times(struct val *, struct val *);
 static int to_number(struct val *, int silent);
 static const char *string_rep(struct val *, char buf[MAX_NUMBER_LEN]);
 
-/* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
-typedef struct yyltype
-{
-  int first_line;
-  int first_column;
-
-  int last_line;
-  int last_column;
-} yyltype;
-
-# define YYLTYPE yyltype
-# define YYLTYPE_IS_TRIVIAL 1
-
-/* we will get warning about no prototype for yylex! But we can't
-   define it here, we have no definition yet for YYSTYPE. */
-
-int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
- 
-/* I wanted to add args to the yyerror routine, so I could print out
-   some useful info about the error. Not as easy as it looks, but it
-   is possible. */
-#define cw_yyerror(x) cw_yyerror(x,&yyloc,parseio)
 %}
  
+
 %pure-parser
 %locations
-/* %debug  for when you are having big problems */
 
-/* %name-prefix="cw_yy" */
 
 %union
 {
@@ -227,19 +223,24 @@ int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
 	int tok;
 }
 
+
 %{
-extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
+extern int cw_yylex(YYSTYPE *, YYLTYPE *, yyscan_t);
+extern int cw_yyerror(const char *, YYLTYPE *, struct parse_io *);
+#define cw_yyerror(x) cw_yyerror((x), &yyloc, parseio)
 %}
-%left <val> TOK_COMMA
-%left <val> TOK_COND TOK_COLONCOLON
-%left <val> TOK_OR
-%left <val> TOK_AND
-%left <val> TOK_EQ TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE
-%left <val> TOK_PLUS TOK_MINUS
-%left <val> TOK_MULT TOK_DIV TOK_MOD
-%right <val> TOK_COMPL
-%left <val> TOK_COLON TOK_EQTILDE
-%left <val> TOK_RP TOK_LP
+
+
+%left ','
+%left '?' TOK_COLONCOLON
+%left TOK_OR
+%left TOK_AND
+%left TOK_EQ '>' '<' TOK_GE TOK_LE TOK_NE
+%left '+' '-'
+%left '*' '/' '%'
+%right '!'
+%left ':' TOK_EQTILDE
+%left ')' '('
 
 
 %type <val> start expr
@@ -276,7 +277,7 @@ start: expr	{
 			if (!(p->val = $1))
 				YYABORT;
 		}
-	|	{/* nothing */
+	| /* empty */ {
 			struct parse_io *p = parseio;
 
 			if (!(p->val = cw_expr_make_str(CW_EXPR_string, "", 0)))
@@ -295,79 +296,79 @@ args1:	expr {
 			if (!($$ = args_push_val(args_new(), $1)))
 				YYABORT;
 		}
-	| args1 TOK_COMMA expr %prec TOK_RP {
+	| args1 ',' expr %prec ')' {
 			if (!($$ = args_push_val($1, $3)))
 				YYABORT;
 		}
-	| args1 TOK_COMMA %prec TOK_RP {
+	| args1 ',' %prec ')' {
 			if (!($$ = args_push_null($1)))
 				YYABORT;
 		}
-	| TOK_COMMA expr %prec TOK_RP	{
+	| ',' expr %prec ')'	{
 			if (!($$ = args_push_val(args_push_null(args_new()), $2)))
 				YYABORT;
 		}
-	| TOK_COMMA %prec TOK_RP	{
+	| ',' %prec ')'	{
 			if (!($$ = args_push_null(args_new())))
 				YYABORT;
 		}
 	;
 
 math_f:
-	TOK_ACOSH		{ $$ = TOK_ACOSH; }
-	| TOK_ACOS		{ $$ = TOK_ACOS; }
-	| TOK_ASINH		{ $$ = TOK_ASINH; }
-	| TOK_ASIN		{ $$ = TOK_ASIN; }
-	| TOK_ATANH		{ $$ = TOK_ATANH; }
-	| TOK_ATAN		{ $$ = TOK_ATAN; }
-	| TOK_CBRT		{ $$ = TOK_CBRT; }
-	| TOK_CEIL		{ $$ = TOK_CEIL; }
-	| TOK_COSH		{ $$ = TOK_COSH; }
-	| TOK_COS		{ $$ = TOK_COS; }
-	| TOK_ERFC		{ $$ = TOK_ERFC; }
-	| TOK_ERF		{ $$ = TOK_ERF; }
-	| TOK_EXP2		{ $$ = TOK_EXP2; }
-	| TOK_EXP		{ $$ = TOK_EXP; }
-	| TOK_EXPM1		{ $$ = TOK_EXPM1; }
-	| TOK_FABS		{ $$ = TOK_FABS; }
-	| TOK_FLOOR		{ $$ = TOK_FLOOR; }
-	| TOK_LGAMMA		{ $$ = TOK_LGAMMA; }
-	| TOK_LOG10		{ $$ = TOK_LOG10; }
-	| TOK_LOG1P		{ $$ = TOK_LOG1P; }
-	| TOK_LOG2		{ $$ = TOK_LOG2; }
-	| TOK_LOGB		{ $$ = TOK_LOGB; }
-	| TOK_LOG		{ $$ = TOK_LOG; }
-	| TOK_NEARBYINT		{ $$ = TOK_NEARBYINT; }
-	| TOK_RINT		{ $$ = TOK_RINT; }
-	| TOK_ROUND		{ $$ = TOK_ROUND; }
-	| TOK_SINH		{ $$ = TOK_SINH; }
-	| TOK_SIN		{ $$ = TOK_SIN; }
-	| TOK_SQRT		{ $$ = TOK_SQRT; }
-	| TOK_TANH		{ $$ = TOK_TANH; }
-	| TOK_TAN		{ $$ = TOK_TAN; }
-	| TOK_TGAMMA		{ $$ = TOK_TGAMMA; }
-	| TOK_TRUNC		{ $$ = TOK_TRUNC; }
+	TOK_ACOSH
+	| TOK_ACOS
+	| TOK_ASINH
+	| TOK_ASIN
+	| TOK_ATANH
+	| TOK_ATAN
+	| TOK_CBRT
+	| TOK_CEIL
+	| TOK_COSH
+	| TOK_COS
+	| TOK_ERFC
+	| TOK_ERF
+	| TOK_EXP2
+	| TOK_EXP
+	| TOK_EXPM1
+	| TOK_FABS
+	| TOK_FLOOR
+	| TOK_LGAMMA
+	| TOK_LOG10
+	| TOK_LOG1P
+	| TOK_LOG2
+	| TOK_LOGB
+	| TOK_LOG
+	| TOK_NEARBYINT
+	| TOK_RINT
+	| TOK_ROUND
+	| TOK_SINH
+	| TOK_SIN
+	| TOK_SQRT
+	| TOK_TANH
+	| TOK_TAN
+	| TOK_TGAMMA
+	| TOK_TRUNC
 	;
 
 math_ff:
-	TOK_ATAN2		{ $$ = TOK_ATAN2; }
-	| TOK_COPYSIGN		{ $$ = TOK_COPYSIGN; }
-	| TOK_FDIM		{ $$ = TOK_FDIM; }
-	| TOK_FMAX		{ $$ = TOK_FMAX; }
-	| TOK_FMIN		{ $$ = TOK_FMIN; }
-	| TOK_FMOD		{ $$ = TOK_FMOD; }
-	| TOK_HYPOT		{ $$ = TOK_HYPOT; }
-	| TOK_NEXTAFTER		{ $$ = TOK_NEXTAFTER; }
-	| TOK_NEXTTOWARD	{ $$ = TOK_NEXTTOWARD; }
-	| TOK_POW		{ $$ = TOK_POW; }
-	| TOK_REMAINDER		{ $$ = TOK_REMAINDER; }
+	TOK_ATAN2
+	| TOK_COPYSIGN
+	| TOK_FDIM
+	| TOK_FMAX
+	| TOK_FMIN
+	| TOK_FMOD
+	| TOK_HYPOT
+	| TOK_NEXTAFTER
+	| TOK_NEXTTOWARD
+	| TOK_POW
+	| TOK_REMAINDER
 	;
 
 math_fff:
-	TOK_FMA		{ $$ = TOK_FMA; }
+	TOK_FMA
 	;
 
-expr:	TOKEN TOK_LP args TOK_RP	{
+expr:	TOKEN '(' args ')'	{
 			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			struct cw_dynstr result = CW_DYNSTR_INIT;
 			char buf[MAX_NUMBER_LEN];
@@ -376,6 +377,9 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 			char **argv;
 			int argc;
 			int res = 1;
+
+			if (!$1)
+				YYABORT;
 
 			if (!p->noexec) {
 				$$ = NULL;
@@ -421,69 +425,53 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 			if (res)
 				YYABORT;
 		}
-	| math_f TOK_LP expr TOK_RP	{ if (!($$ = op_math_f(math_f_func[$1 - TOK_ACOSH], $3))) YYABORT; }
-	| math_f			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
-	| math_ff TOK_LP expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_ff(math_ff_func[$1 - TOK_ATAN2], $3, $5))) YYABORT; }
-	| math_ff			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
-	| math_fff TOK_LP expr TOK_COMMA expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_fff(math_fff_func[$1 - TOK_FMA], $3, $5, $7))) YYABORT; }
-	| math_fff			{ if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT; }
+	| math_f '(' expr ')' {
+			if (!($$ = op_math_f(math_f_func[$1 - TOK_ACOSH], $3))) YYABORT;
+		}
+	| math_f {
+			if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT;
+		}
+	| math_ff '(' expr ',' expr ')' {
+			if (!($$ = op_math_ff(math_ff_func[$1 - TOK_ATAN2], $3, $5))) YYABORT;
+		}
+	| math_ff {
+			if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT;
+		}
+	| math_fff '(' expr ',' expr ',' expr ')' {
+			if (!($$ = op_math_fff(math_fff_func[$1 - TOK_FMA], $3, $5, $7))) YYABORT;
+		}
+	| math_fff {
+			if (!($$ = cw_expr_make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH].s, math_name[$1 - TOK_ACOSH].l))) YYABORT;
+		}
 
-	| TOKEN   { if (!($$ = $1)) YYABORT; }
-	| TOK_LP expr TOK_RP { if (!($$ = $2)) YYABORT;
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_OR expr { if (!($$ = op_or($1, $3))) YYABORT;
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_AND expr { if (!($$ = op_and($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-                          @$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQ expr { if (!($$ = op_eq($1, $3))) YYABORT;
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
-						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_GT expr { if (!($$ = op_gt($1, $3))) YYABORT;
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column;
-						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LT expr { if (!($$ = op_lt($1, $3))) YYABORT;
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						 @$.first_line=0; @$.last_line=0;}
-	| expr TOK_GE expr  { if (!($$ = op_ge($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_LE expr  { if (!($$ = op_le($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_NE expr  { if (!($$ = op_ne($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_PLUS expr { if (!($$ = op_plus($1, $3))) YYABORT;
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MINUS expr { if (!($$ = op_minus($1, $3))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
-	| TOK_MINUS expr %prec TOK_COMPL { if (!($$ = op_negate($2))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
-							@$.first_line=0; @$.last_line=0;}
-	| TOK_COMPL expr   { if (!($$ = op_compl($2))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
-							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_MULT expr { if (!($$ = op_times($1, $3))) YYABORT;
-	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
-	| expr TOK_DIV expr { if (!($$ = op_div($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_MOD expr { if (!($$ = op_rem($1, $3))) YYABORT;
-	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						  @$.first_line=0; @$.last_line=0;}
-	| expr TOK_COLON expr { if (!($$ = op_colon($1, $3))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQTILDE expr { if (!($$ = op_eqtilde($1, $3))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_COND {
+	| TOKEN			{ if (!($$ = $1)) YYABORT; }
+	| '(' expr ')'	{ if (!($$ = $2)) YYABORT; }
+
+	| expr TOK_OR expr	{ if (!($$ = op_or($1, $3))) YYABORT; }
+	| expr TOK_AND expr	{ if (!($$ = op_and($1, $3))) YYABORT; }
+
+	| expr TOK_EQ expr	{ if (!($$ = op_eq($1, $3))) YYABORT; }
+	| expr '>' expr	{ if (!($$ = op_gt($1, $3))) YYABORT; }
+	| expr '<' expr	{ if (!($$ = op_lt($1, $3))) YYABORT; }
+	| expr TOK_GE expr	{ if (!($$ = op_ge($1, $3))) YYABORT; }
+	| expr TOK_LE expr	{ if (!($$ = op_le($1, $3))) YYABORT; }
+	| expr TOK_NE expr	{ if (!($$ = op_ne($1, $3))) YYABORT; }
+
+	| expr '+' expr	{ if (!($$ = op_plus($1, $3))) YYABORT; }
+	| expr '-' expr	{ if (!($$ = op_minus($1, $3))) YYABORT; }
+	| expr '*' expr	{ if (!($$ = op_times($1, $3))) YYABORT; }
+	| expr '/' expr	{ if (!($$ = op_div($1, $3))) YYABORT; }
+	| expr '%' expr	{ if (!($$ = op_rem($1, $3))) YYABORT; }
+
+	| '-' expr %prec '!' {
+			if (!($$ = op_negate($2))) YYABORT;
+		}
+	| '!' expr	{ if (!($$ = op_compl($2))) YYABORT; }
+
+	| expr ':' expr	{ if (!($$ = op_colon($1, $3))) YYABORT; }
+	| expr TOK_EQTILDE expr	{ if (!($$ = op_eqtilde($1, $3))) YYABORT; }
+
+	| expr '?' {
 			struct parse_io *p = parseio;
 			if (is_zero_or_null($1))
 				p->noexec++;
@@ -687,15 +675,6 @@ static struct cw_dynvals *args_push_val(struct cw_dynvals *arglist, struct val *
 
 	return arglist;
 }
-
-
-#undef cw_yyerror
-#define cw_yyerror(x) cw_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
-
-/* I put the cw_yyerror func in the flex input file,
-   because it refers to the buffer state. Best to
-   let it access the BUFFER stuff there and not trying
-   define all the structs, macros etc. in this file! */
 
 
 static struct val *op_math_f(long double (*op)(long double), struct val *a)
