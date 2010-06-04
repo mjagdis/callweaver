@@ -30,6 +30,50 @@
 #include "callweaver/module.h"
 
 
+/* If you need to trace the lifecycle of a reference counted object
+ * define OBJECT_TRACING below and the initialization of the object
+ * to be traced to used cw_object_init[_obj]_traced(...) instead of
+ * cw_object_init[_obj](...).
+ * Do NOT attempt to use this the trace manager messages as the trace
+ * is logged and the creates manager messages which would then be
+ * traced so generating recursive, traced log messages ad inifinitum.
+ */
+#undef OBJECT_TRACING
+
+
+#ifdef OBJECT_TRACING
+#  define OBJECT_TRACING_FIELD			int trace;
+#  define OBJECT_TRACING_PARAMS			const char *file, int line, const char *function,
+#  define OBJECT_TRACING_ARGS			__FILE__, __LINE__, __PRETTY_FUNCTION__,
+#  define OBJECT_TRACING_PRINT(fmt, ...)	if (obj->trace) cw_log(__CW_LOG_DEBUG, file, line, function, (fmt), ## __VA_ARGS__)
+#  define cw_object_init_obj(obj, module, refs) do { \
+		struct cw_object *__obj = (obj); \
+		__obj->trace = 0; \
+		cw_object_init_obj_internal(OBJECT_TRACING_ARGS __obj, (module), (refs)); \
+	} while (0)
+#  define cw_object_init_obj_traced(obj, module, refs) do { \
+		struct cw_object *__obj = (obj); \
+		__obj->trace = 1; \
+		cw_object_init_obj_internal(OBJECT_TRACING_ARGS __obj, (module), (refs)); \
+	} while (0)
+#  define cw_object_get_obj(obj)		cw_object_get_obj_internal(OBJECT_TRACING_ARGS (obj))
+#  define cw_object_dup_obj(obj)		cw_object_dup_obj_internal(OBJECT_TRACING_ARGS (obj))
+#  define cw_object_put_obj(obj)		cw_object_put_obj_internal(OBJECT_TRACING_ARGS (obj))
+#else
+#  define OBJECT_TRACING_FIELD
+#  define OBJECT_TRACING_PARAMS
+#  define OBJECT_TRACING_ARGS
+#  define OBJECT_TRACING_PRINT(fmt, ...)
+#  define cw_object_init_obj(obj, module, refs) \
+	cw_object_init_obj_internal((obj), (module), (refs))
+#  define cw_object_init_obj_traced(obj, module, refs) \
+	cw_object_init_obj_internal((obj), (module), (refs))
+#  define cw_object_get_obj(obj)		cw_object_get_obj_internal((obj))
+#  define cw_object_dup_obj(obj)		cw_object_dup_obj_internal((obj))
+#  define cw_object_put_obj(obj)		cw_object_put_obj_internal((obj))
+#endif
+
+
 struct cw_object;
 struct cw_registry_entry;
 
@@ -39,6 +83,7 @@ struct modinfo;
 
 struct cw_object {
 	atomic_t refs;
+	OBJECT_TRACING_FIELD
 	struct cw_module *module;
 	void (*release)(struct cw_object *);
 };
@@ -56,10 +101,10 @@ struct cw_module {
 #define CW_OBJECT_CURRENT_MODULE (get_modinfo()->self)
 
 
-static inline void cw_object_init_obj(struct cw_object *obj, struct cw_module *module, int refs);
-static inline struct cw_object *cw_object_get_obj(struct cw_object *obj);
-static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj);
-static inline int cw_object_put_obj(struct cw_object *obj);
+static inline void cw_object_init_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj, struct cw_module *module, int refs);
+static inline struct cw_object *cw_object_get_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj);
+static inline struct cw_object *cw_object_dup_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj);
+static inline int cw_object_put_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj);
 static inline int cw_object_refs_obj(struct cw_object *obj);
 
 
@@ -76,11 +121,21 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  *         was allowed for in the value of refs passed as the third argument
  */
 #define cw_object_init(ptr, mod, refs) ({ \
-	const typeof(ptr) __ptr = (ptr); \
+	typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
 		cw_object_init_obj(&__ptr->obj, (mod), (refs)); \
 	__ptr; \
 })
+#ifdef OBJECT_TRACING
+#  define cw_object_init_traced(ptr, mod, refs) ({ \
+	typeof(ptr) __ptr = (ptr); \
+	if (__ptr) \
+		cw_object_init_obj_traced(&__ptr->obj, (mod), (refs)); \
+	__ptr; \
+})
+#else
+#  define cw_object_init_traced(ptr, mod, refs) cw_object_init((ptr), (mod), (refs))
+#endif
 
 
 /*! \brief Destroy the object data for a reference counted struct
@@ -109,7 +164,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  * \return a pointer to the ref counted struct
  */
 #define cw_object_get(ptr) ({ \
-	const typeof(ptr) __ptr = (ptr); \
+	typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
 		cw_object_get_obj(&__ptr->obj); \
 	__ptr; \
@@ -128,7 +183,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  * \return a pointer to the ref counted struct
  */
 #define cw_object_dup(ptr) ({ \
-	const typeof(ptr) __ptr = (ptr); \
+	typeof(ptr) __ptr = (ptr); \
 	if (__ptr) \
 		cw_object_dup_obj(&__ptr->obj); \
 	__ptr; \
@@ -147,7 +202,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  * \return 1 if the reference counter became zero, 0 otherwise
  */
 #define cw_object_put(ptr) ({ \
-	const typeof(ptr) __ptr = (ptr); \
+	typeof(ptr) __ptr = (ptr); \
 	int __r = 0; \
 	if (__ptr) \
 		__r = cw_object_put_obj(&__ptr->obj); \
@@ -166,7 +221,7 @@ static inline int cw_object_refs_obj(struct cw_object *obj);
  *
  * \return nothing
  */
-static inline void cw_object_init_obj(struct cw_object *obj, struct cw_module *module, int refs)
+static inline void cw_object_init_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj, struct cw_module *module, int refs)
 {
 	obj->module = module;
 
@@ -174,6 +229,8 @@ static inline void cw_object_init_obj(struct cw_object *obj, struct cw_module *m
 		cw_object_get(module);
 
 	atomic_set(&obj->refs, refs);
+
+	OBJECT_TRACING_PRINT("object 0x%p init refs=%d\n", obj, refs);
 }
 
 
@@ -195,9 +252,15 @@ static inline void cw_object_init_obj(struct cw_object *obj, struct cw_module *m
  *
  * \return the given object with the reference counter incremented
  */
-static inline struct cw_object *cw_object_get_obj(struct cw_object *obj)
+static inline struct cw_object *cw_object_get_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj)
 {
-	if (atomic_fetch_and_add(&obj->refs, 1) == 0)
+	int prev;
+
+	prev = atomic_fetch_and_add(&obj->refs, 1);
+
+	OBJECT_TRACING_PRINT("object 0x%p get refs=%d\n", obj, prev + 1);
+
+	if (prev == 0)
 		cw_object_get(obj->module);
 
 	return obj;
@@ -212,9 +275,17 @@ static inline struct cw_object *cw_object_get_obj(struct cw_object *obj)
  *
  * \return a new counted reference to the same object as the given reference
  */
-static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
+static inline struct cw_object *cw_object_dup_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj)
 {
-	atomic_inc(&obj->refs);
+	int prev;
+
+	prev = atomic_fetch_and_add(&obj->refs, 1);
+
+	OBJECT_TRACING_PRINT("object 0x%p dup refs=%d\n", obj, prev + 1);
+
+	/* If object tracing is not enabled prev will be set but not used */
+	CW_UNUSED(prev);
+
 	return obj;
 }
 
@@ -231,15 +302,24 @@ static inline struct cw_object *cw_object_dup_obj(struct cw_object *obj)
  *
  * \return 1 if the reference counter became zero, 0 otherwise
  */
-static inline int cw_object_put_obj(struct cw_object *obj)
+static inline int cw_object_put_obj_internal(OBJECT_TRACING_PARAMS struct cw_object *obj)
 {
-	if (atomic_fetch_and_sub(&obj->refs, 1) == 0 + 1) {
+	int prev;
+
+	prev = atomic_fetch_and_sub(&obj->refs, 1);
+
+	if (prev == 0 + 1) {
 		struct cw_module *module = obj->module;
+
+		OBJECT_TRACING_PRINT("object 0x%p released\n", obj);
+
 		if (obj->release)
 			obj->release(obj);
 		cw_object_put(module);
 		return 1;
 	}
+
+	OBJECT_TRACING_PRINT("object 0x%p put refs=%d\n", obj, prev - 1);
 	return 0;
 }
 
