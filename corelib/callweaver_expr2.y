@@ -41,6 +41,104 @@ typedef void *yyscan_t;
 extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
+
+static const char *math_name[] = {
+	[TOK_ACOSH      - TOK_ACOSH] = "ACOSH",
+	[TOK_ACOS       - TOK_ACOSH] = "ACOS",
+	[TOK_ASINH      - TOK_ACOSH] = "ASINH",
+	[TOK_ASIN       - TOK_ACOSH] = "ASIN",
+	[TOK_ATAN2      - TOK_ACOSH] = "ATAN2",
+	[TOK_ATANH      - TOK_ACOSH] = "ATANH",
+	[TOK_ATAN       - TOK_ACOSH] = "ATAN",
+	[TOK_CBRT       - TOK_ACOSH] = "CBRT",
+	[TOK_CEIL       - TOK_ACOSH] = "CEIL",
+	[TOK_COPYSIGN   - TOK_ACOSH] = "COPYSIGN",
+	[TOK_COSH       - TOK_ACOSH] = "COSH",
+	[TOK_COS        - TOK_ACOSH] = "COS",
+	[TOK_ERFC       - TOK_ACOSH] = "ERFC",
+	[TOK_ERF        - TOK_ACOSH] = "ERF",
+	[TOK_EXP2       - TOK_ACOSH] = "EXP2",
+	[TOK_EXP        - TOK_ACOSH] = "EXP",
+	[TOK_EXPM1      - TOK_ACOSH] = "EXPM1",
+	[TOK_FABS       - TOK_ACOSH] = "FABS",
+	[TOK_FDIM       - TOK_ACOSH] = "FDIM",
+	[TOK_FLOOR      - TOK_ACOSH] = "FLOOR",
+	[TOK_FMA        - TOK_ACOSH] = "FMA",
+	[TOK_FMAX       - TOK_ACOSH] = "FMAX",
+	[TOK_FMIN       - TOK_ACOSH] = "FMIN",
+	[TOK_FMOD       - TOK_ACOSH] = "FMOD",
+	[TOK_HYPOT      - TOK_ACOSH] = "HYPOT",
+	[TOK_LGAMMA     - TOK_ACOSH] = "LGAMMA",
+	[TOK_LOG10      - TOK_ACOSH] = "LOG10",
+	[TOK_LOG1P      - TOK_ACOSH] = "LOG1P",
+	[TOK_LOG2       - TOK_ACOSH] = "LOG2",
+	[TOK_LOGB       - TOK_ACOSH] = "LOGB",
+	[TOK_LOG        - TOK_ACOSH] = "LOG",
+	[TOK_NEARBYINT  - TOK_ACOSH] = "NEARBYINT",
+	[TOK_NEXTAFTER  - TOK_ACOSH] = "NEXTAFTER",
+	[TOK_NEXTTOWARD - TOK_ACOSH] = "NEXTTOWARD",
+	[TOK_POW        - TOK_ACOSH] = "POW",
+	[TOK_REMAINDER  - TOK_ACOSH] = "REMAINDER",
+	[TOK_RINT       - TOK_ACOSH] = "RINT",
+	[TOK_ROUND      - TOK_ACOSH] = "ROUND",
+	[TOK_SINH       - TOK_ACOSH] = "SINH",
+	[TOK_SIN        - TOK_ACOSH] = "SIN",
+	[TOK_SQRT       - TOK_ACOSH] = "SQRT",
+	[TOK_TANH       - TOK_ACOSH] = "TANH",
+	[TOK_TAN        - TOK_ACOSH] = "TAN",
+	[TOK_TGAMMA     - TOK_ACOSH] = "TGAMMA",
+	[TOK_TRUNC      - TOK_ACOSH] = "TRUNC",
+};
+
+
+static void *math_func[] = {
+	[TOK_ACOSH      - TOK_ACOSH] = &acoshl,
+	[TOK_ACOS       - TOK_ACOSH] = &acosl,
+	[TOK_ASINH      - TOK_ACOSH] = &asinhl,
+	[TOK_ASIN       - TOK_ACOSH] = &asinl,
+	[TOK_ATAN2      - TOK_ACOSH] = &atan2l,
+	[TOK_ATANH      - TOK_ACOSH] = &atanhl,
+	[TOK_ATAN       - TOK_ACOSH] = &atanl,
+	[TOK_CBRT       - TOK_ACOSH] = &cbrtl,
+	[TOK_CEIL       - TOK_ACOSH] = &ceill,
+	[TOK_COPYSIGN   - TOK_ACOSH] = &copysignl,
+	[TOK_COSH       - TOK_ACOSH] = &coshl,
+	[TOK_COS        - TOK_ACOSH] = &cosl,
+	[TOK_ERFC       - TOK_ACOSH] = &erfcl,
+	[TOK_ERF        - TOK_ACOSH] = &erfl,
+	[TOK_EXP2       - TOK_ACOSH] = &exp2l,
+	[TOK_EXP        - TOK_ACOSH] = &expl,
+	[TOK_EXPM1      - TOK_ACOSH] = &expm1l,
+	[TOK_FABS       - TOK_ACOSH] = &fabsl,
+	[TOK_FDIM       - TOK_ACOSH] = &fdiml,
+	[TOK_FLOOR      - TOK_ACOSH] = &floorl,
+	[TOK_FMA        - TOK_ACOSH] = &fmal,
+	[TOK_FMAX       - TOK_ACOSH] = &fmaxl,
+	[TOK_FMIN       - TOK_ACOSH] = &fminl,
+	[TOK_FMOD       - TOK_ACOSH] = &fmodl,
+	[TOK_HYPOT      - TOK_ACOSH] = &hypotl,
+	[TOK_LGAMMA     - TOK_ACOSH] = &lgammal,
+	[TOK_LOG10      - TOK_ACOSH] = &log10l,
+	[TOK_LOG1P      - TOK_ACOSH] = &log1pl,
+	[TOK_LOG2       - TOK_ACOSH] = &log2l,
+	[TOK_LOGB       - TOK_ACOSH] = &logbl,
+	[TOK_LOG        - TOK_ACOSH] = &logl,
+	[TOK_NEARBYINT  - TOK_ACOSH] = &nearbyintl,
+	[TOK_NEXTAFTER  - TOK_ACOSH] = &nextafterl,
+	[TOK_NEXTTOWARD - TOK_ACOSH] = &nexttowardl,
+	[TOK_POW        - TOK_ACOSH] = &powl,
+	[TOK_REMAINDER  - TOK_ACOSH] = &remainderl,
+	[TOK_RINT       - TOK_ACOSH] = &rintl,
+	[TOK_ROUND      - TOK_ACOSH] = &roundl,
+	[TOK_SINH       - TOK_ACOSH] = &sinhl,
+	[TOK_SIN        - TOK_ACOSH] = &sinl,
+	[TOK_SQRT       - TOK_ACOSH] = &sqrtl,
+	[TOK_TANH       - TOK_ACOSH] = &tanhl,
+	[TOK_TAN        - TOK_ACOSH] = &tanl,
+	[TOK_TGAMMA     - TOK_ACOSH] = &tgammal,
+	[TOK_TRUNC      - TOK_ACOSH] = &truncl,
+};
+
  
 static struct cw_dynargs *args_new(void);
 static struct cw_dynargs *args_push_null(struct cw_dynargs *arglist);
@@ -51,6 +149,9 @@ static int is_zero_or_null(struct val *);
 static int isstring(struct val *);
 static struct val *make_number(long double);
 static struct val *make_str(enum valtype type, const char *);
+static struct val *op_math_f(long double (*op)(long double), struct val *a);
+static struct val *op_math_ff(long double (*op)(long double, long double), struct val *a, struct val *b);
+static struct val *op_math_fff(long double (*op)(long double, long double, long double), struct val *a, struct val *b, struct val *c);
 static struct val *op_and(struct val *, struct val *);
 static struct val *op_colon(struct val *, struct val *);
 static struct val *op_eqtilde(struct val *, struct val *);
@@ -106,6 +207,7 @@ int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
 {
 	struct val *val;
 	struct cw_dynargs *args;
+	int tok;
 }
 
 %{
@@ -123,9 +225,20 @@ extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %left <val> TOK_RP TOK_LP
 
 
-%token <val> TOKEN
-%type <args> args args1
 %type <val> start expr
+%type <args> args args1
+
+%type <tok> math_f math_ff math_fff
+
+%token <tok> TOK_ACOSH /* This MUST be first */
+%token <tok> TOK_ACOS TOK_ASINH TOK_ASIN TOK_ATAN2 TOK_ATANH TOK_ATAN TOK_CBRT
+	TOK_CEIL TOK_COPYSIGN TOK_COSH TOK_COS TOK_ERFC TOK_ERF TOK_EXP2 TOK_EXP TOK_EXPM1
+	TOK_FABS TOK_FDIM TOK_FLOOR TOK_FMA TOK_FMAX TOK_FMIN TOK_FMOD TOK_HYPOT TOK_LGAMMA
+	TOK_LOG10 TOK_LOG1P TOK_LOG2 TOK_LOGB TOK_LOG TOK_NEARBYINT TOK_NEXTAFTER TOK_NEXTTOWARD
+	TOK_POW TOK_REMAINDER TOK_RINT TOK_ROUND TOK_SINH TOK_SIN TOK_SQRT TOK_TANH TOK_TAN
+	TOK_TGAMMA TOK_TRUNC
+
+%token <val> TOKEN
 
 
 %destructor { free_value($$); } expr TOKEN
@@ -182,6 +295,60 @@ args1:	expr {
 		}
 	;
 
+math_f:
+	TOK_ACOSH		{ $$ = TOK_ACOSH; }
+	| TOK_ACOS		{ $$ = TOK_ACOS; }
+	| TOK_ASINH		{ $$ = TOK_ASINH; }
+	| TOK_ASIN		{ $$ = TOK_ASIN; }
+	| TOK_ATANH		{ $$ = TOK_ATANH; }
+	| TOK_ATAN		{ $$ = TOK_ATAN; }
+	| TOK_CBRT		{ $$ = TOK_CBRT; }
+	| TOK_CEIL		{ $$ = TOK_CEIL; }
+	| TOK_COSH		{ $$ = TOK_COSH; }
+	| TOK_COS		{ $$ = TOK_COS; }
+	| TOK_ERFC		{ $$ = TOK_ERFC; }
+	| TOK_ERF		{ $$ = TOK_ERF; }
+	| TOK_EXP2		{ $$ = TOK_EXP2; }
+	| TOK_EXP		{ $$ = TOK_EXP; }
+	| TOK_EXPM1		{ $$ = TOK_EXPM1; }
+	| TOK_FABS		{ $$ = TOK_FABS; }
+	| TOK_FLOOR		{ $$ = TOK_FLOOR; }
+	| TOK_LGAMMA		{ $$ = TOK_LGAMMA; }
+	| TOK_LOG10		{ $$ = TOK_LOG10; }
+	| TOK_LOG1P		{ $$ = TOK_LOG1P; }
+	| TOK_LOG2		{ $$ = TOK_LOG2; }
+	| TOK_LOGB		{ $$ = TOK_LOGB; }
+	| TOK_LOG		{ $$ = TOK_LOG; }
+	| TOK_NEARBYINT		{ $$ = TOK_NEARBYINT; }
+	| TOK_RINT		{ $$ = TOK_RINT; }
+	| TOK_ROUND		{ $$ = TOK_ROUND; }
+	| TOK_SINH		{ $$ = TOK_SINH; }
+	| TOK_SIN		{ $$ = TOK_SIN; }
+	| TOK_SQRT		{ $$ = TOK_SQRT; }
+	| TOK_TANH		{ $$ = TOK_TANH; }
+	| TOK_TAN		{ $$ = TOK_TAN; }
+	| TOK_TGAMMA		{ $$ = TOK_TGAMMA; }
+	| TOK_TRUNC		{ $$ = TOK_TRUNC; }
+	;
+
+math_ff:
+	TOK_ATAN2		{ $$ = TOK_ATAN2; }
+	| TOK_COPYSIGN		{ $$ = TOK_COPYSIGN; }
+	| TOK_FDIM		{ $$ = TOK_FDIM; }
+	| TOK_FMAX		{ $$ = TOK_FMAX; }
+	| TOK_FMIN		{ $$ = TOK_FMIN; }
+	| TOK_FMOD		{ $$ = TOK_FMOD; }
+	| TOK_HYPOT		{ $$ = TOK_HYPOT; }
+	| TOK_NEXTAFTER		{ $$ = TOK_NEXTAFTER; }
+	| TOK_NEXTTOWARD	{ $$ = TOK_NEXTTOWARD; }
+	| TOK_POW		{ $$ = TOK_POW; }
+	| TOK_REMAINDER		{ $$ = TOK_REMAINDER; }
+	;
+
+math_fff:
+	TOK_FMA		{ $$ = TOK_FMA; }
+	;
+
 expr:	TOKEN TOK_LP args TOK_RP	{
 			int res = 1;
 
@@ -209,6 +376,13 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 			if (res)
 				YYABORT;
 		}
+	| math_f TOK_LP expr TOK_RP	{ if (!($$ = op_math_f(math_func[$1 - TOK_ACOSH], $3))) YYABORT; }
+	| math_f			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+	| math_ff TOK_LP expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_ff(math_func[$1 - TOK_ACOSH], $3, $5))) YYABORT; }
+	| math_ff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+	| math_fff TOK_LP expr TOK_COMMA expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_fff(math_func[$1 - TOK_ACOSH], $3, $5, $7))) YYABORT; }
+	| math_fff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
+
 	| TOKEN   { if (!($$ = $1)) YYABORT; }
 	| TOK_LP expr TOK_RP { if (!($$ = $2)) YYABORT;
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
@@ -490,6 +664,51 @@ static struct cw_dynargs *args_push_val(struct cw_dynargs *arglist, struct val *
    because it refers to the buffer state. Best to
    let it access the BUFFER stuff there and not trying
    define all the structs, macros etc. in this file! */
+
+
+static struct val *op_math_f(long double (*op)(long double), struct val *a)
+{
+	struct val *vp = NULL;
+
+	if (to_number(a, 0)) {
+		a->u.n = (*op)(a->u.n);
+		vp = a;
+	} else
+		free_value(a);
+
+	return vp;
+}
+
+
+static struct val *op_math_ff(long double (*op)(long double, long double), struct val *a, struct val *b)
+{
+	struct val *vp = NULL;
+
+	if (to_number(a, 0) && to_number(b, 0)) {
+		a->u.n = (*op)(a->u.n, b->u.n);
+		vp = a;
+	} else
+		free_value(a);
+
+	free_value(b);
+	return vp;
+}
+
+
+static struct val *op_math_fff(long double (*op)(long double, long double, long double), struct val *a, struct val *b, struct val *c)
+{
+	struct val *vp = NULL;
+
+	if (to_number(a, 0) && to_number(b, 0) && to_number(c, 0)) {
+		a->u.n = (*op)(a->u.n, b->u.n, c->u.n);
+		vp = a;
+	} else
+		free_value(a);
+
+	free_value(b);
+	free_value(c);
+	return vp;
+}
 
 
 static struct val * op_or(struct val *a, struct val *b)

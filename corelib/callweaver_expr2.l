@@ -89,7 +89,6 @@
 void cw_yyset_column(int column_no, yyscan_t yyscanner);
 int cw_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
-static char *expr2_token_subst(const char *mess);
 
 #ifndef YY_NO_INPUT
 #  ifdef __cplusplus
@@ -145,6 +144,51 @@ static char *expr2_token_subst(const char *mess);
 \(	{ SET_COLUMNS; return TOK_LP;}
 \)	{ SET_COLUMNS; return TOK_RP;}
 \,	{ SET_COLUMNS; return TOK_COMMA;}
+
+ACOSH	{ SET_COLUMNS; return TOK_ACOSH; }
+ACOS	{ SET_COLUMNS; return TOK_ACOS; }
+ASINH	{ SET_COLUMNS; return TOK_ASINH; }
+ASIN	{ SET_COLUMNS; return TOK_ASIN; }
+ATAN2	{ SET_COLUMNS; return TOK_ATAN2; }
+ATAN	{ SET_COLUMNS; return TOK_ATAN; }
+CBRT	{ SET_COLUMNS; return TOK_CBRT; }
+CEIL	{ SET_COLUMNS; return TOK_CEIL; }
+COPYSIGN	{ SET_COLUMNS; return TOK_COPYSIGN; }
+COSH	{ SET_COLUMNS; return TOK_COSH; }
+COS	{ SET_COLUMNS; return TOK_COS; }
+ERFC	{ SET_COLUMNS; return TOK_ERFC; }
+ERF	{ SET_COLUMNS; return TOK_ERF; }
+EXP2	{ SET_COLUMNS; return TOK_EXP2; }
+EXP	{ SET_COLUMNS; return TOK_EXP; }
+EXPM1	{ SET_COLUMNS; return TOK_EXPM1; }
+FABS	{ SET_COLUMNS; return TOK_FABS; }
+FDIM	{ SET_COLUMNS; return TOK_FDIM; }
+FLOOR	{ SET_COLUMNS; return TOK_FLOOR; }
+FMA	{ SET_COLUMNS; return TOK_FMA; }
+FMAX	{ SET_COLUMNS; return TOK_FMAX; }
+FMIN	{ SET_COLUMNS; return TOK_FMIN; }
+FMOD	{ SET_COLUMNS; return TOK_FMOD; }
+HYPOT	{ SET_COLUMNS; return TOK_HYPOT; }
+LGAMMA	{ SET_COLUMNS; return TOK_LGAMMA; }
+LOG10	{ SET_COLUMNS; return TOK_LOG10; }
+LOG1P	{ SET_COLUMNS; return TOK_LOG1P; }
+LOG2	{ SET_COLUMNS; return TOK_LOG2; }
+LOGB	{ SET_COLUMNS; return TOK_LOGB; }
+LOG	{ SET_COLUMNS; return TOK_LOG; }
+NEARBYINT	{ SET_COLUMNS; return TOK_NEARBYINT; }
+NEXTAFTER	{ SET_COLUMNS; return TOK_NEXTAFTER; }
+NEXTTOWARD	{ SET_COLUMNS; return TOK_NEXTTOWARD; }
+POW	{ SET_COLUMNS; return TOK_POW; }
+REMAINDER	{ SET_COLUMNS; return TOK_REMAINDER; }
+RINT	{ SET_COLUMNS; return TOK_RINT; }
+ROUND	{ SET_COLUMNS; return TOK_ROUND; }
+SINH	{ SET_COLUMNS; return TOK_SINH; }
+SIN	{ SET_COLUMNS; return TOK_SIN; }
+SQRT	{ SET_COLUMNS; return TOK_SQRT; }
+TANH	{ SET_COLUMNS; return TOK_TANH; }
+TAN	{ SET_COLUMNS; return TOK_TAN; }
+TGAMMA	{ SET_COLUMNS; return TOK_TGAMMA; }
+TRUNC	{ SET_COLUMNS; return TOK_TRUNC; }
 
 \$\{	{
 		/* gather the contents of ${} expressions, with trailing stuff,
@@ -295,127 +339,26 @@ void  cw_expr_clear_extra_error_info(void)
        extra_error_message[0] = 0;
 }
 
-static const char *expr2_token_equivs1[] =
-{
-	[TOKEN] = "TOKEN",
-	[TOK_COND] = "TOK_COND",
-	[TOK_COLONCOLON] = "TOK_COLONCOLON",
-	[TOK_OR] = "TOK_OR",
-	[TOK_AND] = "TOK_AND",
-	[TOK_EQ] = "TOK_EQ",
-	[TOK_GT] = "TOK_GT",
-	[TOK_LT] = "TOK_LT",
-	[TOK_GE] = "TOK_GE",
-	[TOK_LE] = "TOK_LE",
-	[TOK_NE] = "TOK_NE",
-	[TOK_PLUS] = "TOK_PLUS",
-	[TOK_MINUS] = "TOK_MINUS",
-	[TOK_MULT] = "TOK_MULT",
-	[TOK_DIV] = "TOK_DIV",
-	[TOK_MOD] = "TOK_MOD",
-	[TOK_COMPL] = "TOK_COMPL",
-	[TOK_COLON] = "TOK_COLON",
-	[TOK_EQTILDE] = "TOK_EQTILDE",
-	[TOK_RP] = "TOK_RP",
-	[TOK_LP] = "TOK_LP",
-	[TOK_COMMA] = "TOK_COMMA",
-};
-
-static const char *expr2_token_equivs2[] =
-{
-	[TOKEN] = "<token>",
-	[TOK_COND] = "?",
-	[TOK_COLONCOLON] = "::",
-	[TOK_OR] = "|",
-	[TOK_AND] = "&",
-	[TOK_EQ] = "=",
-	[TOK_GT] = ">",
-	[TOK_LT] = "<",
-	[TOK_GE] = ">=",
-	[TOK_LE] = "<=",
-	[TOK_NE] = "!=",
-	[TOK_PLUS] = "+",
-	[TOK_MINUS] = "-",
-	[TOK_MULT] = "*",
-	[TOK_DIV] = "/",
-	[TOK_MOD] = "%",
-	[TOK_COMPL] = "!",
-	[TOK_COLON] = ":",
-	[TOK_EQTILDE] = "=~",
-	[TOK_RP] = ")",
-	[TOK_LP] = "(",
-	[TOK_COMMA] = ",",
-};
-
-
-static char *expr2_token_subst(const char *mess)
-{
-	/* calc a length, malloc, fill, and return; yyerror had better free it! */
-	int len=0,i;
-	const char *t, *p;
-	char *res, *s;
-	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
-
-	for (p = mess; *p; p++) {
-		for (i = 0; i < expr2_token_equivs_entries; i++) {
-			if (expr2_token_equivs1[i] && !strncmp(p, expr2_token_equivs1[i], strlen(expr2_token_equivs1[i]))) {
-				len += strlen(expr2_token_equivs2[i]) + 2;
-				p += strlen(expr2_token_equivs1[i]) - 1;
-				break;
-			}
-		}
-		len++;
-	}
-	res = malloc(len+1);
-	res[0] = 0;
-	s = res;
-	for (p = mess; *p;) {
-		int found = 0;
-		for (i = 0; i < expr2_token_equivs_entries; i++) {
-			if (expr2_token_equivs1[i] && !strncmp(p, expr2_token_equivs1[i], strlen(expr2_token_equivs1[i]))) {
-				*s++ = '\'';
-				for (t = expr2_token_equivs2[i]; *t;) {
-					*s++ = *t++;
-				}
-				*s++ = '\'';
-				p += strlen(expr2_token_equivs1[i]);
-				found = 1;
-				break;
-			}
-		}
-		if (!found )
-			*s++ = *p++;
-	}
-	*s = 0;
-	return res;
-}
 
 int cw_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 {	
-	char spacebuf2[8000]; /* best safe than sorry */
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
-	char *s2 = expr2_token_subst((char *)s);
-	int i=0;
+	size_t n;
 
-	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
-																								which is the same thing as... get this:
-													yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column
-													I was tempted to just use yy_buf_pos in the STATE, but..., well:
-														a. the yy_buf_pos is the current position in the buffer, which
-															may not relate to the entire string/buffer because of the
-															buffering.
-														b. but, analysis of the situation is that when you use the
-															yy_scan_string func, it creates a single buffer the size of
-															string, so the two would be the same... 
-													so, in the end, the yycolumn macro is available, shorter, therefore easier. */
-	spacebuf2[i++]='^';
-	spacebuf2[i]= 0;
+	n = (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 
-	cw_log(CW_LOG_WARNING, "%s%ssyntax error: %s; Input:\n%s\n%s\n",  
-		(extra_error_message_supplied ? extra_error_message : ""),
-		(extra_error_message_supplied ? " " : ""),
-		s2, parseio->string,spacebuf2);
+	if (!cw_dynstr_need(&ds, n + 2)) {
+		memset(ds.data, ' ', n);
+		ds.data[n] = '^';
+		ds.data[n + 1] = 0;
 
-	free(s2);
+		cw_log(CW_LOG_WARNING, "%s%s%s; Input:\n%s\n%s\n",
+			(extra_error_message_supplied ? extra_error_message : ""),
+			(extra_error_message_supplied ? " " : ""),
+			s, parseio->string, ds.data);
+	}
+
+	cw_dynstr_free(&ds);
 	return(0);
 }

@@ -60,7 +60,52 @@
      TOK_COLON = 276,
      TOK_LP = 277,
      TOK_RP = 278,
-     TOKEN = 279
+     TOK_ACOSH = 279,
+     TOK_ACOS = 280,
+     TOK_ASINH = 281,
+     TOK_ASIN = 282,
+     TOK_ATAN2 = 283,
+     TOK_ATANH = 284,
+     TOK_ATAN = 285,
+     TOK_CBRT = 286,
+     TOK_CEIL = 287,
+     TOK_COPYSIGN = 288,
+     TOK_COSH = 289,
+     TOK_COS = 290,
+     TOK_ERFC = 291,
+     TOK_ERF = 292,
+     TOK_EXP2 = 293,
+     TOK_EXP = 294,
+     TOK_EXPM1 = 295,
+     TOK_FABS = 296,
+     TOK_FDIM = 297,
+     TOK_FLOOR = 298,
+     TOK_FMA = 299,
+     TOK_FMAX = 300,
+     TOK_FMIN = 301,
+     TOK_FMOD = 302,
+     TOK_HYPOT = 303,
+     TOK_LGAMMA = 304,
+     TOK_LOG10 = 305,
+     TOK_LOG1P = 306,
+     TOK_LOG2 = 307,
+     TOK_LOGB = 308,
+     TOK_LOG = 309,
+     TOK_NEARBYINT = 310,
+     TOK_NEXTAFTER = 311,
+     TOK_NEXTTOWARD = 312,
+     TOK_POW = 313,
+     TOK_REMAINDER = 314,
+     TOK_RINT = 315,
+     TOK_ROUND = 316,
+     TOK_SINH = 317,
+     TOK_SIN = 318,
+     TOK_SQRT = 319,
+     TOK_TANH = 320,
+     TOK_TAN = 321,
+     TOK_TGAMMA = 322,
+     TOK_TRUNC = 323,
+     TOKEN = 324
    };
 #endif
 /* Tokens.  */
@@ -85,20 +130,66 @@
 #define TOK_COLON 276
 #define TOK_LP 277
 #define TOK_RP 278
-#define TOKEN 279
+#define TOK_ACOSH 279
+#define TOK_ACOS 280
+#define TOK_ASINH 281
+#define TOK_ASIN 282
+#define TOK_ATAN2 283
+#define TOK_ATANH 284
+#define TOK_ATAN 285
+#define TOK_CBRT 286
+#define TOK_CEIL 287
+#define TOK_COPYSIGN 288
+#define TOK_COSH 289
+#define TOK_COS 290
+#define TOK_ERFC 291
+#define TOK_ERF 292
+#define TOK_EXP2 293
+#define TOK_EXP 294
+#define TOK_EXPM1 295
+#define TOK_FABS 296
+#define TOK_FDIM 297
+#define TOK_FLOOR 298
+#define TOK_FMA 299
+#define TOK_FMAX 300
+#define TOK_FMIN 301
+#define TOK_FMOD 302
+#define TOK_HYPOT 303
+#define TOK_LGAMMA 304
+#define TOK_LOG10 305
+#define TOK_LOG1P 306
+#define TOK_LOG2 307
+#define TOK_LOGB 308
+#define TOK_LOG 309
+#define TOK_NEARBYINT 310
+#define TOK_NEXTAFTER 311
+#define TOK_NEXTTOWARD 312
+#define TOK_POW 313
+#define TOK_REMAINDER 314
+#define TOK_RINT 315
+#define TOK_ROUND 316
+#define TOK_SINH 317
+#define TOK_SIN 318
+#define TOK_SQRT 319
+#define TOK_TANH 320
+#define TOK_TAN 321
+#define TOK_TGAMMA 322
+#define TOK_TRUNC 323
+#define TOKEN 324
 
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 106 "callweaver_expr2.y"
+#line 207 "callweaver_expr2.y"
 {
 	struct val *val;
 	struct cw_dynargs *args;
+	int tok;
 }
 /* Line 1489 of yacc.c.  */
-#line 102 "callweaver_expr2.h"
+#line 193 "callweaver_expr2.h"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
