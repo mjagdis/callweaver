@@ -996,7 +996,7 @@ int cw_separate_app_args(args_t *args, char *buf, char delim)
 		p = buf;
 		do {
 			char *next, *end;
-			int parens, inquote;
+			int inquote;
 
 			if (cw_dynarray_need(args, 2))
 				break;
@@ -1010,7 +1010,7 @@ int cw_separate_app_args(args_t *args, char *buf, char delim)
 			 * enclose strings and parentheses (outside any quoted
 			 * string) must balance.
 			 */
-			inquote = parens = 0;
+			inquote = 0;
 			c = '\0';
 			if (*next) {
 				do {
@@ -1019,11 +1019,8 @@ int cw_separate_app_args(args_t *args, char *buf, char delim)
 					} else if (*next == '"') {
 						inquote = !inquote;
 						if (!*(++next)) break;
-					} else if (*next == '(')
-						parens++;
-					else if (*next == ')')
-						parens--;
-					else if (*next == delim && !parens && !inquote)
+						continue;
+					} else if (*next == delim && !inquote)
 						break;
 
 					*(end++) = *(next++);

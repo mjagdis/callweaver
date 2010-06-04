@@ -138,49 +138,55 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 static int gosub_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
-	char *context, *exten, *p, *q;
+	char *context, *exten, *priority, *p, *q;
 	int i, res;
 
 	CW_UNUSED(result);
 
-	if (argc < 1 || argc > 3)
+	priority = p = q = NULL;
+	if (argc) {
+		for (i = 0; i < 3 && i < argc; i++) {
+			if ((p = strchr(argv[i], '('))) {
+				i++;
+				*(p++) = '\0';
+				break;
+			}
+		}
+
+		priority = argv[i - 1];
+		exten = (i > 1 ? argv[i - 2] : NULL);
+		context = (i > 2 ? argv[i - 3] : NULL);
+
+		if (p) {
+			argv[i - 1] = p;
+			argv = &argv[i - 1];
+			argc = argc - (i - 1);
+			q = &argv[argc - 1][strlen(argv[argc - 1]) - 1];
+		} else
+			argc -= i;
+	}
+
+	if (!priority || (!p && argc) || (q && *q != ')'))
 		return cw_function_syntax(gosub_syntax);
 
-	exten = (argc > 1 ? argv[argc-2] : NULL);
-	context = (argc > 2 ? argv[argc-3] : NULL);
-
-	if ((p = strchr(argv[argc-1], '('))) {
-		*(p++) = '\0';
-		if (!(q = strrchr(p, ')')))
-			return cw_function_syntax(gosub_syntax);
-
+	if (q)
 		*q = '\0';
-	}
 
 	i = snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
 
 	res = -1;
 
-	if (!cw_explicit_goto(chan, context, exten, argv[argc-1])) {
-		args_t args = CW_DYNARRAY_INIT;
+	if (!cw_explicit_goto(chan, context, exten, priority)) {
+		snprintf(buf + i, sizeof(buf) - i, ",%d", argc);
+		pbx_builtin_pushvar_helper(chan, STACKVAR, buf);
 
-		if (p)
-			cw_separate_app_args(&args, p, ',');
-
-		if (!args.error) {
-			snprintf(buf+i, sizeof(buf)-i, ",%lu", (unsigned long)args.used);
-			pbx_builtin_pushvar_helper(chan, STACKVAR, buf);
-
-			memcpy(buf, "ARG", 3);
-			for (i = 0; i < args.used; i++) {
-				sprintf(buf+3, "%d", i+1);
-				pbx_builtin_pushvar_helper(chan, buf, args.data[i]);
-			}
-
-			res = 0;
+		memcpy(buf, "ARG", 3);
+		for (i = 0; i < argc; i++) {
+			sprintf(buf + sizeof("ARG") - 1, "%d", i + 1);
+			pbx_builtin_pushvar_helper(chan, buf, argv[i]);
 		}
 
-		cw_dynarray_free(&args);
+		res = 0;
 	}
 
 	return res;
