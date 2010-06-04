@@ -899,7 +899,7 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 					} else { /* start[len + 1] == '[' */
 						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', quote);
 
-						if (ds.error || (cw_expr(chan, ds.data, &rds),rds.error))
+						if (ds.error || cw_expr(chan, ds.data, &rds))
 							dst->error = 1;
 					}
 

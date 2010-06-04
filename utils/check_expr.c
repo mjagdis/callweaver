@@ -229,7 +229,7 @@ int check_eval(char *buffer, char *error_report)
 
 	/* now, run the test */
 	result = cw_expr(NULL, evalbuf, &ds);
-	if (result) {
+	if (!result) {
 		sprintf(error_report, "line %u, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, ds.data);
 		return 1;
 	} else {

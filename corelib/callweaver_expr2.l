@@ -219,7 +219,6 @@ int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 {
 	struct parse_io io;
-	int return_value = 0;
 
 	memset(&io, 0, sizeof(io));
 	io.chan = chan;
@@ -232,13 +231,11 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 	if (!cw_yyparse((void *) &io)) {
 		if (!io.val) {
 			cw_dynstr_printf(result, "0");
-			return_value = 1;
 		} else {
 			if (io.val->type == CW_EXPR_number) {
-				return_value = cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
+				cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
 			} else {
 				cw_dynstr_printf(result, "%s", io.val->u.s);
-				return_value = result->used;
 				free(io.val->u.s);
 			}
 			free(io.val);
@@ -248,7 +245,7 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 
 	cw_yylex_destroy(io.scanner);
 
-	return return_value;
+	return result->error;
 }
 
 
