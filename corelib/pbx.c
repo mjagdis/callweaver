@@ -835,16 +835,11 @@ static void cw_copy_escape(struct cw_dynstr *ds_p, const char *s)
 
 static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst, char stop)
 {
-static __thread int depth = 0;
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cw_dynstr rds = CW_DYNSTR_INIT;
 	const char *start;
 	int len, inquote;
 
-if (option_debug) {
-depth++;
-cw_log(CW_LOG_NOTICE, "%d: src: have \"%s\", stop=0x%02x '%c', parse %s\n", depth, dst->data, stop, (stop ? stop : '-'), src);
-}
 	start = src;
 	len = 0;
 	inquote = 0;
@@ -862,23 +857,14 @@ cw_log(CW_LOG_NOTICE, "%d: src: have \"%s\", stop=0x%02x '%c', parse %s\n", dept
 						res = &rds;
 
 					if (start[len + 1] == '{') {
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: exp: var %s\n", depth, &start[len + 2]);
 						skip = expand_string(chan, vars, &start[len + 2], &ds, '}');
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: eval: var %s\n", depth, ds.data);
 
 						if (!ds.error)
 							pbx_retrieve_substr(chan, vars, ds.data, ds.used, res);
 						else
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
-
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: exp: expr %s\n", depth, &start[len + 2]);
 						skip = expand_string(chan, vars, &start[len + 2], &ds, ']');
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: eval: expr %s\n", depth, ds.data);
 
 						if (!ds.error) {
 							cw_expr(ds.data, res);
@@ -897,8 +883,6 @@ cw_log(CW_LOG_NOTICE, "%d: eval: expr %s\n", depth, ds.data);
 					if (!start[0])
 						break;
 					start++;
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: rem: %s\n", depth, start);
 				}
 				break;
 
@@ -923,9 +907,6 @@ cw_log(CW_LOG_NOTICE, "%d: rem: %s\n", depth, start);
 	if (len)
 		cw_dynstr_printf(dst, "%.*s", len, start);
 
-if (option_debug)
-cw_log(CW_LOG_NOTICE, "%d: dst: size=%lu, used=%lu, %s\n", depth, (unsigned long)dst->size, (unsigned long)cw_dynstr_end(dst), dst->data);
-depth--;
 	return (&start[len] - src);
 }
 void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst)
