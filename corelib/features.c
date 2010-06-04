@@ -1758,7 +1758,7 @@ std:					for (x=0; x<CW_MAX_FDS; x++) {
 	}
 }
 
-static int park_call_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int park_call_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int res = 0;
@@ -1788,7 +1788,7 @@ static int park_call_exec(struct cw_channel *chan, int argc, char **argv, struct
 	return res;
 }
 
-static int park_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int park_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	int res=0;
 	struct localuser *u;
@@ -1903,7 +1903,7 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 	return res;
 }
 
-static int handle_showfeatures(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_showfeatures(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	int i;
 	int fcount;
@@ -1964,7 +1964,7 @@ static struct cw_clicmd showfeatures = {
 	.usage = showfeatures_help,
 };
 
-static int handle_parkedcalls(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_parkedcalls(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct parkeduser *cur;
 	int numparked = 0;

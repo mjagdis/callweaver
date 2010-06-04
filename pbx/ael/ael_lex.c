@@ -1705,7 +1705,7 @@ case 54:
 YY_RULE_SETUP
 #line 397 "ael/ael.l"
 {
-		struct cw_dynstr ds = CW_DYNSTR_INIT;
+		cw_dynstr_t ds = CW_DYNSTR_INIT;
 		FILE *in1;
 		char *p1,*p2;
 		int error = 1;	/* don't use the file if set */

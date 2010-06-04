@@ -67,7 +67,7 @@ static char *csvacct_path;
 static int csvacct_offset;
 
 
-static void append_string(struct cw_dynstr *ds_p, const char *s)
+static void append_string(cw_dynstr_t *ds_p, const char *s)
 {
 	cw_dynstr_printf(ds_p, "\"");
 
@@ -84,13 +84,13 @@ static void append_string(struct cw_dynstr *ds_p, const char *s)
 }
 
 
-static void append_times(struct cw_dynstr *ds_p, const struct cw_cdr *cdr)
+static void append_times(cw_dynstr_t *ds_p, const struct cw_cdr *cdr)
 {
 	cw_dynstr_printf(ds_p, "%d,%d,", cdr->duration, cdr->billsec);
 }
 
 
-static void append_date(struct cw_dynstr *ds_p, const struct timeval tv)
+static void append_date(cw_dynstr_t *ds_p, const struct timeval tv)
 {
 	struct tm tm;
 
@@ -102,7 +102,7 @@ static void append_date(struct cw_dynstr *ds_p, const struct timeval tv)
 }
 
 
-static void build_csv_record(struct cw_dynstr *ds_p, const struct cw_cdr *cdr)
+static void build_csv_record(cw_dynstr_t *ds_p, const struct cw_cdr *cdr)
 {
 	append_string(ds_p, cdr->accountcode);
 	append_string(ds_p, cdr->src);
@@ -162,7 +162,7 @@ static int csvmaster_open(void)
 static int csv_log(struct cw_cdr *batch)
 {
 	struct cw_cdr *cdrset, *cdr;
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 	pthread_mutex_lock(&csv_lock);
 

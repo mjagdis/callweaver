@@ -2979,7 +2979,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 /* Reload dynamic queue members persisted into the cwdb */
 static void reload_queue_members(void)
 {
-    struct cw_dynstr queue_data = CW_DYNSTR_INIT;
+    cw_dynstr_t queue_data = CW_DYNSTR_INIT;
     char *cur_ptr;  
     char *queue_name;
     char *member;
@@ -3081,7 +3081,7 @@ static void reload_queue_members(void)
     }
 }
 
-static int pqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int pqm_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
 
@@ -3105,7 +3105,7 @@ static int pqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dy
     return 0;
 }
 
-static int upqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int upqm_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
 
@@ -3129,7 +3129,7 @@ static int upqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
     return 0;
 }
 
-static int rqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int rqm_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
     time_t added = 0;
@@ -3177,7 +3177,7 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dy
     return res;
 }
 
-static int aqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int aqm_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
     int penalty = 0;
@@ -3228,7 +3228,7 @@ static int aqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dy
     return res;
 }
 
-static int queue_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int queue_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
     struct cw_var_t *var;
@@ -3502,7 +3502,7 @@ check_turns:
     return res;
 }
 
-static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     int count = 0;
     struct cw_call_queue *q;
@@ -3697,7 +3697,7 @@ static void reload_queues(void)
     cw_mutex_unlock(&qlock);
 }
 
-static int __queues_show(int manager, struct cw_dynstr *ds_p, int argc, char **argv, int queue_show)
+static int __queues_show(int manager, cw_dynstr_t *ds_p, int argc, char **argv, int queue_show)
 {
     struct cw_call_queue *q;
     struct queue_ent *qe;
@@ -3800,17 +3800,17 @@ static int __queues_show(int manager, struct cw_dynstr *ds_p, int argc, char **a
     return RESULT_SUCCESS;
 }
 
-static int queues_show(struct cw_dynstr *ds_p, int argc, char **argv)
+static int queues_show(cw_dynstr_t *ds_p, int argc, char **argv)
 {
     return __queues_show(0, ds_p, argc, argv, 0);
 }
 
-static int queue_show(struct cw_dynstr *ds_p, int argc, char **argv)
+static int queue_show(cw_dynstr_t *ds_p, int argc, char **argv)
 {
     return __queues_show(0, ds_p, argc, argv, 1);
 }
 
-static void complete_queue(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_queue(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
 
@@ -4099,7 +4099,7 @@ static struct cw_manager_message *manager_pause_queue_member(struct mansession *
     return msg;
 }
 
-static int handle_add_queue_member(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_add_queue_member(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     char *queuename, *interface;
     int penalty;
@@ -4157,7 +4157,7 @@ static int handle_add_queue_member(struct cw_dynstr *ds_p, int argc, char *argv[
     return ret;
 }
 
-static void complete_add_queue_member(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_add_queue_member(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     int i;
 
@@ -4186,7 +4186,7 @@ static void complete_add_queue_member(struct cw_dynstr *ds_p, char *argv[], int 
     }
 }
 
-static int handle_remove_queue_member(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_remove_queue_member(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     char *queuename, *interface;
 
@@ -4221,7 +4221,7 @@ static int handle_remove_queue_member(struct cw_dynstr *ds_p, int argc, char *ar
     }
 }
 
-static void complete_remove_queue_member(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_remove_queue_member(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_call_queue *q;
     struct member *m;

@@ -53,7 +53,7 @@ struct icd_distributor {
     icd_member_list *agents;
     icd_plugable_fn *(*get_plugable_fn) (icd_caller * caller);
       icd_status(*link_fn) (icd_distributor *, void *extra);
-      icd_status(*dump_fn) (icd_distributor *, int verbosity, struct cw_dynstr *ds_p, void *extra);
+      icd_status(*dump_fn) (icd_distributor *, int verbosity, cw_dynstr_t *ds_p, void *extra);
     void *(*run_fn) (void *that);
     void *link_fn_extra;
     void *dump_fn_extra;

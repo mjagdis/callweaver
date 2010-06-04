@@ -41,7 +41,7 @@ static char *admin_description =
 
 // TODO - Do it if someone needs it
 
-static int app_admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int app_admin_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	struct cw_conference *conf;
@@ -82,7 +82,7 @@ static char count_description[] =
 "will be returned in the variable. Returns 0.\n";
 
 
-static int app_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int app_count_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 
@@ -127,8 +127,8 @@ static int app_count_exec(struct cw_channel *chan, int argc, char **argv, struct
  * ***************************************************************/
 
 
-int nconference_admin_exec( struct cw_dynstr *ds_p, int argc, char *argv[] );
-static void nconference_admin_complete(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len);
+int nconference_admin_exec( cw_dynstr_t *ds_p, int argc, char *argv[] );
+static void nconference_admin_complete(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len);
 
 static const char nconference_admin_usage[] =
 	"usage: NConference <command>  <conference_name> <usernumber>\n"
@@ -144,7 +144,7 @@ static struct cw_clicmd nconference_admin_cli = {
 	.generator = nconference_admin_complete,
 } ;
 
-int nconference_admin_exec( struct cw_dynstr *ds_p, int argc, char *argv[] )
+int nconference_admin_exec( cw_dynstr_t *ds_p, int argc, char *argv[] )
 {
 	struct cw_conference *conf 	= NULL;
 	struct cw_conf_member *member	= NULL;
@@ -286,7 +286,7 @@ int nconference_admin_exec( struct cw_dynstr *ds_p, int argc, char *argv[] )
 
 
 
-static void nconference_admin_complete(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len) {
+static void nconference_admin_complete(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len) {
 	static const char *cmds[] 	= {"lock", "unlock", "mute", "unmute", "kick", "list", "show"};
 	int x = 0;
 	struct cw_conference *cnf 	= NULL;

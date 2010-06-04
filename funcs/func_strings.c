@@ -118,13 +118,13 @@ struct sortable_keys {
 	float value;
 };
 
-static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(fieldqty_func_syntax);
 
 	if (result) {
-		struct cw_dynstr ds = CW_DYNSTR_INIT;
+		cw_dynstr_t ds = CW_DYNSTR_INIT;
 		int fieldcount = 0;
 
 		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds)) {
@@ -146,7 +146,7 @@ static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, str
 }
 
 
-static int function_filter(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_filter(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 
@@ -170,7 +170,7 @@ static int function_filter(struct cw_channel *chan, int argc, char **argv, struc
 }
 
 
-static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char errstr[256] = "";
 	regex_t regexbuf;
@@ -208,7 +208,7 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 }
 
 
-static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
@@ -220,7 +220,7 @@ static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int acf_strftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int acf_strftime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct tm now;
 	struct timeval tv;
@@ -256,7 +256,7 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, struct c
 }
 
 
-static int function_eval(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_eval(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(eval_func_syntax);
@@ -266,9 +266,9 @@ static int function_eval(struct cw_channel *chan, int argc, char **argv, struct 
 }
 
 
-static int function_cut(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_cut(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
-	struct cw_dynstr varvalue = CW_DYNSTR_INIT;
+	cw_dynstr_t varvalue = CW_DYNSTR_INIT;
 	char one[] = "1";
 	char *tmp2;
 	char *field=NULL;
@@ -362,7 +362,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 	}
 }
 
-static int function_sort(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_sort(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct sortable_keys *sortable_keys;
 	char *p;

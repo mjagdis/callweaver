@@ -197,7 +197,7 @@ static void jabber_profile_init(struct jabber_profile *profile, const char *reso
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(const char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
-static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
 static void *cli_command_thread(void *cli_command);
@@ -1722,7 +1722,7 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
 */
 static void *cli_command_thread(void *cli_command)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 	cw_cli_command(&ds, (char *)cli_command);
 	cw_dynstr_free(&ds);
@@ -1863,7 +1863,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 
 
-static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	struct jabber_message_node *node;

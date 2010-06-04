@@ -99,7 +99,7 @@ struct read_image_args {
 
 static int read_image_try(struct cw_object *obj, void *data)
 {
-	struct cw_dynstr fname = CW_DYNSTR_INIT;
+	cw_dynstr_t fname = CW_DYNSTR_INIT;
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
 	struct read_image_args *args = data;
 	int res = 0;
@@ -185,13 +185,13 @@ int cw_send_image(struct cw_channel *chan, char *filename)
 static int imager_print(struct cw_object *obj, void *data)
 {
 	struct cw_imager *img = container_of(obj, struct cw_imager, obj);
-	struct cw_dynstr *ds_p = data;
+	cw_dynstr_t *ds_p = data;
 
 	cw_dynstr_printf(ds_p, FORMAT2, img->name, img->exts, img->desc, cw_getformatname(img->format));
 	return 0;
 }
 
-static int show_image_formats(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int show_image_formats(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 

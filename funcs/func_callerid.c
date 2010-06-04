@@ -41,7 +41,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static const char callerid_func_syntax[] = "CALLERID([datatype, value])";
 
 
-static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int callerid_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	if (argc > 2)
 		return cw_function_syntax(callerid_func_syntax);
@@ -127,7 +127,7 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw
 #define MKSTR(x)	#x
 
 #define CALLERID_DEPRECATED(lc, func) \
-	static int callerid_ ## lc (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result) \
+	static int callerid_ ## lc (struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result) \
 	{ \
 		static int deprecated = 1; \
 		char *av[] = { (char *)MKSTR(lc), (argc ? argv[1] : NULL), NULL }; \

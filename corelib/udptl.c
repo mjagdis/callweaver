@@ -698,7 +698,7 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     return CW_BRIDGE_FAILED;
 }
 
-static int udptl_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int udptl_do_debug_ip(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -732,7 +732,7 @@ static int udptl_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int udptl_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int udptl_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
@@ -746,7 +746,7 @@ static int udptl_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
    
-static int udptl_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int udptl_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -758,7 +758,7 @@ static int udptl_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int udptl_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int udptl_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(ds_p);
     CW_UNUSED(argv);
@@ -770,7 +770,7 @@ static int udptl_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int udptl_show_settings(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int udptl_show_settings(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     const char *error_correction_str;
 

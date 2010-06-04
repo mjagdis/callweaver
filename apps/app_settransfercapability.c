@@ -67,7 +67,7 @@ static struct {
 	{ CW_TRANS_CAP_VIDEO,				"VIDEO" },
 };
 
-static int settransfercapability_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int settransfercapability_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int x;

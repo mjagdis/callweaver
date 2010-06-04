@@ -62,7 +62,7 @@ struct icd_queue {
     icd_listeners *listeners;
     icd_queue_state state;
     int flag;                   /*accept calls, tagged iter mem q, match em from config untag mark for delete */
-      icd_status(*dump_fn) (icd_queue *, int verbosity, struct cw_dynstr *ds_p, void *extra);
+      icd_status(*dump_fn) (icd_queue *, int verbosity, cw_dynstr_t *ds_p, void *extra);
     void *dump_fn_extra;
     icd_memory *memory;
     cw_mutex_t lock;
@@ -239,7 +239,7 @@ icd_status init_icd_queue(icd_queue * that, char *name, icd_config * config)
     that->listeners = create_icd_listeners();
 
     icd_queue__set_dump_func(that,
-        (icd_status (*)(icd_queue *, int, struct cw_dynstr *, void *))icd_config__get_any_value(config, "dump", icd_queue__standard_dump),
+        (icd_status (*)(icd_queue *, int, cw_dynstr_t *, void *))icd_config__get_any_value(config, "dump", icd_queue__standard_dump),
         icd_config__get_any_value(config, "dump.extra", NULL));
 
     that->state = ICD_QUEUE_STATE_INITIALIZED;
@@ -639,7 +639,7 @@ icd_status icd_queue__agent_pushback(icd_queue * that, icd_member * member)
 }
 
 /* Create a machine parse able display of the queue */
-icd_status icd_queue__dump(icd_queue * that, int verbosity, struct cw_dynstr *ds_p)
+icd_status icd_queue__dump(icd_queue * that, int verbosity, cw_dynstr_t *ds_p)
 {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
@@ -648,7 +648,7 @@ icd_status icd_queue__dump(icd_queue * that, int verbosity, struct cw_dynstr *ds
 }
 
 /* Standard dump function for distributor */
-icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_dynstr *ds_p, void *extra)
+icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, cw_dynstr_t *ds_p, void *extra)
 {
     static const char *indent = "    ";
     vh_keylist *keys;
@@ -689,7 +689,7 @@ icd_status icd_queue__standard_dump(icd_queue * that, int verbosity, struct cw_d
 }
 
 /* Create a cli ui display of the queue */
-icd_status icd_queue__show(icd_queue * that, int verbosity, struct cw_dynstr *ds_p)
+icd_status icd_queue__show(icd_queue * that, int verbosity, cw_dynstr_t *ds_p)
 {
 #define FMT_QUEUE_DATA "%-18s %-8d %-14d %-15d %-10d %-18d\n"
 
@@ -741,7 +741,7 @@ char *icd_queue__get_monitor_args(icd_queue * that)
 
 char *icd_queue__check_recording(icd_queue *that, icd_caller *caller) 
 {
-    struct cw_dynstr ds = CW_DYNSTR_INIT;
+    cw_dynstr_t ds = CW_DYNSTR_INIT;
     char *monitor_args = NULL;
     char buf[512];
     struct cw_channel *chan;
@@ -929,7 +929,7 @@ icd_status icd_queue__set_distributor(icd_queue * that, icd_distributor * dist)
 
 }
 
-icd_status icd_queue__set_dump_func(icd_queue * that, icd_status(*dump_fn) (icd_queue *, int verbosity, struct cw_dynstr *ds_p,
+icd_status icd_queue__set_dump_func(icd_queue * that, icd_status(*dump_fn) (icd_queue *, int verbosity, cw_dynstr_t *ds_p,
         void *extra), void *extra)
 {
     assert(that != NULL);

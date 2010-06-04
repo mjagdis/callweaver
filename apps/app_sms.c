@@ -1125,8 +1125,8 @@ static void sms_readfile(sms_t *h, char *fn)
 /*! \brief white a received text message to a file */
 static void sms_writefile(sms_t *h)
 {
-    struct cw_dynstr fn = CW_DYNSTR_INIT;
-    struct cw_dynstr fn2 = CW_DYNSTR_INIT;
+    cw_dynstr_t fn = CW_DYNSTR_INIT;
+    cw_dynstr_t fn2 = CW_DYNSTR_INIT;
     FILE *o;
     unsigned int p;
     uint16_t v;
@@ -1338,7 +1338,7 @@ static uint8_t sms_handleincoming(sms_t *h, const uint8_t *msg, int len)
 static void sms_nextoutgoing(sms_t *h)
 {
     uint8_t tx_msg[256];
-    struct cw_dynstr fn = CW_DYNSTR_INIT;
+    cw_dynstr_t fn = CW_DYNSTR_INIT;
     DIR *d;
     struct dirent *f;
     char more = 0;
@@ -1705,7 +1705,7 @@ generate:
     sms_generate,
 };
 
-static int sms_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int sms_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     sms_t h = { 0 };
     int res = -1;

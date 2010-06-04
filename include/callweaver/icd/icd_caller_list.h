@@ -80,7 +80,7 @@ extern "C" {
     int icd_caller_list__caller_position(icd_caller_list * that, icd_caller * target);
 
 /* Prints the contents of the caller structures to the given file descriptor. */
-    icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, struct cw_dynstr *ds_p);
+    icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, cw_dynstr_t *ds_p);
 
 /* Retrieves a caller from the list when given an id. */
     icd_caller *icd_caller_list__fetch_caller(icd_caller_list * that, char *id);
@@ -141,7 +141,7 @@ extern "C" {
     int icd_caller_list__dummy_notify(icd_event * event, void *extra);
 
 /* Standard caller list dump function */
-    icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr *ds_p, void *extra);
+    icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, cw_dynstr_t *ds_p, void *extra);
 
 #ifdef __cplusplus
 }

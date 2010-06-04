@@ -79,7 +79,7 @@ static const char pop_descrip[] =
 "  Always returns 0, even if the stack is empty.\n";
 
 
-static int pop_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int pop_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
@@ -92,49 +92,54 @@ static int pop_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dy
 	return 0;
 }
 
-static int return_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
+	args_t args = CW_DYNARRAY_INIT;
 	char buf[3 + 3 + 1];
 	struct cw_var_t *var;
-	char *label;
-	int i;
+	int i, res;
 
+	CW_UNUSED(argv);
 	CW_UNUSED(result);
 
 	if (argc != 0)
 		return cw_function_syntax(return_syntax);
 
+	res = -1;
+
 	if ((var = pbx_builtin_getvar_helper(chan, cw_hash_var_name(STACKVAR), STACKVAR))) {
-		label = cw_strdupa(var->value);
+		pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
+
+		/* No one else should be messing with our stack frame so we can safely trash it */
+		cw_separate_app_args(&args, (char *)var->value, ',');
+
+		if (!args.error) {
+			memcpy(buf, "ARG", 3);
+			for (i = atoi(args.data[3]); i; i--) {
+				sprintf(buf+3, "%d", i+1);
+				pbx_builtin_setvar_helper(chan, buf, NULL);
+			}
+
+			if (!cw_explicit_goto(chan, args.data[0], args.data[1], args.data[2]))
+				res = 0;
+			else
+				cw_log(CW_LOG_WARNING, "No statement after Gosub to return to?\n");
+		}
+
+		cw_dynarray_free(&args);
 		cw_object_put(var);
-	} else {
+	} else
 		cw_log(CW_LOG_ERROR, "Return without Gosub: stack is empty\n");
-		return -1;
-	}
 
-	cw_separate_app_args(label, ',', 100, argv);
 
-	memcpy(buf, "ARG", 3);
-	for (i = atoi(argv[3]); i; i--) {
-		sprintf(buf+3, "%d", i+1);
-		pbx_builtin_setvar_helper(chan, buf, NULL);
-	}
-
-	pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
-
-	if (cw_explicit_goto(chan, argv[0], argv[1], argv[2])) {
-		cw_log(CW_LOG_WARNING, "No statement after Gosub to return to?\n");
-		return -1;
-	}
-
-	return 0;
+	return res;
 }
 
-static int gosub_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int gosub_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *p, *q;
-	int i;
+	int i, res;
 
 	CW_UNUSED(result);
 
@@ -152,26 +157,36 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, struct cw_
 		*q = '\0';
 	}
 
-	snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
+	i = snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
 
-	if (cw_explicit_goto(chan, context, exten, argv[argc-1]))
-		return -1;
+	res = -1;
 
-	argc = (p ? cw_separate_app_args(p, ',', 100, argv) : 0);
-	i = strlen(buf);
-	snprintf(buf+i, sizeof(buf)-i, ",%d", argc);
-	pbx_builtin_pushvar_helper(chan, STACKVAR, buf);
+	if (!cw_explicit_goto(chan, context, exten, argv[argc-1])) {
+		args_t args = CW_DYNARRAY_INIT;
 
-	memcpy(buf, "ARG", 3);
-	for (i = 0; i < argc; i++) {
-		sprintf(buf+3, "%d", i+1);
-		pbx_builtin_pushvar_helper(chan, buf, argv[i]);
+		if (p)
+			cw_separate_app_args(&args, p, ',');
+
+		if (!args.error) {
+			snprintf(buf+i, sizeof(buf)-i, ",%lu", (unsigned long)args.used);
+			pbx_builtin_pushvar_helper(chan, STACKVAR, buf);
+
+			memcpy(buf, "ARG", 3);
+			for (i = 0; i < args.used; i++) {
+				sprintf(buf+3, "%d", i+1);
+				pbx_builtin_pushvar_helper(chan, buf, args.data[i]);
+			}
+
+			res = 0;
+		}
+
+		cw_dynarray_free(&args);
 	}
 
-	return 0;
+	return res;
 }
 
-static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char *s, *q;
 	int i;

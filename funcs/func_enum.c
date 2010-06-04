@@ -65,7 +65,7 @@ static const char txtcidname_func_desc[] = "This function looks up the given pho
 		"found in the TXT record in DNS.\n";
 
 
-static int function_enum(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_enum(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
        char tech[80];
        struct localuser *u;
@@ -127,7 +127,7 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, struct 
        return 0;
 }
 
-static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char tech[80];
 	struct localuser *u;

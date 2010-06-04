@@ -776,7 +776,7 @@ extern CW_API_PUBLIC struct cw_channel *__cw_get_by_name_locked(struct cw_regist
 #define cw_get_device_by_name_locked(chan) __cw_get_by_name_locked(&device_registry, chan)
 #endif
 
-extern CW_API_PUBLIC void cw_complete_channel(struct cw_dynstr *ds_p, const char *prefix, size_t prefix_len);
+extern CW_API_PUBLIC void cw_complete_channel(cw_dynstr_t *ds_p, const char *prefix, size_t prefix_len);
 
 /*! Get channel by name prefix (locks channel) */
 #ifdef DEBUG_MUTEX

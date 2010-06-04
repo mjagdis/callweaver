@@ -96,7 +96,7 @@ static int csvmaster_open(void)
 
 static int custom_log(struct cw_cdr *batch)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	struct cw_cdr *cdrset, *cdr;
 
 	pthread_mutex_lock(&csv_lock);

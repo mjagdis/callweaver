@@ -106,7 +106,7 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int le
 static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy);
 static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy);
 static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *volfactor, int fd);
-static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 static __inline__ int db_to_scaling_factor(int db)
 {
@@ -537,7 +537,7 @@ out:
 	return res;
 }
 
-static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct chanspy_by_prefix_args args;
 	struct cw_flags flags;
@@ -611,7 +611,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct c
 	}
 
 	if (recbase) {
-		struct cw_dynstr filename = CW_DYNSTR_INIT;
+		cw_dynstr_t filename = CW_DYNSTR_INIT;
 
 		cw_dynstr_printf(&filename, "%s/%s.%ld.raw", cw_config[CW_MONITOR_DIR], recbase, time(NULL));
 		if ((args.fd = open(filename.data, O_CREAT | O_WRONLY | O_TRUNC, 0644)) <= 0)

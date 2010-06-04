@@ -109,7 +109,7 @@ typedef struct switch_config switch_config;
 static int exist_callback(void *pArg, int argc, char **argv, char **columnNames);
 
 struct switch_config {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 	int timeout;
 	int seeheads;
 };
@@ -191,7 +191,7 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	char *errmsg;
@@ -270,7 +270,7 @@ static int cli_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_cli(struct cw_dynstr *ds_p, int argc, char *argv[]) {
+static int sqlite_cli(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 	char sqlbuf[1024];
 	char path[ARRAY_SIZE];
 	switch_config config;
@@ -669,7 +669,7 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 	cw_verbose("%s\n", (obj ? "match" : "fail"));
 
 	if (obj) {
-		struct cw_dynstr app_data = CW_DYNSTR_INIT;
+		cw_dynstr_t app_data = CW_DYNSTR_INIT;
 
 		cache = container_of(obj, struct cache, obj);
 		pbx_substitute_variables(chan, NULL, cache->app_data[priority], &app_data);

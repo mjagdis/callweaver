@@ -65,7 +65,7 @@ static const char read_descrip[] =
 
 #define cw_next_data(instr,ptr,delim) if((ptr=strchr(instr,delim))) { *(ptr) = '\0' ; ptr++;}
 
-static int read_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int read_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char tmp[256];
 	struct localuser *u;

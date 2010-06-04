@@ -151,7 +151,7 @@ static int snprintf_authority(char *buf, size_t buflen, int authority)
 }
 
 
-static int printf_authority(struct cw_dynstr *ds_p, int authority)
+static int printf_authority(cw_dynstr_t *ds_p, int authority)
 {
 	int i, used, sep = 0;
 
@@ -309,7 +309,7 @@ static const char showmancmd_help[] =
 
 
 struct complete_show_manact_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 	char *word;
 	int word_len;
 };
@@ -325,7 +325,7 @@ static int complete_show_manact_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static void complete_show_manact(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manact(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_manact_args args = {
 		.ds_p = ds_p,
@@ -337,7 +337,7 @@ static void complete_show_manact(struct cw_dynstr *ds_p, char *argv[], int lasta
 }
 
 
-static int handle_show_manact(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_show_manact(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct cw_object *it;
 	struct manager_action *act;
@@ -366,7 +366,7 @@ static const char showmancmds_help[] =
 "	Prints a listing of all the available CallWeaver manager interface commands.\n";
 
 
-static void complete_show_manacts(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_manacts(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 3) {
 		if (!strncasecmp(argv[3], "like", lastarg_len))
@@ -378,7 +378,7 @@ static void complete_show_manacts(struct cw_dynstr *ds_p, char *argv[], int last
 
 
 struct manacts_print_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -422,7 +422,7 @@ static int manacts_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_manacts(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_show_manacts(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct manacts_print_args args = {
 		.ds_p = ds_p,
@@ -456,7 +456,7 @@ static const char showlistener_help[] =
 
 
 struct listener_print_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 };
 
 #define MANLISTEN_FORMAT "%-10s %s\n"
@@ -477,7 +477,7 @@ static int listener_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_listener(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_show_listener(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct listener_print_args args = {
 		.ds_p = ds_p,
@@ -503,7 +503,7 @@ static const char showmanconn_help[] =
 
 
 struct mansess_print_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 };
 
 #define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
@@ -518,7 +518,7 @@ static int mansess_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_mansess(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_show_mansess(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct mansess_print_args args = {
 		.ds_p = ds_p,
@@ -1400,7 +1400,7 @@ static struct cw_manager_message *action_extensionstate(struct mansession *sess,
 
 	if (!cw_strlen_zero(exten)) {
 		if ((msg = cw_manager_response("Success", "Extension Status"))) {
-			struct cw_dynstr hint = CW_DYNSTR_INIT;
+			cw_dynstr_t hint = CW_DYNSTR_INIT;
 
 			if (cw_strlen_zero(context))
 				context = "default";

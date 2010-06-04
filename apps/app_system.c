@@ -106,14 +106,14 @@ static int system_exec_helper(struct cw_channel *chan, int argc, char **argv)
 	return res;
 }
 
-static int system_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int system_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(result);
 
 	return system_exec_helper(chan, argc, argv);
 }
 
-static int trysystem_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int trysystem_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(result);
 

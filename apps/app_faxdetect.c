@@ -99,7 +99,7 @@ static const char detectfax_descrip[] =
 #define CALLERID_FIELD cid.cid_num
 
 
-static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     int res = 0;
     struct localuser *u;

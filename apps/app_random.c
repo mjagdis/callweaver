@@ -47,7 +47,7 @@ static const char random_descrip[] =
 "  probability := INTEGER in the range 1 to 100\n";
 
 
-static int random_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int random_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	char *s, *context, *exten;

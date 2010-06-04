@@ -67,7 +67,7 @@ static const char record_descrip[] =
 "Returns -1 when the user hangs up.\n";
 
 
-static int record_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char tmp[256];
 	struct cw_filestream *s = '\0';
@@ -157,33 +157,37 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, struct cw
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
 	if (percentflag) {
-		char *piece[100];
-		int pieces;
+		args_t piece = CW_DYNARRAY_INIT;
 
 		/* Separate each piece out by the format specifier */
-		pieces = cw_separate_app_args(argv[0], '%', arraysize(piece), piece);
+		cw_separate_app_args(&piece, argv[0], '%');
 
-		do {
-			int tmplen;
-			/* First piece has no leading percent, so it's copied verbatim */
-			cw_copy_string(tmp, piece[0], sizeof(tmp));
-			tmplen = strlen(tmp);
-			for (i = 1; i < pieces; i++) {
-				if (piece[i][0] == 'd') {
-					/* Substitute the count */
-					snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "%d", count);
-					tmplen += strlen(tmp + tmplen);
-				} else if (tmplen + 2 < sizeof(tmp)) {
-					/* Unknown format specifier - just copy it verbatim */
-					tmp[tmplen++] = '%';
-					tmp[tmplen++] = piece[i][0];
+		if (!piece.error) {
+			do {
+				int tmplen;
+				/* First piece has no leading percent, so it's copied verbatim */
+				cw_copy_string(tmp, piece.data[0], sizeof(tmp));
+				tmplen = strlen(tmp);
+				for (i = 1; i < piece.used; i++) {
+					if (piece.data[i][0] == 'd') {
+						/* Substitute the count */
+						snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "%d", count);
+						tmplen += strlen(tmp + tmplen);
+					} else if (tmplen + 2 < sizeof(tmp)) {
+						/* Unknown format specifier - just copy it verbatim */
+						tmp[tmplen++] = '%';
+						tmp[tmplen++] = piece.data[i][0];
+					}
+					/* Copy the remaining portion of the piece */
+					cw_copy_string(tmp + tmplen, &(piece.data[i][1]), sizeof(tmp) - tmplen);
 				}
-				/* Copy the remaining portion of the piece */
-				cw_copy_string(tmp + tmplen, &(piece[i][1]), sizeof(tmp) - tmplen);
-			}
-			count++;
-		} while ( cw_fileexists(tmp, ext, chan->language) );
-		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
+				count++;
+			} while ( cw_fileexists(tmp, ext, chan->language) );
+
+			pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
+		}
+
+		cw_dynarray_free(&piece);
 	} else
 		strncpy(tmp, argv[0], sizeof(tmp)-1);
 	/* end of routine mentioned */

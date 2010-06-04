@@ -38,7 +38,7 @@ struct cw_db_entry {
 };
 
 
-extern CW_API_PUBLIC int cw_db_get(const char *family, const char *key, struct cw_dynstr *result);
+extern CW_API_PUBLIC int cw_db_get(const char *family, const char *key, cw_dynstr_t *result);
 
 extern CW_API_PUBLIC int cw_db_put(const char *family, const char *key, const char *value);
 

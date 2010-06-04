@@ -79,7 +79,7 @@ enum TypeOfResult
 };
 
 
-static int builtin_function_math(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_math(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	double fnum1;
 	double fnum2;

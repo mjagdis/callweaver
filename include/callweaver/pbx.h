@@ -263,7 +263,7 @@ extern CW_API_PUBLIC int cw_extension_state_del(int id, cw_state_cb_type callbac
  * is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-extern CW_API_PUBLIC int cw_get_hint(struct cw_dynstr *hint, struct cw_dynstr *name, struct cw_channel *c, const char *context, const char *exten);
+extern CW_API_PUBLIC int cw_get_hint(cw_dynstr_t *hint, cw_dynstr_t *name, struct cw_channel *c, const char *context, const char *exten);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -524,9 +524,9 @@ extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, co
 extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern CW_API_PUBLIC void pbx_builtin_clear_globals(void);
 
-extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result);
+extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, cw_dynstr_t *result);
 
-extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst);
+extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst);
 
 extern CW_API_PUBLIC int cw_extension_patmatch(const char *pattern, const char *data);
 
@@ -569,7 +569,7 @@ extern CW_API_PUBLIC int cw_function_syntax(const char *syntax);
  *
  * \return 0 on success, -1 on failure
  */
-extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, struct cw_dynstr *result);
+extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, cw_dynstr_t *result);
 
 /*! \brief Executes a function using an argument string
  *
@@ -590,7 +590,7 @@ extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int 
  *
  * \return 0 on success, -1 on failure
  */
-extern CW_API_PUBLIC int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, struct cw_dynstr *result);
+extern CW_API_PUBLIC int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, cw_dynstr_t *result);
 
 
 /* Number of active calls */

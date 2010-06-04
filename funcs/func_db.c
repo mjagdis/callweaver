@@ -67,7 +67,7 @@ static const char db_func_desc[] =
 	"will also set the variable DB_RESULT.\n";
 
 
-static int function_db_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_db_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char *key;
 
@@ -98,7 +98,7 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, struct
 }
 
 
-static int function_db_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_db_exists(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char *key;
 

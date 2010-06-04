@@ -249,7 +249,7 @@ void sccp_handle_unregister(sccp_session_t * s, sccp_moo_t * r)
 }
 
 static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
-	struct cw_dynstr hint_ds = CW_DYNSTR_INIT;
+	cw_dynstr_t hint_ds = CW_DYNSTR_INIT;
 	sccp_hint_t *h;
 	sccp_line_t *l;
 	char hint[256] = "", *hint_dialplan;

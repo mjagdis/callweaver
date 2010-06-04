@@ -57,7 +57,7 @@ static const char playback_descrip[] =
 "\n";
 
 
-static int playback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int playback_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	char *front = NULL, *back = NULL;

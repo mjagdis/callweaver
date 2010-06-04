@@ -41,7 +41,7 @@ static const char devstate_cli_usage[] =
 "Usage: DevState device state\n" 
 "       Generate a device state change event given the input parameters.\n";
 
-static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[]);
+static int devstate_cli(cw_dynstr_t *ds_p, int argc, char *argv[]);
 static struct cw_clicmd  cli_dev_state = {
 	.cmda = { "devstate", NULL },
 	.handler = devstate_cli,
@@ -50,7 +50,7 @@ static struct cw_clicmd  cli_dev_state = {
 };
 
 
-static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int devstate_cli(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     if ((argc != 3) && (argc != 4) && (argc != 5))
         return RESULT_SHOWUSAGE;
@@ -63,7 +63,7 @@ static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int devstate_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int devstate_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
 
@@ -87,7 +87,7 @@ static int devstate_exec(struct cw_channel *chan, int argc, char **argv, struct 
 
 static int ds_devicestate(void *data)
 {
-    struct cw_dynstr ds = CW_DYNSTR_INIT;
+    cw_dynstr_t ds = CW_DYNSTR_INIT;
     char *dest = data;
     int res = 0;
 

@@ -33,7 +33,7 @@
 
 char *replace_cw_vars(struct cw_channel *chan, const char *string);
 int ldap_lookup(const char *host, int port, int version, int timeout, const char *user, const char *pass, const char *base, const char *scope, const char *filter, const char *attribute, char *result);
-static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result) ;
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, cw_dynstr_t *result) ;
 static char *strtrim(char *string);
 
 static const char tdesc[] = "LDAP directory lookup function for CallWeaver extension logic.";
@@ -47,7 +47,7 @@ static const char g_descrip[] =
 "Upon exit, set the variable LDAPSTATUS to either SUCCESS or FAILURE.\n"
 "Always returns 0.\n";
 
-static int ldap_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int ldap_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct localuser *u;
     const char *varname;
@@ -368,7 +368,7 @@ char *replace_cw_vars(struct cw_channel *chan, const char *_string)
     return string;
 }
 
-static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result)
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, cw_dynstr_t *result)
 {
 	iconv_t cd;
 

@@ -56,9 +56,9 @@ static const char descrip[] =
   "calls.  Always returns 0.\n";
 
 
-static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	struct localuser *u;
 
 	CW_UNUSED(argc);

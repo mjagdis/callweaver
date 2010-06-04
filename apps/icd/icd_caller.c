@@ -519,7 +519,7 @@ icd_status init_icd_caller(icd_caller * that, icd_config * data)
      icd_plugable__create_standard_fns(that->plugable_fns_list, data);
      */
 
-    that->dump_fn = (icd_status (*)(icd_caller *, int, struct cw_dynstr *, const void *))icd_config__get_any_value(data, "dump", icd_caller__standard_dump);
+    that->dump_fn = (icd_status (*)(icd_caller *, int, cw_dynstr_t *, const void *))icd_config__get_any_value(data, "dump", icd_caller__standard_dump);
     that->dump_fn_extra = icd_config__get_any_value(data, "dump.extra", NULL);
 
     snprintf(buf, sizeof(buf), "Memberships of Caller %s", icd_caller__get_name(that));
@@ -1106,7 +1106,7 @@ int icd_caller__get_member_count(icd_caller * that)
 }
 
 /* Prints the contents of the caller structure to the given file descriptor. */
-icd_status icd_caller__dump(icd_caller * that, int verbosity, struct cw_dynstr *ds_p)
+icd_status icd_caller__dump(icd_caller * that, int verbosity, cw_dynstr_t *ds_p)
 {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
@@ -1779,7 +1779,7 @@ icd_listeners *icd_caller__get_listeners(icd_caller * that)
 
 /***** Callback Setters *****/
 /* The dump function is a virtual function. You set the function to execute here. */
-icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller *, int verbosity, struct cw_dynstr *ds_p,
+icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller *, int verbosity, cw_dynstr_t *ds_p,
         const void *extra), const void *extra)
 {
     assert(that != NULL);
@@ -2716,7 +2716,7 @@ icd_status icd_caller__standard_launch_caller(icd_caller * that)
 }
 
 /* Standard function for printing out a copy of the caller */
-icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct cw_dynstr *ds_p, void *extra)
+icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, cw_dynstr_t *ds_p, void *extra)
 {
     //int skip_opening;
 
@@ -2769,7 +2769,7 @@ icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct 
        int (*link_fn)(icd_caller *, icd_caller *);
        int (*bridge_fn)(icd_caller *, icd_caller *);
        int (*authn_fn)(icd_caller *, int);
-       icd_status (*dump_fn)(icd_caller *. int verbosity, struct cw_dynstr **ds_p, const void *extra);
+       icd_status (*dump_fn)(icd_caller *. int verbosity, cw_dynstr_t **ds_p, const void *extra);
        const void *dump_fn_extra;
        icd_thread_state thread_state;
      */
@@ -2979,13 +2979,13 @@ static icd_status icd_caller__create_thread(icd_caller * that)
 
 void icd_caller__dump_debug(icd_caller * that)
 {
-    struct cw_dynstr ds = CW_DYNSTR_INIT;
+    cw_dynstr_t ds = CW_DYNSTR_INIT;
 
     icd_caller__dump_debug_fd(that, &ds, "  == ");
     cw_dynstr_free(&ds);
 }
 
-void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr *ds_p, const char *indent)
+void icd_caller__dump_debug_fd(icd_caller * that, cw_dynstr_t *ds_p, const char *indent)
 {
     const char *ptr;
     //const char *action;

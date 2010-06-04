@@ -67,11 +67,11 @@ static char h323driver[80] = "";
 
 
 /*--- enumlookup_exec: Look up number in ENUM and return result */
-static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int dep_warning = 0;
 	char tech[80];
-	struct cw_dynstr dest = CW_DYNSTR_INIT;
+	cw_dynstr_t dest = CW_DYNSTR_INIT;
 	struct localuser *u;
 	char *c, *t;
 	int res = 0;
@@ -94,7 +94,7 @@ static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, struc
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", tech);
 		/* Parse it out */
 		if (res > 0 && !dest.error) {
-			struct cw_dynstr tmp = CW_DYNSTR_INIT;
+			cw_dynstr_t tmp = CW_DYNSTR_INIT;
 
 			if (!strcasecmp(tech, "SIP")) {
 				c = dest.data;

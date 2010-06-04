@@ -173,8 +173,8 @@ static int pgsql_reconnect(void)
 
 static int pgsql_log(struct cw_cdr *batch)
 {
-	struct cw_dynstr sql_tmp_cmd = CW_DYNSTR_INIT;
-	struct cw_dynstr cmd_ds = CW_DYNSTR_INIT;
+	cw_dynstr_t sql_tmp_cmd = CW_DYNSTR_INIT;
+	cw_dynstr_t cmd_ds = CW_DYNSTR_INIT;
 	struct cw_channel *chan;
 	PGresult *res;
 	struct cw_cdr *cdrset, *cdr;

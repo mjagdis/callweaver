@@ -416,7 +416,7 @@ icd_status icd_distributor__remove_customer(icd_distributor *that, icd_customer 
 }
 
 /* Print out a copy of the distributor. */
-icd_status icd_distributor__dump(icd_distributor *that, int verbosity, struct cw_dynstr *ds_p) {
+icd_status icd_distributor__dump(icd_distributor *that, int verbosity, cw_dynstr_t *ds_p) {
     assert(that != NULL);
     assert(that->dump_fn != NULL);
 
@@ -566,7 +566,7 @@ icd_status icd_distributor__set_link_callers_fn(icd_distributor *that, icd_statu
     return ICD_SUCCESS;
 }
 
-icd_status icd_distributor__set_dump_func(icd_distributor *that, icd_status (*dump_fn)(icd_distributor *, int verbosity, struct cw_dynstr *ds_p, void *extra), void *extra) {
+icd_status icd_distributor__set_dump_func(icd_distributor *that, icd_status (*dump_fn)(icd_distributor *, int verbosity, cw_dynstr_t *ds_p, void *extra), void *extra) {
     assert(that != NULL);
 
     that->dump_fn = dump_fn;
@@ -901,7 +901,7 @@ icd_status icd_distributor__link_callers_via_ringall(icd_distributor *dist, void
 }
 
 /* Standard dump function for distributor */
-icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, struct cw_dynstr *ds_p, void *extra) {
+icd_status icd_distributor__standard_dump(icd_distributor *dist, int verbosity, cw_dynstr_t *ds_p, void *extra) {
     static const char *indent = "    ";
     vh_keylist *keys;
 
@@ -1074,8 +1074,8 @@ icd_status icd_distributor__set_config_params(icd_distributor *that, icd_config 
             (icd_status (*)(icd_distributor *, void *))icd_config__get_any_value(data, "link",  icd_distributor__link_callers_via_pop),
             (icd_status (*)(icd_distributor *, void *))icd_config__get_any_value(data, "link.extra", NULL));
     icd_distributor__set_dump_func(that,
-            (icd_status (*)(icd_distributor *, int, struct cw_dynstr *, void *))icd_config__get_any_value(data, "dump",  icd_distributor__standard_dump),
-            (icd_status (*)(icd_distributor *, int, struct cw_dynstr *, void *))icd_config__get_any_value(data, "dump.extra", NULL));
+            (icd_status (*)(icd_distributor *, int, cw_dynstr_t *, void *))icd_config__get_any_value(data, "dump",  icd_distributor__standard_dump),
+            (icd_status (*)(icd_distributor *, int, cw_dynstr_t *, void *))icd_config__get_any_value(data, "dump.extra", NULL));
     return ICD_SUCCESS;
 }
 

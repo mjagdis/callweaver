@@ -252,7 +252,7 @@ int icd_caller_list__caller_position(icd_caller_list * that, icd_caller * target
 }
 
 /* Prints the contents of the caller structures to the given file descriptor. */
-icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, struct cw_dynstr *ds_p)
+icd_status icd_caller_list__dump(icd_caller_list * that, int verbosity, cw_dynstr_t *ds_p)
 {
     assert(that != NULL);
     assert(((icd_list *) that)->dump_fn != NULL);
@@ -413,7 +413,7 @@ int icd_caller_list__dummy_notify(icd_event * event, void *extra)
 }
 
 /* Standard caller list dump function */
-icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr *ds_p, void *extra)
+icd_status icd_caller_list__standard_dump(icd_list * list, int verbosity, cw_dynstr_t *ds_p, void *extra)
 {
     //static const int skipconst = 1;
     //icd_caller_list *call_list;

@@ -64,7 +64,7 @@ static const char setcallerid_pres_descrip[] =
 ;
 
 
-static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int pres = -1;

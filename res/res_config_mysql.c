@@ -73,7 +73,7 @@ static time_t connect_time;
 
 static int parse_config(void);
 static int mysql_reconnect(const char *database);
-static int realtime_mysql_status(struct cw_dynstr *ds_p, int argc, char **argv);
+static int realtime_mysql_status(cw_dynstr_t *ds_p, int argc, char **argv);
 
 static const char cli_realtime_mysql_status_usage[] =
 "Usage: realtime mysql status\n"
@@ -658,7 +658,7 @@ reconnect_tryagain:
 	}
 }
 
-static int realtime_mysql_status(struct cw_dynstr *ds_p, int argc, char **argv)
+static int realtime_mysql_status(cw_dynstr_t *ds_p, int argc, char **argv)
 {
 	char status[256], status2[100] = "";
 	int conntime = time(NULL) - connect_time;

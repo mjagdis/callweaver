@@ -123,7 +123,7 @@ static const char reload_extensions_help[] =
 /*
  * REMOVE INCLUDE command stuff
  */
-static int handle_context_dont_include(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_dont_include(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 
@@ -140,7 +140,7 @@ static int handle_context_dont_include(struct cw_dynstr *ds_p, int argc, char *a
 	return RESULT_FAILURE;
 }
 
-static void complete_context_dont_include(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_dont_include(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_include *i;
@@ -228,7 +228,7 @@ static void complete_context_dont_include(struct cw_dynstr *ds_p, char *argv[], 
 /*
  * REMOVE EXTENSION command stuff
  */
-static int handle_context_remove_extension(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_remove_extension(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	int removing_priority = 0;
 	char *exten, *context;
@@ -296,7 +296,7 @@ static int handle_context_remove_extension(struct cw_dynstr *ds_p, int argc, cha
 }
 
 
-static void complete_context_remove_extension(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_remove_extension(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_exten *e;
@@ -399,7 +399,7 @@ static void complete_context_remove_extension(struct cw_dynstr *ds_p, char *argv
 /*
  * Include context ...
  */
-static int handle_context_add_include(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_add_include(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 
@@ -437,7 +437,7 @@ static int handle_context_add_include(struct cw_dynstr *ds_p, int argc, char *ar
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_add_include(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_include(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c, *c2;
 
@@ -493,7 +493,7 @@ static void complete_context_add_include(struct cw_dynstr *ds_p, char *argv[], i
 /*
  * 'save dialplan' CLI command implementation functions ...
  */
-static int handle_save_dialplan(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_save_dialplan(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	char *filename;
 	struct cw_context *c;
@@ -710,7 +710,7 @@ static int handle_save_dialplan(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*
  * ADD EXTENSION command stuff
  */
-static int handle_context_add_extension(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_add_extension(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	char *whole_exten;
 	char *exten, *prior;
@@ -795,7 +795,7 @@ static int handle_context_add_extension(struct cw_dynstr *ds_p, int argc, char *
 }
 
 /* add extension 6123,1,Dial,IAX/212.71.138.13/6123 into local */
-static void complete_context_add_extension(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_extension(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
@@ -829,7 +829,7 @@ static void complete_context_add_extension(struct cw_dynstr *ds_p, char *argv[],
 /*
  * IGNOREPAT CLI stuff
  */
-static int handle_context_add_ignorepat(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_add_ignorepat(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
@@ -865,7 +865,7 @@ static int handle_context_add_ignorepat(struct cw_dynstr *ds_p, int argc, char *
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_add_ignorepat(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_add_ignorepat(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
@@ -900,7 +900,7 @@ static void complete_context_add_ignorepat(struct cw_dynstr *ds_p, char *argv[],
 	}
 }
 
-static int handle_context_remove_ignorepat(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_context_remove_ignorepat(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 5) return RESULT_SHOWUSAGE;
 	if (strcmp(argv[3], "from")) return RESULT_SHOWUSAGE;
@@ -934,7 +934,7 @@ static int handle_context_remove_ignorepat(struct cw_dynstr *ds_p, int argc, cha
 
 static int pbx_load_module(void);
 
-static int handle_reload_extensions(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_reload_extensions(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argv);
@@ -946,7 +946,7 @@ static int handle_reload_extensions(struct cw_dynstr *ds_p, int argc, char *argv
 	return RESULT_SUCCESS;
 }
 
-static void complete_context_remove_ignorepat(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_context_remove_ignorepat(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 
@@ -1081,7 +1081,7 @@ static int unload_module(void)
 
 static int pbx_load_module(void)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;

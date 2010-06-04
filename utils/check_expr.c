@@ -167,7 +167,7 @@ unsigned int check_expr(char* buffer, char* error_report)
 
 int check_eval(char *buffer, char *error_report)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	char *cp, *ep;
 	char evalbuf[80000];
 	int result;

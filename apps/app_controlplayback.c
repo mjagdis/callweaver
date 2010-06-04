@@ -63,7 +63,7 @@ static int is_on_phonepad(char key)
 	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
-static int controlplayback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int controlplayback_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int res = 0;

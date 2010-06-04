@@ -48,7 +48,7 @@ static char flash_descrip[] =
 "Always returns 0\n";
 
 
-static int flash_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int flash_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);

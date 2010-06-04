@@ -296,7 +296,7 @@ static char *complete_show_visdn_huntgroups(
 }
 
 static void do_show_visdn_huntgroups_details(
-	struct cw_dynstr *ds_p, struct visdn_huntgroup *hg)
+	cw_dynstr_t *ds_p, struct visdn_huntgroup *hg)
 {
 	struct visdn_huntgroup_member *hgm;
 
@@ -311,7 +311,7 @@ static void do_show_visdn_huntgroups_details(
 	cw_dynstr_printf(ds_p, "\n");
 }
 
-static int do_show_visdn_huntgroups(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_show_visdn_huntgroups(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 

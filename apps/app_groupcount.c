@@ -96,7 +96,7 @@ static const char group_match_count_descrip[] =
 "GroupMatchCount.\n";
 
 
-static int group_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int group_count_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -137,7 +137,7 @@ static int group_count_exec(struct cw_channel *chan, int argc, char **argv, stru
 	return res;
 }
 
-static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -172,7 +172,7 @@ static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv
 	return res;
 }
 
-static int group_set_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int group_set_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int deprecation_warning = 0;
 	struct localuser *u;
@@ -197,7 +197,7 @@ static int group_set_exec(struct cw_channel *chan, int argc, char **argv, struct
 	return res;
 }
 
-static int group_check_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int group_check_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int deprecation_warning = 0;
 	char limit[80]="";
@@ -242,7 +242,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, stru
 
 #define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
 
-static int group_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int group_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	struct cw_group_info *gi = NULL;

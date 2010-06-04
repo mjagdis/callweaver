@@ -72,7 +72,7 @@ static const char endwhile_desc[] =
 static const char tdesc[] = "While Loops and Conditional Execution";
 
 
-static int execif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int execif_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int res=0;
@@ -299,14 +299,14 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, int end)
 	ALL_DONE(u, res);
 }
 
-static int while_start_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int while_start_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(result);
 
 	return _while_exec(chan, argc, argv, 0);
 }
 
-static int while_end_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int while_end_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(result);
 

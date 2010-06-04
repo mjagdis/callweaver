@@ -107,7 +107,7 @@ static void play_dialtone(struct cw_channel *chan, const char *mailbox)
 		cw_tonepair_start(chan, 350, 440, 0, 0);
 }
 
-static int disa_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int disa_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char ourcidname[256];
 	char ourcidnum[256];

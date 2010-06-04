@@ -53,7 +53,7 @@ static const char eval_descrip[] =
 "the first time as part of the normal dialplan, and the second using Eval.\n";
 
 
-static int eval_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int eval_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static int dep_warning = 0;
 	struct localuser *u;
@@ -74,7 +74,7 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 	if (argc == 1 && argv[0]) {
 		newvar = strsep(&argv[0], "=");
 		if (newvar && (newvar[0] != '\0')) {
-			struct cw_dynstr ds = CW_DYNSTR_INIT;
+			cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 			pbx_substitute_variables(chan, NULL, argv[0], &ds);
 			if (!ds.error) {

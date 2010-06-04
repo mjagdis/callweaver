@@ -68,7 +68,7 @@ static const char auth_descrip[] =
 "Default is 3, and if set to 0, no limit is enforced\n";
 
 
-static int auth_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int auth_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	int res=0;
 	int retries, trylimit=3, nolimit=0;

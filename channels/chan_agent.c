@@ -307,42 +307,38 @@ static void agent_unlink(struct agent_pvt *agent)
  */
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	int argc;
-	char *argv[3 + 1];
-	char *args;
+	args_t args = CW_DYNARRAY_INIT;
+	char *argstr;
 	char *password = NULL;
 	char *name = NULL;
 	char *agt = NULL;
 	struct agent_pvt *p, *prev;
 
-	args = cw_strdupa(agent);
+	p = NULL;
+	argstr = cw_strdupa(agent);
 
 	// Extract username (agt), password and name from agent (args).
-	if ((argc = cw_separate_app_args(args, ',', arraysize(argv), argv))) {
-		agt = argv[0];
-		if (argc > 1) {
-			password = cw_skip_blanks(argv[1]);
-		} 
-		if (argc > 2) {
-			name = cw_skip_blanks(argv[2]);
+	if (!cw_separate_app_args(&args, argstr, ',')) {
+		if (args.used) {
+			agt = args.data[0];
+			if (args.used > 1)
+				password = cw_skip_blanks(args.data[1]);
+			if (args.used > 2)
+				name = cw_skip_blanks(args.data[2]);
+		} else
+			cw_log(CW_LOG_WARNING, "A blank agent line!\n");
+
+		// Are we searching for the agent here ? to see if it exists already ?
+		prev = NULL;
+		p = agents;
+		while (p) {
+			if (!pending && !strcmp(p->agent, agt))
+				break;
+			prev = p;
+			p = p->next;
 		}
-	} else {
-		cw_log(CW_LOG_WARNING, "A blank agent line!\n");
-	}
-	
-	// Are we searching for the agent here ? to see if it exists already ?
-	prev=NULL;
-	p = agents;
-	while(p) {
-		if (!pending && !strcmp(p->agent, agt))
-			break;
-		prev = p;
-		p = p->next;
-	}
-	if (!p) {
-		// Build the agent.
-		p = malloc(sizeof(struct agent_pvt));
-		if (p) {
+		if (!p && (p = malloc(sizeof(struct agent_pvt)))) {
+			// Build the agent.
 			memset(p, 0, sizeof(struct agent_pvt));
 			cw_copy_string(p->agent, agt, sizeof(p->agent));
 			cw_mutex_init(&p->lock);
@@ -356,36 +352,34 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 				prev->next = p;
 			else
 				agents = p;
-			
-		} else {
-			return NULL;
 		}
-	}
 	
-	cw_copy_string(p->password, password ? password : "", sizeof(p->password));
-	cw_copy_string(p->name, name ? name : "", sizeof(p->name));
-	cw_copy_string(p->moh, default_moh, sizeof(p->moh));
-	p->ackcall = ackcall;
-	p->autologoff = autologoff;
+		if (p) {
+			cw_copy_string(p->password, password ? password : "", sizeof(p->password));
+			cw_copy_string(p->name, name ? name : "", sizeof(p->name));
+			cw_copy_string(p->moh, default_moh, sizeof(p->moh));
+			p->ackcall = ackcall;
+			p->autologoff = autologoff;
 
-	/* If someone reduces the wrapuptime and reloads, we want it
-	 * to change the wrapuptime immediately on all calls */
-	if (p->wrapuptime > wrapuptime) {
-		struct timeval now = cw_tvnow();
-		/* XXX check what is this exactly */
+			/* If someone reduces the wrapuptime and reloads, we want it
+			 * to change the wrapuptime immediately on all calls */
+			if (p->wrapuptime > wrapuptime) {
+				struct timeval now = cw_tvnow();
+				/* XXX check what is this exactly */
 
-		/* We won't be pedantic and check the tv_usec val */
-		if (p->lastdisc.tv_sec > (now.tv_sec + wrapuptime/1000)) {
-			p->lastdisc.tv_sec = now.tv_sec + wrapuptime/1000;
-			p->lastdisc.tv_usec = now.tv_usec;
+				/* We won't be pedantic and check the tv_usec val */
+				if (p->lastdisc.tv_sec > (now.tv_sec + wrapuptime/1000)) {
+					p->lastdisc.tv_sec = now.tv_sec + wrapuptime/1000;
+					p->lastdisc.tv_usec = now.tv_usec;
+				}
+			}
+			p->wrapuptime = wrapuptime;
+			p->dead = (pending ? 1 : 0);
 		}
 	}
-	p->wrapuptime = wrapuptime;
 
-	if (pending)
-		p->dead = 1;
-	else
-		p->dead = 0;
+	cw_dynarray_free(&args);
+
 	return p;
 }
 
@@ -1508,7 +1502,7 @@ static int agent_logoff(char *agent, int soft)
 	return ret;
 }
 
-static int agent_logoff_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
+static int agent_logoff_cmd(cw_dynstr_t *ds_p, int argc, char **argv)
 {
 	int ret;
 	char *agent;
@@ -1553,7 +1547,7 @@ static struct cw_manager_message *action_agent_logoff(struct mansession *sess, c
 	return msg;
 }
 
-static void complete_agent_logoff_cmd(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_agent_logoff_cmd(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char name[CW_MAX_AGENT];
 	struct agent_pvt *p;
@@ -1571,7 +1565,7 @@ static void complete_agent_logoff_cmd(struct cw_dynstr *ds_p, char *argv[], int 
 /**
  * Show agents in cli.
  */
-static int agents_show(struct cw_dynstr *ds_p, int argc, char **argv)
+static int agents_show(cw_dynstr_t *ds_p, int argc, char **argv)
 {
 	char username[CW_MAX_BUF];
 	char location[CW_MAX_BUF] = "";
@@ -1678,7 +1672,7 @@ static struct cw_clicmd cli_agent_logoff = {
  * @param callbackmode
  * @returns 
  */
-static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result, int callbackmode)
+static int __login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result, int callbackmode)
 {
 	char agent_goodbye[CW_MAX_FILENAME_LEN];
 	char user[CW_MAX_AGENT] = "";
@@ -2128,7 +2122,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct c
  * @returns
  * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	return __login_exec(chan, argc, argv, result, 0);
 }
@@ -2141,7 +2135,7 @@ static int login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_
  * @returns
  * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int callback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int callback_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	return __login_exec(chan, argc, argv, result, 1);
 }
@@ -2249,7 +2243,7 @@ static struct cw_manager_message *action_agent_callback_login(struct mansession 
  * @returns
  * @sa login_exec(), callback_login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_var_t *var;
 	int exitifnoagentid = 0;
@@ -2334,7 +2328,7 @@ static void dump_agents(void)
  */
 static void reload_agents(void)
 {
-	struct cw_dynstr agent_data = CW_DYNSTR_INIT;
+	cw_dynstr_t agent_data = CW_DYNSTR_INIT;
 	char *agent_num;
 	struct cw_db_entry *db_tree;
 	struct cw_db_entry *entry;

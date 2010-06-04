@@ -377,7 +377,7 @@ static int aMYSQL_disconnect(struct cw_channel *chan, char *data)
 	return 0;
 }
 
-static int MYSQL_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int MYSQL_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char sresult[10];
 	struct localuser *u;

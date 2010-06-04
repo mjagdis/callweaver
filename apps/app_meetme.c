@@ -190,7 +190,7 @@ enum volume_action
 
 CW_MUTEX_DEFINE_STATIC(conflock);
 
-static int admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 static void *recordthread(void *args);
 
@@ -514,7 +514,7 @@ cnfout:
     return cnf;
 }
 
-static int confs_show(struct cw_dynstr *ds_p, int argc, char **argv)
+static int confs_show(cw_dynstr_t *ds_p, int argc, char **argv)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);
@@ -534,7 +534,7 @@ static struct cw_clicmd cli_show_confs =
     .usage = show_confs_usage,
 };
 
-static int conf_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
+static int conf_cmd(cw_dynstr_t *ds_p, int argc, char **argv)
 {
     /* Process the command */
     char buf[1024] = "";
@@ -685,7 +685,7 @@ static int conf_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
     return 0;
 }
 
-static void complete_confcmd(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_confcmd(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     static const char *cmds[] = {"lock", "unlock", "mute", "unmute", "kick", "list"};
     int x = 0;
@@ -1890,7 +1890,7 @@ static struct cw_conference *find_conf(struct cw_channel *chan, char *confno, in
 }
 
 /*--- count_exec: The MeetmeCount application */
-static int count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int count_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     static int deprecated_var = 0;
     char val[80] = "0";
@@ -1936,7 +1936,7 @@ static int count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_
 }
 
 /*--- conf_exec: The meetme() application */
-static int conf_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int conf_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     char confno[CW_MAX_EXTENSION] = "";
     char the_pin[CW_MAX_EXTENSION] = "";
@@ -2238,7 +2238,7 @@ static struct cw_conf_user* find_user(struct cw_conference *conf, char *callerid
 
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct cw_conference *cnf;
     struct cw_conf_user *user;

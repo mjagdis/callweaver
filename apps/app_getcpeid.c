@@ -66,7 +66,7 @@ static int cpeid_setstatus(struct cw_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char data[4][80];
 	char *stuff[4];

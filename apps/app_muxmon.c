@@ -153,7 +153,7 @@ static void *muxmon_thread(void *obj)
     struct cw_slinfactory slinfactory[2];
     struct cw_channel_spy spy;
     struct cw_frame frame;
-    struct cw_dynstr post_process = CW_DYNSTR_INIT;
+    cw_dynstr_t post_process = CW_DYNSTR_INIT;
     struct cw_channel *bchan;
     struct muxmon *muxmon = obj;
     struct cw_filestream *fs = NULL;
@@ -371,7 +371,7 @@ static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsig
 }
 
 
-static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct cw_flags flags = {0};
     struct localuser *u;
@@ -430,7 +430,7 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, struct cw
 }
 
 
-static int muxmon_cli(struct cw_dynstr *ds_p, int argc, char **argv)
+static int muxmon_cli(cw_dynstr_t *ds_p, int argc, char **argv)
 {
     char *op;
     char *chan_name = NULL;

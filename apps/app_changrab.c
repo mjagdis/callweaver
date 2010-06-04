@@ -49,7 +49,7 @@ static const char changrab_description[] =
 "          been answered yet\n";
 
 
-static int changrab_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int changrab_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	int res=0;
 	struct localuser *u;
@@ -161,7 +161,7 @@ static void cw_bridge_call_thread_launch(struct cw_channel *chan, struct cw_chan
 }
 
 
-static int changrab_cli(struct cw_dynstr *ds_p, int argc, char *argv[]) {
+static int changrab_cli(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 	char *chan_name_1, *chan_name_2 = NULL, *context,*exten,*flags=NULL;
 	char *pria = NULL;
 	struct cw_channel *chan, *xferchan_1, *xferchan_2;
@@ -348,7 +348,7 @@ static void *originate(void *arg) {
 }
 
 
-static int originate_cli(struct cw_dynstr *ds_p, int argc, char *argv[]) {
+static int originate_cli(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 	pthread_t tid;
 	char *chan_name_1,*context,*exten,*tech,*data,*callerid;
 	int pri=0,to=60000;
@@ -414,7 +414,7 @@ static int originate_cli(struct cw_dynstr *ds_p, int argc, char *argv[]) {
 
 
 
-static void complete_exten_at_context(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_exten_at_context(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_context *c;
 	struct cw_exten *e;
@@ -510,7 +510,7 @@ static void complete_exten_at_context(struct cw_dynstr *ds_p, char *argv[], int 
 }
 
 
-static void complete_cg(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_cg(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 
 	if (lastarg == 1)
@@ -519,7 +519,7 @@ static void complete_cg(struct cw_dynstr *ds_p, char *argv[], int lastarg, int l
 		complete_exten_at_context(ds_p, argv, lastarg, lastarg_len);
 }
 
-static void complete_org(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_org(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg >= 2)
 		complete_exten_at_context(ds_p, argv, lastarg, lastarg_len);

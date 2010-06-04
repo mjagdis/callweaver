@@ -24,7 +24,7 @@
 
 /* ------------------------------------------------------------ */
 
-static int sccp_reset_restart(struct cw_dynstr *ds_p, int argc, char * argv[]) {
+static int sccp_reset_restart(cw_dynstr_t *ds_p, int argc, char * argv[]) {
   sccp_moo_t * r;
   sccp_device_t * d;
 
@@ -74,7 +74,7 @@ static char *sccp_print_group(char *buf, int buflen, cw_group_t group) {
 	return(buf);
 }
 
-static int sccp_show_globals(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_show_globals(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
 	char pref_buf[128];
 	char buf[256];
@@ -150,7 +150,7 @@ static struct cw_clicmd cli_show_globals = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_device(struct cw_dynstr *ds_p, int argc, char * argv[]) {
+static int sccp_show_device(cw_dynstr_t *ds_p, int argc, char * argv[]) {
 	sccp_device_t * d;
 	sccp_speed_t * k;
 	sccp_line_t * l;
@@ -254,7 +254,7 @@ static struct cw_clicmd cli_restart = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_channels(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_show_channels(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
 	sccp_channel_t * c;
 
@@ -291,7 +291,7 @@ static struct cw_clicmd cli_show_channels = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_devices(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_show_devices(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
 	char iabuf[INET_ADDRSTRLEN];
 	sccp_device_t * d;
@@ -326,7 +326,7 @@ static struct cw_clicmd cli_show_devices = {
 	.usage = "Usage: sccp show devices\n",
 };
 
-static int sccp_message_devices(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_message_devices(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
 	sccp_device_t * d;
 	int msgtimeout=10;
@@ -364,9 +364,9 @@ static struct cw_clicmd cli_message_devices = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_lines(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_show_lines(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
-	struct cw_dynstr caps = CW_DYNSTR_INIT;
+	cw_dynstr_t caps = CW_DYNSTR_INIT;
 	sccp_line_t * l = NULL;
 	sccp_channel_t * c = NULL;
 	sccp_device_t * d = NULL;
@@ -425,7 +425,7 @@ static struct cw_clicmd cli_show_lines = {
 
 /* ------------------------------------------------------------ */
 
-static int sccp_show_sessions(struct cw_dynstr *ds_p, int argc, char * argv[])
+static int sccp_show_sessions(cw_dynstr_t *ds_p, int argc, char * argv[])
 {
 	char iabuf[INET_ADDRSTRLEN];
 	sccp_session_t * s = NULL;
@@ -471,7 +471,7 @@ static struct cw_clicmd cli_show_sessions = {
 };
 
 /* ------------------------------------------------------------ */
-static int sccp_system_message(struct cw_dynstr *ds_p, int argc, char * argv[]) {
+static int sccp_system_message(cw_dynstr_t *ds_p, int argc, char * argv[]) {
 	int res;
 	int timeout = 0;
 	if ((argc < 3) || (argc > 5))
@@ -528,7 +528,7 @@ static const char no_debug_usage[] =
 "Usage: SCCP no debug\n"
 "		Disables dumping of SCCP packets for debugging purposes\n";
 
-static int sccp_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[]) {
+static int sccp_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 	int new_debug = 10;
 
 	if ((argc < 2) || (argc > 3))
@@ -553,7 +553,7 @@ static struct cw_clicmd cli_do_debug = {
   .usage = debug_usage,
 };
 
-static int sccp_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sccp_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -572,7 +572,7 @@ static struct cw_clicmd cli_no_debug = {
   .usage = no_debug_usage,
 };
 
-static int sccp_do_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sccp_do_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -596,7 +596,7 @@ static const char version_usage[] =
 "Usage: SCCP show version\n"
 "		Show the SCCP channel version\n";
 
-static int sccp_show_version(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sccp_show_version(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);

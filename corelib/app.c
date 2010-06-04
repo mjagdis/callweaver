@@ -981,30 +981,29 @@ int cw_app_group_list_unlock(void)
 }
 
 
-int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
+int cw_separate_app_args(args_t *args, char *buf, char delim)
 {
-	int argc;
-
 	if (option_debug && option_verbose > 6)
 		cw_log(CW_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
 
-	/* The last argv is reserved for NULL. This is required if you want
-	 * to hand off an argv to exec(2) for example.
-	 */
-	max_args--;
+	cw_dynarray_reset(args);
+	args->used = 0;
 
-	argc = 0;
 	if (buf) {
+		char *p;
 		char c;
 
-		argv[argc] = buf;
+		p = buf;
 		do {
 			char *next, *end;
 			int parens, inquote;
 
+			if (cw_dynarray_need(args, 2))
+				break;
+
 			/* Skip leading white space */
-			argv[argc] = cw_skip_blanks(argv[argc]);
-			next = end = argv[argc];
+			args->data[args->used] = cw_skip_blanks(p);
+			next = end = args->data[args->used];
 
 			/* Find the end of this arg. Backslash removes any special
 			 * meaning from the next character. Otherwise quotes
@@ -1037,32 +1036,35 @@ int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 
 				/* Terminate and backtrack trimming off trailing whitespace */
 				*end = '\0';
-				while (end > argv[argc] && isspace(end[-1]))
+				while (end > args->data[args->used] && isspace(end[-1]))
 					*(--end) = '\0';
 			}
 
 #if 0
-			if (argl) argl[argc] = end - argv[argc];
+			if (argl) argl[args->used] = end - args->data[args->used];
 #endif
-			argc++;
+			args->used++;
 
-			argv[argc] = next + 1;
-		} while (c && argc < max_args);
+			p = next + 1;
+		} while (c);
 	}
 
-	if (argc == 1 && !argv[0][0])
-		argc--;
+	if (args->used == 1 && !args->data[0][0])
+		args->used--;
 
-	argv[argc] = NULL;
+	if (!cw_dynarray_need(args, 1)) {
+		args->data[args->used] = NULL;
 
-	if (option_debug && option_verbose > 5) {
-		int i;
-		cw_log(CW_LOG_DEBUG, "argc: %d\n", argc);
-		for (i=0; i<argc; i++)
-			cw_log(CW_LOG_DEBUG, "argv[%d]: %s\n", i, argv[i]);
-	}
+		if (option_debug && option_verbose > 5) {
+			size_t i;
+			cw_log(CW_LOG_DEBUG, "error = %d, argc: %lu\n", args->error, (unsigned long)args->used);
+			for (i = 0; i < args->used; i++)
+				cw_log(CW_LOG_DEBUG, "argv[%lu]: %s\n", (unsigned long)i, args->data[i]);
+		}
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
-	return argc;
+	return args->error;
 }
 
 

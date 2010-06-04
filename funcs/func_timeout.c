@@ -69,7 +69,7 @@ static const char timeout_func_desc[] =
 	"	   terminated.  The default timeout is 10 seconds.\n";
 
 
-static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(timeout_func_syntax);

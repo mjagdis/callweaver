@@ -75,10 +75,10 @@ static int play_and_wait(struct cw_channel *chan, const char *file, const char *
 	return res;
 }
 
-static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int dictate_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char filein[256];
-	struct cw_dynstr path = CW_DYNSTR_INIT;
+	cw_dynstr_t path = CW_DYNSTR_INIT;
 	struct cw_flags flags = {0};
 	struct cw_filestream *fs;
 	struct cw_frame *f = NULL;

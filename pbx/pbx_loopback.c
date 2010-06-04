@@ -69,7 +69,7 @@ static const char tdesc[] = "Loopback Switch";
 
 
 #define LOOPBACK_COMMON \
-	struct cw_dynstr ds = CW_DYNSTR_INIT; \
+	cw_dynstr_t ds = CW_DYNSTR_INIT; \
 	int res; \
 	char *newexten=(char *)exten, *newcontext=(char *)context; \
 	int newpriority=priority; \
@@ -86,7 +86,7 @@ static const char tdesc[] = "Loopback Switch";
 	}
 
 
-static void loopback_helper(struct cw_dynstr *ds_p, const char *exten, const char *context, int priority, const char *data)
+static void loopback_helper(cw_dynstr_t *ds_p, const char *exten, const char *context, int priority, const char *data)
 {
 	char tmp[80];
 	struct cw_registry reg;

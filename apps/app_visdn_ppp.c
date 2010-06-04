@@ -87,7 +87,7 @@ static pid_t spawn_ppp(struct cw_channel *chan, const char *argv[])
 }
 
 
-static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct visdn_chan *visdn_chan;
 	const char **nargv;

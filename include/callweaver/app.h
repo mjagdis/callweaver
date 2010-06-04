@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#include "callweaver/dynarray.h"
 #include "callweaver/linkedlists.h"
 #include "callweaver/channel.h"
 
@@ -199,18 +200,16 @@ extern CW_API_PUBLIC int cw_app_group_list_unlock(void);
 
 
 /*!
-  \brief Separate a string into arguments in an array
-  \param buf The string to be parsed (this must be a writable copy, as it will be modified)
-  \param delim The character to be used to delimit arguments
-  \param argv An array of 'char *' to be filled in with pointers to the found arguments
-  \param max_args The number of elements in the array (i.e. the number of arguments you will accept)
-
-  Note: if there are more arguments in the string than the array will hold, trailing
-  arguments will be discarded
-
-  \return The number of arguments found, or zero if the function arguments are not valid.
+ * \brief Separate a string into arguments in an array
+ *
+ * \param args     The args struct to be filled in with pointers to the separated arguments
+ * \param buf      The string to be parsed (this must be a writable copy, as it will be modified)
+ * \param delim    The character to be used to delimit arguments
+ *
+ * \return Non-zero on error
 */
-extern CW_API_PUBLIC int cw_separate_app_args(char *buf, char delim, int max_args, char **argv);
+typedef CW_DYNARRAY(char *) args_t;
+extern CW_API_PUBLIC int cw_separate_app_args(args_t *args, char *buf, char delim);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 extern CW_API_PUBLIC int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);

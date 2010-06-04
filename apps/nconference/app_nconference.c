@@ -81,7 +81,7 @@ MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
  *        Main Conference function
  ***********************************************************/
 
-int app_conference_main( struct cw_channel* chan, int argc, char **argv, struct cw_dynstr *result) {
+int app_conference_main( struct cw_channel* chan, int argc, char **argv, cw_dynstr_t *result) {
 	struct localuser *u ;
 	int res = 0 ;
 

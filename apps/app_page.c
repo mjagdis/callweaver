@@ -113,7 +113,7 @@ static void launch_page(struct cw_channel *chan, const char *nconferenceopts, co
 	}
 }
 
-static int page_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int page_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char nconferenceopts[80];
 	struct localuser *u;

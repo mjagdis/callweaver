@@ -132,25 +132,25 @@ icd_status app_icd__read_agents_config(icd_fieldset * agents, const char *agent_
         icd_fieldset * outstanding_members);
 
 /* Adds a customer to the ICD system */
-int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Starts up an agent in the ICD system */
-int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Logs out an agent in the ICD system */
-int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Add an agent as a member to a queue */
-int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Remove an agent as a member of a queue */
-int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Agent callback login */
-int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* Customer callback login */
-int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
 
 /* dunno where this belongs but useful every where : */
 int icd_instr(const char *bigstr, const char *smallstr, char delimit);

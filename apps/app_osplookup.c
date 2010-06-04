@@ -107,7 +107,7 @@ static int str2cause(char *cause)
 	return CW_CAUSE_NORMAL;
 }
 
-static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
@@ -150,7 +150,7 @@ static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, struct
 	return res;
 }
 
-static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
@@ -201,7 +201,7 @@ static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, struct c
 	return res;
 }
 
-static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;

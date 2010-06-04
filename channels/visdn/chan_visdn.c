@@ -4354,7 +4354,7 @@ static void visdn_q931_ccb_receive()
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_generic(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_debug_visdn_generic(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug = TRUE;
@@ -4380,7 +4380,7 @@ static struct cw_cli_entry debug_visdn_generic =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_generic(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_no_debug_visdn_generic(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug = FALSE;
@@ -4402,7 +4402,7 @@ static struct cw_cli_entry no_debug_visdn_generic =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_q921(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_debug_visdn_q921(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	// Enable debugging on new DLCs FIXME TODO
 
@@ -4432,7 +4432,7 @@ static struct cw_cli_entry debug_visdn_q921 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_q921(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_no_debug_visdn_q921(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	// Disable debugging on new DLCs FIXME TODO
 
@@ -4457,7 +4457,7 @@ static struct cw_cli_entry no_debug_visdn_q921 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_debug_visdn_q931(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_debug_visdn_q931(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug_q931 = TRUE;
@@ -4484,7 +4484,7 @@ static struct cw_cli_entry debug_visdn_q931 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_no_debug_visdn_q931(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_no_debug_visdn_q931(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	cw_mutex_lock(&visdn.lock);
 	visdn.debug_q931 = FALSE;
@@ -4506,7 +4506,7 @@ static struct cw_cli_entry no_debug_visdn_q931 =
 
 /*---------------------------------------------------------------------------*/
 
-static int do_visdn_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_visdn_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	visdn_reload_config();
 
@@ -4532,7 +4532,7 @@ static struct cw_cli_entry visdn_reload =
 /*---------------------------------------------------------------------------*/
 
 static void visdn_print_call_summary_entry(
-	struct cw_dynstr *ds_p,
+	cw_dynstr_t *ds_p,
 	struct q931_call *call)
 {
 	char idstr[20];
@@ -4560,7 +4560,7 @@ static void visdn_print_call_summary_entry(
 }
 
 static int visdn_cli_print_call_list(
-	struct cw_dynstr *ds_p,
+	cw_dynstr_t *ds_p,
 	struct q931_interface *filter_intf)
 {
 	int first_call;
@@ -4599,7 +4599,7 @@ static int visdn_cli_print_call_list(
 }
 
 static void visdn_cli_print_call_timer_info(
-	struct cw_dynstr *ds_p, struct q931_timer *timer,
+	cw_dynstr_t *ds_p, struct q931_timer *timer,
 	const char *name)
 {
 	if (timer->pending) {
@@ -4608,7 +4608,7 @@ static void visdn_cli_print_call_timer_info(
 	}
 }
 
-static void visdn_cli_print_call(struct cw_dynstr *ds_p, struct q931_call *call)
+static void visdn_cli_print_call(cw_dynstr_t *ds_p, struct q931_call *call)
 {
 	cw_dynstr_printf(ds_p, "--------- Call %s/%d.%s\n",
 		call->intf->name,
@@ -4735,7 +4735,7 @@ static char *complete_show_visdn_calls(
 	return NULL;
 }
 
-static int do_show_visdn_calls(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int do_show_visdn_calls(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc < 4) {
 		visdn_cli_print_call_list(fd, NULL);

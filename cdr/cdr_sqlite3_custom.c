@@ -132,7 +132,7 @@ static int load_config(int reload)
 	return 0;
 }
 
-static void do_escape(struct cw_dynstr *dst, const struct cw_dynstr *src)
+static void do_escape(cw_dynstr_t *dst, const cw_dynstr_t *src)
 {
 	const char *p = src->data;
 
@@ -148,8 +148,8 @@ static void do_escape(struct cw_dynstr *dst, const struct cw_dynstr *src)
 
 static int sqlite3_log(struct cw_cdr *batch)
 {
-	struct cw_dynstr cmd_ds = CW_DYNSTR_INIT;
-	struct cw_dynstr esc_ds = CW_DYNSTR_INIT;
+	cw_dynstr_t cmd_ds = CW_DYNSTR_INIT;
+	cw_dynstr_t esc_ds = CW_DYNSTR_INIT;
 	struct cw_channel *chan;
 	struct cw_cdr *cdrset, *cdr;
 	char *sql_tmp_cmd;
@@ -236,7 +236,7 @@ static int unload_module(void)
 
 static int load_module(void)
 {
-	struct cw_dynstr fn = CW_DYNSTR_INIT;
+	cw_dynstr_t fn = CW_DYNSTR_INIT;
 	char *zErr;
 	char *sql_cmd;
 	int res;

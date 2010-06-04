@@ -118,7 +118,7 @@ extern "C" {
         icd_plugable_fn_list *plugable_fns_list;        /*The List of plugable functions for each dist */
 
         icd_listeners *listeners;
-          icd_status(*dump_fn) (icd_caller * caller, int verbosity, struct cw_dynstr *ds_p, const void *extra);
+          icd_status(*dump_fn) (icd_caller * caller, int verbosity, cw_dynstr_t *ds_p, const void *extra);
         const void *dump_fn_extra;
 
         /* Threading and locking */

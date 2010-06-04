@@ -247,7 +247,7 @@ int cw_cli_register ( struct cw_clicmd * e ) {
     return 0; 
 }
 
-int cw_register_function( const char * name, int(* execute)(struct cw_channel *, int, char **, struct cw_dynstr *), const char * synopsis, const char * syntax, const char * description) {
+int cw_register_function( const char * name, int(* execute)(struct cw_channel *, int, char **, cw_dynstr_t *), const char * synopsis, const char * syntax, const char * description) {
     return 0;
 }
 
@@ -303,7 +303,7 @@ int cw_check_hangup(struct cw_channel *chan) {
     return 0;
 }
 
-int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, struct cw_dynstr *out) {
+int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, cw_dynstr_t *out) {
  return 0;
 }
  

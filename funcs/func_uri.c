@@ -55,7 +55,7 @@ static const char urlencode_func_desc[] = "";
 
 
 /*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
-static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 
@@ -69,7 +69,7 @@ static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **
 }
 
 /*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
-static int builtin_function_uridecode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int builtin_function_uridecode(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 

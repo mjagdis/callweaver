@@ -98,7 +98,7 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 }
 
 /*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(struct cw_dynstr *ds_p, char *tech, int techsize, char *answer, int len, char *naptrinput)
+static int parse_naptr(cw_dynstr_t *ds_p, char *tech, int techsize, char *answer, int len, char *naptrinput)
 {
 	char tech_return[80];
 	char *oanswer = answer;
@@ -288,7 +288,7 @@ struct enum_naptr_rr {
 };
 
 struct enum_context {
-	struct cw_dynstr *ds_p;	/* Destination part of URL from ENUM */
+	cw_dynstr_t *ds_p;	/* Destination part of URL from ENUM */
 	char *tech;	/* Technology (from URL scheme) */
 	int techlen;	/* Length */
 	char *naptrinput;	/* The number to lookup */
@@ -363,10 +363,10 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 }
 
 /*--- cw_get_enum: ENUM lookup */
-int cw_get_enum(struct cw_channel *chan, const char *number, struct cw_dynstr *dst, char *tech, int techlen, const char *suffix, const char *options)
+int cw_get_enum(struct cw_channel *chan, const char *number, cw_dynstr_t *dst, char *tech, int techlen, const char *suffix, const char *options)
 {
 	struct enum_context context;
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	char tmp[259 + 512];
 	char naptrinput[512];
 	int pos = strlen(number) - 1;
@@ -542,7 +542,7 @@ int cw_get_enum(struct cw_channel *chan, const char *number, struct cw_dynstr *d
 /*--- cw_get_txt: Get TXT record from DNS.
 	Really has nothing to do with enum, but anyway...
  */
-int cw_get_txt(struct cw_channel *chan, const char *number, struct cw_dynstr *result, char *tech, int techlen)
+int cw_get_txt(struct cw_channel *chan, const char *number, cw_dynstr_t *result, char *tech, int techlen)
 {
 	struct enum_context context;
 	char tmp[259 + 512];

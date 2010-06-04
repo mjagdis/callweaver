@@ -83,11 +83,11 @@ static void sqlite_check_table_exists(const char *dbfile, const char *test_sql, 
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int tree_callback(void *pArg, int argc, char **argv, char **columnNames);
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames);
-static int database_show(struct cw_dynstr *ds_p, int argc, char *argv[]);
-static int database_put(struct cw_dynstr *ds_p, int argc, char *argv[]);
-static int database_get(struct cw_dynstr *ds_p, int argc, char *argv[]);
-static int database_del(struct cw_dynstr *ds_p, int argc, char *argv[]);
-static int database_deltree(struct cw_dynstr *ds_p, int argc, char *argv[]);
+static int database_show(cw_dynstr_t *ds_p, int argc, char *argv[]);
+static int database_put(cw_dynstr_t *ds_p, int argc, char *argv[]);
+static int database_get(cw_dynstr_t *ds_p, int argc, char *argv[]);
+static int database_del(cw_dynstr_t *ds_p, int argc, char *argv[]);
+static int database_deltree(cw_dynstr_t *ds_p, int argc, char *argv[]);
 
 
 static int sanity_check(void)
@@ -237,7 +237,7 @@ int cw_db_put(const char *family, const char *keys, const char *value)
 
 
 struct get_callback_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 	int rownum;
 };
 
@@ -254,7 +254,7 @@ static int get_callback(void *pArg, int argc, char **argv, char **columnNames)
 	return 0;
 }
 
-int cw_db_get(const char *family, const char *keys, struct cw_dynstr *result)
+int cw_db_get(const char *family, const char *keys, cw_dynstr_t *result)
 {
 	struct get_callback_args args;
 	sqlite3 *db;
@@ -516,7 +516,7 @@ void cw_db_freetree(struct cw_db_entry *dbe)
 
 static int show_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
-	struct cw_dynstr *ds_p = pArg;
+	cw_dynstr_t *ds_p = pArg;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(columnNames);
@@ -526,7 +526,7 @@ static int show_callback(void *pArg, int argc, char **argv, char **columnNames)
 	return 0;
 }
 
-static int database_show(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int database_show(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	char *prefix, *family;
 	char *sql;
@@ -589,7 +589,7 @@ static int database_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 
 
-static int database_put(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int database_put(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
@@ -602,7 +602,7 @@ static int database_put(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int database_get(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int database_get(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	size_t mark;
 
@@ -622,7 +622,7 @@ static int database_get(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int database_del(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int database_del(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -635,7 +635,7 @@ static int database_del(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int database_deltree(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int database_deltree(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	int res;
 	if ((argc < 3) || (argc > 4))

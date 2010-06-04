@@ -48,7 +48,7 @@ static const char echo_descrip[] =
 "if the user exits with the '#' key, or -1 if the user hangs up.\n";
 
 
-static int echo_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int echo_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	struct cw_frame *f;

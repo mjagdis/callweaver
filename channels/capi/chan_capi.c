@@ -4528,7 +4528,7 @@ static struct capicommands_s {
 /*
  * capi command interface
  */
-static int pbx_capicommand_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int pbx_capicommand_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	struct capicommands_s *capicmd = &capicommands[0];
@@ -5064,7 +5064,7 @@ static char *show_isdnstate(unsigned int isdnstate, char *str)
 /*
  * do command capi show channels
  */
-static int pbxcli_capi_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int pbxcli_capi_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct capi_pvt *i;
 	char iochar;
@@ -5120,7 +5120,7 @@ static int pbxcli_capi_show_channels(struct cw_dynstr *ds_p, int argc, char *arg
 /*
  * do command capi info
  */
-static int pbxcli_capi_info(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int pbxcli_capi_info(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	int i = 0;
 	
@@ -5140,7 +5140,7 @@ static int pbxcli_capi_info(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*
  * enable debugging
  */
-static int pbxcli_capi_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int pbxcli_capi_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
@@ -5154,7 +5154,7 @@ static int pbxcli_capi_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*
  * disable debugging
  */
-static int pbxcli_capi_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int pbxcli_capi_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;

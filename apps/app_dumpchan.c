@@ -128,7 +128,7 @@ static int cw_serialize_showchan(struct cw_channel *c, char *buf, size_t size)
 	return 0;
 }
 
-static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	static const char line[] = "================================================================================";
 	char vars[1024];

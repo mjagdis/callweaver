@@ -64,7 +64,7 @@ static const char transfer_descrip[] =
 "successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-static int transfer_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int transfer_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	const char *slash;

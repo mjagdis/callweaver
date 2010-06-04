@@ -229,7 +229,7 @@ static char *expr2_token_subst(const char *mess);
 int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int cw_expr(const char *expr, struct cw_dynstr *result)
+int cw_expr(const char *expr, cw_dynstr_t *result)
 {
 	struct parse_io io;
 	int return_value = 0;

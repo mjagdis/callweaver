@@ -479,7 +479,7 @@ std:					for (x=0;x<CW_MAX_FDS;x++) {
 	return NULL;	/* Never reached */
 }
 
-static int valetpark_call(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int valetpark_call(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char tmp[80];
 	struct localuser *u;
@@ -644,7 +644,7 @@ static struct cw_channel *valet_request(const char *type, int format, void *data
 }
 
 
-static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_bridge_config config;
 	struct localuser *u;
@@ -707,7 +707,7 @@ static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, stru
 }
 
 
-static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int res=0;
@@ -731,7 +731,7 @@ static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, struc
 }
 
 
-static int valetpark_list(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int valetpark_list(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char buf[64];
 	char *nargv[3];
@@ -760,7 +760,7 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, struct
 }
 
 
-static int handle_valetparkedcalls(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_valetparkedcalls(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct valetparkeduser *cur;
 

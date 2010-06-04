@@ -62,7 +62,7 @@ static const char backticks_func_descrip[] =
 	"Executes a shell command and evaluates to the result.";
 
 
-static int do_backticks(char *command, struct cw_dynstr *result)
+static int do_backticks(char *command, cw_dynstr_t *result)
 {
         int fds[2];
 	pid_t pid = 0;
@@ -120,9 +120,9 @@ static int do_backticks(char *command, struct cw_dynstr *result)
         return ret;
 }
 
-static int backticks_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int backticks_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	struct localuser *u;
 	int ret = -1;
 
@@ -147,7 +147,7 @@ static int backticks_exec(struct cw_channel *chan, int argc, char **argv, struct
 }
 
 
-static int function_backticks(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int function_backticks(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 

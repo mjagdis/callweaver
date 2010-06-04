@@ -344,7 +344,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 static __attribute__((noreturn)) void *scan_thread(void *data)
 {
 	struct stat st;
-	struct cw_dynstr fn = CW_DYNSTR_INIT;
+	cw_dynstr_t fn = CW_DYNSTR_INIT;
 	DIR *dir;
 	struct dirent *de;
 	size_t mark;

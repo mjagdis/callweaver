@@ -29,21 +29,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-void cw_dynstr_grow(struct cw_dynstr *ds_p, size_t len)
-{
-	char *ndata[2] = { ds_p->data, NULL };
-
-	len = (len | ds_p->chunk) + 1;
-
-	if ((ndata[0] = realloc(ndata[(ds_p->size == 0 ? 1 : 0)], len))) {
-		ds_p->size = len;
-		ds_p->data = ndata[0];
-	} else
-		ds_p->error = 1;
-}
-
-
-int cw_dynstr_vprintf(struct cw_dynstr *ds_p, const char *fmt, va_list ap)
+int cw_dynstr_vprintf(cw_dynstr_t *ds_p, const char *fmt, va_list ap)
 {
 	while (!ds_p->error) {
 		va_list aq;
@@ -65,20 +51,20 @@ int cw_dynstr_vprintf(struct cw_dynstr *ds_p, const char *fmt, va_list ap)
 		if (unlikely((int)used == -1))
 			used = size + 255;
 
-		used += ds_p->used;
-
-		if (used < ds_p->size) {
-			ds_p->used = used;
+		/* Did it fit? If so we're done. */
+		if (ds_p->used + used < ds_p->size) {
+			ds_p->used += used;
 			break;
 		}
 
-		cw_dynstr_grow(ds_p, used + 1);
+		/* Ok, we know what we need now so allocate it and go round again */
+		cw_dynstr_need(ds_p, used + 1);
 	}
 
 	return ds_p->error;
 }
 
-int cw_dynstr_printf(struct cw_dynstr *ds_p, const char *fmt, ...)
+int cw_dynstr_printf(cw_dynstr_t *ds_p, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;

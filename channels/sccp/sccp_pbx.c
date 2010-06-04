@@ -537,8 +537,8 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	sccp_log(2)(VERBOSE_PREFIX_3 "%s: format request: %d/%d\n", d->id, tmp->nativeformats, c->format);
 
 	if (GLOB(debug) > 2) {
-	  struct cw_dynstr s1 = CW_DYNSTR_INIT;
-	  struct cw_dynstr s2 = CW_DYNSTR_INIT;
+	  cw_dynstr_t s1 = CW_DYNSTR_INIT;
+	  cw_dynstr_t s2 = CW_DYNSTR_INIT;
 	  cw_getformatname_multiple(&s1, d->capability);
 	  cw_getformatname_multiple(&s2, tmp->nativeformats);
 	  sccp_log(2)(VERBOSE_PREFIX_3 "%s: Channel %s, capabilities: DEVICE %s NATIVE %s BEST %d (%s)\n",

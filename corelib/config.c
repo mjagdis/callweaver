@@ -973,7 +973,7 @@ int cw_update_realtime(const char *family, const char *keyfield, const char *loo
 static int config_engine_print(struct cw_object *obj, void *data)
 {
 	struct cw_config_engine *eng = container_of(obj, struct cw_config_engine, obj);
-	struct cw_dynstr *ds_p = data;
+	cw_dynstr_t *ds_p = data;
 	struct cw_config_map *map;
 
 	cw_dynstr_printf(ds_p, "Config Engine: %s\n", eng->name);
@@ -987,7 +987,7 @@ static int config_engine_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int config_command(struct cw_dynstr *ds_p, int argc, char **argv)
+static int config_command(cw_dynstr_t *ds_p, int argc, char **argv)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);

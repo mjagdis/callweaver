@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-extern CW_API_PUBLIC int cw_expr(const char *expr, struct cw_dynstr *result);
+extern CW_API_PUBLIC int cw_expr(const char *expr, cw_dynstr_t *result);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

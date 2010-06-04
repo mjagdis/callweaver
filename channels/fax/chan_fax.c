@@ -1068,7 +1068,7 @@ static struct cw_channel *channel_new(struct faxmodem *fm)
  */
 
 /*! Show the status of all configured fax modems */
-static int chan_fax_status(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int chan_fax_status(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	int x;
 
@@ -1087,7 +1087,7 @@ static int chan_fax_status(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 
 /*! Show or set the verbosity level */
-static int chan_fax_vblevel(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int chan_fax_vblevel(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	if (argc > 2)
 		cfg_vblevel = atoi(argv[2]);

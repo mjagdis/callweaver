@@ -87,7 +87,7 @@ static const char exit_descrip[] =
 "behavior.\n";
 
 
-static int proc_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int proc_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char oldexten[256] = "";
 	char fullproc[80];
@@ -306,7 +306,7 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 	return res;
 }
 
-static int procif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int procif_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	char *s, *q;
 	int i;
@@ -349,7 +349,7 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, struct cw
 	}
 }
 			
-static int proc_exit_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int proc_exit_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);

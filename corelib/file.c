@@ -1142,7 +1142,7 @@ int cw_waitstream_exten(struct cw_channel *c, const char *context)
 #define FORMAT2 "%-10s %-10s %-20s\n"
 
 struct show_file_formats_args {
-	struct cw_dynstr *ds_p;
+	cw_dynstr_t *ds_p;
 	int count;
 };
 
@@ -1156,7 +1156,7 @@ static int show_file_formats_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int show_file_formats(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int show_file_formats(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	struct show_file_formats_args args = { ds_p, 0 };
 

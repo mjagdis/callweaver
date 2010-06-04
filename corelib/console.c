@@ -85,7 +85,7 @@ static char remotehostname[MAXHOSTNAMELEN];
 static unsigned int remotepid;
 static char remoteversion[256];
 
-static struct cw_dynstr prompt = CW_DYNSTR_INIT;
+static cw_dynstr_t prompt = CW_DYNSTR_INIT;
 
 static char *clr_eol;
 
@@ -110,7 +110,7 @@ static void exit_prompt(void)
 }
 
 
-static void smart_page(int page, const struct cw_dynstr *ds, int lines)
+static void smart_page(int page, const cw_dynstr_t *ds, int lines)
 {
 	exit_prompt();
 
@@ -318,7 +318,7 @@ static int read_message(int s, int nresp)
 	static char *key, *val;
 	static int lkey, lval = -1;
 	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	int ds_lines = 0;
 	int level, res, i;
 
@@ -646,7 +646,7 @@ static void console_handler(char *s)
 				else
 					cw_safe_system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
 			} else if (s[0] == '?') {
-				static struct cw_dynstr ds = CW_DYNSTR_INIT;
+				static cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 				cw_cli_command(&ds, s);
 				fwrite(ds.data, 1, ds.used, stdout);
@@ -966,7 +966,7 @@ static const char setprompt_help[] =
 "                                '>' if this is a remote console\n"
 "         %%%%                 - a single '%'\n";
 
-static int setprompt_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int setprompt_handler(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 
@@ -986,9 +986,9 @@ static const char setevents_help[] =
 "       Events can be:\n"
 "           error, warning, notice, verbose, event, dtmf, debug\n";
 
-static int setevents_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int setevents_handler(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	int i;
 
 	CW_UNUSED(ds_p);

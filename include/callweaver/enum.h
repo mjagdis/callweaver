@@ -37,7 +37,7 @@
  *  \param suffix   Zone suffix (if is NULL then use enum.conf 'search' variable)
  *  \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list)
  */
-extern CW_API_PUBLIC int cw_get_enum(struct cw_channel *chan, const char *number, struct cw_dynstr *result, char *technology, int maxtech, const char *suffix, const char *options);
+extern CW_API_PUBLIC int cw_get_enum(struct cw_channel *chan, const char *number, cw_dynstr_t *result, char *technology, int maxtech, const char *suffix, const char *options);
 
 /*! \brief Lookup DNS TXT record (used by app TXTCIDnum
  *
@@ -47,7 +47,7 @@ extern CW_API_PUBLIC int cw_get_enum(struct cw_channel *chan, const char *number
  *  \param tech      Technology (not used in TXT records)
  *  \param maxtech   Max length
  */
-extern CW_API_PUBLIC int cw_get_txt(struct cw_channel *chan, const char *number, struct cw_dynstr *result, char *technology, int maxtech);
+extern CW_API_PUBLIC int cw_get_txt(struct cw_channel *chan, const char *number, cw_dynstr_t *result, char *technology, int maxtech);
 
 extern int cw_enum_init(void);
 extern int cw_enum_reload(void);

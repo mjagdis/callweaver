@@ -87,7 +87,7 @@ char playtones_desc[] =
 /*
  * ADD INDICATION command stuff
  */
-static int handle_add_indication(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_add_indication(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     int created_country = 0;
@@ -129,7 +129,7 @@ static int handle_add_indication(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*
  * REMOVE INDICATION command stuff
  */
-static int handle_remove_indication(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_remove_indication(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     
@@ -164,7 +164,7 @@ static int handle_remove_indication(struct cw_dynstr *ds_p, int argc, char *argv
 /*
  * SHOW INDICATIONS command stuff
  */
-static int handle_show_indications(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int handle_show_indications(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
     struct tone_zone *tz;
     char buf[256];
@@ -223,7 +223,7 @@ static int handle_show_indications(struct cw_dynstr *ds_p, int argc, char *argv[
 /*
  * Playtones command stuff
  */
-static int handle_playtones(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int handle_playtones(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     struct tone_zone_sound *ts;
     int res;
@@ -248,7 +248,7 @@ static int handle_playtones(struct cw_channel *chan, int argc, char **argv, stru
 /*
  * StopPlaylist command stuff
  */
-static int handle_stopplaytones(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int handle_stopplaytones(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);

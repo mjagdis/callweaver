@@ -34,28 +34,28 @@
 
 void create_command_hash(void);
 void destroy_command_hash(void);
-int icd_command_register(const char *name, int (*func) (struct cw_dynstr *, int, char **), const char *short_help, const char *syntax_help, const char *long_help);
-int icd_command_cli(struct cw_dynstr *ds_p, int argc, char **argv);
+int icd_command_register(const char *name, int (*func) (cw_dynstr_t *, int, char **), const char *short_help, const char *syntax_help, const char *long_help);
+int icd_command_cli(cw_dynstr_t *ds_p, int argc, char **argv);
 
 /* all our commands */
-int icd_command_help(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_bad(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_verbose(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_debug(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_show(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_dump(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_list(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_load(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_transfer(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_ack(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_login(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_logout(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_hang_up(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_hangup_channel(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_playback_channel(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_join_queue(struct cw_dynstr *ds_p, int argc, char **argv);
-int icd_command_control_playback(struct cw_dynstr *ds_p, int argc, char **argv);
+int icd_command_help(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_bad(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_verbose(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_debug(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_show(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_dump(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_list(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_load(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_transfer(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_ack(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_login(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_logout(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_hang_up(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_hangup_channel(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_playback_channel(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_record(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_join_queue(cw_dynstr_t *ds_p, int argc, char **argv);
+int icd_command_control_playback(cw_dynstr_t *ds_p, int argc, char **argv);
 void icd_manager_send_message( const char *format, ...);
 
 

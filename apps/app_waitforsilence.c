@@ -146,7 +146,7 @@ static int do_waiting(struct cw_channel *chan, int maxsilence) {
 	return gotsilence;
 }
 
-static int waitforsilence_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int waitforsilence_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	int maxsilence;

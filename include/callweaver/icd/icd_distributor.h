@@ -128,7 +128,7 @@ extern "C" {
     icd_status icd_distributor__remove_customer(icd_distributor * that, icd_customer * target);
 
 /* Print out a copy of the distributor. */
-    icd_status icd_distributor__dump(icd_distributor * that, int verbosity, struct cw_dynstr *ds_p);
+    icd_status icd_distributor__dump(icd_distributor * that, int verbosity, cw_dynstr_t *ds_p);
 
 /* Start the distributor thread. */
     icd_status icd_distributor__start_distributing(icd_distributor * that);
@@ -191,7 +191,7 @@ extern "C" {
             void *extra), void *extra);
 
     icd_status icd_distributor__set_dump_func(icd_distributor * that, icd_status(*dump_fn) (icd_distributor *,
-            int verbosity, struct cw_dynstr *ds_p, void *extra), void *extra);
+            int verbosity, cw_dynstr_t *ds_p, void *extra), void *extra);
 
 /**** Listeners ****/
 
@@ -226,7 +226,7 @@ extern "C" {
     icd_status icd_distributor__link_callers_via_ringall(icd_distributor *, void *);
 
 /* Standard distributor dump function */
-    icd_status icd_distributor__standard_dump(icd_distributor * dist, int verbosity, struct cw_dynstr *ds_p, void *extra);
+    icd_status icd_distributor__standard_dump(icd_distributor * dist, int verbosity, cw_dynstr_t *ds_p, void *extra);
 
 /* get a pointer to a named parameter */
     char *icd_distributor__get_string_value(icd_distributor *, char *);

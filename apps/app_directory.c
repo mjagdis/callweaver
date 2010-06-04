@@ -145,7 +145,7 @@ static char *convert(char *lastname)
  *           '*' for skipped entry from directory
  */
 static int play_mailbox_owner(struct cw_channel *chan, const char *context, const char *dialcontext, const char *ext, const char *name) {
-	struct cw_dynstr fn = CW_DYNSTR_INIT;
+	cw_dynstr_t fn = CW_DYNSTR_INIT;
 	int res = 0;
 	int loop = 3;
 
@@ -393,7 +393,7 @@ static int do_directory(struct cw_channel *chan, struct cw_config *cfg, const ch
 	return res;
 }
 
-static int directory_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int directory_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct localuser *u;
 	struct cw_config *cfg;

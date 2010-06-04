@@ -531,7 +531,7 @@ static void crypto_load(int ifd, int ofd)
 	cw_mutex_unlock(&keylock);
 }
 
-static int show_keys(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int show_keys(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	char sum[16 * 2 + 1];
 	struct cw_key *key;
@@ -557,7 +557,7 @@ static int show_keys(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int init_keys(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int init_keys(cw_dynstr_t *ds_p, int argc, char *argv[])
 {
 	char tmp[256] = "";
 	struct cw_key *key;

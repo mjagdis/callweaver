@@ -55,7 +55,7 @@ static const char lookupblacklist_descrip[] =
   "number was found, or FALSE otherwise.\n"
   "Example: database put blacklist <name/number> 1\n";
 
-static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
 	const char *var = "FALSE";
 	struct localuser *u;
