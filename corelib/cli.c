@@ -729,81 +729,92 @@ static void complete_ch_4(cw_dynstr_t *ds_p, char *argv[], int lastarg, int last
 }
 
 
-static int handle_help(cw_dynstr_t *ds_p, int argc, char *argv[]);
-
-static struct cw_clicmd builtins[] = {
-    {
-        .cmda = { "debug", "channel", NULL },
-        .handler = handle_debugchan,
-        .summary = "Enable debugging on a channel",
-        .usage = debugchan_help,
-        .generator = complete_ch_3
-    },
-    {
-        .cmda = { "debug", "level", NULL },
-        .handler = handle_debuglevel,
-        .summary = "Set global debug level",
-        .usage = debuglevel_help
-    },
-    {
-        .cmda = { "help", NULL },
-        .handler = handle_help,
-        .summary = "Display help list, or specific help on a command",
-        .usage = help_help
-    },
-    {
-        .cmda = { "no", "debug", "channel", NULL },
-        .handler = handle_nodebugchan,
-        .summary = "Disable debugging on a channel",
-        .usage = nodebugchan_help,
-        .generator = complete_ch_4
-    },
-    {
-        .cmda = { "set", "debug", NULL },
-        .handler = handle_set_debug,
-        .summary = "Set level of debug chattiness",
-        .usage = set_debug_help
-    },
-    {
-        .cmda = { "set", "verbose", NULL },
-        .handler = handle_set_verbose,
-        .summary = "Set level of verboseness",
-        .usage = set_verbose_help
-    },
-    {
-        .cmda = { "show", "channel", NULL },
-        .handler = handle_showchan,
-        .summary = "Display information on a specific channel",
-        .usage = showchan_help,
-        .generator = complete_ch_3
-    },
-    {
-        .cmda = { "show", "channels", NULL },
-        .handler = handle_chanlist,
-        .summary = "Display information on channels",
-        .usage = chanlist_help,
-        .generator = complete_show_channels
-    },
-    {
-        .cmda = { "show", "uptime", NULL },
-        .handler = handle_showuptime,
-        .summary = "Show uptime information",
-        .usage = uptime_help
-    },
-    {
-        .cmda = { "show", "version", NULL },
-        .handler = handle_version,
-        .summary = "Display version info",
-        .usage = version_help
-    },
-    {
-        .cmda = { "soft", "hangup", NULL },
-        .handler = handle_softhangup,
-        .summary = "Request a hangup on a given channel",
-        .usage = softhangup_help,
-        .generator = complete_ch_3
-    },
+struct cli_generator_args {
+	args_t av;
+	cw_dynstr_t *ds_p;
+	int lastarg_len;
 };
+
+static int cli_generator_one(struct cw_object *obj, void *data)
+{
+	struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
+	struct cli_generator_args *args = data;
+	int i;
+
+	for (i = 0; i < args->av.used; i++) {
+		if (!clicmd->cmda[i] || strcasecmp(args->av.data[i], clicmd->cmda[i]))
+			break;
+	}
+
+	/* If we matched everything we were given we have a result. */
+	if (i == args->av.used && clicmd->cmda[i]) {
+		if (!strncasecmp(clicmd->cmda[i], args->av.data[args->av.used], args->lastarg_len))
+			cw_dynstr_printf(args->ds_p, "%s\r\n", clicmd->cmda[i]);
+	} else if (!clicmd->cmda[i] && clicmd->generator)
+		clicmd->generator(args->ds_p, args->av.data, args->av.used, args->lastarg_len);
+
+	return 0;
+}
+
+static void help_complete(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+{
+	struct cli_generator_args args = {
+		.av = CW_DYNARRAY_INIT,
+		.ds_p = ds_p,
+		.lastarg_len = lastarg_len,
+	};
+
+	args.av.data = argv + 1;
+	args.av.used = lastarg - 1;
+
+	cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
+}
+
+void cw_cli_generator(cw_dynstr_t *ds_p, char *cmd)
+{
+	struct cli_generator_args args = {
+		.av = CW_DYNARRAY_INIT,
+		.ds_p = ds_p,
+	};
+
+	if (!cw_separate_app_args(&args.av, cmd, " \t")) {
+		if (args.av.used == 0)
+			args.av.data[0] = (char *)"";
+		else
+			args.av.used--;
+
+		args.lastarg_len = strlen(args.av.data[args.av.used]);
+
+		cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
+	}
+
+	cw_dynarray_free(&args.av);
+}
+
+
+void cw_cli_command(cw_dynstr_t *ds_p, char *cmd)
+{
+	args_t args = CW_DYNARRAY_INIT;
+	struct cw_clicmd *clicmd;
+
+	if (!cw_separate_app_args(&args, cmd, " \t") && args.used > 0) {
+		if (args.used && !args.data[args.used - 1][0])
+			args.data[--args.used] = NULL;
+
+		clicmd = find_cli(args.data, 0);
+		if (clicmd) {
+			switch (clicmd->handler(ds_p, args.used, args.data)) {
+				case RESULT_SHOWUSAGE:
+					cw_dynstr_printf(ds_p, "%s", clicmd->usage);
+					break;
+			}
+			cw_object_put(clicmd);
+		} else
+			cw_dynstr_printf(ds_p, "No such command. Type \"help\" for help.\n");
+	}
+
+	cw_dynarray_free(&args);
+}
 
 
 struct help_workhorse_args {
@@ -876,78 +887,80 @@ static int handle_help(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 }
 
 
-struct cli_generator_args {
-	args_t av;
-	cw_dynstr_t *ds_p;
-	int lastarg_len;
+static struct cw_clicmd builtins[] = {
+    {
+        .cmda = { "debug", "channel", NULL },
+        .handler = handle_debugchan,
+        .summary = "Enable debugging on a channel",
+        .usage = debugchan_help,
+        .generator = complete_ch_3,
+    },
+    {
+        .cmda = { "debug", "level", NULL },
+        .handler = handle_debuglevel,
+        .summary = "Set global debug level",
+        .usage = debuglevel_help,
+    },
+    {
+        .cmda = { "help", NULL },
+        .handler = handle_help,
+        .summary = "Display help list, or specific help on a command",
+        .usage = help_help,
+        .generator = help_complete,
+    },
+    {
+        .cmda = { "no", "debug", "channel", NULL },
+        .handler = handle_nodebugchan,
+        .summary = "Disable debugging on a channel",
+        .usage = nodebugchan_help,
+        .generator = complete_ch_4,
+    },
+    {
+        .cmda = { "set", "debug", NULL },
+        .handler = handle_set_debug,
+        .summary = "Set level of debug chattiness",
+        .usage = set_debug_help,
+    },
+    {
+        .cmda = { "set", "verbose", NULL },
+        .handler = handle_set_verbose,
+        .summary = "Set level of verboseness",
+        .usage = set_verbose_help,
+    },
+    {
+        .cmda = { "show", "channel", NULL },
+        .handler = handle_showchan,
+        .summary = "Display information on a specific channel",
+        .usage = showchan_help,
+        .generator = complete_ch_3,
+    },
+    {
+        .cmda = { "show", "channels", NULL },
+        .handler = handle_chanlist,
+        .summary = "Display information on channels",
+        .usage = chanlist_help,
+        .generator = complete_show_channels,
+    },
+    {
+        .cmda = { "show", "uptime", NULL },
+        .handler = handle_showuptime,
+        .summary = "Show uptime information",
+        .usage = uptime_help,
+    },
+    {
+        .cmda = { "show", "version", NULL },
+        .handler = handle_version,
+        .summary = "Display version info",
+        .usage = version_help,
+    },
+    {
+        .cmda = { "soft", "hangup", NULL },
+        .handler = handle_softhangup,
+        .summary = "Request a hangup on a given channel",
+        .usage = softhangup_help,
+        .generator = complete_ch_3,
+    },
 };
-
-static int cli_generator_one(struct cw_object *obj, void *data)
-{
-	struct cw_clicmd *clicmd = container_of(obj, struct cw_clicmd, obj);
-	struct cli_generator_args *args = data;
-	int i;
-
-	for (i = 0; i < args->av.used; i++) {
-		if (!clicmd->cmda[i] || strcasecmp(args->av.data[i], clicmd->cmda[i]))
-			break;
-	}
-
-	/* If we matched everything we were given we have a result. */
-	if (i == args->av.used && clicmd->cmda[i]) {
-		if (!strncasecmp(clicmd->cmda[i], args->av.data[args->av.used], args->lastarg_len))
-			cw_dynstr_printf(args->ds_p, "%s\r\n", clicmd->cmda[i]);
-	} else if (!clicmd->cmda[i] && clicmd->generator)
-		clicmd->generator(args->ds_p, args->av.data, args->av.used, args->lastarg_len);
-
-	return 0;
-}
-
-void cw_cli_generator(cw_dynstr_t *ds_p, char *cmd)
-{
-	struct cli_generator_args args = {
-		.av = CW_DYNARRAY_INIT,
-		.ds_p = ds_p,
-	};
-
-	if (!cw_separate_app_args(&args.av, cmd, " \t")) {
-		if (args.av.used == 0)
-			args.av.data[0] = (char *)"";
-		else
-			args.av.used--;
-
-		args.lastarg_len = strlen(args.av.data[args.av.used]);
-
-		cw_registry_iterate(&clicmd_registry, cli_generator_one, &args);
-	}
-
-	cw_dynarray_free(&args);
-}
-
-
-void cw_cli_command(cw_dynstr_t *ds_p, char *cmd)
-{
-	args_t args = CW_DYNARRAY_INIT;
-	struct cw_clicmd *clicmd;
-
-	if (!cw_separate_app_args(&args, cmd, " \t") && args.used > 0) {
-		if (args.used && !args.data[args.used - 1][0])
-			args.data[--args.used] = NULL;
-
-		clicmd = find_cli(args.data, 0);
-		if (clicmd) {
-			switch (clicmd->handler(ds_p, args.used, args.data)) {
-				case RESULT_SHOWUSAGE:
-					cw_dynstr_printf(ds_p, "%s", clicmd->usage);
-					break;
-			}
-			cw_object_put(clicmd);
-		} else
-			cw_dynstr_printf(ds_p, "No such command. Type \"help\" for help.\n");
-	}
-
-	cw_dynarray_free(&args);
-}
 
 
 void cw_cli_init(void)
