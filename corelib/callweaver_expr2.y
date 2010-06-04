@@ -189,7 +189,6 @@ static int isstring(struct val *);
 static struct val *op_math_f(long double (* const op)(long double), struct val *a);
 static struct val *op_math_ff(long double (* const op)(long double, long double), struct val *a, struct val *b);
 static struct val *op_math_fff(long double (* const op)(long double, long double, long double), struct val *a, struct val *b, struct val *c);
-static struct val *op_and(struct val *, struct val *);
 static struct val *op_colon(struct val *, struct val *);
 static struct val *op_eqtilde(struct val *, struct val *);
 static struct val *op_div(struct val *, struct val *);
@@ -202,7 +201,6 @@ static struct val *op_minus(struct val *, struct val *);
 static struct val *op_negate(struct val *);
 static struct val *op_compl(struct val *);
 static struct val *op_ne(struct val *, struct val *);
-static struct val *op_or(struct val *, struct val *);
 static struct val *op_plus(struct val *, struct val *);
 static struct val *op_rem(struct val *, struct val *);
 static struct val *op_times(struct val *, struct val *);
@@ -447,8 +445,37 @@ expr:	TOKEN '(' args ')'	{
 	| TOKEN			{ if (!($$ = $1)) YYABORT; }
 	| '(' expr ')'	{ if (!($$ = $2)) YYABORT; }
 
-	| expr TOK_OR expr	{ if (!($$ = op_or($1, $3))) YYABORT; }
-	| expr TOK_AND expr	{ if (!($$ = op_and($1, $3))) YYABORT; }
+	| expr TOK_AND {
+			struct parse_io *p = parseio;
+			if (is_zero_or_null($1))
+				p->noexec++;
+		}
+	expr	{
+			struct parse_io *p = parseio;
+			$$ = $4;
+			if (is_zero_or_null($1)) {
+				p->noexec--;
+				$$ = $1;
+				$1 = $4;
+			}
+			free($1);
+		}
+
+	| expr TOK_OR {
+			struct parse_io *p = parseio;
+			if (!is_zero_or_null($1))
+				p->noexec++;
+		}
+	expr	{
+			struct parse_io *p = parseio;
+			$$ = $4;
+			if (!is_zero_or_null($1)) {
+				p->noexec--;
+				$$ = $1;
+				$1 = $4;
+			}
+			free($1);
+		}
 
 	| expr TOK_EQ expr	{ if (!($$ = op_eq($1, $3))) YYABORT; }
 	| expr '>' expr	{ if (!($$ = op_gt($1, $3))) YYABORT; }
@@ -719,34 +746,6 @@ static struct val *op_math_fff(long double (*op)(long double, long double, long 
 	free(b);
 	free(c);
 	return vp;
-}
-
-
-static struct val *op_or(struct val *a, struct val *b)
-{
-	struct val *r = a;
-
-	if (is_zero_or_null(a)) {
-		r = b;
-		b = a;
-	}
-
-	free(b);
-	return r;
-}
-
-
-static struct val *op_and(struct val *a, struct val *b)
-{
-	struct val *r = a;
-
-	if (is_zero_or_null(a) || is_zero_or_null(b)) {
-		free(a);
-		r = cw_expr_make_number(0.0L);
-	}
-
-	free(b);
-	return r;
 }
 
 
