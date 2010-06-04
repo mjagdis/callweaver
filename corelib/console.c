@@ -75,9 +75,6 @@ static struct {
 static const char *bold_on, *bold_off;
 
 
-const char *rl_basic_word_break_characters = " \t";
-
-
 static char *console_address;
 static int console_sock;
 
@@ -575,9 +572,13 @@ static char *dummy_completer(void)
 }
 
 
-static char **cli_completion(void)
+static char **cli_completion(const char *text, int start, int end)
 {
 	struct iovec iov[3];
+
+	CW_UNUSED(text);
+	CW_UNUSED(start);
+	CW_UNUSED(end);
 
 	if ((matches = malloc(64 * sizeof(matches[0])))) {
 		matches_space = 64 - 2;
@@ -786,10 +787,14 @@ void *console(void *data)
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 
+	rl_readline_name = "CallWeaver";
+	rl_basic_word_break_characters = " \t";
+	rl_completer_quote_characters = "\"";
+
 	rl_initialize ();
 	rl_editing_mode = 1;
 	rl_completion_entry_function = (rl_compentry_func_t *)dummy_completer; /* The typedef varies between platforms */
-	rl_attempted_completion_function = (CPPFunction *)cli_completion;
+	rl_attempted_completion_function = cli_completion;
 
 	/* Setup history with 100 entries */
 	using_history();
