@@ -632,19 +632,18 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                     if (sw->eval) {
                         pbx_substitute_variables(chan, NULL, sw->data, data);
                         cw_separate_app_args(NULL, data->data, "", '\0', NULL);
-                    }
+                    } else
+                        cw_dynstr_printf(data, "%s", sw->data);
 
 		    res = 0;
 		    if (!data->error) {
                         if (action == HELPER_CANMATCH && asw->canmatch)
-                            res = asw->canmatch(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+                            res = asw->canmatch(chan, context, exten, priority, callerid, data->data);
                         else if (action == HELPER_MATCHMORE && asw->matchmore)
-                            res = asw->matchmore(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+                            res = asw->matchmore(chan, context, exten, priority, callerid, data->data);
                         else if (asw->exists)
-                            res = asw->exists(chan, context, exten, priority, callerid, (sw->eval ? data->data : sw->data));
+                            res = asw->exists(chan, context, exten, priority, callerid, data->data);
 		    }
-
-		    cw_dynstr_reset(data);
 
                     if (res)
                     {
@@ -654,6 +653,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                         return NULL;
                     }
 
+                    cw_dynstr_reset(data);
                     cw_object_put(asw);
                 }
                 else
@@ -1026,7 +1026,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
         case HELPER_EXEC:
             cw_mutex_unlock(&conlock);
             if (sw->exec)
-                res = sw->exec(c, foundcontext ? foundcontext : context, exten, priority, callerid, (data.used ? data.data : ""));
+                res = sw->exec(c, (foundcontext ? foundcontext : context), exten, priority, callerid, data.data);
             else
                 cw_log(CW_LOG_WARNING, "No execution engine for switch %s\n", sw->name);
             break;
