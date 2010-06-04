@@ -65,14 +65,11 @@
 		} \
 	} while (0)
 
-#define SET_NUMERIC_STRING \
+#define SET_NUMERIC\
 	do { \
 		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
-			yylval_param->val->type = CW_EXPR_numeric_string; \
-			if (!(yylval_param->val->u.s = strdup(yytext))) { \
-				free(yylval_param->val); \
-				yylval_param->val = NULL; \
-			} \
+			yylval_param->val->type = CW_EXPR_number; \
+			yylval_param->val->u.n = strtold(yytext, NULL); \
 		} \
 	} while (0)
 
@@ -183,19 +180,19 @@ TRUNC	{ SET_COLUMNS; return TOK_TRUNC; }
 
 -?[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
 		SET_COLUMNS;
-		SET_NUMERIC_STRING;
+		SET_NUMERIC;
 		return TOKEN;
 	}
 
 -?(inf(inity)?|INF(INITY)?)	{
 		SET_COLUMNS;
-		SET_NUMERIC_STRING;
+		SET_NUMERIC;
 		return TOKEN;
 	}
 
 nan|NAN|NaN	{
 		SET_COLUMNS;
-		SET_NUMERIC_STRING;
+		SET_NUMERIC;
 		return TOKEN;
 	}
 
