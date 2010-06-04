@@ -187,7 +187,7 @@ static int cw_switch_qsort_compare_by_name(const void *a, const void *b)
 static int switch_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
-	return strcmp(sw->name, pattern);
+	return !strcmp(sw->name, pattern);
 }
 
 struct cw_registry switch_registry = {
