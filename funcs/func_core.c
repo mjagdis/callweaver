@@ -801,22 +801,23 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 	do { channel++; } while (isspace(*channel));
 
 	if ((chan2 = cw_get_channel_by_name_locked(channel))) {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_object *obj = NULL;
+		const char *value = NULL;
 
-		if ((s = alloca(strlen(argv[1]) + 4))) {
-			sprintf(s, "${%s}", argv[1]);
-			pbx_substitute_variables(chan2, NULL, s, &ds);
+		if ((obj = cw_registry_find(&chan->vars, 1, cw_hash_var_name(argv[1]), argv[1]))) {
+			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
+			value = var->value;
 		}
+
 		cw_channel_unlock(chan2);
 		cw_object_put(chan2);
 
-		res = -1;
-		if (!ds.error) {
-			pbx_builtin_setvar_helper(chan, argv[0], ds.data);
-			res = 0;
-		}
+		pbx_builtin_setvar_helper(chan, argv[0], value);
 
-		cw_dynstr_free(&ds);
+		if (obj)
+			cw_object_put_obj(obj);
+
+		res = 0;
 	}
 
 	return res;
