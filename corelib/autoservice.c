@@ -44,7 +44,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/translate.h"
 #include "callweaver/manager.h"
 #include "callweaver/chanvars.h"
-#include "callweaver/linkedlists.h"
 #include "callweaver/indications.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"

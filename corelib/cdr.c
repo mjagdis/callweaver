@@ -45,7 +45,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/phone_no_utils.h"
 #include "callweaver/causes.h"
 #include "callweaver/options.h"
-#include "callweaver/linkedlists.h"
 #include "callweaver/utils.h"
 #include "callweaver/sched.h"
 #include "callweaver/config.h"

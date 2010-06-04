@@ -43,7 +43,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/file.h"
 #include "callweaver/cli.h"
 #include "callweaver/lock.h"
-#include "callweaver/linkedlists.h"
 #include "callweaver/chanvars.h"
 #include "callweaver/sched.h"
 #include "callweaver/io.h"

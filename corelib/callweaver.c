@@ -122,7 +122,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/io.h"
 #include "callweaver/lock.h"
 #include "callweaver/config.h"
-#include "callweaver/linkedlists.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/translate.h"
 #include "callweaver/switch.h"

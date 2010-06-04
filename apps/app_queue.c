@@ -74,7 +74,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/options.h"
 #include "callweaver/app.h"
-#include "callweaver/linkedlists.h"
 #include "callweaver/module.h"
 #include "callweaver/translate.h"
 #include "callweaver/say.h"
