@@ -1362,10 +1362,6 @@ void cw_enable_packet_fragmentation(int sock)
 
 int cw_utils_init(void)
 {
-#ifndef linux
-	pthread_mutex_init(&randomlock, &global_mutexattr_simple);
-#endif
-
 	global_sched_param_default.sched_priority = 0;
 	global_sched_param_rr.sched_priority = 50;
 
@@ -1419,6 +1415,10 @@ int cw_utils_init(void)
 	pthread_attr_setdetachstate(&global_attr_rr_detached, PTHREAD_CREATE_DETACHED);
 
 	pthread_key_create(&global_pthread_key_thread_info, NULL);
+
+#ifndef linux
+	pthread_mutex_init(&randomlock, &global_mutexattr_simple);
+#endif
 
 	base64_init();
 	return 0;
