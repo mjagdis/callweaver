@@ -57,46 +57,46 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw
 		return cw_function_syntax(callerid_func_syntax);
 
 	if (argc > 1) {
-		if (!strncasecmp("all", argv[0], 3)) {
+		if (!strcasecmp("all", argv[0])) {
 			char name[256];
 			char num[256];
 			if (!cw_callerid_split(argv[1], name, sizeof(name), num, sizeof(num)))
 				cw_set_callerid(chan, num, name, num);	
-        	} else if (!strncasecmp("name", argv[0], 4)) {
-                	cw_set_callerid(chan, NULL, argv[1], NULL);
-        	} else if (!strncasecmp("num", argv[0], 3) || !strncasecmp("number", argv[0], 6)) {
-                	cw_set_callerid(chan, argv[1], NULL, NULL);
-        	} else if (!strncasecmp("ani", argv[0], 3)) {
-                	cw_set_callerid(chan, NULL, NULL, argv[1]);
-        	} else if (!strncasecmp("dnid", argv[0], 4)) {
-                	/* do we need to lock chan here? */
-                	if (chan->cid.cid_dnid)
-                        	free(chan->cid.cid_dnid);
-                	chan->cid.cid_dnid = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
-        	} else if (!strncasecmp("rdnis", argv[0], 5)) {
-                	/* do we need to lock chan here? */
-                	if (chan->cid.cid_rdnis)
-                        	free(chan->cid.cid_rdnis);
-                	chan->cid.cid_rdnis = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
-        	} else {
-                	cw_log(CW_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
+		} else if (!strcasecmp("name", argv[0])) {
+			cw_set_callerid(chan, NULL, argv[1], NULL);
+		} else if (!strcasecmp("num", argv[0]) || !strcasecmp("number", argv[0])) {
+			cw_set_callerid(chan, argv[1], NULL, NULL);
+		} else if (!strcasecmp("ani", argv[0])) {
+			cw_set_callerid(chan, NULL, NULL, argv[1]);
+		} else if (!strcasecmp("dnid", argv[0])) {
+			/* do we need to lock chan here? */
+			if (chan->cid.cid_dnid)
+				free(chan->cid.cid_dnid);
+			chan->cid.cid_dnid = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
+		} else if (!strcasecmp("rdnis", argv[0])) {
+			/* do we need to lock chan here? */
+			if (chan->cid.cid_rdnis)
+				free(chan->cid.cid_rdnis);
+			chan->cid.cid_rdnis = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
+		} else {
+			cw_log(CW_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
 			return -1;
-        	}
+		}
 	}
 
 	if (result) {
-		if (!strncasecmp("all", argv[0], 3)) {
+		if (!strcasecmp("all", argv[0])) {
 			cw_dynstr_printf(result, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");
 		} else {
-			if (!strncasecmp("name", argv[0], 4)) {
+			if (!strcasecmp("name", argv[0])) {
 				p = chan->cid.cid_name;
-			} else if (!strncasecmp("num", argv[0], 3) || !strncasecmp("number", argv[0], 6)) {
+			} else if (!strcasecmp("num", argv[0]) || !strcasecmp("number", argv[0])) {
 				p = chan->cid.cid_num;
-			} else if (!strncasecmp("ani", argv[0], 3)) {
+			} else if (!strcasecmp("ani", argv[0])) {
 				p = chan->cid.cid_ani;
-			} else if (!strncasecmp("dnid", argv[0], 4)) {
+			} else if (!strcasecmp("dnid", argv[0])) {
 				p = chan->cid.cid_dnid;
-			} else if (!strncasecmp("rdnis", argv[0], 5)) {
+			} else if (!strcasecmp("rdnis", argv[0])) {
 				p = chan->cid.cid_rdnis;
 			} else {
 				cw_log(CW_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
