@@ -179,7 +179,6 @@ static struct val *op_ge(struct val *, struct val *);
 static struct val *op_gt(struct val *, struct val *);
 static struct val *op_le(struct val *, struct val *);
 static struct val *op_lt(struct val *, struct val *);
-static struct val *op_cond(struct val *, struct val *, struct val *);
 static struct val *op_minus(struct val *, struct val *);
 static struct val *op_negate(struct val *);
 static struct val *op_compl(struct val *);
@@ -378,39 +377,45 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 			int argc;
 			int res = 1;
 
-			$$ = NULL;
+			if (!p->noexec) {
+				$$ = NULL;
 
-			if ((argv = malloc(sizeof(argv[0]) * ($3->used + 1)))) {
-				for (argc = 0; argc < $3->used; argc++) {
-					if ($3->data[argc]->type != CW_EXPR_number)
-						argv[argc] = $3->data[argc]->u.s;
-					else {
-						argv[argc] = (char *)ds.used;
-						cw_dynstr_printf(&ds, NUMBER_FORMAT "%c", $3->data[argc]->u.n, 0);
-					}
-				}
-
-				if (!ds.error) {
+				if ((argv = malloc(sizeof(argv[0]) * ($3->used + 1)))) {
 					for (argc = 0; argc < $3->used; argc++) {
-						if ($3->data[argc]->type == CW_EXPR_number)
-							argv[argc] = &ds.data[(size_t)argv[argc]];
+						if ($3->data[argc]->type != CW_EXPR_number)
+							argv[argc] = $3->data[argc]->u.s;
+						else {
+							argv[argc] = (char *)ds.used;
+							cw_dynstr_printf(&ds, NUMBER_FORMAT "%c", $3->data[argc]->u.n, 0);
+						}
 					}
 
-					argv[argc] = NULL;
+					if (!ds.error) {
+						for (argc = 0; argc < $3->used; argc++) {
+							if ($3->data[argc]->type == CW_EXPR_number)
+								argv[argc] = &ds.data[(size_t)argv[argc]];
+						}
 
-					funcname = string_rep($1, buf);
+						argv[argc] = NULL;
 
-					if (!(res = (cw_function_exec(p->chan, cw_hash_string(funcname), funcname, argc, argv, &result) || result.error)))
-						$$ = cw_expr_make_str(CW_EXPR_arbitrary_string, result.data, result.used);
+						funcname = string_rep($1, buf);
 
-					cw_dynstr_free(&result);
+						if (!(res = (cw_function_exec(p->chan, cw_hash_string(funcname), funcname, argc, argv, &result) || result.error)))
+							$$ = cw_expr_make_str(CW_EXPR_arbitrary_string, result.data, result.used);
+
+						cw_dynstr_free(&result);
+					}
+
+					cw_dynstr_free(&ds);
+					free(argv);
 				}
 
-				cw_dynstr_free(&ds);
-				free(argv);
+				free($1);
+			} else {
+				$$ = $1;
+				res = 0;
 			}
 
-			free($1);
 			args_free($3);
 
 			if (res)
@@ -478,9 +483,29 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 	| expr TOK_EQTILDE expr { if (!($$ = op_eqtilde($1, $3))) YYABORT;
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| expr TOK_COND expr TOK_COLONCOLON expr  { if (!($$ = op_cond ($1, $3, $5))) YYABORT;
-	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-							@$.first_line=0; @$.last_line=0;}
+	| expr TOK_COND {
+			struct parse_io *p = parseio;
+			if (is_zero_or_null($1))
+				p->noexec++;
+		}
+	expr TOK_COLONCOLON {
+			struct parse_io *p = parseio;
+			if (is_zero_or_null($1))
+				p->noexec--;
+			else
+				p->noexec++;
+		}
+	expr  {
+			struct parse_io *p = parseio;
+			$$ = $7;
+			if (!is_zero_or_null($1)) {
+				p->noexec--;
+				$$ = $4;
+				$4 = $7;
+			}
+			free($1);
+			free($4);
+		}
 	;
 
 %%
@@ -857,22 +882,6 @@ static struct val *op_le(struct val *a, struct val *b)
 
 	free(b);
 	return a;
-}
-
-
-static struct val *op_cond(struct val *a, struct val *b, struct val *c)
-{
-	struct val *r = b;
-
-	if (is_zero_or_null(a)) {
-		r = c;
-		c = b;
-	}
-
-	free(a);
-	free(c);
-
-	return r;
 }
 
 

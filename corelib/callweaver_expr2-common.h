@@ -44,6 +44,7 @@ struct parse_io
 	struct cw_channel *chan;
 	struct val *val;
 	const char *string;
+	int noexec;
 };
 
 
