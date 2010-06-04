@@ -33,7 +33,6 @@ struct val {
 
 struct parse_io
 {
-	int curlycount;
 	yyscan_t scanner;
 	struct cw_channel *chan;
 	struct val *val;

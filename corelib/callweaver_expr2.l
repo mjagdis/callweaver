@@ -25,24 +25,13 @@
 #include "callweaver.h"
 
 #include <sys/types.h>
-#include <stdio.h>
+#include <regex.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
-#include <ctype.h>
 
-#if !defined(SOLARIS) && !defined(__CYGWIN__)
-#include <err.h>
-#else
-#define quad_t int64_t
-#endif
-
-#include <errno.h>
-#include <limits.h>
-#include <regex.h>
-
-#include "callweaver/logger.h"
 #include "callweaver/callweaver_expr.h"
+#include "callweaver/logger.h"
+#include "callweaver/pbx.h"
 #include "callweaver/strings.h"
 
 #include "callweaver_expr2-common.h"
@@ -119,7 +108,6 @@ int cw_yyget_column(yyscan_t yyscanner);
 %option bison-bridge
 %option bison-locations
 %option noyywrap
-%x var trail
 
 %%
 
@@ -193,20 +181,6 @@ TAN	{ SET_COLUMNS; return TOK_TAN; }
 TGAMMA	{ SET_COLUMNS; return TOK_TGAMMA; }
 TRUNC	{ SET_COLUMNS; return TOK_TRUNC; }
 
-\$\{	{
-		/* gather the contents of ${} expressions, with trailing stuff,
-		 * into a single TOKEN.
-		 * They are much more complex now than they used to be
-		 */
-		yyextra->curlycount = 0;
-		BEGIN(var);
-		yymore();
-	}
-
-[ \t\r]		{}
-
-[\n]		{/* what to do with eol */}
-
 -?[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
 		SET_COLUMNS;
 		SET_NUMERIC_STRING;
@@ -225,58 +199,14 @@ nan|NAN|NaN	{
 		return TOKEN;
 	}
 
-(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|$[^{]|[a-zA-Z0-9.;_^#@\x80-\xff])+	{
+(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|[a-zA-Z0-9.;_^#@\x80-\xff])+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
 	}
 
+.	{}
 
-<var>[^{}]*\}	{
-		yyextra->curlycount--;
-		if (yyextra->curlycount < 0) {
-			BEGIN(trail);
-			yymore();
-		} else {
-			yymore();
-		}
-	}
-	
-<var>[^{}]*\{	{
-		yyextra->curlycount++;
-		yymore();
-	}
-	
-
-<trail>[^-\t\r \n$():?%/+=*<>!|&]*	{
-		BEGIN(0);
-		SET_COLUMNS;
-		SET_STRING;
-		return TOKEN;
-	}
-	
-<trail>[-\t\r \n$():?%/+=*<>!|&]	{
-		char c = yytext[yyleng-1];
-		BEGIN(0);
-		unput(c);
-		SET_COLUMNS;
-		SET_STRING;
-		return TOKEN;
-	}
-	
-<trail>\$\{	{
-		yyextra->curlycount = 0;
-		BEGIN(var);
-		yymore();
-	}
-	
-<trail><<EOF>>	{
-		BEGIN(0);
-		SET_COLUMNS;
-		SET_EOF;
-		return TOKEN;
-		/*actually, if an expr is only a variable ref, this could happen a LOT */
-	}
 
 %%
 
@@ -327,27 +257,29 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 
 char extra_error_message[4095];
 int extra_error_message_supplied = 0;
-extern CW_API_PUBLIC void  cw_expr_register_extra_error_info(const char *message);
-extern CW_API_PUBLIC void  cw_expr_clear_extra_error_info(void);
+extern CW_API_PUBLIC void cw_expr_register_extra_error_info(const char *message);
+extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
 
-void  cw_expr_register_extra_error_info(const char *message)
+void cw_expr_register_extra_error_info(const char *message)
 {
-       extra_error_message_supplied=1;
-       strcpy(extra_error_message, message);
+	extra_error_message_supplied = 1;
+	strcpy(extra_error_message, message);
 }
 
-void  cw_expr_clear_extra_error_info(void)
+void cw_expr_clear_extra_error_info(void)
 {
-       extra_error_message_supplied=0;
-       extra_error_message[0] = 0;
+	extra_error_message_supplied = 0;
+	extra_error_message[0] = 0;
 }
 
 
-int cw_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
-{	
+int cw_yyerror(const char *s,  yyltype *loc, struct parse_io *parseio)
+{
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
 	size_t n;
+
+	CW_UNUSED(loc);
 
 	n = (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 
