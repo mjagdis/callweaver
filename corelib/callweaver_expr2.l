@@ -203,7 +203,12 @@ nan|NAN|NaN	{
 		return TOKEN;
 	}
 
-(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|[a-zA-Z0-9.;_^#@\x80-\xff])+	{
+(\'[^']*\'|\"(\\\"|[^\"])*\"|\\.|[^'"\\ |&=~><!+\-*/%?:(),]+)+	{
+		/* A string is a repeated sequence of '...', "...", \x or anything
+		 * not an operator. Having figured out what it consists of we use
+		 * cw_split_args to dequote it so there are no special characters
+		 * and we have the string in its intended form.
+		 */
 		cw_split_args(NULL, yytext, "", '\0', NULL);
 		yylval->val = cw_expr_make_str(CW_EXPR_string, yytext, yyleng);
 		return TOKEN;
