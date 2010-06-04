@@ -888,10 +888,8 @@ static int moh_register(struct mohclass *moh)
 
 static void local_cw_moh_cleanup(struct cw_channel *chan)
 {
-	if (chan->music_state) {
-		free(chan->music_state);
-		chan->music_state = NULL;
-	}
+	free(chan->music_state);
+	chan->music_state = NULL;
 }
 
 static int local_cw_moh_start(struct cw_channel *chan, const char *class)

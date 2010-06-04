@@ -71,10 +71,8 @@ void sccp_line_delete_nolock(sccp_line_t * l) {
 		l->device->lines = l->next_on_device;
 		cw_mutex_unlock(&l->lock);
 	}
-	if (l->cfwd_num)
-			free(l->cfwd_num);
-	if (l->trnsfvm)
-			free(l->trnsfvm);
+	free(l->cfwd_num);
+	free(l->trnsfvm);
 	free(l);
 }
 
@@ -87,10 +85,8 @@ void sccp_line_cfwd(sccp_line_t * l, uint8_t type, char * number) {
 	if (!d)
 		return;
 	
-	if (l->cfwd_num) {
-		free(l->cfwd_num);
-		l->cfwd_num = NULL;
-	}
+	free(l->cfwd_num);
+	l->cfwd_num = NULL;
 	
 	if (type == SCCP_CFWD_NONE) {
 		l->cfwd_type = SCCP_CFWD_NONE;

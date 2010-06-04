@@ -2576,10 +2576,8 @@ static int dahdi_hangup(struct cw_channel *cw)
 		p->alerting = 0;
 		p->setup_ack = 0;
 #endif		
-		if (p->dsp) {
-			cw_dsp_free(p->dsp);
-			p->dsp = NULL;
-		}
+		cw_dsp_free(p->dsp);
+		p->dsp = NULL;
 
 		law = DAHDI_LAW_DEFAULT;
 		res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETLAW, &law);
@@ -2666,10 +2664,8 @@ static int dahdi_hangup(struct cw_channel *cw)
 		default:
 			tone_zone_play_tone(p->subs[SUB_REAL].dfd, -1);
 		}
-		if (p->cidspill)
-			free(p->cidspill);
-		if (p->cidspill2)
-			free(p->cidspill2);
+		free(p->cidspill);
+		free(p->cidspill2);
 		if (p->sig)
 			dahdi_disable_ec(p);
 		x = 0;
@@ -3839,14 +3835,10 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 					dahdi_set_hook(p->subs[curindex].dfd, DAHDI_OFFHOOK);
 					cw_log(CW_LOG_DEBUG, "channel %d answered\n", p->channel);
 					/* Cancel any running CallerID spill */
-					if (p->cidspill) {
-						free(p->cidspill);
-						p->cidspill = NULL;
-					}
-					if (p->cidspill2) {
-						free(p->cidspill2);
-						p->cidspill2 = NULL;
-					}
+					free(p->cidspill);
+					p->cidspill = NULL;
+					free(p->cidspill2);
+					p->cidspill2 = NULL;
 					p->dialing = 0;
 					p->callwaitcas = 0;
 					if (p->confirmanswer) {
@@ -4681,8 +4673,7 @@ struct cw_frame  *dahdi_read(struct cw_channel *cw)
 		} else if (p->callwaitcas) {
 			if ((f->subclass == 'A') || (f->subclass == 'D')) {
 				cw_log(CW_LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
-				if (p->cidspill)
-					free(p->cidspill);
+				free(p->cidspill);
 				send_cwcidspill(p);
 			}
 			p->callwaitcas = 0;
@@ -5673,11 +5664,9 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
 				/* Disable Caller*ID if enabled */
 				p->hidecallerid = 1;
-				if (chan->cid.cid_num)
-					free(chan->cid.cid_num);
+				free(chan->cid.cid_num);
 				chan->cid.cid_num = NULL;
-				if (chan->cid.cid_name)
-					free(chan->cid.cid_name);
+				free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				res = tone_zone_play_tone(p->subs[curindex].dfd, DAHDI_TONE_DIALRECALL);
 				if (res) {
@@ -5760,11 +5749,9 @@ static void *ss_thread(void *data)
 					cw_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
 				/* Enable Caller*ID if enabled */
 				p->hidecallerid = 0;
-				if (chan->cid.cid_num)
-					free(chan->cid.cid_num);
+				free(chan->cid.cid_num);
 				chan->cid.cid_num = NULL;
-				if (chan->cid.cid_name)
-					free(chan->cid.cid_name);
+				free(chan->cid.cid_name);
 				chan->cid.cid_name = NULL;
 				cw_set_callerid(chan, p->cid_num, p->cid_name, NULL);
 				res = tone_zone_play_tone(p->subs[curindex].dfd, DAHDI_TONE_DIALRECALL);
@@ -6036,14 +6023,10 @@ static void *ss_thread(void *data)
 			if (!p->ignoredtmf)
 				enable_dtmf_detect(p);
 
-			if (p->adsi_rx1) {
-				free(p->adsi_rx1);
-				p->adsi_rx1 = NULL;
-			}
-			if (p->adsi_rx2) {
-				free(p->adsi_rx2);
-				p->adsi_rx2 = NULL;
-			}
+			free(p->adsi_rx1);
+			p->adsi_rx1 = NULL;
+			free(p->adsi_rx2);
+			p->adsi_rx2 = NULL;
 		}
 
 		cw_setstate(chan, CW_STATE_RING);
@@ -6091,11 +6074,11 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		case SIG_FXOGS:
 		case SIG_FXOKS:
 		        dahdi_set_hook(i->subs[SUB_REAL].dfd, DAHDI_OFFHOOK);
-			if (i->cidspill) {
-				/* Cancel VMWI spill */
-				free(i->cidspill);
-				i->cidspill = NULL;
-			}
+
+			/* Cancel VMWI spill */
+			free(i->cidspill);
+			i->cidspill = NULL;
+
 			if (i->immediate) {
 				dahdi_enable_ec(i);
 				/* The channel is immediately up.  Start right away */
@@ -6282,8 +6265,7 @@ static void *do_monitor(void *data)
 			return NULL;
 		}
 		if (!pfds || (lastalloc != ifcount)) {
-			if (pfds)
-				free(pfds);
+			free(pfds);
 			if (ifcount) {
 				pfds = malloc(ifcount * sizeof(struct pollfd));
 				if (!pfds) {
@@ -9925,10 +9907,8 @@ static int __unload_module(void)
 		p = iflist;
 		while(p) {
 			/* Free any callerid */
-			if (p->cidspill)
-				free(p->cidspill);
-			if (p->cidspill2)
-				free(p->cidspill2);
+			free(p->cidspill);
+			free(p->cidspill2);
 			/* Close the zapata thingy */
 			if (p->subs[SUB_REAL].dfd > -1)
 				dahdi_close(p->subs[SUB_REAL].dfd);

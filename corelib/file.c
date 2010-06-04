@@ -636,10 +636,8 @@ int cw_closestream(struct cw_filestream *f)
 		cw_safe_system(cmd);
 	}
 
-	if (f->filename)
-		free(f->filename);
-	if (f->realfilename)
-		free(f->realfilename);
+	free(f->filename);
+	free(f->realfilename);
 
 	cw_object_put(f->fmt);
 	free(f);

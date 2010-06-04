@@ -906,36 +906,17 @@ struct cw_conf_member* delete_member( struct cw_conf_member* member )
     //
     // clean up member flags
     //
-    if ( member->id != NULL )
-    {
-	cw_log( CW_CONF_DEBUG, "freeing member id, name => %s\n", member->channel_name ) ;
-	free( member->id ) ;
-    }
-
-    if ( member->flags != NULL )
-    {
-	cw_log( CW_CONF_DEBUG, "freeing member flags, name => %s\n", member->channel_name ) ;
-	free( member->flags ) ;
-    }
-
-    if ( member->pin != NULL )
-    {
-	cw_log( CW_CONF_DEBUG, "freeing member pin, name => %s\n", member->channel_name ) ;
-	free( member->pin ) ;
-    }
-
-    if ( member->cbuf != NULL )
-    {
-	cw_log( CW_CONF_DEBUG, "freeing member circular buffer, name => %s\n", member->channel_name ) ;
-	free( member->cbuf ) ;
-    }
+    free( member->id ) ;
+    free( member->flags ) ;
+    free( member->pin ) ;
+    free( member->cbuf ) ;
 
     //
     // delete the members frames
     //
 
     // free the member's copy of channel information
-    free( member->channel_name ) ;
+    free(member->channel_name ) ;
     free(member->cid.cid_dnid);
     free(member->cid.cid_num);
     free(member->cid.cid_name);

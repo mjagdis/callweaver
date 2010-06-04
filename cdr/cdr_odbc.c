@@ -223,26 +223,11 @@ static void release(void)
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
 		connected = 0;
 	}
-	if (dsn) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free dsn\n");
-		free(dsn);
-	}
-	if (username) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free username\n");
-		free(username);
-	}
-	if (password) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free password\n");
-		free(password);
-	}
-	if (table) {
-		if (option_verbose > 10)
-			cw_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free table\n");
-		free(table);
-	}
+
+	free(dsn);
+	free(username);
+	free(password);
+	free(table);
 
 	cw_mutex_unlock(&odbc_lock);
 }

@@ -2253,8 +2253,7 @@ static int dundi_flush(struct cw_dynstr *ds_p, int argc, char *argv[])
 		p = peers;
 		while(p) {
 			for (x=0;x<DUNDI_TIMING_HISTORY;x++) {
-				if (p->lookups[x])
-					free(p->lookups[x]);
+				free(p->lookups[x]);
 				p->lookups[x] = NULL;
 				p->lookuptimes[x] = 0;
 			}
@@ -3021,8 +3020,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 					if (!dundi_eid_cmp(&trans->them_eid, &peer->eid)) {
 						peer->avgms = 0;
 						cnt = 0;
-						if (peer->lookups[DUNDI_TIMING_HISTORY-1])
-							free(peer->lookups[DUNDI_TIMING_HISTORY-1]);
+						free(peer->lookups[DUNDI_TIMING_HISTORY-1]);
 						for (x=DUNDI_TIMING_HISTORY-1;x>0;x--) {
 							peer->lookuptimes[x] = peer->lookuptimes[x-1];
 							peer->lookups[x] = peer->lookups[x-1];

@@ -266,14 +266,11 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 
 	/* Restore proc variables */
 	pbx_builtin_setvar_helper(chan, "PROC_EXTEN", save_proc_exten);
-	if (save_proc_exten)
-		free(save_proc_exten);
+	free(save_proc_exten);
 	pbx_builtin_setvar_helper(chan, "PROC_CONTEXT", save_proc_context);
-	if (save_proc_context)
-		free(save_proc_context);
+	free(save_proc_context);
 	pbx_builtin_setvar_helper(chan, "PROC_PRIORITY", save_proc_priority);
-	if (save_proc_priority)
-		free(save_proc_priority);
+	free(save_proc_priority);
 	if (setproccontext) {
 		chan->proc_context[0] = '\0';
 		chan->proc_exten[0] = '\0';
@@ -300,8 +297,7 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 	}
 
 	pbx_builtin_setvar_helper(chan, "PROC_OFFSET", save_proc_offset);
-	if (save_proc_offset)
-		free(save_proc_offset);
+	free(save_proc_offset);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

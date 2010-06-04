@@ -428,8 +428,7 @@ static void _free_msn_list (struct msn_list* iter)
 {
 	if (iter->next)
 		_free_msn_list(iter->next);
-	if (iter->msn)
-		free(iter->msn);
+	free(iter->msn);
 	free(iter);
 }
 
@@ -471,8 +470,7 @@ static void _free_general_cfg (void)
 	int i;
 
 	for (i = 0; i < NUM_GEN_ELEMENTS; i++) 
-		if (general_cfg[i].any)
-			free(general_cfg[i].any);
+		free(general_cfg[i].any);
 }
 
 void misdn_cfg_get (int port, enum misdn_cfg_elements elem, void *buf, int bufsize)

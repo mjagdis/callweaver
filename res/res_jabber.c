@@ -31,8 +31,6 @@
 #include "callweaver/keywords.h"
 
 
-#define g_free_if_exists(ptr) if(ptr) {g_free(ptr); ptr=NULL;}
-
 #define JABBER_MSG_SIZE 512
 #define CW_FLAG_APP (1 << 30)
 #define CW_FLAG_EXTEN (1 << 31)
@@ -460,15 +458,9 @@ static struct jabber_message_node *jabber_message_node_new(const char *jabber_id
 static void free_jabber_message_node(struct jabber_message_node **node)
 {
 	if (*node) {
-		if ((*node)->jabber_id) {
-			free((*node)->jabber_id);
-		}
-		if ((*node)->subject) {
-			free((*node)->subject);
-		}
-		if ((*node)->body) {
-			free((*node)->body);
-		}
+		free((*node)->jabber_id);
+		free((*node)->subject);
+		free((*node)->body);
 		free(*node);
 		*node = NULL;
 	}
@@ -1184,7 +1176,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 		}
 	} else if (!strcasecmp(jmsg->command, "setmaster") && arg) {
 		char *oldmaster = cw_strdupa(profile->master);
-		g_free_if_exists (profile->master);
+		free(profile->master);
 		profile->master = g_strdup(arg);
 		
 		if ((node = jabber_message_node_printf(oldmaster, 
@@ -1618,13 +1610,13 @@ static void jabber_profile_destroy(struct jabber_profile *profile)
 	cw_mutex_destroy(&profile->ib_qlock);
 	cw_mutex_destroy(&profile->ob_qlock);
 	cw_mutex_destroy(&profile->fr_qlock);
-	g_free_if_exists(profile->login);
-	g_free_if_exists(profile->passwd);
-	g_free_if_exists(profile->resource);
-	g_free_if_exists(profile->server);
-	g_free_if_exists(profile->master);
-	g_free_if_exists(profile->bridgeto);
-	g_free_if_exists(profile->identifier);
+	free(profile->login);
+	free(profile->passwd);
+	free(profile->resource);
+	free(profile->server);
+	free(profile->master);
+	free(profile->bridgeto);
+	free(profile->identifier);
 
 	if (profile->chan)
 		cw_object_put(profile->chan);
@@ -1936,13 +1928,13 @@ static int unload_module(void)
 static void init_globals(int do_free) 
 {
 	if (do_free) {
-		g_free_if_exists(globals.master);
-		g_free_if_exists(globals.server);
-		g_free_if_exists(globals.login);
-		g_free_if_exists(globals.passwd);
-		g_free_if_exists(globals.resource);
-		g_free_if_exists(globals.media_ip);
-		g_free_if_exists(globals.event_master);
+		free(globals.master);
+		free(globals.server);
+		free(globals.login);
+		free(globals.passwd);
+		free(globals.resource);
+		free(globals.media_ip);
+		free(globals.event_master);
 	}
 
 	memset(&globals, 0, sizeof(globals));

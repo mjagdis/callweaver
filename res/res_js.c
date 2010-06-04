@@ -506,8 +506,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 
 		data = strdup(data ? data : "");
 		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(appname), appname, data, NULL) ? JS_FALSE : JS_TRUE );
-		if (data)
-			free(data);
+		free(data);
 
 		return JS_TRUE;
 	}

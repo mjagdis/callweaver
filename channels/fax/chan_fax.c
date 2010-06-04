@@ -341,14 +341,10 @@ static int modem_control_handler(t31_state_t *t31, void *user_data, int op, cons
 			break;
 
 		case AT_MODEM_CONTROL_SETID:
-			if (fm->cid_name) {
-				free(fm->cid_name);
-				fm->cid_name = NULL;
-			}
-			if (fm->cid_num) {
-				free(fm->cid_num);
-				fm->cid_num = NULL;
-			}
+			free(fm->cid_name);
+			fm->cid_name = NULL;
+			free(fm->cid_num);
+			fm->cid_num = NULL;
 			if (num && *num) {
 				const char *p, *q;
 
@@ -1190,11 +1186,9 @@ static void parse_config(void)
 	cfg_vblevel = DEFAULT_VBLEVEL;
 	cfg_modems = DEFAULT_MAX_FAXMODEMS;
 	cfg_ringstrategy = DEFAULT_RING_STRATEGY;
-	if (cfg_dev_prefix)
-		free(cfg_dev_prefix);
+	free(cfg_dev_prefix);
 	cfg_dev_prefix = strdup(DEFAULT_DEV_PREFIX);
-	if (cfg_context)
-		free(cfg_context);
+	free(cfg_context);
 	cfg_context = strdup(DEFAULT_CONTEXT);
 
 	if ((cfg = cw_config_load(CONFIGFILE))) {
@@ -1202,8 +1196,7 @@ static void parse_config(void)
 			if (!strcasecmp(entry, "settings")) {
 				for (v = cw_variable_browse(cfg, entry); v ; v = v->next) {
 					if (!strcasecmp(v->name, "context")) {
-						if (cfg_context)
-							free(cfg_context);
+						free(cfg_context);
 						cfg_context = strdup(v->value);
 					} else if (!strcasecmp(v->name, "callerid")) {
 						char *name, *num;
@@ -1217,8 +1210,7 @@ static void parse_config(void)
 							cfg_cid_num = strdup(num);
 						}
 					} else if (!strcasecmp(v->name, "device-prefix")) {
-						if (cfg_dev_prefix)
-							free(cfg_dev_prefix);
+						free(cfg_dev_prefix);
 					        cfg_dev_prefix = strdup(v->value);
 					} else if (!strcasecmp(v->name, "modems")) {
 						cfg_modems = atoi(v->value);
@@ -1282,14 +1274,10 @@ static int unload_module(void)
 	cw_channel_unregister(&technology);
 	cw_cli_unregister_multiple(cli_chan_fax, arraysize(cli_chan_fax));
 
-	if (cfg_dev_prefix)
-		free(cfg_dev_prefix);
-	if (cfg_context)
-		free(cfg_context);
-	if (cfg_cid_name)
-		free(cfg_cid_name);
-	if (cfg_cid_num)
-		free(cfg_cid_num);
+	free(cfg_dev_prefix);
+	free(cfg_context);
+	free(cfg_cid_name);
+	free(cfg_cid_num);
 
 	cw_atexit_unregister(&fax_atexit);
 	return 0;

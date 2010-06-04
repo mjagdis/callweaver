@@ -326,8 +326,7 @@ static void *muxmon_thread(void *obj)
     cw_slinfactory_destroy(&slinfactory[1]);
 
     cw_object_put(muxmon->chan);
-    if (muxmon->filename)
-        free(muxmon->filename);
+    free(muxmon->filename);
     free(muxmon);
 
     if (post_process.used && !post_process.error)
@@ -360,10 +359,8 @@ static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsig
 		return;
 
         cw_object_put(chan);
-        if (muxmon->filename)
-            free(filename);
-        if (muxmon->post_process)
-            free(post_process);
+        free(filename);
+        free(post_process);
         free(muxmon);
         cw_log(CW_LOG_ERROR, "pthread_create failed: %s\n", strerror(res));
 	return;

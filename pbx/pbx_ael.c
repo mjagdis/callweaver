@@ -2500,23 +2500,19 @@ void destroy_extensions(struct ael_extension *exten)
 	for (ne=exten; ne; ne=nen) {
 		struct ael_priority *pe, *pen;
 		
-		if (ne->name)
-			free(ne->name);
+		free(ne->name);
 		
 		/* cidmatch fields are allocated with name, and freed when
 		   the name field is freed. Don't do a free for this field,
 		   unless you LIKE to see a crash! */
 
-		if (ne->hints)
-			free(ne->hints);
+		free(ne->hints);
 		
 		for (pe=ne->plist; pe; pe=pen) {
 			pen = pe->next;
-			if (pe->app)
-				free(pe->app);
+			free(pe->app);
 			pe->app = 0;
-			if (pe->appargs)
-				free(pe->appargs);
+			free(pe->appargs);
 			pe->appargs = 0;
 			pe->origin = 0;
 			pe->goto_true = 0;
@@ -3623,14 +3619,12 @@ void destroy_pval_item(struct pval *item)
 		return;
 	}
 
-	if (item->filename)
-		free(item->filename);
+	free(item->filename);
 	
 	switch (item->type) {
 	case PV_WORD:
 		/* fields: item->u1.str == string associated with this (word). */
-		if (item->u1.str )
-			free(item->u1.str);
+		free(item->u1.str);
 		if ( item->u2.arglist )
 			destroy_pval(item->u2.arglist);
 		break;
@@ -3644,8 +3638,7 @@ void destroy_pval_item(struct pval *item)
 				   item->u3.proc_statements == struct pval list of statements in proc body.
 		*/
 		destroy_pval(item->u2.arglist);
-		if (item->u1.str )
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u3.proc_statements);
 		break;
 			
@@ -3654,8 +3647,7 @@ void destroy_pval_item(struct pval *item)
 		           item->u2.statements == struct pval list of statements in context body
 				   item->u3.abstract == int 1 if an abstract keyword were present
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3665,8 +3657,7 @@ void destroy_pval_item(struct pval *item)
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.arglist);
 		break;
 			
@@ -3676,8 +3667,7 @@ void destroy_pval_item(struct pval *item)
 				   item->u2.arglist->u1.str  == argument
 				   item->u2.arglist->next   == next arg
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.arglist);
 		break;
 			
@@ -3685,8 +3675,7 @@ void destroy_pval_item(struct pval *item)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == struct pval list of statements under the case
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3694,8 +3683,7 @@ void destroy_pval_item(struct pval *item)
 		/* fields: item->u1.str     == value of case
 		           item->u2.statements == struct pval list of statements under the case
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3710,8 +3698,7 @@ void destroy_pval_item(struct pval *item)
 		/* fields: item->u1.str     == name of extension to catch
 		           item->u2.statements == struct pval list of statements in context body
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3744,10 +3731,8 @@ void destroy_pval_item(struct pval *item)
 		/* fields: item->u1.str     == variable name
 		           item->u2.val     == variable value to assign
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
-		if (item->u2.val)
-			free(item->u2.val);
+		free(item->u1.str);
+		free(item->u2.val);
 		break;
 			
 	case PV_GOTO:
@@ -3761,8 +3746,7 @@ void destroy_pval_item(struct pval *item)
 	case PV_LABEL:
 		/* fields: item->u1.str     == label name
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		break;
 			
 	case PV_FOR:
@@ -3772,12 +3756,9 @@ void destroy_pval_item(struct pval *item)
 
 				   item->u4.for_statements == a struct pval list of statements in the for ()
 		*/
-		if (item->u1.for_init)
-			free(item->u1.for_init);
-		if (item->u2.for_test)
-			free(item->u2.for_test);
-		if (item->u3.for_inc)
-			free(item->u3.for_inc);
+		free(item->u1.for_init);
+		free(item->u2.for_test);
+		free(item->u3.for_inc);
 		destroy_pval(item->u4.for_statements);
 		break;
 			
@@ -3786,8 +3767,7 @@ void destroy_pval_item(struct pval *item)
 
 				   item->u2.statements == a struct pval list of statements in the while ()
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3834,8 +3814,7 @@ void destroy_pval_item(struct pval *item)
 				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		if (item->u3.else_statements) {
 			destroy_pval(item->u3.else_statements);
@@ -3848,8 +3827,7 @@ void destroy_pval_item(struct pval *item)
 				   item->u2.statements == a struct pval list of statements in the switch, 
 				   							(will be case statements, most likely!)
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		destroy_pval(item->u2.statements);
 		break;
 			
@@ -3860,18 +3838,15 @@ void destroy_pval_item(struct pval *item)
 				   item->u3.hints      == a char * hint argument
 				   item->u4.regexten   == an int boolean. non-zero says that regexten was specified
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
-		if (item->u3.hints)
-			free(item->u3.hints);
+		free(item->u1.str);
+		free(item->u3.hints);
 		destroy_pval(item->u2.statements);
 		break;
 			
 	case PV_IGNOREPAT:
 		/* fields: item->u1.str        == the ignorepat data
 		*/
-		if (item->u1.str)
-			free(item->u1.str);
+		free(item->u1.str);
 		break;
 			
 	case PV_GLOBALS:

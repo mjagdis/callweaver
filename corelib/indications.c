@@ -104,7 +104,6 @@ static void playtones_release(struct cw_channel *chan, void *params)
 	
 	if (chan)
 		cw_set_write_format(chan, ps->origwfmt);
-	if (ps->items)
         free(ps->items);
 	free(ps);
 }
@@ -528,8 +527,7 @@ static inline void free_zone(struct tone_zone* zone)
 		free(zone->tones);
 		zone->tones = tmp;
 	}
-	if (zone->ringcadence)
-		free((void *) zone->ringcadence);
+	free((void *) zone->ringcadence);
 	free(zone);
 }
 

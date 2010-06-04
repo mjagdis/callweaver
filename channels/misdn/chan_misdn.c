@@ -227,7 +227,7 @@ static inline void free_robin_list_r (struct robin_list *r)
 {
         if (r) {
                 if (r->next) free_robin_list_r(r->next);
-                if (r->group) free(r->group);
+                free(r->group);
                 free(r);
         }
 }
@@ -4653,10 +4653,8 @@ static int unload_module(void)
 	misdn_cfg_destroy();
 	misdn_lib_destroy();
   
-	if (misdn_debug)
-		free(misdn_debug);
-	if (misdn_debug_only)
-		free(misdn_debug_only);
+	free(misdn_debug);
+	free(misdn_debug_only);
 	
 	return res;
 }

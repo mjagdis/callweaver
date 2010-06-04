@@ -461,9 +461,7 @@ static long find_pointer(long *array, long max_index, long value)
  */
 static void frame_free(jb_frame *frame) 
 {
-  if (frame->data) {
-    free(frame->data);
-  }
+  free(frame->data);
   free(frame);
 }
 

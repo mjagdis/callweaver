@@ -249,32 +249,32 @@ static void release(void)
 		connected = 0;
 		records = 0;
 	}
-	if (dbserver && dbserver_alloc) {
+	if (dbserver_alloc) {
 		free(dbserver);
 		dbserver = NULL;
 		dbserver_alloc = 0;
 	}
-	if (dbname && dbname_alloc) {
+	if (dbname_alloc) {
 		free(dbname);
 		dbname = NULL;
 		dbname_alloc = 0;
 	}
-	if (dbuser && dbuser_alloc) {
+	if (dbuser_alloc) {
 		free(dbuser);
 		dbuser = NULL;
 		dbuser_alloc = 0;
 	}
-	if (dbsock && dbsock_alloc) {
+	if (dbsock_alloc) {
 		free(dbsock);
 		dbsock = NULL;
 		dbsock_alloc = 0;
 	}
-	if (dbtable && dbtable_alloc) {
+	if (dbtable_alloc) {
 		free(dbtable);
 		dbtable = NULL;
 		dbtable_alloc = 0;
 	}
-	if (password && password_alloc) {
+	if (password_alloc) {
 		free(password);
 		password = NULL;
 		password_alloc = 0;

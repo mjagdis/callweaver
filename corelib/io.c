@@ -100,10 +100,8 @@ cw_io_context_t cw_io_context_create(int slots)
 void cw_io_context_destroy(cw_io_context_t ioc)
 {
 	/* Free associated memory with an I/O context */
-	if (ioc->fds)
-		free(ioc->fds);
-	if (ioc->ior)
-		free(ioc->ior);
+	free(ioc->fds);
+	free(ioc->ior);
 	free(ioc);
 }
 

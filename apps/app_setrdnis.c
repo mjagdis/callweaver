@@ -77,8 +77,7 @@ static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, struct 
 	if (l) {
 		cw_shrink_phone_number(l);
 		cw_channel_lock(chan);
-		if (chan->cid.cid_rdnis)
-			free(chan->cid.cid_rdnis);
+		free(chan->cid.cid_rdnis);
 		chan->cid.cid_rdnis = (l[0]) ? strdup(l) : NULL;
 		cw_channel_unlock(chan);
 	}

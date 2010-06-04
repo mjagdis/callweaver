@@ -422,10 +422,8 @@ void destroy_odbc_obj(odbc_obj **obj)
 
 	free((*obj)->name);
 	free((*obj)->dsn);
-	if ((*obj)->username)
-		free((*obj)->username);
-	if ((*obj)->password)
-		free((*obj)->password);
+	free((*obj)->username);
+	free((*obj)->password);
 	cw_mutex_unlock(&(*obj)->lock);
 	cw_mutex_destroy(&(*obj)->lock);
 	free(*obj);

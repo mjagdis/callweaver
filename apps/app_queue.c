@@ -1600,14 +1600,11 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
 
     tmp->chan->appl = "AppQueue (Outgoing Line)";
     tmp->chan->whentohangup = 0;
-    if (tmp->chan->cid.cid_num)
-        free(tmp->chan->cid.cid_num);
+    free(tmp->chan->cid.cid_num);
     tmp->chan->cid.cid_num = NULL;
-    if (tmp->chan->cid.cid_name)
-        free(tmp->chan->cid.cid_name);
+    free(tmp->chan->cid.cid_name);
     tmp->chan->cid.cid_name = NULL;
-    if (tmp->chan->cid.cid_ani)
-        free(tmp->chan->cid.cid_ani);
+    free(tmp->chan->cid.cid_ani);
     tmp->chan->cid.cid_ani = NULL;
     if (qe->chan->cid.cid_num)
         tmp->chan->cid.cid_num = strdup(qe->chan->cid.cid_num);
@@ -1942,11 +1939,9 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
                     else
                     {
                         cw_var_copy(&o->chan->vars, &in->vars);
-                        if (o->chan->cid.cid_num)
-                            free(o->chan->cid.cid_num);
+                        free(o->chan->cid.cid_num);
                         o->chan->cid.cid_num = NULL;
-                        if (o->chan->cid.cid_name)
-                            free(o->chan->cid.cid_name);
+                        free(o->chan->cid.cid_name);
                         o->chan->cid.cid_name = NULL;
 
                         if (in->cid.cid_num)
@@ -1966,16 +1961,14 @@ static struct outchan *wait_for_answer(struct queue_ent *qe, struct outchan *out
 
                         if (in->cid.cid_ani)
                         {
-                            if (o->chan->cid.cid_ani)
-                                free(o->chan->cid.cid_ani);
+                            free(o->chan->cid.cid_ani);
                             o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
                             if (o->chan->cid.cid_ani)
                                 strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
                             else
                                 cw_log(CW_LOG_WARNING, "Out of memory\n");
                         }
-                        if (o->chan->cid.cid_rdnis)
-                            free(o->chan->cid.cid_rdnis);
+                        free(o->chan->cid.cid_rdnis);
                         if (!cw_strlen_zero(in->proc_exten))
                             o->chan->cid.cid_rdnis = strdup(in->proc_exten);
                         else

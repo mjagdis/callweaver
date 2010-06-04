@@ -453,10 +453,8 @@ static int unload_module(void)
 		scan_thread_id = CW_PTHREADT_NULL;
 	}
 
-	if (qdir) {
-		free((char *)qdir);
-		qdir = NULL;
-	}
+	free((char *)qdir);
+	qdir = NULL;
 
 	return res;
 }

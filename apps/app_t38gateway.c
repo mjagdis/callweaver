@@ -480,14 +480,11 @@ static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, struc
             cw_var_inherit(&peer->vars, &chan->vars);
             peer->appl = "AppT38GW (Outgoing Line)";
             peer->whentohangup = 0;
-            if (peer->cid.cid_num)
-                free(peer->cid.cid_num);
+            free(peer->cid.cid_num);
             peer->cid.cid_num = NULL;
-            if (peer->cid.cid_name)
-                free(peer->cid.cid_name);
+            free(peer->cid.cid_name);
             peer->cid.cid_name = NULL;
-            if (peer->cid.cid_ani)
-                free(peer->cid.cid_ani);
+            free(peer->cid.cid_ani);
             peer->cid.cid_ani = NULL;
             peer->transfercapability = chan->transfercapability;
             peer->adsicpe = chan->adsicpe;

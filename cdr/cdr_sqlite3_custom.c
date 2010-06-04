@@ -253,19 +253,15 @@ static void release(void)
 {
 	dbclose();
 
-	if (cmd[I_INSERT])
-		free((char *)cmd[I_INSERT]);
+	free((char *)cmd[I_INSERT]);
 
-	if (values_str)
-		free(values_str);
+	free(values_str);
 	cw_dynargs_free(&values);
 
-	if (columns_str)
-		free(columns_str);
+	free(columns_str);
 	cw_dynargs_free(&columns);
 
-	if (table)
-		free(table);
+	free(table);
 
 	cw_dynstr_free(&evalbuf);
 	cw_dynstr_free(&dbpath);
@@ -292,21 +288,15 @@ static int reload_module(void)
 
 	dbclose();
 
-	if (values_str) {
-		free(values_str);
-		values_str = NULL;
-	}
+	free(values_str);
+	values_str = NULL;
 
-	if (columns_str) {
-		free(columns_str);
-		columns_str = NULL;
-	}
+	free(columns_str);
+	columns_str = NULL;
 	cw_dynargs_reset(&columns);
 
-	if (table) {
-		free(table);
-		table = NULL;
-	}
+	free(table);
+	table = NULL;
 
 	if ((cfg = cw_config_load(config_file))) {
 		res = 0;
@@ -379,7 +369,7 @@ static int reload_module(void)
 	} else
 		cw_log(CW_LOG_WARNING, "Failed to load configuration file \"%s\"\n", config_file);
 
-	if (res && table) {
+	if (res) {
 		free(table);
 		table = NULL;
 	}

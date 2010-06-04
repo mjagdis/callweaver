@@ -2110,15 +2110,11 @@ static struct cw_channel *capi_new(struct capi_pvt *i, int state)
 	cc_copy_string(tmp->context, i->context, sizeof(tmp->context));
 
 	if (!cw_strlen_zero(i->cid)) {
-		if (tmp->cid.cid_num) {
-			free(tmp->cid.cid_num);
-		}
+		free(tmp->cid.cid_num);
 		tmp->cid.cid_num = strdup(i->cid);
 	}
 	if (!cw_strlen_zero(i->dnid)) {
-		if (tmp->cid.cid_dnid) {
-			free(tmp->cid.cid_dnid);
-		}
+		free(tmp->cid.cid_dnid);
 		tmp->cid.cid_dnid = strdup(i->dnid);
 	}
 	tmp->cid.cid_ton = i->cid_ton;
@@ -2911,9 +2907,7 @@ static void capidev_handle_info_indication(_cmsg *CMSG, unsigned int PLCI, unsig
 			snprintf(reasonbuf, sizeof(reasonbuf) - 1, "%d", val); 
 			pbx_builtin_setvar_helper(i->owner, "REDIRECTINGNUMBER", p);
 			pbx_builtin_setvar_helper(i->owner, "REDIRECTREASON", reasonbuf);
-			if (i->owner->cid.cid_rdnis) {
-				free(i->owner->cid.cid_rdnis);
-			}
+			free(i->owner->cid.cid_rdnis);
 			i->owner->cid.cid_rdnis = strdup(p);
 		}
 		break;
@@ -5702,18 +5696,15 @@ static int unload_module(void)
 	}
 
 	for (controller = 1; controller <= capi_num_controllers; controller++) {
-		if (capi_used_controllers & (1 << controller)) {
-			if (capi_controllers[controller])
-				free(capi_controllers[controller]);
-		}
+		if (capi_used_controllers & (1 << controller))
+			free(capi_controllers[controller]);
 	}
 	
 	i = iflist;
 	while (i) {
 		if (i->owner)
 			cc_log(CW_LOG_WARNING, "On unload, interface still has owner.\n");
-		if (i->smoother)
-			cw_smoother_free(i->smoother);
+		cw_smoother_free(i->smoother);
 		cc_mutex_destroy(&i->lock);
 		cw_cond_destroy(&i->event_trigger);
 		itmp = i;

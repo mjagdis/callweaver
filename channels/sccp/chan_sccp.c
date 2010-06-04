@@ -193,8 +193,7 @@ struct cw_channel *sccp_request(const char *type, int format, void *data, int *c
 	}
 
 OUT:
-	if (datadup)
-		free(datadup);
+	free(datadup);
 
 	return (c && c->owner ? c->owner : NULL);
 }
@@ -1192,9 +1191,7 @@ static int reload_config(void) {
 		v = v->next;
 	}
 
-	if (l) {
-		free(l);
-	}
+	free(l);
 
 	/* ok the config parse is done */
 
@@ -1362,10 +1359,8 @@ static int unload_module(void) {
 			l->hints = l->hints->next;
 			free(h);
 		}
-		if (l->cfwd_num)
-			free(l->cfwd_num);
-		if (l->trnsfvm)
-			free(l->trnsfvm);
+		free(l->cfwd_num);
+		free(l->trnsfvm);
 		free(l);
 	}
 	cw_mutex_unlock(&GLOB(lines_lock));

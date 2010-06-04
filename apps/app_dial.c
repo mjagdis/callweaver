@@ -424,11 +424,9 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 						cw_clear_flag(o, DIAL_STILLGOING);	
 						HANDLE_CAUSE(cause, in);
 					} else {
-						if (o->chan->cid.cid_num)
-							free(o->chan->cid.cid_num);
+						free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = NULL;
-						if (o->chan->cid.cid_name)
-							free(o->chan->cid.cid_name);
+						free(o->chan->cid.cid_name);
 						o->chan->cid.cid_name = NULL;
 
 						if (cw_test_flag(o, DIAL_FORCECALLERID)) {
@@ -459,14 +457,12 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 						}
 
 						if (in->cid.cid_ani) {
-							if (o->chan->cid.cid_ani)
-								free(o->chan->cid.cid_ani);
-								o->chan->cid.cid_ani = strdup(in->cid.cid_ani);
-								if (!o->chan->cid.cid_ani)
-									cw_log(CW_LOG_WARNING, "Out of memory\n");
+							free(o->chan->cid.cid_ani);
+							o->chan->cid.cid_ani = strdup(in->cid.cid_ani);
+							if (!o->chan->cid.cid_ani)
+								cw_log(CW_LOG_WARNING, "Out of memory\n");
 						}
-						if (o->chan->cid.cid_rdnis) 
-							free(o->chan->cid.cid_rdnis);
+						free(o->chan->cid.cid_rdnis);
 						if (!cw_strlen_zero(in->proc_exten))
 							o->chan->cid.cid_rdnis = strdup(in->proc_exten);
 						else
@@ -1222,14 +1218,11 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 
 		tmp->chan->appl = "AppDial (Outgoing Line)";
 		tmp->chan->whentohangup = 0;
-		if (tmp->chan->cid.cid_num)
-			free(tmp->chan->cid.cid_num);
+		free(tmp->chan->cid.cid_num);
 		tmp->chan->cid.cid_num = NULL;
-		if (tmp->chan->cid.cid_name)
-			free(tmp->chan->cid.cid_name);
+		free(tmp->chan->cid.cid_name);
 		tmp->chan->cid.cid_name = NULL;
-		if (tmp->chan->cid.cid_ani)
-			free(tmp->chan->cid.cid_ani);
+		free(tmp->chan->cid.cid_ani);
 		tmp->chan->cid.cid_ani = NULL;
 
 		if (chan->cid.cid_num) 

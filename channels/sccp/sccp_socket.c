@@ -140,8 +140,7 @@ static void destroy_session(sccp_session_t * s) {
 		FD_CLR(s->fd, &active_fd_set);
 		close(s->fd);
 	}
-	if (s->buffer)
-		free(s->buffer);
+	free(s->buffer);
 	free(s);
 }
 
@@ -241,9 +240,7 @@ static sccp_moo_t * sccp_process_data(sccp_session_t * s) {
 			cw_log(CW_LOG_WARNING, "SCCP: unable to allocate %zu bytes for packets buffer\n", SCCP_MAX_PACKET);
 	}
 
-	if (s->buffer)
-		free(s->buffer);
-
+	free(s->buffer);
 	s->buffer = newptr;
 
 	return m;

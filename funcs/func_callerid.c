@@ -60,13 +60,11 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw
 			cw_set_callerid(chan, NULL, NULL, argv[1]);
 		} else if (!strcasecmp("dnid", argv[0])) {
 			/* FIXME: do we need to lock chan here? */
-			if (chan->cid.cid_dnid)
-				free(chan->cid.cid_dnid);
+			free(chan->cid.cid_dnid);
 			chan->cid.cid_dnid = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
 		} else if (!strcasecmp("rdnis", argv[0])) {
 			/* FIXME: do we need to lock chan here? */
-			if (chan->cid.cid_rdnis)
-				free(chan->cid.cid_rdnis);
+			free(chan->cid.cid_rdnis);
 			chan->cid.cid_rdnis = cw_strlen_zero(argv[1]) ? NULL : strdup(argv[1]);
 		} else {
 			cw_log(CW_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);

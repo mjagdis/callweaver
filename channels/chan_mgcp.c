@@ -2624,16 +2624,13 @@ static void *mgcp_ss(void *data)
 					if (!cw_strlen_zero(p->cid_num)) {
 						if (!p->hidecallerid) {
 							/* SC: free existing chan->callerid */
-							if (chan->cid.cid_num)
-								free(chan->cid.cid_num);
+							free(chan->cid.cid_num);
 							chan->cid.cid_num = strdup(p->cid_num);
 							/* SC: free existing chan->callerid */
-							if (chan->cid.cid_name)
-								free(chan->cid.cid_name);
+							free(chan->cid.cid_name);
 							chan->cid.cid_name = strdup(p->cid_name);
 						}
-						if (chan->cid.cid_ani)
-							free(chan->cid.cid_ani);
+						free(chan->cid.cid_ani);
 						chan->cid.cid_ani = strdup(p->cid_num);
 					}
 					cw_setstate(chan, CW_STATE_RING);
@@ -2692,11 +2689,9 @@ static void *mgcp_ss(void *data)
 			}
 			/* Disable Caller*ID if enabled */
 			p->hidecallerid = 1;
-			if (chan->cid.cid_num)
-				free(chan->cid.cid_num);
+			free(chan->cid.cid_num);
 			chan->cid.cid_num = NULL;
-			if (chan->cid.cid_name)
-				free(chan->cid.cid_name);
+			free(chan->cid.cid_name);
 			chan->cid.cid_name = NULL;
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/
 			transmit_notify_request(sub, "L/sl");
@@ -2777,12 +2772,10 @@ static void *mgcp_ss(void *data)
 			}
 			/* Enable Caller*ID if enabled */
 			p->hidecallerid = 0;
-			if (chan->cid.cid_num)
-				free(chan->cid.cid_num);
+			free(chan->cid.cid_num);
 			if (!cw_strlen_zero(p->cid_num))
 				chan->cid.cid_num = strdup(p->cid_num);
-			if (chan->cid.cid_name)
-				free(chan->cid.cid_name);
+			free(chan->cid.cid_name);
 			if (!cw_strlen_zero(p->cid_name))
 				chan->cid.cid_name = strdup(p->cid_name);
 			/*res = tone_zone_play_tone(p->subs[index].zfd, DAHDI_TONE_DIALRECALL);*/

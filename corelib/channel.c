@@ -591,16 +591,11 @@ static const struct cw_channel_tech null_tech =
 
 static void free_cid(struct cw_callerid *cid)
 {
-	if (cid->cid_dnid)
-		free(cid->cid_dnid);
-	if (cid->cid_num)
-		free(cid->cid_num);
-	if (cid->cid_name)
-		free(cid->cid_name);
-	if (cid->cid_ani)
-		free(cid->cid_ani);
-	if (cid->cid_rdnis)
-		free(cid->cid_rdnis);
+	free(cid->cid_dnid);
+	free(cid->cid_num);
+	free(cid->cid_name);
+	free(cid->cid_ani);
+	free(cid->cid_rdnis);
 }
 
 
@@ -3068,24 +3063,21 @@ int cw_do_masquerade(struct cw_channel *original)
 void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *calleridname, const char *ani)
 {
 	if (callerid) {
-		if (chan->cid.cid_num)
-			free(chan->cid.cid_num);
+		free(chan->cid.cid_num);
 		if (cw_strlen_zero(callerid))
 			chan->cid.cid_num = NULL;
 		else
 			chan->cid.cid_num = strdup(callerid);
 	}
 	if (calleridname) {
-		if (chan->cid.cid_name)
-			free(chan->cid.cid_name);
+		free(chan->cid.cid_name);
 		if (cw_strlen_zero(calleridname))
 			chan->cid.cid_name = NULL;
 		else
 			chan->cid.cid_name = strdup(calleridname);
 	}
 	if (ani) {
-		if (chan->cid.cid_ani)
-			free(chan->cid.cid_ani);
+		free(chan->cid.cid_ani);
 		if (cw_strlen_zero(ani))
 			chan->cid.cid_ani = NULL;
 		else

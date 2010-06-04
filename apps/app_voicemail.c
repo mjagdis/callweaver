@@ -5404,10 +5404,8 @@ out:
 	}
 	if (vmu)
 		free_user(vmu);
-	if (vms.deleted)
-		free(vms.deleted);
-	if (vms.heard)
-		free(vms.heard);
+	free(vms.deleted);
+	free(vms.heard);
 	LOCAL_USER_REMOVE(u);
 
 	return res;
@@ -6031,22 +6029,14 @@ static int load_config(void)
 		memset(pagerfromstring,0,sizeof(pagerfromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
 		strcpy(charset, "ISO-8859-1");
-		if (emailbody) {
-			free(emailbody);
-			emailbody = NULL;
-		}
-		if (emailsubject) {
-			free(emailsubject);
-			emailsubject = NULL;
-		}
-               if (pagerbody) {
-                       free(pagerbody);
-                       pagerbody = NULL;
-               }
-               if (pagersubject) {
-                       free(pagersubject);
-                       pagersubject = NULL;
-               }
+		free(emailbody);
+		emailbody = NULL;
+		free(emailsubject);
+		emailsubject = NULL;
+		free(pagerbody);
+		pagerbody = NULL;
+		free(pagersubject);
+		pagersubject = NULL;
 		if ((s=cw_variable_retrieve(cfg, "general", "pbxskip")))
 			cw_set2_flag((&globalflags), cw_true(s), VM_PBXSKIP);
 		if ((s=cw_variable_retrieve(cfg, "general", "fromstring")))

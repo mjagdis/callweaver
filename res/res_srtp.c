@@ -221,10 +221,7 @@ static struct cw_srtp_policy *res_srtp_policy_alloc()
 static void
 res_srtp_policy_destroy(struct cw_srtp_policy *policy)
 {
-	if (policy->sp.key) {
-		free(policy->sp.key);
-		policy->sp.key = NULL;
-	}
+	free(policy->sp.key);
 	free(policy);
 }
 
@@ -273,17 +270,15 @@ res_srtp_policy_set_master_key(struct cw_srtp_policy *policy,
 	size_t size = key_len + salt_len;
 	unsigned char *master_key = NULL;
 
-	if (policy->sp.key) {
-		free(policy->sp.key);
-		policy->sp.key = NULL;
+	free(policy->sp.key);
+	policy->sp.key = NULL;
+
+	if ((master_key = malloc(size))) {
+		memcpy(master_key, key, key_len);
+		memcpy(master_key + key_len, salt, salt_len);
+		policy->sp.key = master_key;
 	}
 
-	master_key = malloc(size);
-
-	memcpy(master_key, key, key_len);
-	memcpy(master_key + key_len, salt, salt_len);
-
-	policy->sp.key = master_key;
 	return 0;
 }
 
@@ -463,9 +458,8 @@ res_srtp_create(struct cw_srtp **srtp, struct cw_rtp *rtp,
 static void
 res_srtp_destroy(struct cw_srtp *srtp)
 {
-	if (srtp->session) {
+	if (srtp->session)
 		srtp_dealloc(srtp->session);
-	}
 
 	free(srtp);
 }

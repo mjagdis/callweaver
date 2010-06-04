@@ -176,16 +176,12 @@ static int load_config(int reload)
 
 	pthread_mutex_lock(&csv_lock);
 
-	if (values_str) {
-		free(values_str);
-		values_str = NULL;
-	}
+	free(values_str);
+	values_str = NULL;
 	cw_dynargs_reset(&values);
 
-	if (csvmaster_path) {
-		free(csvmaster_path);
-		csvmaster_path = NULL;
-	}
+	free(csvmaster_path);
+	csvmaster_path = NULL;
 
 	if ((cfg = cw_config_load("cdr_custom.conf"))) {
 		var = cw_variable_browse(cfg, "mappings");
@@ -227,8 +223,7 @@ static int load_config(int reload)
 
 static void release_module(void)
 {
-	if (values_str)
-		free(values_str);
+	free(values_str);
 	cw_dynargs_free(&values);
 
 	if (csvmaster_fd)

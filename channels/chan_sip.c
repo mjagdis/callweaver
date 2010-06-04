@@ -1528,17 +1528,13 @@ static void dialogue_release(struct cw_object *obj)
 		free(dialogue->options);
 	}
 
-	if (dialogue->rpid)
-		free(dialogue->rpid);
-
-	if (dialogue->rpid_from)
-		free(dialogue->rpid_from);
+	free(dialogue->rpid);
+	free(dialogue->rpid_from);
 
 	if (dialogue->chanvars)
 		cw_variables_destroy(dialogue->chanvars);
 
-	if (dialogue->history)
-		free(dialogue->history);
+	free(dialogue->history);
 
 #ifdef ENABLE_SRTP
 	if (dialogue->srtp)
@@ -2667,8 +2663,7 @@ static int sip_resend_reqresp(void *data)
 
     stun_remove_request(&rr->streq->req_head.id);        
 
-    if (rr->req)
-        free(rr->req);
+    free(rr->req);
     cw_object_put(rr->p);
     free(rr);
 
@@ -6281,8 +6276,7 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
 
     __transmit_response(&dialogue, msg, req, 0);
 
-    if (dialogue.history)
-        free(dialogue.history);
+    free(dialogue.history);
 
     return 0;
 }
@@ -6987,8 +6981,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 
 		send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return -1;
@@ -7028,8 +7021,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -7419,8 +7411,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 
 		res = send_request(p, &msg, (init ? 2 : 1));
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -7592,8 +7583,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -7640,8 +7630,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -7694,8 +7683,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -8032,8 +8020,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
         res = send_request(p, &msg, 2);
 
-        if (msg)
-            free(msg);
+        free(msg);
     }
 
     /* set up a timeout */
@@ -8061,8 +8048,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *text)
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -8113,8 +8099,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -8133,8 +8118,7 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int 
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
@@ -8152,8 +8136,7 @@ static int transmit_info_with_vidupdate(struct sip_pvt *p)
 
 		res = send_request(p, &msg, 1);
 
-		if (msg)
-			free(msg);
+		free(msg);
 	}
 
 	return res;
