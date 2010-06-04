@@ -383,14 +383,18 @@ static int to_string(struct val *vp)
 /* return TRUE if this string is NOT a valid number */
 static int isstring(struct val *vp)
 {
+	int ret = (vp->type == CW_EXPR_string);
+
 	if (vp->type == CW_EXPR_arbitrary_string) {
 		int i;
 
 		vp->type = CW_EXPR_string;
+		ret = 1;
 
 		i = 0;
 		if (vp->u.s[i] == '-' || vp->u.s[i] == '+') i++;
 		if (isdigit(vp->u.s[i])) {
+			/* [+-]?\d+(\.\d+)?[eE]-?\d+ */
 			do { i++; } while (isdigit(vp->u.s[i]));
 			if (vp->u.s[i] == '.')
 				do { i++; } while (isdigit(vp->u.s[i]));
@@ -400,12 +404,25 @@ static int isstring(struct val *vp)
 					do { i++; } while (isdigit(vp->u.s[i]));
 			}
 
-			if (!vp->u.s[i])
+			if (!vp->u.s[i]) {
 				vp->type = CW_EXPR_numeric_string;
+				ret = 0;
+			}
+		} else {
+			/* "nan", "NAN", "NaN", [+-]?inf(inity)? or [+-]?INF(INITY)? */
+			if (((vp->u.s[0] == 'n' || vp->u.s[0] == 'N')
+				&& (vp->u.s[1] == 'a' || (vp->u.s[1] == 'A' && vp->u.s[0] == 'N'))
+				&& vp->u.s[2] == vp->u.s[0]
+				&& !vp->u.s[3])
+			|| (!strncmp(&vp->u.s[i], "inf", 3) && (!vp->u.s[i+3] || !strcmp(&vp->u.s[i+3], "inity")))
+			|| (!strncmp(&vp->u.s[i], "INF", 3) && (!vp->u.s[i+3] || !strcmp(&vp->u.s[i+3], "INITY")))) {
+				vp->type = CW_EXPR_numeric_string;
+				ret = 0;
+			}
 		}
 	}
 
-	return (vp->type == CW_EXPR_string);
+	return ret;
 }
 
 

@@ -160,7 +160,19 @@ static char *expr2_token_subst(const char *mess);
 
 [\n]		{/* what to do with eol */}
 
-[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
+-?[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
+		SET_COLUMNS;
+		SET_NUMERIC_STRING;
+		return TOKEN;
+	}
+
+-?(inf(inity)?|INF(INITY)?)	{
+		SET_COLUMNS;
+		SET_NUMERIC_STRING;
+		return TOKEN;
+	}
+
+nan|NAN|NaN	{
 		SET_COLUMNS;
 		SET_NUMERIC_STRING;
 		return TOKEN;
