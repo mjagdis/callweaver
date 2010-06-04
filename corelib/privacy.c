@@ -50,7 +50,7 @@ int cw_privacy_check(char *dest, char *cid)
 {
 	char tmp[256] = "";
 	char key[256];
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *trimcid = "";
 	char *n, *l;
 	int res;

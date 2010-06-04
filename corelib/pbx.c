@@ -211,13 +211,13 @@ static inline struct cw_switch *pbx_findswitch(const char *name)
 static int switch_print(struct cw_object *obj, void *data)
 {
 	struct cw_switch *sw = container_of(obj, struct cw_switch, obj);
-	cw_dynstr_t *ds_p = data;
+	struct cw_dynstr *ds_p = data;
 
         cw_dynstr_printf(ds_p, "%s: %s\n", sw->name, sw->description);
 	return 0;
 }
 
-static int handle_show_switches(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_switches(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -229,7 +229,7 @@ static int handle_show_switches(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 /*! \brief  handle_show_globals: CLI support for listing global variables */
 struct handle_show_globals_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int count;
 };
 
@@ -243,7 +243,7 @@ static int handle_show_globals_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_globals(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_globals(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct handle_show_globals_args args = {
 		.ds_p = ds_p,
@@ -260,7 +260,7 @@ static int handle_show_globals(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  CLI support for setting global variables */
-static int handle_set_global(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_set_global(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     if (argc != 4)
         return RESULT_SHOWUSAGE;
@@ -508,7 +508,7 @@ static int matchcid(const char *cidpattern, const char *callerid)
     return 0;
 }
 
-static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_context *bypass, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct cw_switch **swo, cw_dynstr_t *data, const char **foundcontext)
+static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_context *bypass, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action, char *incstack[], int *stacklen, int *status, struct cw_switch **swo, struct cw_dynstr *data, const char **foundcontext)
 {
     int x, res;
     struct cw_context *tmp;
@@ -711,7 +711,7 @@ static void normalize_offset_length(int *offset, int *length, size_t avail)
 /*! \brief  pbx_retrieve_variable: Support for CallWeaver built-in variables and
  *  functions in the dialplan
  */
-static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *vars, const char *varname, cw_dynstr_t *result, int offset, int length)
+static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *vars, const char *varname, struct cw_dynstr *result, int offset, int length)
 {
 	struct cw_object *obj = NULL;
 	const char *str = NULL;
@@ -753,9 +753,9 @@ static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *va
 }
 
 
-int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, cw_dynstr_t *result)
+int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result)
 {
-	args_t av = CW_DYNARRAY_INIT;
+	struct cw_dynargs av = CW_DYNARRAY_INIT;
 	char *args;
 	size_t i;
 	int offset, length;
@@ -827,7 +827,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			 * that have been done in the past.
 			 */
 			if (args || res) {
-				i = cw_dynstr_end(result);
+				i = result->used;
 
 				if (!cw_function_exec_str(chan, cw_hash_string(src), src, args, result)) {
 #if 0
@@ -839,7 +839,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 					}
 #endif
 
-					normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
+					normalize_offset_length(&offset, &length, result->used - i);
 
 					if (offset != 0)
 						memmove(&result->data[i], &result->data[i + offset], length);
@@ -860,7 +860,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 }
 
 
-static void cw_copy_escape(cw_dynstr_t *ds_p, const char *s)
+static void cw_copy_escape(struct cw_dynstr *ds_p, const char *s)
 {
 	if (s) while (*s) {
 		int n = strcspn(s, "\"\\");
@@ -872,10 +872,10 @@ static void cw_copy_escape(cw_dynstr_t *ds_p, const char *s)
 	}
 }
 
-static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst, char stop, char *quote)
+static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst, char stop, char *quote)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
-	cw_dynstr_t rds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	struct cw_dynstr rds = CW_DYNSTR_INIT;
 	const char *start;
 	int len;
 	char inquote;
@@ -957,7 +957,7 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 
 	return (&start[len] - src);
 }
-void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst)
+void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst)
 {
 	char quote = 0;
 
@@ -972,7 +972,7 @@ void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars,
 
 static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, const char *context, const char *exten, int priority, const char *label, const char *callerid, int action) 
 {
-    cw_dynstr_t data = CW_DYNSTR_INIT;
+    struct cw_dynstr data = CW_DYNSTR_INIT;
     struct cw_exten *e;
     struct cw_switch *sw = NULL;
     const char *foundcontext = NULL;
@@ -1088,7 +1088,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
 /*! \brief  cw_hint_extension: Find hint for given extension in context */
 static struct cw_exten *cw_hint_extension(struct cw_channel *c, const char *context, const char *exten)
 {
-    cw_dynstr_t data = CW_DYNSTR_INIT;
+    struct cw_dynstr data = CW_DYNSTR_INIT;
     struct cw_exten *e;
     struct cw_switch *sw = NULL;
     const char *foundcontext = NULL;
@@ -1538,7 +1538,7 @@ static int cw_remove_hint(struct cw_exten *e)
 
 
 /*! \brief  cw_get_hint: Get hint for channel */
-int cw_get_hint(cw_dynstr_t *hint, cw_dynstr_t *name, struct cw_channel *c, const char *context, const char *exten)
+int cw_get_hint(struct cw_dynstr *hint, struct cw_dynstr *name, struct cw_channel *c, const char *context, const char *exten)
 {
     struct cw_exten *e;
     char *tmp;
@@ -2324,7 +2324,7 @@ static const char set_global_help[] =
  */
 
 /*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
-static int handle_show_hints(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_hints(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct cw_hint *hint;
     int num = 0;
@@ -2370,7 +2370,7 @@ static int handle_show_hints(cw_dynstr_t *ds_p, int argc, char *argv[])
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static void complete_show_dialplan_context(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_dialplan_context(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     struct cw_context *c;
 
@@ -2401,7 +2401,7 @@ struct dialplan_counters
     int extension_existence;
 };
 
-static int show_dialplan_helper(cw_dynstr_t *ds_p, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
+static int show_dialplan_helper(struct cw_dynstr *ds_p, char *context, char *exten, struct dialplan_counters *dpc, struct cw_include *rinclude, int includecount, char *includes[])
 {
     struct cw_context *c;
     int res=0, old_total_exten = dpc->total_exten;
@@ -2625,7 +2625,7 @@ static int show_dialplan_helper(cw_dynstr_t *ds_p, char *context, char *exten, s
     return res;
 }
 
-static int handle_show_dialplan(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_dialplan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char *exten = NULL, *context = NULL;
     /* Variables used for different counters */
@@ -4975,7 +4975,7 @@ int cw_context_verify_includes(struct cw_context *con)
 
 int cw_parseable_goto(struct cw_channel *chan, const char *goto_string) 
 {
-	args_t args = CW_DYNARRAY_INIT;
+	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	char *context, *exten, *prio;
 	int ret;
 
@@ -4989,7 +4989,7 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 
 	ret = cw_explicit_goto(chan, context, exten, prio);
 
-	cw_dynarray_free(&args);
+	cw_dynargs_free(&args);
 
 	cw_cdr_update(chan);
 

@@ -50,7 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "ael/ael_structs.h"
 
-static cw_dynstr_t expr_output = CW_DYNSTR_INIT;
+static struct cw_dynstr expr_output = CW_DYNSTR_INIT;
 
 /* these functions are in ../cw_expr2.fl */
 
@@ -103,7 +103,7 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals);
 void check_switch_expr(struct pval *item, struct argapp *apps);
 extern CW_API_PUBLIC void cw_expr_register_extra_error_info(char *errmsg);
 extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
-extern CW_API_PUBLIC int  cw_expr(char *expr, cw_dynstr_t *result);
+extern CW_API_PUBLIC int  cw_expr(char *expr, struct cw_dynstr *result);
 struct pval *find_proc(char *name);
 struct pval *find_context(char *name);
 struct ael_priority *new_prio(void);
@@ -3492,7 +3492,7 @@ static int pbx_load_module(void)
 }
 
 /* CLI interface */
-static int ael2_debug_read(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_debug_read(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3502,7 +3502,7 @@ static int ael2_debug_read(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_tokens(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_debug_tokens(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3512,7 +3512,7 @@ static int ael2_debug_tokens(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_procs(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_debug_procs(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3522,7 +3522,7 @@ static int ael2_debug_procs(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_debug_contexts(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_debug_contexts(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3532,7 +3532,7 @@ static int ael2_debug_contexts(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -3542,7 +3542,7 @@ static int ael2_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int ael2_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ael2_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);

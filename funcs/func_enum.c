@@ -65,7 +65,7 @@ static const char txtcidname_func_desc[] = "This function looks up the given pho
 		"found in the TXT record in DNS.\n";
 
 
-static int function_enum(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_enum(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
        char tech[80];
        struct localuser *u;
@@ -109,7 +109,7 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, cw_dyns
 
 		LOCAL_USER_ADD(u);
 
-		mark = cw_dynstr_end(result);
+		mark = result->used;
 
 		/* N.B. The only reason cw_get_enum returns tech is to support
 		 * the old (and deprecated) apps/app_enum which hardcodes a mapping
@@ -121,13 +121,13 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, cw_dyns
 		LOCAL_USER_REMOVE(u);
 
 		if (!result->error && (p = strchr(&result->data[mark], ':')) && strcasecmp(argv[1], "ALL"))
-			memmove(&result->data[mark], p + 1, &result->data[cw_dynstr_end(result)] - (p + 1) + 1);
+			memmove(&result->data[mark], p + 1, &result->data[result->used] - (p + 1) + 1);
 	}
 
        return 0;
 }
 
-static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char tech[80];
 	struct localuser *u;

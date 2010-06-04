@@ -282,7 +282,7 @@ static int osp_build(struct cw_config *cfg, char *cat)
 	return 0;
 }
 
-static int show_osp(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int show_osp(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct osp_provider *osp;
 	char *search = NULL;

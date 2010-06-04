@@ -521,7 +521,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct jchan *jc = JS_GetPrivate(cx, obj);
 	char *fdata = NULL, *fname = NULL;
 	char *args, *p;
@@ -743,7 +743,7 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
         JSString *str = NULL;
         char *family, *key;
 
@@ -1326,7 +1326,7 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct cw_channel *chan
 	return NULL;
 }
 
-static int js_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int js_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[512];
 	struct localuser *u;
@@ -1405,7 +1405,7 @@ static int js_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *
 	return res;
 }
 
-static int function_js_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_js_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_var_t *var;
 

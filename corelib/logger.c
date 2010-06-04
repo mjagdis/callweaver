@@ -301,7 +301,7 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 		cw_dynstr_printf(&ds, "%s%s%s%s%s",
 			(channel[0] != '/' ? cw_config[CW_LOG_DIR] : ""),
@@ -427,7 +427,7 @@ static void queue_log_init(void)
 	}
 
 	if (logfiles.queue_log) {
-		cw_dynstr_t filename = CW_DYNSTR_INIT;
+		struct cw_dynstr filename = CW_DYNSTR_INIT;
 
 		cw_dynstr_printf(&filename, "%s/%s", cw_config[CW_LOG_DIR], "queue_log");
 		if (!filename.error)
@@ -455,16 +455,16 @@ int reload_logger(int rotate)
 	mkdir(cw_config[CW_LOG_DIR], 0755);
 
 	if (logfiles.event_log) {
-		cw_dynstr_t old = CW_DYNSTR_INIT;
+		struct cw_dynstr old = CW_DYNSTR_INIT;
 
 		cw_dynstr_printf(&old, "%s/%s", cw_config[CW_LOG_DIR], EVENTLOG);
 
 		if (rotate) {
-			cw_dynstr_t new = CW_DYNSTR_INIT;
+			struct cw_dynstr new = CW_DYNSTR_INIT;
 			size_t mark;
 
 			cw_dynstr_printf(&new, "%s/%s.", cw_config[CW_LOG_DIR], EVENTLOG);
-			mark = cw_dynstr_end(&new);
+			mark = new.used;
 
 			for (x = 0; ; x++) {
 				struct stat st;
@@ -507,7 +507,7 @@ int reload_logger(int rotate)
 	return -1;
 }
 
-static int handle_logger_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_logger_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -519,7 +519,7 @@ static int handle_logger_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-static int handle_logger_rotate(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_logger_rotate(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -534,7 +534,7 @@ static int handle_logger_rotate(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
-static int handle_logger_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMATL	"%-35.35s %-8.8s"
 	struct logchannel *chan;
@@ -626,7 +626,7 @@ int init_logger(void)
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
-		cw_dynstr_t fname = CW_DYNSTR_INIT;
+		struct cw_dynstr fname = CW_DYNSTR_INIT;
 
 		mkdir(cw_config[CW_LOG_DIR], 0755);
 

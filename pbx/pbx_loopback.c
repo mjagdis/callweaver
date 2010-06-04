@@ -68,7 +68,7 @@ static const char tdesc[] = "Loopback Switch";
 */
 
 
-static void loopback_parse(cw_dynstr_t *ds_p, const char *data, const char **newexten, const char **newcontext, int *newpriority, const char **newpattern)
+static void loopback_parse(struct cw_dynstr *ds_p, const char *data, const char **newexten, const char **newcontext, int *newpriority, const char **newpattern)
 {
 	char tmp[80];
 	struct cw_registry reg;
@@ -156,7 +156,7 @@ static void loopback_parse(cw_dynstr_t *ds_p, const char *data, const char **new
 
 static int loopback_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *newcontext = context;
 	const char *newexten = exten;
 	const char *newpattern = NULL;
@@ -188,7 +188,7 @@ static int loopback_exists(struct cw_channel *chan, const char *context, const c
 
 static int loopback_canmatch(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *newcontext = context;
 	const char *newexten = exten;
 	const char *newpattern = NULL;
@@ -219,7 +219,7 @@ static int loopback_canmatch(struct cw_channel *chan, const char *context, const
 
 static int loopback_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *newcontext = context;
 	const char *newexten = exten;
 	const char *newpattern = NULL;
@@ -250,7 +250,7 @@ static int loopback_exec(struct cw_channel *chan, const char *context, const cha
 
 static int loopback_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *newcontext = context;
 	const char *newexten = exten;
 	const char *newpattern = NULL;

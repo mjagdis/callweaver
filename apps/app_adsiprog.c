@@ -1616,7 +1616,7 @@ static int adsi_prog(struct cw_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int adsi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;

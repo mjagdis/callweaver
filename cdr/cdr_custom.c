@@ -63,11 +63,11 @@ static pthread_mutex_t csv_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct cw_channel *chan;
 static char *csvmaster_path, *values_str;
-static args_t values = CW_DYNARRAY_INIT;
+static struct cw_dynargs values = CW_DYNARRAY_INIT;
 
 static FILE *csvmaster_fd;
 
-static cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
+static struct cw_dynstr evalbuf = CW_DYNSTR_INIT;
 
 
 static int csvmaster_open(void)
@@ -142,10 +142,10 @@ static int custom_log(struct cw_cdr *batch)
 
 					putc('\n', csvmaster_fd);
 
-					cw_dynarray_reset(&values);
+					cw_dynargs_reset(&values);
 					cw_dynstr_reset(&evalbuf);
 				} else {
-					cw_dynarray_free(&values);
+					cw_dynargs_free(&values);
 					cw_dynstr_free(&evalbuf);
 					usleep(10);
 				}
@@ -180,7 +180,7 @@ static int load_config(int reload)
 		free(values_str);
 		values_str = NULL;
 	}
-	cw_dynarray_reset(&values);
+	cw_dynargs_reset(&values);
 
 	if (csvmaster_path) {
 		free(csvmaster_path);
@@ -229,7 +229,7 @@ static void release_module(void)
 {
 	if (values_str)
 		free(values_str);
-	cw_dynarray_free(&values);
+	cw_dynargs_free(&values);
 
 	if (csvmaster_fd)
 		fclose(csvmaster_fd);

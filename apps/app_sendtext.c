@@ -57,7 +57,7 @@ static const char sendtext_descrip[] =
 "At this moment, text is supposed to be 7 bit ASCII in most channels.\n";
 
 
-static int sendtext_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sendtext_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res;

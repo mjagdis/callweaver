@@ -187,7 +187,7 @@ static int realtime_canmatch(struct cw_channel *chan, const char *context, const
 
 static int realtime_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	cw_dynstr_t appdata = CW_DYNSTR_INIT;
+	struct cw_dynstr appdata = CW_DYNSTR_INIT;
 	struct cw_variable *v, *v_app = NULL, *v_appdata = NULL;
 
 	CW_UNUSED(callerid);

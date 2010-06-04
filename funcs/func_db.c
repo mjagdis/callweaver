@@ -67,7 +67,7 @@ static const char db_func_desc[] =
 	"will also set the variable DB_RESULT.\n";
 
 
-static int function_db_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_db_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *key;
 
@@ -82,7 +82,7 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, cw_dyn
 	}
 
 	if (result) {
-		size_t mark = cw_dynstr_end(result);
+		size_t mark = result->used;
 
 		if (cw_db_get(argv[0], key, result))
 			cw_log(CW_LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
@@ -98,7 +98,7 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, cw_dyn
 }
 
 
-static int function_db_exists(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_db_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *key;
 
@@ -108,7 +108,7 @@ static int function_db_exists(struct cw_channel *chan, int argc, char **argv, cw
 	*(key++) = '\0';
 
 	if (result) {
-		size_t mark = cw_dynstr_end(result);
+		size_t mark = result->used;
 
 		cw_dynstr_printf(result, "%s", (cw_db_get(argv[0], key, NULL) ? "0" : "1"));
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", &result->data[mark]);

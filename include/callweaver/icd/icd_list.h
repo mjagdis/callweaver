@@ -139,7 +139,7 @@ extern "C" {
     icd_status icd_list__remove_by_element(icd_list * that, const void *payload);
 
 /* Print out a copy of the list */
-    icd_status icd_list__dump(icd_list * that, int verbosity, cw_dynstr_t *ds_p);
+    icd_status icd_list__dump(icd_list * that, int verbosity, struct cw_dynstr *ds_p);
 
 /***** Node behaviours *****/
 
@@ -199,7 +199,7 @@ extern "C" {
 
 /* Set the dump function for this list */
     icd_status icd_list__set_dump_func(icd_list * that, icd_status(*dump_fn) (icd_list * list, int verbosity,
-            cw_dynstr_t *ds_p, void *extra), void *extra);
+            struct cw_dynstr *ds_p, void *extra), void *extra);
 
 /***** Locking *****/
 
@@ -246,7 +246,7 @@ extern "C" {
     icd_list_node *icd_list__insert_ordered(icd_list * that, void *new_elem, void *cmp_fn);
 
 /* Standard caller list dump function */
-    icd_status icd_list__standard_dump(icd_list * list, int verbosity, cw_dynstr_t *ds_p, void *extra);
+    icd_status icd_list__standard_dump(icd_list * list, int verbosity, struct cw_dynstr *ds_p, void *extra);
 
 /***** Comparison functions ("void *" are all "icd_list *") *****/
 

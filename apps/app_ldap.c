@@ -33,7 +33,7 @@
 
 char *replace_cw_vars(struct cw_channel *chan, const char *string);
 int ldap_lookup(const char *host, int port, int version, int timeout, const char *user, const char *pass, const char *base, const char *scope, const char *filter, const char *attribute, char *result);
-static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, cw_dynstr_t *result) ;
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result) ;
 static char *strtrim(char *string);
 
 static const char tdesc[] = "LDAP directory lookup function for CallWeaver extension logic.";
@@ -47,7 +47,7 @@ static const char g_descrip[] =
 "Upon exit, set the variable LDAPSTATUS to either SUCCESS or FAILURE.\n"
 "Always returns 0.\n";
 
-static int ldap_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int ldap_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     const char *varname;
@@ -187,7 +187,7 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
         cw_verbose (VERBOSE_PREFIX_3 "LDAPget: ldap://%s/%s?%s?%s?%s\n", host, base, attribute, scope, filter);
 
     cw_dynstr_need(result, 4096);
-    mark = cw_dynstr_end(result);
+    mark = result->used;
 
     if (!result->error && ldap_lookup(host, port, version, timeout, user, pass, base, scope, filter, attribute, &result->data[mark])) {
 
@@ -368,12 +368,12 @@ char *replace_cw_vars(struct cw_channel *chan, const char *_string)
     return string;
 }
 
-static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, cw_dynstr_t *result)
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result)
 {
 	iconv_t cd;
 
 	if ((cd = iconv_open(outcharset, incharset)) != (iconv_t) -1) {
-		size_t mark = cw_dynstr_end(result);
+		size_t mark = result->used;
 		size_t need;
 
 		do {

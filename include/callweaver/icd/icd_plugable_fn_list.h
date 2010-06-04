@@ -80,7 +80,7 @@ extern "C" {
     icd_status icd_plugable_fn_remove_all_plugable_fns(icd_plugable_fn_list * that);
 
 /* Prints the contents of the metalist to the given file descriptor. */
-    icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, cw_dynstr_t *ds_p);
+    icd_status icd_plugable_fn_list__dump(icd_plugable_fn_list * that, struct cw_dynstr *ds_p);
 
 /* Getter and Setters */
     int icd_plugable_fn_list_count(icd_plugable_fn_list * that);

@@ -290,7 +290,7 @@ struct iax2_context {
 static int global_rtautoclear = 120;
 
 static int reload_config(void);
-static int iax2_reload(cw_dynstr_t *ds_p, int argc, char *argv[]);
+static int iax2_reload(struct cw_dynstr *ds_p, int argc, char *argv[]);
 
 
 struct iax2_user {
@@ -644,7 +644,7 @@ static void reg_source_db(struct iax2_peer *p);
 static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static void destroy_peer(struct iax2_peer *peer);
-static int cw_cli_netstats(cw_dynstr_t *ds_p, int limit_fmt);
+static int cw_cli_netstats(struct cw_dynstr *ds_p, int limit_fmt);
 
 #ifdef __CW_DEBUG_MALLOC
 static void FREE(void *ptr)
@@ -1476,7 +1476,7 @@ static int attempt_transmit(void *data)
 	return 0;
 }
 
-static int iax2_prune_realtime(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_prune_realtime(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct iax2_peer *peer;
 
@@ -1500,7 +1500,7 @@ static int iax2_prune_realtime(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_test_losspct(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_test_losspct(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 
@@ -1513,7 +1513,7 @@ static int iax2_test_losspct(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 #ifdef IAXTESTS
-static int iax2_test_late(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_test_late(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -1523,7 +1523,7 @@ static int iax2_test_late(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_test_resync(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_test_resync(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -1536,7 +1536,7 @@ static int iax2_test_resync(cw_dynstr_t *ds_p, int argc, char *argv[])
 #endif /* IAXTESTS */
 
 /*--- iax2_show_peer: Show one peer in detail ---*/
-static int iax2_show_peer(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char status[30];
 	char cbuf[256];
@@ -1605,7 +1605,7 @@ static int iax2_show_peer(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static void complete_iax2_show_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_iax2_show_peer(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct iax2_peer *p;
 
@@ -1622,7 +1622,7 @@ static void complete_iax2_show_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg
 	}
 }
 
-static int iax2_show_stats(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_stats(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct iax_frame *cur;
 	int cnt = 0, dead=0, final=0;
@@ -1648,7 +1648,7 @@ static int iax2_show_stats(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_show_cache(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_cache(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct iax2_dpcache *dp;
 	char tmp[1024], *pc;
@@ -2116,7 +2116,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 	if (cw_strlen_zero(peer->dbsecret)) {
 		cw_copy_string(cai->secret, peer->secret, sizeof(cai->secret));
 	} else {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		char *family;
 		char *key = NULL;
 
@@ -2552,8 +2552,8 @@ static enum cw_bridge_result iax2_bridge(struct cw_channel *c0, struct cw_channe
 		}
 		if (c0->nativeformats != c1->nativeformats) {
 			if (option_verbose > 2) {
-				cw_dynstr_t buf0 = CW_DYNSTR_INIT;
-				cw_dynstr_t buf1 = CW_DYNSTR_INIT;
+				struct cw_dynstr buf0 = CW_DYNSTR_INIT;
+				struct cw_dynstr buf1 = CW_DYNSTR_INIT;
 				cw_getformatname_multiple(&buf0, c0->nativeformats);
 				cw_getformatname_multiple(&buf1, c1->nativeformats);
 				cw_verbose(VERBOSE_PREFIX_3 "Operating with different codecs %d[%s] %d[%s], can't native bridge...\n", c0->nativeformats, (buf0.used ? buf0.data : ""), c1->nativeformats, (buf1.used ? buf1.data : ""));
@@ -3481,7 +3481,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct cw_frame *f, unsigned int
 	return res;
 }
 
-static int iax2_show_users(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_users(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -3542,7 +3542,7 @@ static int iax2_show_users(cw_dynstr_t *ds_p, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int __iax2_show_peers(int manager, cw_dynstr_t *ds_p, int argc, char *argv[])
+static int __iax2_show_peers(int manager, struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	regex_t regexbuf;
 	int havepattern = 0;
@@ -3659,7 +3659,7 @@ static int __iax2_show_peers(int manager, cw_dynstr_t *ds_p, int argc, char *arg
 #undef FORMAT2
 }
 
-static int iax2_show_peers(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_peers(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	return __iax2_show_peers(0, ds_p, argc, argv);
 }
@@ -3718,7 +3718,7 @@ static const char *regstate2str(int regstate)
 	}
 }
 
-static int iax2_show_registry(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_registry(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-10.10s  %-20.20s %8.8s  %s\n"
 #define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
@@ -3753,7 +3753,7 @@ static int iax2_show_registry(cw_dynstr_t *ds_p, int argc, char *argv[])
 #undef FORMAT2
 }
 
-static int iax2_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
 #define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-6.6d %-6.6d  %s\n"
@@ -3817,7 +3817,7 @@ static int iax2_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
 #undef FORMATB
 }
 
-static int cw_cli_netstats(cw_dynstr_t *ds_p, int limit_fmt)
+static int cw_cli_netstats(struct cw_dynstr *ds_p, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
@@ -3877,7 +3877,7 @@ static int cw_cli_netstats(cw_dynstr_t *ds_p, int limit_fmt)
 	return numchans;
 }
 
-static int iax2_show_netstats(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_show_netstats(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -3893,7 +3893,7 @@ static int iax2_show_netstats(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -3904,7 +3904,7 @@ static int iax2_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_do_trunk_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_do_trunk_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -3915,7 +3915,7 @@ static int iax2_do_trunk_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -3926,7 +3926,7 @@ static int iax2_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_no_trunk_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_no_trunk_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -4205,7 +4205,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		cw_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 		/* Keep this check last */
 		if (!cw_strlen_zero(user->dbsecret)) {
-			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			char *family, *key=NULL;
 			family = cw_strdupa(user->dbsecret);
 			key = strchr(family, '/');
@@ -4958,7 +4958,7 @@ static void reg_source_db(struct iax2_peer *p)
 {
 	char iabuf[INET_ADDRSTRLEN];
 	struct in_addr in;
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *c, *d;
 
 	if (!cw_test_flag(p, IAX_TEMPONLY) && (!cw_db_get("IAX/Registry", p->name, &ds)) && ds.used && !ds.error) {
@@ -8198,7 +8198,7 @@ static int reload_config(void)
 	return 0;
 }
 
-static int iax2_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int iax2_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);
@@ -8553,7 +8553,7 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 	return cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL);
 }
 
-static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct iax2_peer *peer;
 	char iabuf[INET_ADDRSTRLEN];

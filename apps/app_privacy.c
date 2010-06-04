@@ -64,7 +64,7 @@ static const char privacy_descrip[] =
 ;
 
 
-static int privacy_exec (struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int privacy_exec (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char phone[30];
 	struct localuser *u;

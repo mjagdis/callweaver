@@ -344,7 +344,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 static __attribute__((noreturn)) void *scan_thread(void *data)
 {
 	struct stat st;
-	cw_dynstr_t fn = CW_DYNSTR_INIT;
+	struct cw_dynstr fn = CW_DYNSTR_INIT;
 	DIR *dir;
 	struct dirent *de;
 	size_t mark;
@@ -396,7 +396,7 @@ static __attribute__((noreturn)) void *scan_thread(void *data)
 		pthread_cleanup_push((void (*)(void *))closedir, dir);
 
 		cw_dynstr_printf(&fn, "%s/", qdir);
-		mark = cw_dynstr_end(&fn);
+		mark = fn.used;
 
 		while ((de = readdir(dir))) {
 			if (de->d_name[0] == '.')

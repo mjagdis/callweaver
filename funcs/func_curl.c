@@ -66,7 +66,7 @@ static const char curl_func_desc[] =
 
 
 struct curl_rw_args {
-	cw_dynstr_t *result;
+	struct cw_dynstr *result;
 };
 
 
@@ -84,7 +84,7 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *data)
 }
 
 
-static int curl_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int curl_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct curl_rw_args write_args = {
 		.result = result,

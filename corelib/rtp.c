@@ -1378,14 +1378,14 @@ const char *cw_rtp_lookup_mime_subtype(const int is_cw_format, const int code)
     return "";
 }
 
-void cw_rtp_lookup_mime_multiple(cw_dynstr_t *result, const int capability, const int is_cw_format)
+void cw_rtp_lookup_mime_multiple(struct cw_dynstr *result, const int capability, const int is_cw_format)
 {
     size_t mark;
     int format;
 
     cw_dynstr_printf(result, "0x%x (", capability);
 
-    mark = cw_dynstr_end(result);
+    mark = result->used;
 
     for (format = 1;  format < CW_RTP_MAX;  format <<= 1)
     {
@@ -1396,7 +1396,7 @@ void cw_rtp_lookup_mime_multiple(cw_dynstr_t *result, const int capability, cons
         }
     }
 
-    cw_dynstr_printf(result, (cw_dynstr_end(result) != mark ? ")" : "nothing)"));
+    cw_dynstr_printf(result, (result->used != mark ? ")" : "nothing)"));
 }
 
 struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr addr)
@@ -2193,7 +2193,7 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     return CW_BRIDGE_FAILED;
 }
 
-static int rtp_do_debug_ip(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int rtp_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -2224,7 +2224,7 @@ static int rtp_do_debug_ip(cw_dynstr_t *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int rtp_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int rtp_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     if (argc != 2)
     {
@@ -2238,7 +2238,7 @@ static int rtp_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
    
-static int rtp_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int rtp_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 

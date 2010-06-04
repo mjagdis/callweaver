@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 
 /* function_config_read()  */
-static int function_config_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_config_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int i;
 
@@ -63,7 +63,7 @@ static int function_config_rw(struct cw_channel *chan, int argc, char **argv, cw
 /* function_config_read()  */
 
 
-static int function_config_systemname(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_config_systemname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecated = 1;
 	char *av[] = { (char *)"systemname", NULL };

@@ -75,7 +75,7 @@ static const char if_time_func_desc[] =
 "NOTE: Both true and false are evaluated regardless of which is to be returned\n";
 
 
-static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
@@ -83,7 +83,7 @@ static int builtin_function_isnull(struct cw_channel *chan, int argc, char **arg
 	return 0;
 }
 
-static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
@@ -91,7 +91,7 @@ static int builtin_function_exists(struct cw_channel *chan, int argc, char **arg
 	return 0;
 }
 
-static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_timing timing;
 	char *s, *q, **a = NULL;
@@ -151,7 +151,7 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 	return 0;
 }
 
-static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	char *s, *q, **a = NULL;

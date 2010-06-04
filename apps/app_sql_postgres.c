@@ -501,7 +501,7 @@ static int aPGSQL_debug(struct cw_channel *chan, void *data)
 		
 	
 
-static int PGSQL_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int PGSQL_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res;

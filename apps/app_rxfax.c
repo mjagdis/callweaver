@@ -651,7 +651,7 @@ static int rxfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *fi
 }
 /*- End of function --------------------------------------------------------*/
 
-static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int rxfax_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     fax_state_t fax;
     t38_terminal_state_t t38;

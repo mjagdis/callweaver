@@ -29,7 +29,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
-int cw_dynstr_vprintf(cw_dynstr_t *ds_p, const char *fmt, va_list ap)
+int cw_dynstr_vprintf(struct cw_dynstr *ds_p, const char *fmt, va_list ap)
 {
 	while (!ds_p->error) {
 		va_list aq;
@@ -64,7 +64,7 @@ int cw_dynstr_vprintf(cw_dynstr_t *ds_p, const char *fmt, va_list ap)
 	return ds_p->error;
 }
 
-int cw_dynstr_printf(cw_dynstr_t *ds_p, const char *fmt, ...)
+int cw_dynstr_printf(struct cw_dynstr *ds_p, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;

@@ -67,9 +67,9 @@ static const char record_descrip[] =
 "Returns -1 when the user hangs up.\n";
 
 
-static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int record_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	cw_dynstr_t filename = CW_DYNSTR_INIT;
+	struct cw_dynstr filename = CW_DYNSTR_INIT;
 	struct cw_filestream *s = '\0';
 	struct localuser *u;
 	struct cw_frame *f = NULL;

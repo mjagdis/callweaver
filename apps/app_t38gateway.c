@@ -436,7 +436,7 @@ static int cw_t38_gateway(struct cw_channel *chan, struct cw_channel *peer, int 
     return running;
 }
 
-static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int t38gateway_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char status[256];
     struct cw_channel *channels[2];

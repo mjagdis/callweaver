@@ -989,7 +989,7 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
     return  res;
 }
 
-static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	char *initial_digits;

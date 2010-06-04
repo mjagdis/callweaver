@@ -66,7 +66,7 @@ static const char datetime_descrip[] =
 "  Returns 0 or -1 on hangup.\n";
 
 
-static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sayunixtime_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct timeval tv;
 	struct localuser *u;

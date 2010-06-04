@@ -148,7 +148,7 @@ extern "C" {
     icd_member *icd_caller__get_member_for_distributor(icd_caller * that, icd_distributor * dist);
 
 /* Prints the contents of the caller structure to the given file descriptor. */
-    icd_status icd_caller__dump(icd_caller * that, int verbosity, cw_dynstr_t *ds_p);
+    icd_status icd_caller__dump(icd_caller * that, int verbosity, struct cw_dynstr *ds_p);
 
 /* Start the caller thread. */
     icd_status icd_caller__start_caller_response(icd_caller * that);
@@ -363,7 +363,7 @@ extern "C" {
 
 /* Set the dump function for this caller */
     icd_status icd_caller__set_dump_fn(icd_caller * that, icd_status(*dump_fn) (icd_caller * caller, int verbosity,
-            cw_dynstr_t *ds_p, const void *extra), const void *extra);
+            struct cw_dynstr *ds_p, const void *extra), const void *extra);
 
 /***** Locking *****/
 
@@ -456,7 +456,7 @@ extern "C" {
     icd_status icd_caller__standard_launch_caller(icd_caller * caller);
 
 /* Standard caller dump function */
-    icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, cw_dynstr_t *ds_p, void *extra);
+    icd_status icd_caller__standard_dump(icd_caller * caller, int verbosity, struct cw_dynstr *ds_p, void *extra);
 
 /***** Comparison functions (" all "icd_caller *") *****/
     int icd_caller__cmp_call_start_time_order(icd_caller * caller1, icd_caller * caller2);
@@ -485,7 +485,7 @@ extern "C" {
     void icd_caller__dump_debug(icd_caller * that);
     icd_status icd_caller__join_callers(icd_caller * that, icd_caller * associate);
     icd_caller *icd_caller__clone_if_necessary(icd_caller * that);
-    void icd_caller__dump_debug_fd(icd_caller * that, cw_dynstr_t *ds_p, const char *indent);
+    void icd_caller__dump_debug_fd(icd_caller * that, struct cw_dynstr *ds_p, const char *indent);
     void icd_caller__invalidate(icd_caller * that);
     icd_status icd_caller__fail_bridging(icd_caller * bridger);
     void icd_caller__loop(icd_caller * that, int do_spawn);

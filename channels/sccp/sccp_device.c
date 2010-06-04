@@ -579,7 +579,7 @@ OUT:
 void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	sccp_line_t * l;
 	char tmp[256] = "";
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	int timeout = 0;
 	uint8_t res = 0;
 

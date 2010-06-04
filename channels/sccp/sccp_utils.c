@@ -267,7 +267,7 @@ static void sccp_cfwd_parse(sccp_device_t * d, char * tmp, uint8_t type) {
 }
 
 void sccp_dev_dbget(sccp_device_t * d) {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *tmp, *tmp1, *r;
 	int i=0;
 

@@ -58,16 +58,16 @@ static const char config_file[] = "cdr_pgsql_custom.conf";
 static const char desc[] = "Custom PostgreSQL CDR Backend";
 static const char name[] = "cdr_pgsql_custom";
 
-cw_dynstr_t dbpath = CW_DYNSTR_INIT;
+struct cw_dynstr dbpath = CW_DYNSTR_INIT;
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static PGconn *db = NULL;
 
 static char *conninfo, *table, *columns_str, *values_str;
-static args_t columns = CW_DYNARRAY_INIT;
-static args_t values = CW_DYNARRAY_INIT;
-cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
+static struct cw_dynargs columns = CW_DYNARRAY_INIT;
+static struct cw_dynargs values = CW_DYNARRAY_INIT;
+struct cw_dynstr evalbuf = CW_DYNSTR_INIT;
 
 static struct cw_channel *chan;
 
@@ -119,7 +119,7 @@ static int do_prepares(void)
 
 static int dbopen(int force)
 {
-	cw_dynstr_t sql_cmd = CW_DYNSTR_INIT;
+	struct cw_dynstr sql_cmd = CW_DYNSTR_INIT;
 	PGresult *pgres;
 	int i, res;
 
@@ -270,11 +270,11 @@ static void release(void)
 
 	if (values_str)
 		free(values_str);
-	cw_dynarray_free(&values);
+	cw_dynargs_free(&values);
 
 	if (columns_str)
 		free(columns_str);
-	cw_dynarray_free(&columns);
+	cw_dynargs_free(&columns);
 
 	if (table)
 		free(table);
@@ -316,13 +316,13 @@ static int reload_module(void)
 		free(values_str);
 		values_str = NULL;
 	}
-	cw_dynarray_reset(&values);
+	cw_dynargs_reset(&values);
 
 	if (columns_str) {
 		free(columns_str);
 		columns_str = NULL;
 	}
-	cw_dynarray_reset(&columns);
+	cw_dynargs_reset(&columns);
 
 	if (table) {
 		free(table);
@@ -376,7 +376,7 @@ static int reload_module(void)
 		cw_config_destroy(cfg);
 
 		if (!res && !(res = dbopen(1))) {
-			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			int i, l;
 
 			res = -1;

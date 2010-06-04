@@ -981,7 +981,7 @@ int cw_app_group_list_unlock(void)
 }
 
 
-int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, char **tail)
+int cw_separate_app_args(struct cw_dynargs *args, char *buf, const char *delim, char stop, char **tail)
 {
 	int res;
 
@@ -989,7 +989,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, 
 		cw_log(CW_LOG_DEBUG, "stop=0x%02x '%c', delim=\"%s\", args: %s\n", stop, (isprint(stop) ? stop : '?'), delim, buf);
 
 	if (args) {
-		cw_dynarray_reset(args);
+		cw_dynargs_reset(args);
 		args->used = 0;
 	}
 
@@ -1073,7 +1073,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, 
 				argl[argl->used++] = end - start;
 #endif
 			if (args) {
-				if (cw_dynarray_need(args, args->used + 2))
+				if (cw_dynargs_need(args, args->used + 2))
 					break;
 
 				args->data[args->used++] = start;
@@ -1092,7 +1092,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, 
 		if (args->used == 1 && !args->data[0][0])
 			args->used--;
 
-		if (!cw_dynarray_need(args, 1)) {
+		if (!cw_dynargs_need(args, 1)) {
 			args->data[args->used] = NULL;
 
 			if (option_debug && option_verbose > 5) {

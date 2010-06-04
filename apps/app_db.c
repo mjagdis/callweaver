@@ -85,7 +85,7 @@ static const char dt_descrip[] =
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 
-static int deltree_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int deltree_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *family, *keytree;
 	struct localuser *u;
@@ -132,7 +132,7 @@ static int deltree_exec(struct cw_channel *chan, int argc, char **argv, cw_dynst
 	return 0;
 }
 
-static int del_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int del_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *family, *key;
 	struct localuser *u;
@@ -170,7 +170,7 @@ static int del_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t 
 	return 0;
 }
 
-static int put_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int put_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int dep_warning = 0;
 	char *val, *family, *key;
@@ -216,10 +216,10 @@ static int put_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t 
 	return 0;
 }
 
-static int get_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int get_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int dep_warning = 0;
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *varname, *family, *key;
 	struct localuser *u;
 	int ret = 0;

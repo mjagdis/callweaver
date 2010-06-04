@@ -54,7 +54,7 @@ static const char setrdnis_descrip[] =
 "CALLERID(rdnis)\n";
 
 
-static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	struct localuser *u;

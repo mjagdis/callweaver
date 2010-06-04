@@ -56,7 +56,7 @@ static const char tdesc[] = "Indicator for whether a voice mailbox has messages 
 
 static int hasvoicemail_internal(const char *context, const char *box, const char *folder)
 {
-	cw_dynstr_t vmpath = CW_DYNSTR_INIT;
+	struct cw_dynstr vmpath = CW_DYNSTR_INIT;
 	DIR *vmdir;
 	struct dirent *vment;
 	int count=0;
@@ -76,7 +76,7 @@ static int hasvoicemail_internal(const char *context, const char *box, const cha
 	return count;
 }
 
-static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	const char *context;

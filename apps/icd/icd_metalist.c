@@ -185,7 +185,7 @@ icd_status icd_metalist__remove_list_by_element(icd_metalist * that, icd_list * 
 }
 
 /* Prints the contents of the metalist to the given file descriptor. */
-icd_status icd_metalist__dump(icd_metalist * that, cw_dynstr_t *ds_p)
+icd_status icd_metalist__dump(icd_metalist * that, struct cw_dynstr *ds_p)
 {
     icd_status ret = ICD_SUCCESS;
 

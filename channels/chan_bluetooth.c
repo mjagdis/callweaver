@@ -2566,7 +2566,7 @@ blt_parse_config(void)
 
 
 static int
-blt_show_peers(cw_dynstr_t *ds_p, int argc, char *argv[])
+blt_show_peers(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
   blt_dev_t * dev;
 
@@ -2605,7 +2605,7 @@ blt_show_peers(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 static int
-blt_show_information(cw_dynstr_t *ds_p, int argc, char *argv[])
+blt_show_information(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
   char b1[18];
 
@@ -2624,7 +2624,7 @@ blt_show_information(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 static int
-blt_ag_sendcmd(cw_dynstr_t *ds_p, int argc, char *argv[])
+blt_ag_sendcmd(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
   blt_dev_t * dev;
 
@@ -2668,7 +2668,7 @@ blt_ag_sendcmd(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 static void
-complete_device(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len, int rpos, blt_role_t role)
+complete_device(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len, int rpos, blt_role_t role)
 {
   blt_dev_t * dev;
 
@@ -2686,7 +2686,7 @@ complete_device(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len, i
 }
 
 static void
-complete_device_2_ag(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+complete_device_2_ag(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
   complete_device(ds_p, argv, lastarg, lastarg_len, 2, BLT_ROLE_AG);
 }

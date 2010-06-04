@@ -443,7 +443,7 @@ int stun_handle_packet(int s,
 
 /* ************************************************************************* */
 
-int stun_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+int stun_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -455,7 +455,7 @@ int stun_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
    
-int stun_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+int stun_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 

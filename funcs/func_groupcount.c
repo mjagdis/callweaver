@@ -65,7 +65,7 @@ static const char group_list_func_syntax[] = "GROUP_LIST()";
 static const char group_list_func_desc[] = "Gets a list of the groups set on a channel.\n";
 
 
-static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char group[80] = "", category[80] = "";
 	int count= -1;
@@ -84,7 +84,7 @@ static int group_count_function_read(struct cw_channel *chan, int argc, char **a
 	return 0;
 }
 
-static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char group[80] = "";
 	char category[80] = "";
@@ -105,10 +105,10 @@ static int group_match_count_function_read(struct cw_channel *chan, int argc, ch
 	return 0;
 }
 
-static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int group_function_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc > 0) {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 		if (argc > 1 && argv[1][0]) {
 			cw_dynstr_printf(&ds, "%s@%s", argv[1], argv[0]);
@@ -152,10 +152,10 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cw_
 }
 
 
-static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	cw_dynstr_t tmp1 = CW_DYNSTR_INIT;
-	cw_dynstr_t tmp2 = CW_DYNSTR_INIT;
+	struct cw_dynstr tmp1 = CW_DYNSTR_INIT;
+	struct cw_dynstr tmp2 = CW_DYNSTR_INIT;
 	struct cw_group_info *gi = NULL;
 
 	CW_UNUSED(argc);

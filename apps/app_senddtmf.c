@@ -52,7 +52,7 @@ static const char senddtmf_descrip[] =
 " Returns 0 on success or -1 on a hangup.\n";
 
 
-static int senddtmf_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int senddtmf_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int timeout = 250;

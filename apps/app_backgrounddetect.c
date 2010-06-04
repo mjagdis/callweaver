@@ -86,7 +86,7 @@ static const char background_detect_descrip[] =
 #define CALLERID_FIELD cid.cid_num
 
 
-static int background_detect_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int background_detect_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char dtmf_did[256] = "\0";
 	struct timeval start = { 0, 0};

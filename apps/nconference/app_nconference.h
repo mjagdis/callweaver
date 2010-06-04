@@ -14,4 +14,4 @@
  *
  */
 
-int app_conference_main( struct cw_channel* chan, int argc, char **argv, cw_dynstr_t *result);
+int app_conference_main( struct cw_channel* chan, int argc, char **argv, struct cw_dynstr *result);

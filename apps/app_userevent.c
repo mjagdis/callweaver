@@ -70,9 +70,9 @@ static const char userevent_descrip[] =
 "Returns 0.";
 
 
-static int userevent_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int userevent_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	cw_dynstr_t eventname = CW_DYNSTR_INIT;
+	struct cw_dynstr eventname = CW_DYNSTR_INIT;
 	int i;
 
 	CW_UNUSED(result);

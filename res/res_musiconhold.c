@@ -549,7 +549,7 @@ static void *monitor_custom_command(void *data)
 	return NULL;
 }
 
-static int moh0_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int moh0_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(result);
@@ -563,7 +563,7 @@ static int moh0_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return -1;
 }
 
-static int moh1_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int moh1_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res;
 
@@ -581,7 +581,7 @@ static int moh1_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return res;
 }
 
-static int moh2_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int moh2_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -592,7 +592,7 @@ static int moh2_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return 0;
 }
 
-static int moh3_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int moh3_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	const char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
 
@@ -604,7 +604,7 @@ static int moh3_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return 0;
 }
 
-static int moh4_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int moh4_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -1102,7 +1102,7 @@ static int moh_off_one(struct cw_object *obj, void *data)
 }
 
 
-static int moh_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int moh_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *moh;
 	int x;
@@ -1141,7 +1141,7 @@ static int moh_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int cli_files_show(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int cli_files_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
 	int i;
@@ -1163,7 +1163,7 @@ static int cli_files_show(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return 0;
 }
 
-static int moh_classes_show(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int moh_classes_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct mohclass *class;
 

@@ -8962,7 +8962,7 @@ static int start_pri(struct dahdi_pri *pri)
 	return 0;
 }
 
-static void complete_span_helper(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len, int rpos)
+static void complete_span_helper(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len, int rpos)
 {
 	int span = 1;
 
@@ -8974,17 +8974,17 @@ static void complete_span_helper(cw_dynstr_t *ds_p, char *argv[], int lastarg, i
 	}
 }
 
-static void complete_span_4(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_span_4(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	complete_span_helper(ds_p, argv, lastarg, lastarg_len, 3);
 }
 
-static void complete_span_5(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_span_5(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	complete_span_helper(ds_p, argv, lastarg, lastarg_len, 4);
 }
 
-static int handle_pri_set_debug_file(cw_dynstr_t *ds_p, int argc, char **argv)
+static int handle_pri_set_debug_file(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	int myfd;
 
@@ -9024,7 +9024,7 @@ static int handle_pri_set_debug_file(cw_dynstr_t *ds_p, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_pri_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9050,7 +9050,7 @@ static int handle_pri_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 
 
-static int handle_pri_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_pri_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9073,7 +9073,7 @@ static int handle_pri_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_really_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_pri_really_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9117,7 +9117,7 @@ static void build_status(char *s, size_t len, int status, int active)
 	s[len - 1] = '\0';
 }
 
-static int handle_pri_show_span(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_pri_show_span(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int span;
 	int x;
@@ -9156,7 +9156,7 @@ static int handle_pri_show_span(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_pri_show_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_pri_show_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int x;
 	int span;
@@ -9249,7 +9249,7 @@ static struct cw_clicmd dahdi_pri_cli[] = {
 
 #endif /* ZAPATA_PRI */
 
-static int dahdi_destroy_channel(cw_dynstr_t *ds_p, int argc, char **argv)
+static int dahdi_destroy_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	int channel = 0;
 	struct dahdi_pvt *tmp = NULL;
@@ -9274,7 +9274,7 @@ static int dahdi_destroy_channel(cw_dynstr_t *ds_p, int argc, char **argv)
 	return RESULT_FAILURE;
 }
 
-static int dahdi_show_channels(cw_dynstr_t *ds_p, int argc, char **argv)
+static int dahdi_show_channels(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 #define FORMAT "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
 #define FORMAT2 "%7s %-16.16s %-15.15s %-10.10s %-20.20s\n"
@@ -9337,7 +9337,7 @@ static int dahdi_show_channels(cw_dynstr_t *ds_p, int argc, char **argv)
 #undef FORMAT2
 }
 
-static int dahdi_show_channel(cw_dynstr_t *ds_p, int argc, char **argv)
+static int dahdi_show_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	int channel;
 	struct dahdi_pvt *tmp = NULL;
@@ -9484,7 +9484,7 @@ static char dahdi_show_cadences_help[] =
 "Usage: dahdi show cadences\n"
 "       Shows all cadences currently defined\n";
 
-static int handle_dahdi_show_cadences(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_dahdi_show_cadences(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int i, j;
 
@@ -9515,7 +9515,7 @@ static int handle_dahdi_show_cadences(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /* Based on irqmiss.c */
-static int dahdi_show_status(cw_dynstr_t *ds_p, int argc, char *argv[]) {
+static int dahdi_show_status(struct cw_dynstr *ds_p, int argc, char *argv[]) {
 	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
 
@@ -9811,7 +9811,7 @@ static const char dahdidisableec_syntax[] = "DAHDIDisableEC()";
 static const char dahdidisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
 static const char dahdidisableec_description[] = "Disable Echo Canceller onto the current channel\n";
 
-static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);

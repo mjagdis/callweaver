@@ -307,7 +307,7 @@ static void agent_unlink(struct agent_pvt *agent)
  */
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	args_t args = CW_DYNARRAY_INIT;
+	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	char *argstr;
 	char *password = NULL;
 	char *name = NULL;
@@ -378,7 +378,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		}
 	}
 
-	cw_dynarray_free(&args);
+	cw_dynargs_free(&args);
 
 	return p;
 }
@@ -1502,7 +1502,7 @@ static int agent_logoff(char *agent, int soft)
 	return ret;
 }
 
-static int agent_logoff_cmd(cw_dynstr_t *ds_p, int argc, char **argv)
+static int agent_logoff_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	int ret;
 	char *agent;
@@ -1547,7 +1547,7 @@ static struct cw_manager_message *action_agent_logoff(struct mansession *sess, c
 	return msg;
 }
 
-static void complete_agent_logoff_cmd(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_agent_logoff_cmd(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	char name[CW_MAX_AGENT];
 	struct agent_pvt *p;
@@ -1565,7 +1565,7 @@ static void complete_agent_logoff_cmd(cw_dynstr_t *ds_p, char *argv[], int lasta
 /**
  * Show agents in cli.
  */
-static int agents_show(cw_dynstr_t *ds_p, int argc, char **argv)
+static int agents_show(struct cw_dynstr *ds_p, int argc, char **argv)
 {
 	char username[CW_MAX_BUF];
 	char location[CW_MAX_BUF] = "";
@@ -1672,7 +1672,7 @@ static struct cw_clicmd cli_agent_logoff = {
  * @param callbackmode
  * @returns 
  */
-static int __login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result, int callbackmode)
+static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result, int callbackmode)
 {
 	char agent_goodbye[CW_MAX_FILENAME_LEN];
 	char user[CW_MAX_AGENT] = "";
@@ -2122,7 +2122,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynst
  * @returns
  * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	return __login_exec(chan, argc, argv, result, 0);
 }
@@ -2135,7 +2135,7 @@ static int login_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_
  * @returns
  * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int callback_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int callback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	return __login_exec(chan, argc, argv, result, 1);
 }
@@ -2243,7 +2243,7 @@ static struct cw_manager_message *action_agent_callback_login(struct mansession 
  * @returns
  * @sa login_exec(), callback_login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_var_t *var;
 	int exitifnoagentid = 0;
@@ -2328,7 +2328,7 @@ static void dump_agents(void)
  */
 static void reload_agents(void)
 {
-	cw_dynstr_t agent_data = CW_DYNSTR_INIT;
+	struct cw_dynstr agent_data = CW_DYNSTR_INIT;
 	char *agent_num;
 	struct cw_db_entry *db_tree;
 	struct cw_db_entry *entry;

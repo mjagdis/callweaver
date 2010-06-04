@@ -265,7 +265,7 @@ static int __cw_monitor_stop(struct cw_channel *chan, int need_lock)
 		}
 
 		if (chan->monitor->joinfiles && !cw_strlen_zero(chan->monitor->filename_base)) {
-			cw_dynstr_t cmd = CW_DYNSTR_INIT;
+			struct cw_dynstr cmd = CW_DYNSTR_INIT;
 			/* This mapping is because that's what corelib/file.c does when asked to write wav49 */
 			const char *format = (strcasecmp(chan->monitor->format, "wav49") == 0)  ?  "WAV"  :  chan->monitor->format;
 			char *name = chan->monitor->filename_base;
@@ -348,7 +348,7 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 	return 0;
 }
 
-static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int joinfiles = 0;
 	int waitforbridge = 0;
@@ -382,7 +382,7 @@ static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, cw
 	return res;
 }
 
-static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -391,7 +391,7 @@ static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, cw_
 	return __cw_monitor_stop(chan, 1);
 }
 
-static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(result);

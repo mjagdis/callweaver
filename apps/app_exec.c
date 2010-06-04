@@ -54,7 +54,7 @@ static const char exec_descrip[] =
 "app returns or a non-zero value if the app cannot be found.\n";
 
 
-static int exec_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int exec_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	char *s, *appname, *endargs;
@@ -66,7 +66,7 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 
 	/* Check and parse arguments */
 	if (argc > 0) {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 		s = cw_strdupa(argv[0]);
 		if ((appname = strsep(&s, "("))) {

@@ -37,7 +37,7 @@ struct cw_func {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	unsigned int hash;
-	int (*handler)(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result);
+	int (*handler)(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 	const char *name;
 	const char *synopsis;
 	const char *syntax;

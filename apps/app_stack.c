@@ -79,7 +79,7 @@ static const char pop_descrip[] =
 "  Always returns 0, even if the stack is empty.\n";
 
 
-static int pop_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pop_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
@@ -92,9 +92,9 @@ static int pop_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t 
 	return 0;
 }
 
-static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int return_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	args_t args = CW_DYNARRAY_INIT;
+	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	char buf[3 + 3 + 1];
 	struct cw_var_t *var;
 	int i, res;
@@ -126,7 +126,7 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 				cw_log(CW_LOG_WARNING, "No statement after Gosub to return to?\n");
 		}
 
-		cw_dynarray_free(&args);
+		cw_dynargs_free(&args);
 		cw_object_put(var);
 	} else
 		cw_log(CW_LOG_ERROR, "Return without Gosub: stack is empty\n");
@@ -135,7 +135,7 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 	return res;
 }
 
-static int gosub_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int gosub_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *priority, *p, *q;
@@ -192,7 +192,7 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_
 	return res;
 }
 
-static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *s, *q;
 	int i;

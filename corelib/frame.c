@@ -402,14 +402,14 @@ const char *cw_getformatname(int format)
     return ret;
 }
 
-void cw_getformatname_multiple(cw_dynstr_t *result, int format)
+void cw_getformatname_multiple(struct cw_dynstr *result, int format)
 {
     size_t mark;
     int x, first = 1;
 
     cw_dynstr_printf(result, "0x%x (", format);
 
-    mark = cw_dynstr_end(result);
+    mark = result->used;
 
     for (x = 0;  x < sizeof(cw_format_list)/sizeof(struct cw_format_list_s);  x++) {
         if (cw_format_list[x].visible && (cw_format_list[x].bits & format)) {
@@ -487,7 +487,7 @@ const char *cw_codec2str(int codec)
     return ret;
 }
 
-static int show_codecs(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int show_codecs(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int i, found=0;
     char hex[25];
@@ -544,7 +544,7 @@ static const char frame_show_codecs_usage[] =
     "Usage: show [audio|video|image] codecs\n"
     "       Displays codec mapping\n";
 
-static int show_codec_n(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int show_codec_n(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int codec;
     int i;

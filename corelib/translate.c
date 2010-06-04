@@ -886,7 +886,7 @@ static void rebuild_matrix(void)
 }
 
 
-static void show_translation_generator(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void show_translation_generator(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	static const char *args[] = {
 		"recalc", "rel", "raw", "ns", "us", "ms"
@@ -899,7 +899,7 @@ static void show_translation_generator(cw_dynstr_t *ds_p, char *argv[], int last
 }
 
 
-static int show_translation(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int show_translation(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	static const char *scale[] = { "nano", "micro", "milli", "" };
 	struct trans_state *tr;

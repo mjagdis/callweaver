@@ -60,10 +60,10 @@ static char g_descrip[] =
 	"Example: Set(EXTSTATE=${GetExtState(715&523, default)}\n";
 
 
-static int get_extstate(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int get_extstate(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecated_var = 0;
-	cw_dynstr_t hint = CW_DYNSTR_INIT;
+	struct cw_dynstr hint = CW_DYNSTR_INIT;
 	struct localuser *u;
 	const char *exten;
 	char *state = NULL;

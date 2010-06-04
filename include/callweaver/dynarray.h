@@ -23,14 +23,40 @@
 
 #include <string.h>
 
+#include "callweaver/preprocessor.h"
 #include "callweaver/logger.h"
 
 
-#define CW_DYNARRAY_DEFAULT_CHUNK (64 - 1)
+#define CW_DYNARRAY_DEFAULT_CHUNK 64
 
 
-#define CW_DYNARRAY(type) \
-	struct { \
+/* A dynamic array basic name is of the form: cw_dyn<name> */
+#define CW_DYNARRAY_NAME(name) \
+	CW_CPP_CAT(cw_dyn, name)
+
+/* A dynamic array identifier is of the form: cw_dyn<name>_<ext> */
+#define CW_DYNARRAY_IDENT(name, ext) \
+	CW_CPP_DO(CW_CPP_CAT, CW_DYNARRAY_NAME(name), ext)
+
+
+/* \brief Declare both the type-specific struct along with a set
+ * of functions to manipulate it.
+ */
+#define CW_DYNARRAY_DECL(type, name) \
+	CW_DYNARRAY_DECL_STRUCT(type, name); \
+	CW_DYNARRAY_DECL_FUNCS(type, name)
+
+
+/* \brief Declare a type-specific struct representing a dynamic array
+ * whose elements are of <type>.
+ *
+ * The struct will be declared as "struct cw_dyn<name>".
+ *
+ * 	\param	type	the type of an individual element
+ * 	\param	name	the name used in the identifiers for this array type
+ */
+#define CW_DYNARRAY_DECL_STRUCT(type, name) \
+	struct CW_DYNARRAY_NAME(name) { \
 		type *data;		/* The array itself */ \
 		size_t used;		/* Unused by cw_dynarray functions. \
 					 * May be used by the app for the number of elements used. \
@@ -42,17 +68,54 @@
 		unsigned char error:1;	/* Set true if a malloc error has occurred */ \
 	}
 
-typedef CW_DYNARRAY(void) cw_dynarray_generic_t;
 
-
-/* \brief Static initializer for a dynamic array. */
+/* \brief Static initializer for a generic dynamic array.
+ *
+ * This can be used to statically initialize a dynamic array with any
+ * type of elements (except for those that have special requirements
+ * such as dynamic strings).
+ */
 #define CW_DYNARRAY_INIT { \
 	.data = NULL, \
 	.used = 0, \
 	.size = 0, \
-	.chunk = CW_DYNARRAY_DEFAULT_CHUNK, \
+	.chunk = CW_DYNARRAY_DEFAULT_CHUNK - 1, \
 	.error = 0, \
 }
+
+
+#define CW_DYNARRAY_DECL_FUNCS(type, name) \
+	static inline void CW_DYNARRAY_IDENT(name, _init)(struct CW_DYNARRAY_NAME(name) *da_p, size_t len, size_t chunk) \
+	{ \
+		cw_dynarray_init(da_p, len, chunk); \
+	} \
+\
+\
+	static inline void CW_DYNARRAY_IDENT(name, _reset)(struct CW_DYNARRAY_NAME(name) *da_p) \
+		__attribute__ ((nonnull (1))); \
+\
+	static inline void CW_DYNARRAY_IDENT(name, _reset)(struct CW_DYNARRAY_NAME(name) *da_p) \
+	{ \
+		cw_dynarray_reset(da_p); \
+	} \
+\
+\
+	static inline int CW_DYNARRAY_IDENT(name, _need)(struct CW_DYNARRAY_NAME(name) *da_p, size_t len) \
+		__attribute__ ((nonnull (1))); \
+\
+	static inline int CW_DYNARRAY_IDENT(name, _need)(struct CW_DYNARRAY_NAME(name) *da_p, size_t len) \
+	{ \
+		return cw_dynarray_need(da_p, da_p->used + len); \
+	} \
+\
+\
+	static inline void CW_DYNARRAY_IDENT(name, _free)(struct CW_DYNARRAY_NAME(name) *da_p) \
+		__attribute__ ((nonnull (1))); \
+\
+	static inline void CW_DYNARRAY_IDENT(name, _free)(struct CW_DYNARRAY_NAME(name) *da_p) \
+	{ \
+		cw_dynarray_free(da_p); \
+	}
 
 
 /*! \brief Initialize a new dynamic array.
@@ -67,7 +130,7 @@ typedef CW_DYNARRAY(void) cw_dynarray_generic_t;
 	int __nmemb_init = (nmemb); \
 	int __chunk = (chunk); \
 	memset(__ptr_init, 0, sizeof(*__ptr_init)); \
-	__ptr_init->chunk = (__chunk ? __chunk - 1 : CW_DYNARRAY_DEFAULT_CHUNK); \
+	__ptr_init->chunk = (__chunk ? __chunk : CW_DYNARRAY_DEFAULT_CHUNK) - 1; \
 	if (__nmemb_init) \
 		cw_dynarray_need(__ptr_init, __nmemb_init); \
 	__ptr_init->error; \

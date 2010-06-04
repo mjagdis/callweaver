@@ -60,7 +60,7 @@ static const char skel_descrip[] = "This application is a template to build othe
  * the channel is hung up. You SHOULD log an error before
  * returning -1.
  */
-static int skel_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int skel_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res = 0;
 	struct localuser *u;

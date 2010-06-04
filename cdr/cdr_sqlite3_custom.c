@@ -58,16 +58,16 @@ static const char config_file[] = "cdr_sqlite3_custom.conf";
 static const char desc[] = "Customizable SQLite3 CDR Backend";
 static const char name[] = "cdr_sqlite3_custom";
 
-cw_dynstr_t dbpath = CW_DYNSTR_INIT;
+struct cw_dynstr dbpath = CW_DYNSTR_INIT;
 
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static sqlite3 *db = NULL;
 
 static char *table, *columns_str, *values_str;
-static args_t columns = CW_DYNARRAY_INIT;
-static args_t values = CW_DYNARRAY_INIT;
-static cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
+static struct cw_dynargs columns = CW_DYNARRAY_INIT;
+static struct cw_dynargs values = CW_DYNARRAY_INIT;
+static struct cw_dynstr evalbuf = CW_DYNSTR_INIT;
 
 static struct cw_channel *chan;
 
@@ -198,7 +198,7 @@ restart:
 
 				res = sqlite3_step(sql[I_INSERT]);
 
-				cw_dynarray_reset(&values);
+				cw_dynargs_reset(&values);
 				cw_dynstr_reset(&evalbuf);
 
 				if (res == SQLITE_DONE)
@@ -258,11 +258,11 @@ static void release(void)
 
 	if (values_str)
 		free(values_str);
-	cw_dynarray_free(&values);
+	cw_dynargs_free(&values);
 
 	if (columns_str)
 		free(columns_str);
-	cw_dynarray_free(&columns);
+	cw_dynargs_free(&columns);
 
 	if (table)
 		free(table);
@@ -301,7 +301,7 @@ static int reload_module(void)
 		free(columns_str);
 		columns_str = NULL;
 	}
-	cw_dynarray_reset(&columns);
+	cw_dynargs_reset(&columns);
 
 	if (table) {
 		free(table);
@@ -348,7 +348,7 @@ static int reload_module(void)
 		cw_config_destroy(cfg);
 
 		if (!res) {
-			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			char *s;
 			int i;
 

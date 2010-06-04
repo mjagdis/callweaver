@@ -651,7 +651,7 @@ struct shutdown_state {
 	int timeout;
 };
 
-static void shutdown_restart(cw_dynstr_t *ds_p, int doit, int graceful, int timeout);
+static void shutdown_restart(struct cw_dynstr *ds_p, int doit, int graceful, int timeout);
 
 static void *quit_when_idle(void *data)
 {
@@ -709,7 +709,7 @@ static void *quit_when_idle(void *data)
 }
 
 
-static void shutdown_restart(cw_dynstr_t *ds_p, int doit, int graceful, int timeout)
+static void shutdown_restart(struct cw_dynstr *ds_p, int doit, int graceful, int timeout)
 {
 	static cw_mutex_t lock = CW_MUTEX_INIT_VALUE;
 	static struct shutdown_state state = {
@@ -849,7 +849,7 @@ static const char abort_halt_help[] =
 "       call operations.\n";
 
 
-static int handle_shutdown_now(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_shutdown_now(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -861,7 +861,7 @@ static int handle_shutdown_now(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_gracefully(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_shutdown_gracefully(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -876,7 +876,7 @@ static int handle_shutdown_gracefully(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_when_convenient(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_shutdown_when_convenient(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -891,7 +891,7 @@ static int handle_shutdown_when_convenient(cw_dynstr_t *ds_p, int argc, char *ar
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_now(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_restart_now(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -903,7 +903,7 @@ static int handle_restart_now(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_gracefully(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_restart_gracefully(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -918,7 +918,7 @@ static int handle_restart_gracefully(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_restart_when_convenient(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_restart_when_convenient(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int timeout = -1;
 
@@ -933,7 +933,7 @@ static int handle_restart_when_convenient(cw_dynstr_t *ds_p, int argc, char *arg
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_cancel(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_shutdown_restart_cancel(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -945,7 +945,7 @@ static int handle_shutdown_restart_cancel(cw_dynstr_t *ds_p, int argc, char *arg
 	return RESULT_SUCCESS;
 }
 
-static int handle_shutdown_restart_status(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_shutdown_restart_status(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -956,9 +956,9 @@ static int handle_shutdown_restart_status(cw_dynstr_t *ds_p, int argc, char *arg
 	return RESULT_SUCCESS;
 }
 
-static int core_dump(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int core_dump(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	int res;
 
 	CW_UNUSED(ds_p);
@@ -989,10 +989,10 @@ static int core_dump(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 }
 
-static int core_analyse(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int core_analyse(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char buf[1024];
-	cw_dynstr_t cmd = CW_DYNSTR_INIT;
+	struct cw_dynstr cmd = CW_DYNSTR_INIT;
 	FILE *fd;
 	int i;
 
@@ -1035,7 +1035,7 @@ static int core_analyse(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 
-static int handle_bang(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_bang(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(ds_p);
 	CW_UNUSED(argc);

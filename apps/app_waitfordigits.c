@@ -97,7 +97,7 @@ static const char waitfordigits_descrip[] =
 
 
 
-static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char numsubst[255];
 	struct cw_var_t *var;

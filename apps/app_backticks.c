@@ -62,7 +62,7 @@ static const char backticks_func_descrip[] =
 	"Executes a shell command and evaluates to the result.";
 
 
-static int do_backticks(char *command, cw_dynstr_t *result)
+static int do_backticks(char *command, struct cw_dynstr *result)
 {
         int fds[2];
 	pid_t pid = 0;
@@ -87,9 +87,9 @@ static int do_backticks(char *command, cw_dynstr_t *result)
 
 			if (result) {
 				cw_dynstr_need(result, 512);
-				while (!result->error && (n = read(fds[0], &result->data[cw_dynstr_end(result)], cw_dynstr_space(result))) > 0) {
+				while (!result->error && (n = read(fds[0], &result->data[result->used], result->size - result->used)) > 0) {
 					result->used += n;
-					if (cw_dynstr_space(result) < 64)
+					if (result->size - result->used < 64)
 						cw_dynstr_need(result, 256);
 				}
 				/* Add a terminating null by printing an empty string */
@@ -120,9 +120,9 @@ static int do_backticks(char *command, cw_dynstr_t *result)
         return ret;
 }
 
-static int backticks_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int backticks_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct localuser *u;
 	int ret = -1;
 
@@ -147,7 +147,7 @@ static int backticks_exec(struct cw_channel *chan, int argc, char **argv, cw_dyn
 }
 
 
-static int function_backticks(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_backticks(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 

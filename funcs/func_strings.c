@@ -115,13 +115,13 @@ struct sortable_keys {
 	float value;
 };
 
-static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(fieldqty_func_syntax);
 
 	if (result) {
-		cw_dynstr_t ds = CW_DYNSTR_INIT;
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		int fieldcount = 0;
 
 		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds) && !ds.error) {
@@ -141,7 +141,7 @@ static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, cw_
 }
 
 
-static int function_filter(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_filter(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
@@ -165,7 +165,7 @@ static int function_filter(struct cw_channel *chan, int argc, char **argv, cw_dy
 }
 
 
-static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char errstr[256] = "";
 	regex_t regexbuf;
@@ -203,7 +203,7 @@ static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv
 }
 
 
-static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
@@ -215,7 +215,7 @@ static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int acf_strftime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int acf_strftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct tm now;
 	struct timeval tv;
@@ -234,7 +234,7 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, cw_dynst
 
 	cw_localtime(&tv.tv_sec, &now, tz);
 
-	mark = cw_dynstr_end(result);
+	mark = result->used;
 	need = 0;
 	do {
 		cw_dynstr_truncate(result, mark);
@@ -251,23 +251,23 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, cw_dynst
 }
 
 
-static int function_eval(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_eval(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	size_t mark;
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(eval_func_syntax);
 
-	mark = cw_dynstr_end(result);
+	mark = result->used;
 	pbx_substitute_variables(chan, NULL, argv[0], result);
 	cw_separate_app_args(NULL, &result->data[mark], "", '\0', NULL);
 	return 0;
 }
 
 
-static int function_cut(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_cut(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	cw_dynstr_t varvalue = CW_DYNSTR_INIT;
+	struct cw_dynstr varvalue = CW_DYNSTR_INIT;
 	char one[] = "1";
 	char *tmp2;
 	char *field=NULL;
@@ -365,7 +365,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 	}
 }
 
-static int function_sort(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_sort(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct sortable_keys *sortable_keys;
 	char *p;

@@ -49,13 +49,13 @@ struct cw_clicmd {
 	/*! Null terminated list of the words of the command */
 	const char *cmda[CW_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(cw_dynstr_t *ds_p, int argc, char *argv[]);
+	int (*handler)(struct cw_dynstr *ds_p, int argc, char *argv[]);
 	/*! Summary of the command (< 60 characters) */
 	const char *summary;
 	/*! Detailed usage information */
 	const char *usage;
 	/*! Generate a list of possible completions for a given word */
-	void (*generator)(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len);
+	void (*generator)(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len);
 };
 
 
@@ -101,7 +101,7 @@ extern CW_API_PUBLIC struct cw_registry clicmd_registry;
  *
  * Returns 0 on succes, -1 on failure 
  */
-extern CW_API_PUBLIC void cw_cli_command(cw_dynstr_t *ds_p, char *cmd);
+extern CW_API_PUBLIC void cw_cli_command(struct cw_dynstr *ds_p, char *cmd);
 
 /*! \brief Readline madness 
  *
@@ -109,7 +109,7 @@ extern CW_API_PUBLIC void cw_cli_command(cw_dynstr_t *ds_p, char *cmd);
  *
  * Returns 0 on success, -1 on failure
  */
-extern void cw_cli_generator(cw_dynstr_t *ds_p, char *cmd);
+extern void cw_cli_generator(struct cw_dynstr *ds_p, char *cmd);
 
 extern void cw_cli_init(void);
 

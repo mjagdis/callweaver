@@ -295,7 +295,7 @@ static int onedigit_goto(struct cw_channel *chan, const char *context, const cha
 }
 
 
-static char *get_cid_name(cw_dynstr_t *name, struct cw_channel *chan)
+static char *get_cid_name(struct cw_dynstr *name, struct cw_channel *chan)
 {
 	cw_get_hint(NULL, name, chan,
 		(!cw_strlen_zero(chan->proc_context) ? chan->proc_context : chan->context),
@@ -481,7 +481,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
 							if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID)) {
-								cw_dynstr_t ds = CW_DYNSTR_INIT;
+								struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 								cw_set_callerid(o->chan, cw_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(&ds, in), NULL);
 								cw_dynstr_free(&ds);
@@ -674,7 +674,7 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 
 static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct cw_flags *peerflags)
 {
-	args_t args = CW_DYNARRAY_INIT;
+	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	struct cw_var_t *tmpvar;
 	int res=-1;
 	struct localuser *u;
@@ -770,7 +770,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			char *p = argv[0];
 			args.used = 0;
 			do {
-				cw_dynarray_need(&args, 1);
+				cw_dynargs_need(&args, 1);
 				args.data[args.used++] = p;
 				if ((p = strchr(p, '&')))
 					*(p++) = '\0';
@@ -1283,7 +1283,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			if (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
 			if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID)) {
-				cw_dynstr_t ds = CW_DYNSTR_INIT;
+				struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 				cw_set_callerid(tmp->chan, cw_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(&ds, chan), NULL);
 				cw_dynstr_free(&ds);
@@ -1759,7 +1759,7 @@ err:
 	return res;
 }
 
-static int dial_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int dial_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_flags peerflags;
 
@@ -1769,7 +1769,7 @@ static int dial_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
-static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_flags peerflags;
 	struct cw_var_t *context;

@@ -433,7 +433,7 @@ void cw_log(int level, const char *file, int line, const char *function, const c
 
 
 int main(int argc,char **argv) {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char s[4096];
 	FILE *infile;
 	

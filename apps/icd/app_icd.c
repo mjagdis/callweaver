@@ -554,7 +554,7 @@ icd_status autologin(void)
 /* this is where the customer enters the queue. Assumes channel already available. */
 /* TBD - All these _exec() functions have the same building blocks. These need to be
    refactored out. */
-int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     icd_customer *customer;
     char custname[256];
@@ -842,7 +842,7 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, cw_dy
  * Its also is intended to be used by external api that just want to schedule customer for callbacks
  *
  * */
-int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_customer *customer;
@@ -1029,7 +1029,7 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
 }
 
 /* this is where the agent logs in */
-int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char agentbuf[256];
     struct localuser *u;
@@ -1287,7 +1287,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, cw_dynst
 }
 
 /* this is where the agent becomes a member of a queue */
-int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_queue *queue = NULL;
@@ -1333,7 +1333,7 @@ int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cw_
 }
 
 /* this is where the agent drops membership in a queue */
-int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
 
@@ -1355,7 +1355,7 @@ int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, 
 }
 
 /* This is intended to duplicate the AgentCallbackLogin function from chan_agent */
-int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_agent *agent;
@@ -1703,7 +1703,7 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
 }
 
 /* this is where the agent logs out */
-int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_agent *agent = NULL;

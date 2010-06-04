@@ -1254,7 +1254,7 @@ static void *sccp_setcalledparty_app;
 static const char sccp_setcalledparty_syntax[] = "SetCalledParty(\"Name\" <ext>)";
 static const char sccp_setcalledparty_descrip[] = "Sets the name and number of the called party for use with chan_sccp\n";
 
-static int sccp_setcalledparty_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sccp_setcalledparty_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
   char * num, * name;
   sccp_channel_t * c = CS_CW_CHANNEL_PVT(chan);

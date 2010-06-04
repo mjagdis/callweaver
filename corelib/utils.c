@@ -525,12 +525,12 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *cw_uri_encode(const char *src, cw_dynstr_t *dst, int doreserved)
+char *cw_uri_encode(const char *src, struct cw_dynstr *dst, int doreserved)
 {
 	static const char reserved[] = ";/?:@&=+$,# ";
 	size_t mark;
 
-	mark = cw_dynstr_end(dst);
+	mark = dst->used;
 
 	while (*src) {
 		int n = 0;

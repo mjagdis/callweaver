@@ -51,7 +51,7 @@ static const char checkmd5_func_syntax[] = "CHECK_MD5(digest, data)";
 static const char checkmd5_func_desc[] = "Returns 1 on a match, 0 otherwise\n";
 
 
-static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char md5[33];
 
@@ -68,7 +68,7 @@ static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, 
 	return 0;
 }
 
-static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char newmd5[33];
 

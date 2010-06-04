@@ -5524,7 +5524,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     
     if (debug)
     {
-        cw_dynstr_t ds = CW_DYNSTR_INIT;
+        struct cw_dynstr ds = CW_DYNSTR_INIT;
 
         cw_dynstr_printf(&ds, "Capabilities: us - ");
         cw_getformatname_multiple(&ds, p->capability);
@@ -5563,7 +5563,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
     if (!(p->owner->nativeformats & p->jointcapability))
     {
-        cw_dynstr_t ds = CW_DYNSTR_INIT;
+        struct cw_dynstr ds = CW_DYNSTR_INIT;
 
         cw_dynstr_printf(&ds, "Oooh, we need to change our formats since our peer supports only ");
         cw_getformatname_multiple(&ds, p->jointcapability);
@@ -7162,8 +7162,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
     size_t invite_max = sizeof(invite_buf);
     char from[256];
     char to[256];
-    cw_dynstr_t tmp = CW_DYNSTR_INIT;
-    cw_dynstr_t tmp2 = CW_DYNSTR_INIT;
+    struct cw_dynstr tmp = CW_DYNSTR_INIT;
+    struct cw_dynstr tmp2 = CW_DYNSTR_INIT;
     char iabuf[INET_ADDRSTRLEN];
     const char *l = NULL, *n = NULL;
     int x;
@@ -7430,7 +7430,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout)
 {
 	char tmp[4000], from[256], to[256];
-	cw_dynstr_t hint = CW_DYNSTR_INIT;
+	struct cw_dynstr hint = CW_DYNSTR_INIT;
 	char *t = tmp, *c, *a, *mfrom, *mto;
 	size_t maxbytes = sizeof(tmp);
 	struct sip_request *msg;
@@ -8270,7 +8270,7 @@ static int expire_register(void *data)
 static void reg_source_db(struct sip_peer *peer)
 {
     char iabuf[INET_ADDRSTRLEN];
-    cw_dynstr_t ds = CW_DYNSTR_INIT;
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     struct in_addr in;
     int expiry;
     int port;
@@ -10132,7 +10132,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 #define FORMAT3 "%-25.25s %15d %-15.15s \n"
 
 struct sip_show_inuse_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int showall;
 };
 
@@ -10164,7 +10164,7 @@ static int sip_show_inuse_peer(struct cw_object *obj, void *data)
 
 /*! \brief  sip_show_inuse: CLI Command to show calls within limits set by 
       call_limit */
-static int sip_show_inuse(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_inuse(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct sip_show_inuse_args args = {
         .ds_p = ds_p,
@@ -10228,7 +10228,7 @@ static const char *peer_status(struct sip_peer *peer)
 
 
 struct sip_show_users_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int havepattern;
 	regex_t regexbuf;
 };
@@ -10252,7 +10252,7 @@ static int sip_show_users_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_users: CLI Command 'SIP Show Users' */
-static int sip_show_users(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_users(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct sip_show_users_args args = {
 		.ds_p = ds_p,
@@ -10295,7 +10295,7 @@ static char mandescr_show_peers[] =
 #define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-12s %-7s\n"
 
 struct sip_show_peers_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	regex_t regexbuf;
 	int havepattern;
 	int total_peers;
@@ -10334,7 +10334,7 @@ static int sip_show_peers_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_peers: Execute sip show peers command */
-static int sip_show_peers(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_peers(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct sip_show_peers_args args = {
 		.ds_p = ds_p,
@@ -10501,7 +10501,7 @@ static int sip_prune_realtime_user(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_prune_realtime: Remove temporary realtime objects from memory (CLI) */
-static int sip_prune_realtime(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_prune_realtime(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct sip_prune_realtime_args args = {
 		.name = NULL,
@@ -10618,7 +10618,7 @@ static int sip_prune_realtime(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  print_codec_to_cli: Print codec list from preference to CLI/manager */
-static void print_codec_to_cli(cw_dynstr_t *ds_p, struct cw_codec_pref *pref)
+static void print_codec_to_cli(struct cw_dynstr *ds_p, struct cw_codec_pref *pref)
 {
     int x, codec;
 
@@ -10650,7 +10650,7 @@ static const char *domain_mode_to_text(const enum domain_mode mode)
 
 /*! \brief  sip_show_domains: CLI command to list local domains */
 #define FORMAT "%-40.40s %-20.20s %-16.16s\n"
-static int sip_show_domains(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_domains(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct domain *d;
 
@@ -10682,7 +10682,7 @@ static char mandescr_show_peer[] =
 "Variables: \n"
 "  Peer: <name>           The peer name you want to check.\n";
 
-static int sip_show_peer(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char callgroup[256], pickupgroup[256];
     char cbuf[256];
@@ -10797,7 +10797,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 	char cbuf[256];
 	char iabuf1[INET_ADDRSTRLEN];
 	char iabuf2[INET_ADDRSTRLEN];
-	cw_dynstr_t codec_buf = CW_DYNSTR_INIT;
+	struct cw_dynstr codec_buf = CW_DYNSTR_INIT;
 	struct sip_peer *peer;
 	struct sip_auth *auth;
 	struct cw_codec_pref *pref;
@@ -10895,7 +10895,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 
 
 /*! \brief  sip_show_user: Show one user in detail */
-static int sip_show_user(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_user(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char callgroup[256], pickupgroup[256];
     char cbuf[256];
@@ -10964,7 +10964,7 @@ static int sip_show_user(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_show_registry: Show SIP Registry (registrations with other SIP proxies */
-static int sip_show_registry(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_registry(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 #define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
@@ -10993,7 +10993,7 @@ static int sip_show_registry(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_show_settings: List global settings for the SIP channel */
-static int sip_show_settings(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_settings(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     char tmp[BUFSIZ];
     int realtimepeers = 0;
@@ -11118,16 +11118,16 @@ static const struct cfsubscription_types *find_subscription_type(enum subscripti
 }
 
 /* Forward declaration */
-static int __sip_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[], int subscriptions);
+static int __sip_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[], int subscriptions);
 
 /*! \brief  sip_show_channels: Show active SIP channels */
-static int sip_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
         return __sip_show_channels(ds_p, argc, argv, 0);
 }
  
 /*! \brief  sip_show_subscriptions: Show active SIP subscriptions */
-static int sip_show_subscriptions(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_subscriptions(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
         return __sip_show_channels(ds_p, argc, argv, 1);
 }
@@ -11135,7 +11135,7 @@ static int sip_show_subscriptions(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 struct __sip_show_channels_args {
 	int subscriptions;
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int numchans;
 };
 
@@ -11180,7 +11180,7 @@ static int __sip_show_channels_one(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int __sip_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[], int subscriptions)
+static int __sip_show_channels(struct cw_dynstr *ds_p, int argc, char *argv[], int subscriptions)
 {
     struct __sip_show_channels_args args = {
 	    .subscriptions = subscriptions,
@@ -11213,7 +11213,7 @@ static int __sip_show_channels(cw_dynstr_t *ds_p, int argc, char *argv[], int su
 
 
 struct complete_sipch_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	const char *prefix;
 	int prefix_len;
 };
@@ -11230,7 +11230,7 @@ static int complete_sipch_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI */
-static void complete_sipch(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sipch(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_sipch_args args = {
 		.ds_p = ds_p,
@@ -11243,7 +11243,7 @@ static void complete_sipch(cw_dynstr_t *ds_p, char *argv[], int lastarg, int las
 
 
 struct complete_sip_peer_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	char *word;
 	int word_len;
 	int flags2;
@@ -11263,7 +11263,7 @@ static int complete_sip_peer_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name */
-static void complete_sip_peer(cw_dynstr_t *ds_p, char *word, int word_len, int flags2)
+static void complete_sip_peer(struct cw_dynstr *ds_p, char *word, int word_len, int flags2)
 {
 	struct complete_sip_peer_args args = {
 		.ds_p = ds_p,
@@ -11276,7 +11276,7 @@ static void complete_sip_peer(cw_dynstr_t *ds_p, char *word, int word_len, int f
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI */
-static void complete_sip_show_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_show_peer(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
         complete_sip_peer(ds_p, argv[3], lastarg_len, 0);
@@ -11284,7 +11284,7 @@ static void complete_sip_show_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg,
 
 
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI */
-static void complete_sip_debug_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_debug_peer(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
          complete_sip_peer(ds_p, argv[3], lastarg_len, 0);
@@ -11292,7 +11292,7 @@ static void complete_sip_debug_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg
 
 
 struct complete_sip_user_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	char *word;
 	int word_len;
 	int flags2;
@@ -11312,7 +11312,7 @@ static int complete_sip_user_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  complete_sip_user: Do completion on user name */
-static void complete_sip_user(cw_dynstr_t *ds_p, char *word, int word_len, int flags2)
+static void complete_sip_user(struct cw_dynstr *ds_p, char *word, int word_len, int flags2)
 {
 	struct complete_sip_user_args args = {
 		.ds_p = ds_p,
@@ -11326,7 +11326,7 @@ static void complete_sip_user(cw_dynstr_t *ds_p, char *word, int word_len, int f
 
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI */
-static void complete_sip_show_user(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_show_user(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 3)
         complete_sip_user(ds_p, argv[3], lastarg_len, 0);
@@ -11334,7 +11334,7 @@ static void complete_sip_show_user(cw_dynstr_t *ds_p, char *argv[], int lastarg,
 
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI */
-static void complete_sipnotify(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sipnotify(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 2)
     {
@@ -11356,14 +11356,14 @@ static void complete_sipnotify(cw_dynstr_t *ds_p, char *argv[], int lastarg, int
 }
 
 /*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI */
-static void complete_sip_prune_realtime_peer(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_prune_realtime_peer(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 4)
         complete_sip_peer(ds_p, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
 }
 
 /*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI */
-static void complete_sip_prune_realtime_user(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_sip_prune_realtime_user(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
     if (lastarg == 4)
         complete_sip_user(ds_p, argv[4], lastarg_len, SIP_PAGE2_RTCACHEFRIENDS);
@@ -11371,7 +11371,7 @@ static void complete_sip_prune_realtime_user(cw_dynstr_t *ds_p, char *argv[], in
 
 
 struct sip_show_channel_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int found;
 	const char *prefix;
 	size_t prefix_len;
@@ -11447,7 +11447,7 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_channel: Show details of one call */
-static int sip_show_channel(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_channel(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct sip_show_channel_args args = {
 		.ds_p = ds_p,
@@ -11470,7 +11470,7 @@ static int sip_show_channel(cw_dynstr_t *ds_p, int argc, char *argv[])
 
 
 struct sip_show_history_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int found;
 	const char *prefix;
 	size_t prefix_len;
@@ -11501,7 +11501,7 @@ static int sip_show_history_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  sip_show_history: Show history details of one call */
-static int sip_show_history(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_show_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct sip_show_history_args args = {
 		.ds_p = ds_p,
@@ -11669,7 +11669,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
-static int sip_do_debug_ip(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct hostent *hp;
     struct cw_hostent ahp;
@@ -11701,7 +11701,7 @@ static int sip_do_debug_ip(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_do_debug_peer: Turn on SIP debugging with peer mask */
-static int sip_do_debug_peer(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_do_debug_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct sip_peer *peer;
     char iabuf[INET_ADDRSTRLEN];
@@ -11728,7 +11728,7 @@ static int sip_do_debug_peer(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
-static int sip_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     int oldsipdebug = sipdebug & SIP_DEBUG_CONSOLE;
     if (argc != 2)
@@ -11751,7 +11751,7 @@ static int sip_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_notify: Send SIP notify to peer */
-static int sip_notify(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     struct cw_variable *varlist;
     int i;
@@ -11817,7 +11817,7 @@ static int sip_notify(cw_dynstr_t *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 /*! \brief  sip_do_history: Enable SIP History logging (CLI) */
-static int sip_do_history(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_do_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -11830,7 +11830,7 @@ static int sip_do_history(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_no_history: Disable SIP History logging (CLI) */
-static int sip_no_history(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_no_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -11843,7 +11843,7 @@ static int sip_no_history(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 /*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
-static int sip_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(argv);
 
@@ -12166,7 +12166,7 @@ static const char show_settings_usage[] =
 
 struct func_sipbuilddial_args {
 	regex_t preg;
-	cw_dynstr_t *result;
+	struct cw_dynstr *result;
 	int isfirst:1;
 };
 
@@ -12184,7 +12184,7 @@ static int func_sipbuilddial_one(struct cw_object *obj, void *data)
 }
 
 /*! \brief  func_sipbuilddial_read: Read DIAL string based on regex (dialplan function) */
-static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct func_sipbuilddial_args args = {
 		.result = result,
@@ -12215,7 +12215,7 @@ static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, cw_
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static int func_header_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int func_header_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
     char *content;
@@ -12254,7 +12254,7 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, cw_d
 
 
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
@@ -12269,7 +12269,7 @@ static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, 
 
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static int function_sippeer(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_sippeer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char iabuf[INET_ADDRSTRLEN];
     struct sip_peer *peer;
@@ -12398,7 +12398,7 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, cw_d
 }
 
 
-static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_peer *peer;
     struct cw_variable *var;
@@ -12426,7 +12426,7 @@ static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, c
 
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
     char iabuf[INET_ADDRSTRLEN];
@@ -17340,7 +17340,7 @@ static char sipt38switchover_description[] = ""
 "Forces a T38 switchover on a non-bridged channel.\n";
 
 /*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
-static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
     struct cw_channel *bchan;
@@ -17463,7 +17463,7 @@ static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *d
 /*
  * Display message onto phone LCD, if supported. -- Antonio Gallo
  */
-static int sip_osd(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sip_osd(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const char blank[] = " ";
 	struct sip_pvt *p = NULL;
@@ -17508,7 +17508,7 @@ static int sip_osd(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *
 
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
-static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
 
@@ -17570,7 +17570,7 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, cw_dynst
 }
 
 /*! \brief  sip_addheader: Add a SIP header */
-static int sip_addheader(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int sip_addheader(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char varbuf[sizeof("_SIPADDHEADERnn")];
     struct cw_var_t *var;
@@ -17613,7 +17613,7 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, cw_dyns
 static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 {
     char tmp[80];
-    cw_dynstr_t ds = CW_DYNSTR_INIT;
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     char *cdest;
     char *extension, *host, *port;
 
@@ -17829,7 +17829,7 @@ static int sip_do_reload(void)
 }
 
 /*! \brief  sip_reload: Force reload of module from cli */
-static int sip_reload(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int sip_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
     CW_UNUSED(ds_p);
     CW_UNUSED(argc);

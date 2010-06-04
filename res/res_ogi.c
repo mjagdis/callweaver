@@ -219,7 +219,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 
 static int launch_script(char *script, char *argv[], int *fds, int *efd, int *opid)
 {
-	cw_dynstr_t tmp = CW_DYNSTR_INIT;
+	struct cw_dynstr tmp = CW_DYNSTR_INIT;
 	pid_t pid;
 	int toast[2];
 	int fromast[2];
@@ -1145,7 +1145,7 @@ static int handle_setvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 
 static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *args, *arge;
 	int ret;
 
@@ -1181,7 +1181,7 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 		chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
 
 		if (chan) {
-			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 			pbx_substitute_variables(chan2, NULL, argv[4], &ds);
 
@@ -1243,7 +1243,7 @@ static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **ar
 
 static int handle_dbget(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 	CW_UNUSED(chan);
 
@@ -1324,7 +1324,7 @@ static const char no_debug_usage[] =
 "Usage: ogi no debug\n"
 "       Disables dumping of OGI transactions for debugging purposes\n";
 
-static int ogi_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ogi_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -1336,7 +1336,7 @@ static int ogi_do_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int ogi_no_debug(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int ogi_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	CW_UNUSED(argv);
 
@@ -1690,7 +1690,7 @@ static void join(char *s, size_t len, const char **w)
 	}
 }
 
-static int help_workhorse(cw_dynstr_t *ds_p, const char **match)
+static int help_workhorse(struct cw_dynstr *ds_p, const char **match)
 {
 	char fullcmd[80];
 	char matchstr[80];
@@ -1960,7 +1960,7 @@ static int run_ogi(struct cw_channel *chan, char *request, OGI *ogi, int pid, in
 	return returnstatus;
 }
 
-static int handle_showogi(cw_dynstr_t *ds_p, int argc, char *argv[]) {
+static int handle_showogi(struct cw_dynstr *ds_p, int argc, char *argv[]) {
 	struct ogi_command *e;
 	char fullcmd[80];
 	if ((argc < 2))
@@ -1983,7 +1983,7 @@ static int handle_showogi(cw_dynstr_t *ds_p, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static int handle_dumpogihtml(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_dumpogihtml(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	char fullcmd[80];
 	struct ogi_command *e;
@@ -2084,7 +2084,7 @@ static int ogi_exec_full(struct cw_channel *chan, int argc, char **argv, int enh
 	return res;
 }
 
-static int ogi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int ogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -2093,7 +2093,7 @@ static int ogi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t 
 	return ogi_exec_full(chan, argc, argv, 0, 0);
 }
 
-static int eogi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int eogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int readformat;
 	int res;
@@ -2116,7 +2116,7 @@ static int eogi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 	return res;
 }
 
-static int deadogi_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int deadogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);

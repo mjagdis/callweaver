@@ -1541,7 +1541,7 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *dur, const char *date, cw_dynstr_t *ds_p)
+static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *dur, const char *date, struct cw_dynstr *ds_p)
 {
 	char callerid[256];
 	/* Prepare variables for substition in email body and subject */
@@ -1567,7 +1567,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 	char dur[256];
 	char host[MAXHOSTNAMELEN] = "";
 	char tmp[80] = "/tmp/astmail-XXXXXX";
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
 	struct cw_channel *chan = NULL;
@@ -1720,7 +1720,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	char who[256];
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
 	struct cw_channel *chan = NULL;
@@ -4964,7 +4964,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 	return 0;
 }
 
-static int vm_execmain(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int vm_execmain(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
@@ -5413,7 +5413,7 @@ out:
 	return res;
 }
 
-static int vm_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int vm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	char tmp[256];
@@ -5528,7 +5528,7 @@ static int append_mailbox(const char *context, const char *mb, const char *data)
 	return 0;
 }
 
-static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_vm_user svm;
@@ -5555,7 +5555,7 @@ static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, cw_dyns
 	return 0;
 }
 
-static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char mailbox[CW_MAX_EXTENSION];
 	struct cw_vm_user vmus;
@@ -5592,7 +5592,7 @@ static const char show_voicemail_zones_help[] =
 "Usage: show voicemail zones\n"
 "       Lists zone message formats\n";
 
-static int handle_show_voicemail_users(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_voicemail_users(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_vm_user *vmu = users;
 	const char output_format[] = "%-10s %-5s %-25s %-10s %6s\n";
@@ -5646,7 +5646,7 @@ static int handle_show_voicemail_users(cw_dynstr_t *ds_p, int argc, char *argv[]
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_voicemail_zones(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_voicemail_zones(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	static const char output_format[] = "%-15s %-20s %-45s\n";
 	struct vm_zone *zone = zones;
@@ -5668,7 +5668,7 @@ static int handle_show_voicemail_zones(cw_dynstr_t *ds_p, int argc, char *argv[]
 	return RESULT_SUCCESS;
 }
 
-static void complete_show_voicemail_users(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_voicemail_users(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct cw_vm_user *vmu;
 	const char *context = "";

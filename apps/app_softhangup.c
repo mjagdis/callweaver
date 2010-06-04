@@ -87,7 +87,7 @@ static int softhangup_one(struct cw_object *obj, void *data)
 	return !args->all;
 }
 
-static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct softhangup_args args;
 	struct localuser *u;

@@ -86,7 +86,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 
 }
 
-static int pipe_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pipe_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;

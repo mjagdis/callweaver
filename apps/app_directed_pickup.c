@@ -71,7 +71,7 @@ static int find_channel_by_mark_one(struct cw_object *obj, void *data)
 	return (args->target != NULL);
 }
  
-static int pickup_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pickup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u = NULL;
 	struct cw_channel *origin = NULL, *target = NULL;
@@ -104,7 +104,7 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 	} else {
 		origin = cw_get_channel_by_exten_locked(exten, context);
 		if (origin) {
-			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 			cw_cdr_getvar(origin->cdr, "dstchannel", &ds, 0);
 			if (ds.used) {

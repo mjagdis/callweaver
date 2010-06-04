@@ -124,7 +124,7 @@ static struct cw_func *cw_find_function(unsigned int hash, const char *name)
  *
  * \return 0 on success, -1 on failure
  */
-int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, cw_dynstr_t *result)
+int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_func *func;
 	const char *saved_c_appl = NULL;
@@ -190,9 +190,9 @@ int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *nam
  *
  * \return 0 on success, -1 on failure
  */
-int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *argstr, cw_dynstr_t *result)
+int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *argstr, struct cw_dynstr *result)
 {
-	args_t args = CW_DYNARRAY_INIT;
+	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	int ret;
 
 	if (!argstr)
@@ -205,7 +205,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 	if (!cw_separate_app_args(&args, argstr, ",", '\0', NULL))
 		ret = cw_function_exec(chan, hash, name, args.used, &args.data[0], result);
 
-	cw_dynarray_free(&args);
+	cw_dynargs_free(&args);
 
 	if (option_debug && option_verbose > 5) {
 		int e = errno;
@@ -218,7 +218,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 }
 
 
-static void complete_show_functions(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_functions(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	if (lastarg == 2) {
 		if (!strncasecmp(argv[2], "like", lastarg_len))
@@ -230,7 +230,7 @@ static void complete_show_functions(cw_dynstr_t *ds_p, char *argv[], int lastarg
 
 
 struct funcs_print_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	int like, describing, matches;
 	int argc;
 	char **argv;
@@ -264,7 +264,7 @@ static int funcs_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-static int handle_show_functions(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_functions(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct funcs_print_args args = {
 		.ds_p = ds_p,
@@ -286,7 +286,7 @@ static int handle_show_functions(cw_dynstr_t *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int handle_show_function(cw_dynstr_t *ds_p, int argc, char *argv[])
+static int handle_show_function(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	struct cw_func *acf;
 
@@ -309,7 +309,7 @@ static int handle_show_function(cw_dynstr_t *ds_p, int argc, char *argv[])
 }
 
 struct complete_show_func_args {
-	cw_dynstr_t *ds_p;
+	struct cw_dynstr *ds_p;
 	char *word;
 	int word_len;
 };
@@ -324,7 +324,7 @@ static int complete_show_func_one(struct cw_object *obj, void *data)
 
 	return 0;
 }
-static void complete_show_function(cw_dynstr_t *ds_p, char *argv[], int lastarg, int lastarg_len)
+static void complete_show_function(struct cw_dynstr *ds_p, char *argv[], int lastarg, int lastarg_len)
 {
 	struct complete_show_func_args args = {
 		.ds_p = ds_p,

@@ -43,7 +43,7 @@ static const char env_func_syntax[] = "ENV(envname[, value])";
 static const char env_func_desc[] = "";
 
 
-static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *ret;
 

@@ -28,8 +28,12 @@
 #include "callweaver/preprocessor.h"
 
 
-/* A dynamic string is derived from a dynamic array of chars */
-typedef CW_DYNARRAY(char) cw_dynstr_t;
+/* A dynamic string is derived from a dynamic array of chars but uses
+ * its own slightly modified type specific wrappers for the generic
+ * dynamic array functions rather than simply generating default with
+ * CW_DYNARRAY_FUNCS().
+ */
+CW_DYNARRAY_DECL_STRUCT(char, str);
 
 #define CW_DYNSTR_DEFAULT_CHUNK CW_DYNARRAY_DEFAULT_CHUNK
 
@@ -38,7 +42,7 @@ typedef CW_DYNARRAY(char) cw_dynstr_t;
 #define CW_DYNSTR_INIT	{ \
 	.used = 0, \
 	.size = 0, \
-	.chunk = CW_DYNARRAY_DEFAULT_CHUNK, \
+	.chunk = CW_DYNSTR_DEFAULT_CHUNK - 1, \
 	.error = 0, \
 	.data = (char *)"", \
 }
@@ -51,7 +55,7 @@ typedef CW_DYNARRAY(char) cw_dynstr_t;
  *	\param chunk	allocations are rounded up to a multiple of this
  *			(this MUST be a power of 2)
  */
-static inline void cw_dynstr_init(cw_dynstr_t *ds_p, size_t len, size_t chunk)
+static inline void cw_dynstr_init(struct cw_dynstr *ds_p, size_t len, size_t chunk)
 {
 	cw_dynarray_init(ds_p, len, chunk);
 
@@ -73,41 +77,14 @@ static inline void cw_dynstr_init(cw_dynstr_t *ds_p, size_t len, size_t chunk)
  *
  *	\param ds_p	dynamic string to reset
  */
-static inline void cw_dynstr_reset(cw_dynstr_t *ds_p)
+static inline void cw_dynstr_reset(struct cw_dynstr *ds_p)
 	__attribute__ ((nonnull (1)));
 
-static inline void cw_dynstr_reset(cw_dynstr_t *ds_p)
+static inline void cw_dynstr_reset(struct cw_dynstr *ds_p)
 {
 	if (ds_p->size)
 		ds_p->data[0] = '\0';
 	cw_dynarray_reset(ds_p);
-}
-
-
-/* \brief Return the amount of unused but allocated space in a dynamic
- * string.
- *
- *	\param ds_p	dynamic string to query
- */
-static inline size_t cw_dynstr_space(cw_dynstr_t *ds_p)
-	__attribute__ ((nonnull (1)));
-
-static inline size_t cw_dynstr_space(cw_dynstr_t *ds_p)
-{
-	return ds_p->size - ds_p->used;
-}
-
-
-/* \brief Return the length of a dynamic string.
- *
- *	\param ds_p	dynamic string to query
- */
-static inline size_t cw_dynstr_end(cw_dynstr_t *ds_p)
-	__attribute__ ((nonnull (1)));
-
-static inline size_t cw_dynstr_end(cw_dynstr_t *ds_p)
-{
-	return ds_p->used;
 }
 
 
@@ -127,10 +104,10 @@ static inline size_t cw_dynstr_end(cw_dynstr_t *ds_p)
  *	\param ds_p	dynamic string to truncate
  *	\param count	length to truncate to
  */
-static inline void cw_dynstr_truncate(cw_dynstr_t *ds_p, size_t count)
+static inline void cw_dynstr_truncate(struct cw_dynstr *ds_p, size_t count)
 	__attribute__ ((nonnull (1)));
 
-static inline void cw_dynstr_truncate(cw_dynstr_t *ds_p, size_t count)
+static inline void cw_dynstr_truncate(struct cw_dynstr *ds_p, size_t count)
 {
 	ds_p->used = count;
 	if (ds_p->size)
@@ -157,10 +134,10 @@ static inline void cw_dynstr_truncate(cw_dynstr_t *ds_p, size_t count)
  *	\returns the previous contents of the dynstr as a malloc'd, null
  *	terminated string or NULL if the dynstr was empty
  */
-static inline char *cw_dynstr_steal(cw_dynstr_t *ds_p)
+static inline char *cw_dynstr_steal(struct cw_dynstr *ds_p)
 	__attribute__ ((nonnull (1)));
 
-static inline char *cw_dynstr_steal(cw_dynstr_t *ds_p)
+static inline char *cw_dynstr_steal(struct cw_dynstr *ds_p)
 {
 	char *data = NULL;
 
@@ -181,13 +158,15 @@ static inline char *cw_dynstr_steal(cw_dynstr_t *ds_p)
  *
  *	\param ds_p	dynamic string to check
  *	\param len	minimum free space required
+ *
+ *	\return 0 on success, non-zero on failure
  */
-static inline void cw_dynstr_need(cw_dynstr_t *ds_p, size_t len)
+static inline int cw_dynstr_need(struct cw_dynstr *ds_p, size_t len)
 	__attribute__ ((nonnull (1)));
 
-static inline void cw_dynstr_need(cw_dynstr_t *ds_p, size_t len)
+static inline int cw_dynstr_need(struct cw_dynstr *ds_p, size_t len)
 {
-	cw_dynarray_need(ds_p, len);
+	return cw_dynarray_need(ds_p, len);
 }
 
 
@@ -196,10 +175,10 @@ static inline void cw_dynstr_need(cw_dynstr_t *ds_p, size_t len)
  *
  *	\param ds_p	dynamic string to free
  */
-static inline void cw_dynstr_free(cw_dynstr_t *ds_p)
+static inline void cw_dynstr_free(struct cw_dynstr *ds_p)
 	__attribute__ ((nonnull (1)));
 
-static inline void cw_dynstr_free(cw_dynstr_t *ds_p)
+static inline void cw_dynstr_free(struct cw_dynstr *ds_p)
 {
 	cw_dynarray_free(ds_p);
 
@@ -208,9 +187,9 @@ static inline void cw_dynstr_free(cw_dynstr_t *ds_p)
 }
 
 
-extern CW_API_PUBLIC int cw_dynstr_vprintf(cw_dynstr_t *ds_p, const char *fmt, va_list ap)
+extern CW_API_PUBLIC int cw_dynstr_vprintf(struct cw_dynstr *ds_p, const char *fmt, va_list ap)
 	__attribute__ ((__nonnull__ (1,2)));
-extern CW_API_PUBLIC int cw_dynstr_printf(cw_dynstr_t *ds_p, const char *fmt, ...)
+extern CW_API_PUBLIC int cw_dynstr_printf(struct cw_dynstr *ds_p, const char *fmt, ...)
 	__attribute__ ((__nonnull__ (1,2), __format__ (printf, 2,3)));
 
 
@@ -261,9 +240,9 @@ extern CW_API_PUBLIC int cw_dynstr_printf(cw_dynstr_t *ds_p, const char *fmt, ..
  * so you get accurate line numbers for errors and warnings but then
  * the compiled code will have references to non-existent functions.
  */
-static __inline__ int cw_dynstr_tprintf(cw_dynstr_t *ds_p, size_t count, ...)
+static __inline__ int cw_dynstr_tprintf(struct cw_dynstr *ds_p, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (1)));
-static __inline__ int cw_dynstr_tprintf(cw_dynstr_t *ds_p __attribute__((unused)), size_t count __attribute__((unused)), ...)
+static __inline__ int cw_dynstr_tprintf(struct cw_dynstr *ds_p __attribute__((unused)), size_t count __attribute__((unused)), ...)
 {
 	return 0;
 }
@@ -293,7 +272,7 @@ static __inline__ char *cw_fmtval(const char *fmt __attribute__((unused)), ...)
 
 #else
 
-extern int cw_dynstr_tprintf(cw_dynstr_t *ds_p, size_t count, ...)
+extern int cw_dynstr_tprintf(struct cw_dynstr *ds_p, size_t count, ...)
 	__attribute__ ((__nonnull__ (1)));
 
 extern char *cw_fmtval(const char *fmt, ...)

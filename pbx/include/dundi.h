@@ -200,7 +200,7 @@ struct dundi_result {
 	dundi_eid eid;
 	char eid_str[20];
 	char tech[10];
-	cw_dynstr_t dest;
+	struct cw_dynstr dest;
 };
 
 struct dundi_entity_info {

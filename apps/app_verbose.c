@@ -48,7 +48,7 @@ static const char verbose_descrip[] =
 "  Always returns 0.\n";
 
 
-static int verbose_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int verbose_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const char *prefix[] = {
 		"",

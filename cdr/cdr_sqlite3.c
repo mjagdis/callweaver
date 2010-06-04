@@ -129,7 +129,7 @@ static const char sql_insert_cmd[] =
 	");";
 
 
-static cw_dynstr_t dbpath = CW_DYNSTR_INIT;
+static struct cw_dynstr dbpath = CW_DYNSTR_INIT;
 
 static pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
 

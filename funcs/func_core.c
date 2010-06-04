@@ -83,7 +83,7 @@ static void wait_for_hangup(struct cw_channel *chan, char *s)
 }
 
 
-static int pbx_builtin_exten(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_exten(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -94,7 +94,7 @@ static int pbx_builtin_exten(struct cw_channel *chan, int argc, char **argv, cw_
 }
 
 
-static int pbx_builtin_context(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_context(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -105,7 +105,7 @@ static int pbx_builtin_context(struct cw_channel *chan, int argc, char **argv, c
 }
 
 
-static int pbx_builtin_priority(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_priority(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -116,7 +116,7 @@ static int pbx_builtin_priority(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int pbx_builtin_channel(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_channel(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -127,7 +127,7 @@ static int pbx_builtin_channel(struct cw_channel *chan, int argc, char **argv, c
 }
 
 
-static int pbx_builtin_uniqueid(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_uniqueid(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -138,7 +138,7 @@ static int pbx_builtin_uniqueid(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int pbx_builtin_hangupcause(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_hangupcause(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -149,7 +149,7 @@ static int pbx_builtin_hangupcause(struct cw_channel *chan, int argc, char **arg
 }
 
 
-static int pbx_builtin_accountcode(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_accountcode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -160,7 +160,7 @@ static int pbx_builtin_accountcode(struct cw_channel *chan, int argc, char **arg
 }
 
 
-static int pbx_builtin_language(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_language(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -171,7 +171,7 @@ static int pbx_builtin_language(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int pbx_builtin_hint(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_hint(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -184,7 +184,7 @@ static int pbx_builtin_hint(struct cw_channel *chan, int argc, char **argv, cw_d
 }
 
 
-static int pbx_builtin_hintname(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_hintname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -195,7 +195,7 @@ static int pbx_builtin_hintname(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int pbx_builtin_epoch(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_epoch(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
@@ -207,7 +207,7 @@ static int pbx_builtin_epoch(struct cw_channel *chan, int argc, char **argv, cw_
 }
 
 
-static int pbx_builtin_datetime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_datetime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct tm tm;
 	time_t now = time(NULL);
@@ -232,7 +232,7 @@ static int pbx_builtin_datetime(struct cw_channel *chan, int argc, char **argv, 
 }
 
 
-static int pbx_builtin_timestamp(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_timestamp(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct tm tm;
 	time_t now = time(NULL);
@@ -258,7 +258,7 @@ static int pbx_builtin_timestamp(struct cw_channel *chan, int argc, char **argv,
 }
 
 
-static int pbx_builtin_progress(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_progress(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -268,7 +268,7 @@ static int pbx_builtin_progress(struct cw_channel *chan, int argc, char **argv, 
 	return 0;
 }
 
-static int pbx_builtin_ringing(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_ringing(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
@@ -278,7 +278,7 @@ static int pbx_builtin_ringing(struct cw_channel *chan, int argc, char **argv, c
 	return 0;
 }
 
-static int pbx_builtin_busy(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_busy(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -289,7 +289,7 @@ static int pbx_builtin_busy(struct cw_channel *chan, int argc, char **argv, cw_d
 	return -1;
 }
 
-static int pbx_builtin_congestion(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_congestion(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -300,7 +300,7 @@ static int pbx_builtin_congestion(struct cw_channel *chan, int argc, char **argv
 	return -1;
 }
 
-static int pbx_builtin_answer(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_answer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int delay = (argc > 0 ? atoi(argv[0]) : 0);
 	int res;
@@ -316,7 +316,7 @@ static int pbx_builtin_answer(struct cw_channel *chan, int argc, char **argv, cw
 	return res;
 }
 
-static int pbx_builtin_setlanguage(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setlanguage(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 
@@ -334,7 +334,7 @@ static int pbx_builtin_setlanguage(struct cw_channel *chan, int argc, char **arg
 	return 0;
 }
 
-static int pbx_builtin_resetcdr(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_resetcdr(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *p;
 	int flags = 0;
@@ -361,7 +361,7 @@ static int pbx_builtin_resetcdr(struct cw_channel *chan, int argc, char **argv, 
 	return 0;
 }
 
-static int pbx_builtin_setaccount(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setaccount(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -369,7 +369,7 @@ static int pbx_builtin_setaccount(struct cw_channel *chan, int argc, char **argv
 	return 0;
 }
 
-static int pbx_builtin_setamaflags(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setamaflags(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
 
@@ -377,7 +377,7 @@ static int pbx_builtin_setamaflags(struct cw_channel *chan, int argc, char **arg
 	return 0;
 }
 
-static int pbx_builtin_hangup(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_hangup(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int n;
 
@@ -390,7 +390,7 @@ static int pbx_builtin_hangup(struct cw_channel *chan, int argc, char **argv, cw
 	return -1;
 }
 
-static int pbx_builtin_goto(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_goto(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *context, *exten;
 	int res;
@@ -406,7 +406,7 @@ static int pbx_builtin_goto(struct cw_channel *chan, int argc, char **argv, cw_d
 	return res;
 }
 
-static int pbx_builtin_gotoiftime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_gotoiftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char tmp[1024];
     struct cw_timing timing;
@@ -442,7 +442,7 @@ static int pbx_builtin_gotoiftime(struct cw_channel *chan, int argc, char **argv
     return 0;
 }
 
-static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char tmp[1024];
     struct cw_timing timing;
@@ -480,7 +480,7 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
     return 0;
 }
 
-static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     double ms;
 
@@ -492,7 +492,7 @@ static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, cw_d
     return 0;
 }
 
-static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct cw_flags flags = {0};
     char *mohclass = NULL;
@@ -543,7 +543,7 @@ static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv,
     return res;
 }
 
-static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int res = 0;
     char *options = NULL; 
@@ -646,7 +646,7 @@ static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv
     return res;
 }
 
-static int pbx_builtin_atimeout(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_atimeout(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     static int deprecation_warning = 0;
     int x = (argc > 0 ? atoi(argv[0]) : 0);
@@ -666,7 +666,7 @@ static int pbx_builtin_atimeout(struct cw_channel *chan, int argc, char **argv, 
     return 0;
 }
 
-static int pbx_builtin_rtimeout(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_rtimeout(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     static int deprecation_warning = 0;
 
@@ -690,7 +690,7 @@ static int pbx_builtin_rtimeout(struct cw_channel *chan, int argc, char **argv, 
     return 0;
 }
 
-static int pbx_builtin_dtimeout(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_dtimeout(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     static int deprecation_warning = 0;
 
@@ -714,7 +714,7 @@ static int pbx_builtin_dtimeout(struct cw_channel *chan, int argc, char **argv, 
     return 0;
 }
 
-static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *value = NULL;
 
@@ -771,7 +771,7 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, cw
 	return 0;
 }
 
-static int pbx_builtin_setvar_old(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setvar_old(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 
@@ -785,7 +785,7 @@ static int pbx_builtin_setvar_old(struct cw_channel *chan, int argc, char **argv
 	return pbx_builtin_setvar(chan, argc, argv, NULL);
 }
 
-static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_channel *chan2;
 	char *channel, *s;
@@ -823,7 +823,7 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 	return res;
 }
 
-static int pbx_builtin_setglobalvar(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_setglobalvar(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(result);
@@ -841,7 +841,7 @@ static int pbx_builtin_setglobalvar(struct cw_channel *chan, int argc, char **ar
 	return(0);
 }
 
-static int pbx_builtin_noop(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_noop(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
@@ -859,7 +859,7 @@ static int pbx_builtin_noop(struct cw_channel *chan, int argc, char **argv, cw_d
 	return 0;
 }
 
-static int pbx_builtin_gotoif(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_gotoif(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *s, *q;
 	int i;
@@ -905,7 +905,7 @@ static int pbx_builtin_gotoif(struct cw_channel *chan, int argc, char **argv, cw
 	return cw_function_syntax("GotoIf(boolean ? [[[context,]exten,]priority] [: [[context,]exten,]priority])");
 }           
 
-static int pbx_builtin_saynumber(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_saynumber(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     CW_UNUSED(result);
 
@@ -923,7 +923,7 @@ static int pbx_builtin_saynumber(struct cw_channel *chan, int argc, char **argv,
     return cw_say_number(chan, atoi(argv[0]), "", chan->language, (argc > 1 ? argv[1] : NULL));
 }
 
-static int pbx_builtin_saydigits(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_saydigits(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int res = 0;
 
@@ -934,7 +934,7 @@ static int pbx_builtin_saydigits(struct cw_channel *chan, int argc, char **argv,
     return res;
 }
     
-static int pbx_builtin_saycharacters(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_saycharacters(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int res = 0;
 
@@ -945,7 +945,7 @@ static int pbx_builtin_saycharacters(struct cw_channel *chan, int argc, char **a
     return res;
 }
     
-static int pbx_builtin_sayphonetic(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
+static int pbx_builtin_sayphonetic(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int res = 0;
 
