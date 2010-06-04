@@ -789,6 +789,26 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			*(args++) = src[i] = '\0';
 	}
 
+	/* If the name part starts with a quote we have to strip quotes and
+	 * de-escape it. Otherwise things like (for instance):
+	 *     Set(x="some name")
+	 *     Set("${x}"="...")
+	 *     ...(${"${x}"})
+	 * will break.
+	 */
+	if (src[0] == '"') {
+		char *p, *q;
+
+		p = &src[0];
+		q = &src[1];
+		do {
+			if (*q == '\\') q++;
+			*(p++) = *(q++);
+		} while (*q);
+		if (p > &src[0] && p[-1] == '"')
+			p[-1] = '\0';
+	}
+
 	/* If there are args it's a function. If there are no args we look for
 	 * a variable first and if that fails we look for a function.
 	 * If there are no args and neither a variable nor a function exists
