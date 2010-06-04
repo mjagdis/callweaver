@@ -21,12 +21,14 @@
  * \brief Core functions
  * 
  */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fenv.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "callweaver.h"
 
@@ -67,15 +69,38 @@ CW_DECLARE_OPTIONS(waitexten_opts,{
 });
 
 
+static int argtol(const char *arg, long double scale)
+{
+	long double secs;
+	char *end;
+	int res = 0;
+
+	secs = strtold(arg, &end);
+	if (!*end && !isnan(secs)) {
+		res = INT_MAX;
+
+		if (!isinf(secs)) {
+			feclearexcept(FE_ALL_EXCEPT);
+			errno = 0;
+			res = lroundl(secs * scale);
+			if (errno || fetestexcept(FE_INVALID | FE_DIVBYZERO | FE_UNDERFLOW))
+				res = 0;
+			else if (fetestexcept(FE_OVERFLOW))
+				res = INT_MAX;
+		}
+	}
+
+	return res;
+}
+
+
 static void wait_for_hangup(struct cw_channel *chan, char *s)
 {
 	struct cw_frame *f;
 	int waittime;
 
-	if (!s || !strlen(s) || (sscanf(s, "%d", &waittime) != 1) || (waittime < 0))
-		waittime = -1;
-	if (waittime > -1)
-		cw_safe_sleep(chan, waittime * 1000);
+	if (s && s[0] && (waittime = argtol(s, 1000)) >= 0)
+		cw_safe_sleep(chan, waittime);
 	else {
 		while (cw_waitfor(chan, -1) >= 0 && (f = cw_read(chan)))
 			cw_fr_free(f);
@@ -302,9 +327,9 @@ static int pbx_builtin_congestion(struct cw_channel *chan, int argc, char **argv
 
 static int pbx_builtin_answer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	int delay = (argc > 0 ? atoi(argv[0]) : 0);
+	int delay = (argc > 0 && argv[0][0] ? argtol(argv[0], 1) : 0);
 	int res;
-    
+
 	CW_UNUSED(result);
 
 	if (chan->_state == CW_STATE_UP)
@@ -482,14 +507,15 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
 
 static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-    double ms;
+	int res = 0;
 
-    CW_UNUSED(result);
+	CW_UNUSED(result);
 
-    /* Wait for "n" seconds */
-    if (argc > 0 && (ms = atof(argv[0])))
-        return cw_safe_sleep(chan, (int)(ms * 1000.0));
-    return 0;
+	/* Wait for "n" seconds */
+	if (argc > 0 && argv[0][0])
+		res = cw_safe_sleep(chan, argtol(argv[0], 1000));
+
+	return 0;
 }
 
 static int pbx_builtin_waitexten(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
