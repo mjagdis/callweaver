@@ -996,7 +996,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 		p = buf;
 		do {
 			char *next, *end;
-			int inquote;
+			int inquote, tws;
 
 			if (cw_dynarray_need(args, 2))
 				break;
@@ -1010,20 +1010,23 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 			 * enclose strings and parentheses (outside any quoted
 			 * string) must balance.
 			 */
-			inquote = 0;
+			inquote = tws = 0;
 			c = '\0';
 			if (*next) {
 				do {
 					if (*next == '\\') {
 						if (!*(++next)) break;
+						tws = -1;
 					} else if (*next == '"') {
 						inquote = !inquote;
+						tws = 0;
 						if (!*(++next)) break;
 						continue;
-					} else if (strchr(delim, *next) && !inquote)
+					} else if (!inquote && strchr(delim, *next))
 						break;
 
 					*(end++) = *(next++);
+					tws++;
 				} while (*next);
 
 				/* Note whether we hit a delimiter or '\0' in case
@@ -1033,7 +1036,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 
 				/* Terminate and backtrack trimming off trailing whitespace */
 				*end = '\0';
-				while (end > args->data[args->used] && isspace(end[-1]))
+				while (tws && isspace(end[-1]))
 					*(--end) = '\0';
 			}
 
