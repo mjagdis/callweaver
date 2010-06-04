@@ -48,6 +48,7 @@
 #include "callweaver_expr2-common.h"
 #include "callweaver_expr2.h" /* the o/p of the bison on callweaver_expr2.y */
 
+
 #define SET_COLUMNS \
 	do { \
 		yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
@@ -86,9 +87,10 @@
 		} \
 	} while (0)
 
+
 void cw_yyset_column(int column_no, yyscan_t yyscanner);
 int cw_yyget_column(yyscan_t yyscanner);
-static int curlycount = 0;
+
 
 #ifndef YY_NO_INPUT
 #  ifdef __cplusplus
@@ -113,6 +115,7 @@ static int curlycount = 0;
 %option batch
 %option outfile="callweaver_expr2f.c"
 %option reentrant
+%option extra-type="struct parse_io *"
 %option bison-bridge
 %option bison-locations
 %option noyywrap
@@ -195,7 +198,7 @@ TRUNC	{ SET_COLUMNS; return TOK_TRUNC; }
 		 * into a single TOKEN.
 		 * They are much more complex now than they used to be
 		 */
-		curlycount = 0;
+		yyextra->curlycount = 0;
 		BEGIN(var);
 		yymore();
 	}
@@ -230,8 +233,8 @@ nan|NAN|NaN	{
 
 
 <var>[^{}]*\}	{
-		curlycount--;
-		if (curlycount < 0) {
+		yyextra->curlycount--;
+		if (yyextra->curlycount < 0) {
 			BEGIN(trail);
 			yymore();
 		} else {
@@ -240,7 +243,7 @@ nan|NAN|NaN	{
 	}
 	
 <var>[^{}]*\{	{
-		curlycount++;
+		yyextra->curlycount++;
 		yymore();
 	}
 	
@@ -262,7 +265,7 @@ nan|NAN|NaN	{
 	}
 	
 <trail>\$\{	{
-		curlycount = 0;
+		yyextra->curlycount = 0;
 		BEGIN(var);
 		yymore();
 	}
@@ -295,7 +298,7 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 	io.chan = chan;
 	io.string = expr;  /* to pass to the error routine */
 
-	cw_yylex_init(&io.scanner);
+	cw_yylex_init_extra(&io, &io.scanner);
 
 	cw_yy_scan_string(expr, io.scanner);
 

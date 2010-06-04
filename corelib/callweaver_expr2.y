@@ -91,17 +91,16 @@ static const char *math_name[] = {
 };
 
 
-static void *math_func[] = {
+typedef long double (*math_f_t)(long double);
+static math_f_t math_f_func[] = {
 	[TOK_ACOSH      - TOK_ACOSH] = &acoshl,
 	[TOK_ACOS       - TOK_ACOSH] = &acosl,
 	[TOK_ASINH      - TOK_ACOSH] = &asinhl,
 	[TOK_ASIN       - TOK_ACOSH] = &asinl,
-	[TOK_ATAN2      - TOK_ACOSH] = &atan2l,
 	[TOK_ATANH      - TOK_ACOSH] = &atanhl,
 	[TOK_ATAN       - TOK_ACOSH] = &atanl,
 	[TOK_CBRT       - TOK_ACOSH] = &cbrtl,
 	[TOK_CEIL       - TOK_ACOSH] = &ceill,
-	[TOK_COPYSIGN   - TOK_ACOSH] = &copysignl,
 	[TOK_COSH       - TOK_ACOSH] = &coshl,
 	[TOK_COS        - TOK_ACOSH] = &cosl,
 	[TOK_ERFC       - TOK_ACOSH] = &erfcl,
@@ -110,13 +109,7 @@ static void *math_func[] = {
 	[TOK_EXP        - TOK_ACOSH] = &expl,
 	[TOK_EXPM1      - TOK_ACOSH] = &expm1l,
 	[TOK_FABS       - TOK_ACOSH] = &fabsl,
-	[TOK_FDIM       - TOK_ACOSH] = &fdiml,
 	[TOK_FLOOR      - TOK_ACOSH] = &floorl,
-	[TOK_FMA        - TOK_ACOSH] = &fmal,
-	[TOK_FMAX       - TOK_ACOSH] = &fmaxl,
-	[TOK_FMIN       - TOK_ACOSH] = &fminl,
-	[TOK_FMOD       - TOK_ACOSH] = &fmodl,
-	[TOK_HYPOT      - TOK_ACOSH] = &hypotl,
 	[TOK_LGAMMA     - TOK_ACOSH] = &lgammal,
 	[TOK_LOG10      - TOK_ACOSH] = &log10l,
 	[TOK_LOG1P      - TOK_ACOSH] = &log1pl,
@@ -124,10 +117,6 @@ static void *math_func[] = {
 	[TOK_LOGB       - TOK_ACOSH] = &logbl,
 	[TOK_LOG        - TOK_ACOSH] = &logl,
 	[TOK_NEARBYINT  - TOK_ACOSH] = &nearbyintl,
-	[TOK_NEXTAFTER  - TOK_ACOSH] = &nextafterl,
-	[TOK_NEXTTOWARD - TOK_ACOSH] = &nexttowardl,
-	[TOK_POW        - TOK_ACOSH] = &powl,
-	[TOK_REMAINDER  - TOK_ACOSH] = &remainderl,
 	[TOK_RINT       - TOK_ACOSH] = &rintl,
 	[TOK_ROUND      - TOK_ACOSH] = &roundl,
 	[TOK_SINH       - TOK_ACOSH] = &sinhl,
@@ -137,6 +126,26 @@ static void *math_func[] = {
 	[TOK_TAN        - TOK_ACOSH] = &tanl,
 	[TOK_TGAMMA     - TOK_ACOSH] = &tgammal,
 	[TOK_TRUNC      - TOK_ACOSH] = &truncl,
+};
+
+typedef long double (*math_ff_t)(long double, long double);
+static math_ff_t math_ff_func[] = {
+	[TOK_ATAN2      - TOK_ATAN2] = &atan2l,
+	[TOK_COPYSIGN   - TOK_ATAN2] = &copysignl,
+	[TOK_FDIM       - TOK_ATAN2] = &fdiml,
+	[TOK_FMAX       - TOK_ATAN2] = &fmaxl,
+	[TOK_FMIN       - TOK_ATAN2] = &fminl,
+	[TOK_FMOD       - TOK_ATAN2] = &fmodl,
+	[TOK_HYPOT      - TOK_ATAN2] = &hypotl,
+	[TOK_NEXTAFTER  - TOK_ATAN2] = &nextafterl,
+	[TOK_NEXTTOWARD - TOK_ATAN2] = &nexttowardl,
+	[TOK_POW        - TOK_ATAN2] = &powl,
+	[TOK_REMAINDER  - TOK_ATAN2] = &remainderl,
+};
+
+typedef long double (*math_fff_t)(long double, long double, long double);
+static math_fff_t math_fff_func[] = {
+	[TOK_FMA        - TOK_FMA  ] = &fmal,
 };
 
  
@@ -228,15 +237,22 @@ extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %type <val> start expr
 %type <args> args args1
 
-%type <tok> math_f math_ff math_fff
-
+%type <tok> math_f
 %token <tok> TOK_ACOSH /* This MUST be first */
-%token <tok> TOK_ACOS TOK_ASINH TOK_ASIN TOK_ATAN2 TOK_ATANH TOK_ATAN TOK_CBRT
-	TOK_CEIL TOK_COPYSIGN TOK_COSH TOK_COS TOK_ERFC TOK_ERF TOK_EXP2 TOK_EXP TOK_EXPM1
-	TOK_FABS TOK_FDIM TOK_FLOOR TOK_FMA TOK_FMAX TOK_FMIN TOK_FMOD TOK_HYPOT TOK_LGAMMA
-	TOK_LOG10 TOK_LOG1P TOK_LOG2 TOK_LOGB TOK_LOG TOK_NEARBYINT TOK_NEXTAFTER TOK_NEXTTOWARD
-	TOK_POW TOK_REMAINDER TOK_RINT TOK_ROUND TOK_SINH TOK_SIN TOK_SQRT TOK_TANH TOK_TAN
-	TOK_TGAMMA TOK_TRUNC
+%token <tok> TOK_ACOS TOK_ASINH TOK_ASIN TOK_ATANH TOK_ATAN TOK_CBRT TOK_CEIL
+	TOK_COSH TOK_COS TOK_ERFC TOK_ERF TOK_EXP2 TOK_EXP TOK_EXPM1 TOK_FABS
+	TOK_FLOOR TOK_LGAMMA TOK_LOG10 TOK_LOG1P TOK_LOG2 TOK_LOGB TOK_LOG
+	TOK_NEARBYINT TOK_RINT TOK_ROUND TOK_SINH TOK_SIN TOK_SQRT TOK_TANH
+	TOK_TAN TOK_TGAMMA TOK_TRUNC
+
+%type <tok> math_ff
+%token <tok> TOK_ATAN2 /* This MUST be first */
+%token <tok> TOK_COPYSIGN TOK_FDIM TOK_FMAX TOK_FMIN TOK_FMOD TOK_HYPOT TOK_NEXTAFTER
+	TOK_NEXTTOWARD TOK_POW TOK_REMAINDER
+
+%type <tok> math_fff
+%token <tok> TOK_FMA /* This MUST be first */
+	/* Although there are currently no other 3-arg math functions */
 
 %token <val> TOKEN
 
@@ -376,11 +392,11 @@ expr:	TOKEN TOK_LP args TOK_RP	{
 			if (res)
 				YYABORT;
 		}
-	| math_f TOK_LP expr TOK_RP	{ if (!($$ = op_math_f(math_func[$1 - TOK_ACOSH], $3))) YYABORT; }
+	| math_f TOK_LP expr TOK_RP	{ if (!($$ = op_math_f(math_f_func[$1 - TOK_ACOSH], $3))) YYABORT; }
 	| math_f			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
-	| math_ff TOK_LP expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_ff(math_func[$1 - TOK_ACOSH], $3, $5))) YYABORT; }
+	| math_ff TOK_LP expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_ff(math_ff_func[$1 - TOK_ATAN2], $3, $5))) YYABORT; }
 	| math_ff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
-	| math_fff TOK_LP expr TOK_COMMA expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_fff(math_func[$1 - TOK_ACOSH], $3, $5, $7))) YYABORT; }
+	| math_fff TOK_LP expr TOK_COMMA expr TOK_COMMA expr TOK_RP	{ if (!($$ = op_math_fff(math_fff_func[$1 - TOK_FMA], $3, $5, $7))) YYABORT; }
 	| math_fff			{ if (!($$ = make_str(CW_EXPR_string, math_name[$1 - TOK_ACOSH]))) YYABORT; }
 
 	| TOKEN   { if (!($$ = $1)) YYABORT; }
