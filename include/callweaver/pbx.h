@@ -36,6 +36,13 @@ extern "C" {
 #endif
 
 
+/* Args are stored as dynamin arrays of char *.
+ * This defines "struct cw_dynargs" and the cw_dynargs_* functions used to operate on it.
+ */
+CW_DYNARRAY_DECL(char *, args)
+
+
+
 #define CW_PBX_KEEP    0
 #define CW_PBX_REPLACE 1
 
@@ -528,6 +535,19 @@ extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_
 
 extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst);
 
+/*!
+ * \brief Separate a string into an array of arguments
+ *
+ * \param args     The args struct to be filled in with pointers to the separated arguments
+ * \param buf      The string to be parsed (this must be a writable copy, as it will be modified)
+ * \param delim    List of characters to be used to delimit arguments
+ * \param stop     Stop when we see this (unquoted, unescaped) character
+ * \param tail     If non-NULL and we stop before end-of-string then *tail is set to point to the first unparsed character
+ *
+ * \return Non-zero on error
+*/
+extern CW_API_PUBLIC int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim, char stop, char **tail);
+
 extern CW_API_PUBLIC int cw_extension_patmatch(const char *pattern, const char *data);
 
 /* Set "autofallthrough" flag, if newval is <0, does not acutally set.  If
@@ -577,7 +597,7 @@ extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int 
  * and returns any result as a string in the given result buffer.
  * The argument string contains zero or more comma separated
  * arguments. Arguments may be quoted and/or contain backslash
- * escaped characters as allowed by cw_separate_app_args().
+ * escaped characters as allowed by cw_split_args().
  * They may NOT contain variables or expressions that require
  * expansion - these should have been expanded prior to calling
  * cw_function_exec().

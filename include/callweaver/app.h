@@ -199,18 +199,6 @@ extern CW_API_PUBLIC struct cw_group_info *cw_app_group_list_head(void);
 extern CW_API_PUBLIC int cw_app_group_list_unlock(void);
 
 
-/*!
- * \brief Separate a string into arguments in an array
- *
- * \param args     The args struct to be filled in with pointers to the separated arguments
- * \param buf      The string to be parsed (this must be a writable copy, as it will be modified)
- * \param delim    List of characters to be used to delimit arguments
- *
- * \return Non-zero on error
-*/
-CW_DYNARRAY_DECL(char *, args)
-extern CW_API_PUBLIC int cw_separate_app_args(struct cw_dynargs *args, char *buf, const char *delim, char stop, char **tail);
-
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 extern CW_API_PUBLIC int cw_app_dtget(struct cw_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);
 

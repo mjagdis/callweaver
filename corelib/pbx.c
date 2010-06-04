@@ -54,7 +54,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/causes.h"
 #include "callweaver/musiconhold.h"
-#include "callweaver/app.h"
 #include "callweaver/devicestate.h"
 #include "callweaver/callweaver_hash.h"
 #include "callweaver/keywords.h"
@@ -631,7 +630,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                     /* Substitute variables now */
                     if (sw->eval) {
                         pbx_substitute_variables(chan, NULL, sw->data, data);
-                        cw_separate_app_args(NULL, data->data, "", '\0', NULL);
+                        cw_split_args(NULL, data->data, "", '\0', NULL);
                     } else
                         cw_dynstr_printf(data, "%s", sw->data);
 
@@ -790,7 +789,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	while (i && isspace(src[i])) i--;
 
 	args = NULL;
-	if (!cw_separate_app_args(&av, src, "\0", '(', &args)) {
+	if (!cw_split_args(&av, src, "\0", '(', &args)) {
 		if (args) {
 			if (src[i] == ')')
 				src[i] = '\0';
@@ -967,6 +966,135 @@ void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars,
 		cw_log(CW_LOG_ERROR, "Unmatched %c in: %s\n", quote, src);
 		dst->error = 1;
 	}
+}
+
+
+int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim, char stop, char **tail)
+{
+	int res;
+
+	if (option_debug && option_verbose > 6)
+		cw_log(CW_LOG_DEBUG, "stop=0x%02x '%c', delim=\"%s\", args: %s\n", stop, (isprint(stop) ? stop : '?'), delim, buf);
+
+	if (args) {
+		cw_dynargs_reset(args);
+		args->used = 0;
+	}
+
+	if (buf) {
+		char *start, *next;
+		char c;
+
+		start = buf;
+		do {
+			char *end;
+			int inquote, tws;
+
+			/* Skip leading white space */
+			while (isblank(start[0]))
+				start++;
+
+			/* Find the end of this arg. Backslash removes any special
+			 * meaning from the next character and quotes enclose strings.
+			 * Note: the outer check for the first character being '\0' protects
+			 * us from attempting to modify a literal "" passed as the argument
+			 * string. This allows us to initialize dynamic strings to ""
+			 * which simplifies a lot of stuff higher up the stack!
+			 */
+			next = end = start;
+			inquote = tws = 0;
+			c = '\0';
+			if (*next) {
+				while (*next && (inquote || *next != stop)) {
+					if (*next == '\\') {
+						next++;
+						switch (*next) {
+							case 'n':
+								*(end++) = '\n';
+								break;;
+							case 'r':
+								*(end++) = '\r';
+								break;;
+							case 't':
+								*(end++) = '\t';
+								break;;
+							default:
+								*(end++) = *next;
+						}
+						next++;
+						tws = 0;
+						continue;
+					} else if (*next == '"') {
+						inquote = !inquote;
+						tws = 0;
+						if (!*(++next)) break;
+						continue;
+					} else if (*next == '\'' && !inquote) {
+						tws = 0;
+						next++;
+						while (*next && *next != '\'')
+							*(end++) = *(next++);
+						if (!*next)
+							break;
+						next++;
+						continue;
+					} else if (!inquote && strchr(delim, *next))
+						break;
+
+					*(end++) = *(next++);
+					tws++;
+				}
+
+				/* Note whether we hit a delimiter or '\0' in case
+				 * we're about to overwrite it
+				 */
+				c = *next;
+
+				/* Terminate and backtrack trimming off trailing whitespace */
+				*end = '\0';
+				while (tws-- && isblank(end[-1]))
+					*(--end) = '\0';
+			}
+
+#if 0
+			if (argl)
+				argl[argl->used++] = end - start;
+#endif
+			if (args) {
+				if (cw_dynargs_need(args, args->used + 2))
+					break;
+
+				args->data[args->used++] = start;
+			}
+
+			start = next + 1;
+		} while (c && c != stop);
+
+		if (c && tail)
+			*tail = next + 1;
+	}
+
+	res = 0;
+
+	if (args) {
+		if (args->used == 1 && !args->data[0][0])
+			args->used--;
+
+		if (!cw_dynargs_need(args, 1)) {
+			args->data[args->used] = NULL;
+
+			if (option_debug && option_verbose > 5) {
+				size_t i;
+				cw_log(CW_LOG_DEBUG, "error = %d, argc: %lu\n", args->error, (unsigned long)args->used);
+				for (i = 0; i < args->used; i++)
+					cw_log(CW_LOG_DEBUG, "argv[%lu]: %s\n", (unsigned long)i, args->data[i]);
+			}
+		}
+
+		res = args->error;
+	}
+
+	return res;
 }
 
 
@@ -4980,7 +5108,7 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 	int ret;
 
 	if (!goto_string || !(prio = cw_strdupa(goto_string))
-	|| cw_separate_app_args(&args, prio, ",", '\0', NULL) || args.used > 3)
+	|| cw_split_args(&args, prio, ",", '\0', NULL) || args.used > 3)
 		return cw_function_syntax("Goto([[context, ]extension, ]priority)");
 
 	prio = args.data[args.used - 1];

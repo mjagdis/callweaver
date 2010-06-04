@@ -1633,7 +1633,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 
 		if (*fromstring && chan) {
 			pbx_substitute_variables(chan, NULL, fromstring, &ds);
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, "From: \"%s\" <%s>\n", ds.data, who);
 			cw_dynstr_reset(&ds);
 		} else
@@ -1642,7 +1642,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 
 		if (emailsubject && chan) {
 			pbx_substitute_variables(chan, NULL, emailsubject, &ds);
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, "Subject: %s\n", ds.data);
 			cw_dynstr_reset(&ds);
 		} else if (*emailtitle) {
@@ -1667,7 +1667,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			pbx_substitute_variables(chan, NULL, emailbody, &ds);
 			if (ds.used && ds.data[ds.used - 1] != '\n')
 				cw_dynstr_printf(&ds, "\n");
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, ds.data);
 			cw_dynstr_reset(&ds);
 		} else {
@@ -1773,7 +1773,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 		if (*pagerfromstring && chan) {
 			pbx_substitute_variables(chan, NULL, pagerfromstring, &ds);
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, "From: %s <%s>\n", ds.data, who);
 			cw_dynstr_reset(&ds);
 		} else
@@ -1781,7 +1781,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		fprintf(p, "To: %s\n", pager);
                if (pagersubject && chan) {
 			pbx_substitute_variables(chan, NULL, pagersubject, &ds);
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, "Subject: %s\n\n", ds.data);
 			cw_dynstr_reset(&ds);
                } else
@@ -1789,7 +1789,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
                if (pagerbody && chan) {
 			pbx_substitute_variables(chan, NULL, pagerbody, &ds);
-			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			cw_split_args(NULL, ds.data, "", '\0', NULL);
 			fprintf(p, "%s\n", ds.data);
 			cw_dynstr_reset(&ds);
                } else {

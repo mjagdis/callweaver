@@ -51,7 +51,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/cli.h"
 #include "callweaver/options.h"
-#include "callweaver/app.h"
 
 static const char config_file[] = "cdr_pgsql_custom.conf";
 
@@ -209,7 +208,7 @@ restart:
 
 			pbx_substitute_variables(chan, NULL, values_str, &evalbuf);
 
-			if (!evalbuf.error && !cw_separate_app_args(&values, evalbuf.data, ",", '\0', NULL)) {
+			if (!evalbuf.error && !cw_split_args(&values, evalbuf.data, ",", '\0', NULL)) {
 				cdrset = cdrset->next;
 
 				pgres = PQexecPrepared(db, "insert", values.used, (const char * const *)values.data, NULL, NULL, 0);
@@ -340,7 +339,7 @@ static int reload_module(void)
 			}
 
 			if ((tmp = cw_variable_retrieve(cfg, "master", "columns"))) {
-				if (!(columns_str = strdup(tmp)) || cw_separate_app_args(&columns, columns_str, ",", '\0', NULL)) {
+				if (!(columns_str = strdup(tmp)) || cw_split_args(&columns, columns_str, ",", '\0', NULL)) {
 					cw_log(CW_LOG_ERROR, "Out of memory!\n");
 					res = -1;
 				}

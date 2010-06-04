@@ -43,7 +43,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 #include "callweaver/utils.h"
 #include "callweaver/lock.h"
-#include "callweaver/app.h"
 
 
 static int cw_clicmd_qsort_compare(const void *a, const void *b)
@@ -777,7 +776,7 @@ void cw_cli_generator(struct cw_dynstr *ds_p, char *cmd)
 		.ds_p = ds_p,
 	};
 
-	if (!cw_separate_app_args(&args.av, cmd, " \t", '\0', NULL)) {
+	if (!cw_split_args(&args.av, cmd, " \t", '\0', NULL)) {
 		if (args.av.used == 0)
 			args.av.data[0] = (char *)"";
 		else
@@ -797,7 +796,7 @@ void cw_cli_command(struct cw_dynstr *ds_p, char *cmd)
 	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	struct cw_clicmd *clicmd;
 
-	if (!cw_separate_app_args(&args, cmd, " \t", '\0', NULL) && args.used > 0) {
+	if (!cw_split_args(&args, cmd, " \t", '\0', NULL) && args.used > 0) {
 		if (args.used && !args.data[args.used - 1][0])
 			args.data[--args.used] = NULL;
 
@@ -837,7 +836,7 @@ static int help_workhorse_one(struct cw_object *obj, void *data)
 
 	/* Assumption: the literal words of commands do not contain whitespace
 	 * quotes, backslashes or anything else that would need escaping if a
-	 * subsequent cw_separate_app_args() is to return the correct data.
+	 * subsequent cw_split_args() is to return the correct data.
 	 */
 	for (i = 0; clicmd->cmda[i]; i++)
 		cw_dynstr_printf(args->ds_p, "%s%s", (i ? " " : ""), clicmd->cmda[i]);

@@ -33,7 +33,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include "callweaver/app.h"
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"
 #include "callweaver/module.h"
@@ -122,7 +121,7 @@ static int custom_log(struct cw_cdr *batch)
 
 				pbx_substitute_variables(chan, NULL, values_str, &evalbuf);
 
-				if (!evalbuf.error && !cw_separate_app_args(&values, evalbuf.data, ",", '\0', NULL)) {
+				if (!evalbuf.error && !cw_split_args(&values, evalbuf.data, ",", '\0', NULL)) {
 					cdrset = cdrset->next;
 
 					for (i = 0; i < values.used; i++) {

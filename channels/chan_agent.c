@@ -318,7 +318,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	argstr = cw_strdupa(agent);
 
 	// Extract username (agt), password and name from agent (args).
-	if (!cw_separate_app_args(&args, argstr, ",", '\0', NULL)) {
+	if (!cw_split_args(&args, argstr, ",", '\0', NULL)) {
 		if (args.used) {
 			agt = args.data[0];
 			if (args.used > 1)

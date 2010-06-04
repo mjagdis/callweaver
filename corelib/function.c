@@ -37,7 +37,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/function.h"
 #include "callweaver/channel.h"
-#include "callweaver/app.h"
 #include "callweaver/callweaver_hash.h"
 #include "callweaver/config.h"
 #include "callweaver/cli.h"
@@ -177,7 +176,7 @@ int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *nam
  * and returns any result as a string in the given result buffer.
  * The argument string contains zero or more comma separated
  * arguments. Arguments may be quoted and/or contain backslash
- * escaped characters as allowed by cw_separate_app_args().
+ * escaped characters as allowed by cw_split_args().
  * They may NOT contain variables or expressions that require
  * expansion - these should have been expanded prior to calling
  * cw_function_exec().
@@ -202,7 +201,7 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 		cw_verbose(VERBOSE_PREFIX_3 "%s: Call %s(%s)\n", (chan ? chan->name : "[no channel]"), name, argstr);
 
 	ret = -1;
-	if (!cw_separate_app_args(&args, argstr, ",", '\0', NULL))
+	if (!cw_split_args(&args, argstr, ",", '\0', NULL))
 		ret = cw_function_exec(chan, hash, name, args.used, &args.data[0], result);
 
 	cw_dynargs_free(&args);

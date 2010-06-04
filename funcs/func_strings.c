@@ -36,7 +36,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
-#include "callweaver/app.h"
 #include "callweaver/localtime.h"
 
 
@@ -127,7 +126,7 @@ static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, str
 		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds) && !ds.error) {
 			char *p = ds.data;
 
-			/* FIXME: should we use cw_separate_app_args here to get quoting right */
+			/* FIXME: should we use cw_split_args here to get quoting right */
 			while (strsep(&p, argv[1]))
 				fieldcount++;
 			cw_dynstr_printf(result, "%d", fieldcount);
@@ -260,7 +259,7 @@ static int function_eval(struct cw_channel *chan, int argc, char **argv, struct 
 
 	mark = result->used;
 	pbx_substitute_variables(chan, NULL, argv[0], result);
-	cw_separate_app_args(NULL, &result->data[mark], "", '\0', NULL);
+	cw_split_args(NULL, &result->data[mark], "", '\0', NULL);
 	return 0;
 }
 
@@ -290,7 +289,7 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, struct c
 		snprintf(ds, sizeof(ds), "%c", d);
 
 		pbx_substitute_variables(chan, NULL, tmp, &varvalue);
-		cw_separate_app_args(NULL, varvalue.data, "", '\0', NULL);
+		cw_split_args(NULL, varvalue.data, "", '\0', NULL);
 
 		if (!varvalue.error) {
 			tmp2 = varvalue.data;

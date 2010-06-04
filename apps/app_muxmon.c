@@ -307,7 +307,7 @@ static void *muxmon_thread(void *obj)
                 *p = '$';
         }
         pbx_substitute_variables(muxmon->chan, NULL, muxmon->post_process, &post_process);
-        if (!post_process.error && cw_separate_app_args(NULL, post_process.data, "", '\0', NULL))
+        if (!post_process.error && cw_split_args(NULL, post_process.data, "", '\0', NULL))
 		post_process.error = 1;
         free(muxmon->post_process);
         muxmon->post_process = NULL;
