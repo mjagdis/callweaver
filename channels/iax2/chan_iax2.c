@@ -8963,26 +8963,10 @@ static int load_module(void)
 	cw_mutex_init(&regl.lock);
 	
 	set_config(config, 0);
-#ifdef IAX_TRUNKING
-	if (trunkschedid == -1)
-		trunkschedid = cw_sched_add_variable(sched, 0, timing_read, NULL, 1);
-#endif
 
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(listen_port);
 	sin.sin_addr.s_addr = INADDR_ANY;
-
-	cw_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
-
-	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
-
- 	if (cw_channel_register(&iax2_tech)) {
-		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", channeltype);
-		__unload_module();
-		return -1;
-	}
-
-	cw_switch_register(&iax2_switch);
 
 	if (defaultsockfd < 0) {
 		if (!(ns = cw_netsock_bindaddr(netsock, io, &sin, tos, socket_read, NULL))) {
@@ -9003,6 +8987,23 @@ static int load_module(void)
 		cw_log(CW_LOG_ERROR, "Unable to start network thread\n");
 		cw_netsock_release(netsock);
 	}
+
+#ifdef IAX_TRUNKING
+	if (trunkschedid == -1)
+		trunkschedid = cw_sched_add_variable(sched, 0, timing_read, NULL, 1);
+#endif
+
+	cw_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
+
+	cw_manager_action_register_multiple(manager_actions, arraysize(manager_actions));
+
+	if (cw_channel_register(&iax2_tech)) {
+		cw_log(CW_LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		__unload_module();
+		return -1;
+	}
+
+	cw_switch_register(&iax2_switch);
 
 	cw_mutex_lock(&regl.lock);
 	for (reg = regl.regs; reg; reg = reg->next)
