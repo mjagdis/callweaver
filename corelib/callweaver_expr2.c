@@ -141,40 +141,26 @@
 #include "callweaver.h"
 
 #include <sys/types.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <locale.h>
+#include <math.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <locale.h>
 #include <unistd.h>
-#include <ctype.h>
-
-#if !defined(SOLARIS) && !defined(__CYGWIN__)
-#include <err.h>
-#else
-#define quad_t int64_t
-#endif
-
-#include <errno.h>
-#include <regex.h>
-#include <limits.h>
 
 #include "callweaver/callweaver_expr.h"
 #include "callweaver/logger.h"
 #include "callweaver/pbx.h"
 
-#if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
-#define QUAD_MIN LONG_LONG_MIN
-#endif
-#if defined(LONG_LONG_MAX) && !defined(QUAD_MAX)
-#define QUAD_MAX LONG_LONG_MAX
-#endif
 
-#  if ! defined(QUAD_MIN)
-#   define QUAD_MIN     (-0x7fffffffffffffffLL-1)
-#  endif
-#  if ! defined(QUAD_MAX)
-#   define QUAD_MAX     (0x7fffffffffffffffLL)
-#  endif
+typedef void *yyscan_t;
+
+#include "callweaver_expr2-common.h"
+
 
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
@@ -182,39 +168,11 @@
 extern char extra_error_message[4095];
 extern int extra_error_message_supplied;
 
-enum valtype {
-	CW_EXPR_integer, CW_EXPR_numeric_string, CW_EXPR_string
-} ;
-
-#ifdef STANDALONE
-void cw_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
-#endif
-
-struct val {
-	enum valtype type;
-	union {
-		char *s;
-		quad_t i;
-	} u;
-} ;
-
-typedef void *yyscan_t;
-
-struct parse_io
-{
-	char *string;
-	struct val *val;
-	yyscan_t scanner;
-};
  
-static int		chk_div __P((quad_t, quad_t));
-static int		chk_minus __P((quad_t, quad_t, quad_t));
-static int		chk_plus __P((quad_t, quad_t, quad_t));
-static int		chk_times __P((quad_t, quad_t, quad_t));
 static void		free_value __P((struct val *));
 static int		is_zero_or_null __P((struct val *));
 static int		isstring __P((struct val *));
-static struct val	*make_integer __P((quad_t));
+static struct val	*make_number __P((long double));
 static struct val	*make_str __P((const char *));
 static struct val	*op_and __P((struct val *, struct val *));
 static struct val	*op_colon __P((struct val *, struct val *));
@@ -234,8 +192,8 @@ static struct val	*op_or __P((struct val *, struct val *));
 static struct val	*op_plus __P((struct val *, struct val *));
 static struct val	*op_rem __P((struct val *, struct val *));
 static struct val	*op_times __P((struct val *, struct val *));
-static quad_t		to_integer __P((struct val *));
-static void		to_string __P((struct val *));
+static int		to_number __P((struct val *));
+static int		to_string __P((struct val *));
 
 /* uh, if I want to predeclare yylex with a YYLTYPE, I have to predeclare the yyltype... sigh */
 typedef struct yyltype
@@ -259,7 +217,6 @@ int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
 #define cw_yyerror(x) cw_yyerror(x,&yyloc,parseio)
-#define DESTROY(x) {if((x)->type == CW_EXPR_numeric_string || (x)->type == CW_EXPR_string) free((x)->u.s); (x)->u.s = 0; free(x);}
 
 
 /* Enabling traces.  */
@@ -282,12 +239,12 @@ int		cw_yyerror(const char *,YYLTYPE *, struct parse_io *);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 145 "callweaver_expr2.y"
+#line 102 "callweaver_expr2.y"
 {
 	struct val *val;
 }
 /* Line 187 of yacc.c.  */
-#line 291 "callweaver_expr2.c"
+#line 248 "callweaver_expr2.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -309,13 +266,13 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 149 "callweaver_expr2.y"
+#line 106 "callweaver_expr2.y"
 
 extern int		cw_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 
 /* Line 216 of yacc.c.  */
-#line 319 "callweaver_expr2.c"
+#line 276 "callweaver_expr2.c"
 
 #ifdef short
 # undef short
@@ -608,11 +565,11 @@ static const yytype_int8 yyrhs[] =
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
-static const yytype_uint16 yyrline[] =
+static const yytype_uint8 yyrline[] =
 {
-       0,   173,   173,   181,   188,   189,   193,   197,   201,   205,
-     209,   213,   217,   221,   225,   229,   233,   237,   241,   245,
-     249,   253,   257,   261
+       0,   128,   128,   137,   148,   149,   152,   155,   158,   161,
+     164,   167,   170,   173,   176,   179,   182,   185,   188,   191,
+     194,   197,   200,   203
 };
 #endif
 
@@ -1259,115 +1216,15 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
 
   switch (yytype)
     {
-      case 3: /* "TOK_COLONCOLON" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1266 "callweaver_expr2.c"
-	break;
-      case 4: /* "TOK_COND" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1271 "callweaver_expr2.c"
-	break;
-      case 5: /* "TOK_OR" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1276 "callweaver_expr2.c"
-	break;
-      case 6: /* "TOK_AND" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1281 "callweaver_expr2.c"
-	break;
-      case 7: /* "TOK_NE" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1286 "callweaver_expr2.c"
-	break;
-      case 8: /* "TOK_LE" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1291 "callweaver_expr2.c"
-	break;
-      case 9: /* "TOK_GE" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1296 "callweaver_expr2.c"
-	break;
-      case 10: /* "TOK_LT" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1301 "callweaver_expr2.c"
-	break;
-      case 11: /* "TOK_GT" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1306 "callweaver_expr2.c"
-	break;
-      case 12: /* "TOK_EQ" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1311 "callweaver_expr2.c"
-	break;
-      case 13: /* "TOK_MINUS" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1316 "callweaver_expr2.c"
-	break;
-      case 14: /* "TOK_PLUS" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1321 "callweaver_expr2.c"
-	break;
-      case 15: /* "TOK_MOD" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1326 "callweaver_expr2.c"
-	break;
-      case 16: /* "TOK_DIV" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1331 "callweaver_expr2.c"
-	break;
-      case 17: /* "TOK_MULT" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1336 "callweaver_expr2.c"
-	break;
-      case 18: /* "TOK_COMPL" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1341 "callweaver_expr2.c"
-	break;
-      case 19: /* "TOK_EQTILDE" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1346 "callweaver_expr2.c"
-	break;
-      case 20: /* "TOK_COLON" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1351 "callweaver_expr2.c"
-	break;
-      case 21: /* "TOK_LP" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1356 "callweaver_expr2.c"
-	break;
-      case 22: /* "TOK_RP" */
-#line 167 "callweaver_expr2.y"
-	{  free_value((yyvaluep->val)); };
-#line 1361 "callweaver_expr2.c"
-	break;
       case 23: /* "TOKEN" */
-#line 167 "callweaver_expr2.y"
+#line 124 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1366 "callweaver_expr2.c"
+#line 1223 "callweaver_expr2.c"
 	break;
       case 26: /* "expr" */
-#line 167 "callweaver_expr2.y"
+#line 124 "callweaver_expr2.y"
 	{  free_value((yyvaluep->val)); };
-#line 1371 "callweaver_expr2.c"
+#line 1228 "callweaver_expr2.c"
 	break;
 
       default:
@@ -1690,186 +1547,172 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 173 "callweaver_expr2.y"
-    { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
-              ((struct parse_io *)parseio)->val->type = (yyvsp[(1) - (1)].val)->type;
-              if( (yyvsp[(1) - (1)].val)->type == CW_EXPR_integer )
-				  ((struct parse_io *)parseio)->val->u.i = (yyvsp[(1) - (1)].val)->u.i;
-              else
-				  ((struct parse_io *)parseio)->val->u.s = (yyvsp[(1) - (1)].val)->u.s; 
-			  free((yyvsp[(1) - (1)].val));
-			;}
+#line 128 "callweaver_expr2.y"
+    {
+			struct parse_io *p = parseio;
+
+			if ((p->val = malloc(sizeof(*p->val))))
+				memcpy(p->val, (yyvsp[(1) - (1)].val), sizeof(*p->val));
+			free((yyvsp[(1) - (1)].val));
+			if (!p->val)
+				YYABORT;
+		;}
     break;
 
   case 3:
-#line 181 "callweaver_expr2.y"
-    {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
-              ((struct parse_io *)parseio)->val->type = CW_EXPR_string;
-			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
-			;}
+#line 137 "callweaver_expr2.y"
+    {/* nothing */
+			struct parse_io *p = parseio;
+
+			if ((p->val = malloc(sizeof(*p->val)))) {
+				p->val->type = CW_EXPR_string;
+				p->val->u.s = strdup("");
+			} else
+				YYABORT;
+		;}
     break;
 
   case 4:
-#line 188 "callweaver_expr2.y"
-    { (yyval.val)= (yyvsp[(1) - (1)].val);;}
+#line 148 "callweaver_expr2.y"
+    { if (!((yyval.val) = (yyvsp[(1) - (1)].val))) YYABORT; ;}
     break;
 
   case 5:
-#line 189 "callweaver_expr2.y"
-    { (yyval.val) = (yyvsp[(2) - (3)].val); 
+#line 149 "callweaver_expr2.y"
+    { if (!((yyval.val) = (yyvsp[(2) - (3)].val))) YYABORT;
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						   (yyloc).first_line=0; (yyloc).last_line=0;
-							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); ;}
+						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 6:
-#line 193 "callweaver_expr2.y"
-    { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 152 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 7:
-#line 197 "callweaver_expr2.y"
-    { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 155 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
                           (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 8:
-#line 201 "callweaver_expr2.y"
-    { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 158 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
 						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 9:
-#line 205 "callweaver_expr2.y"
-    { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 161 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
 						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 10:
-#line 209 "callweaver_expr2.y"
-    { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 164 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 11:
-#line 213 "callweaver_expr2.y"
-    { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 167 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 12:
-#line 217 "callweaver_expr2.y"
-    { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 170 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 13:
-#line 221 "callweaver_expr2.y"
-    { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 173 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 14:
-#line 225 "callweaver_expr2.y"
-    { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 176 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 15:
-#line 229 "callweaver_expr2.y"
-    { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 179 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 16:
-#line 233 "callweaver_expr2.y"
-    { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
-						DESTROY((yyvsp[(1) - (2)].val));	
+#line 182 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_negate ((yyvsp[(2) - (2)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 17:
-#line 237 "callweaver_expr2.y"
-    { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
-						DESTROY((yyvsp[(1) - (2)].val));	
+#line 185 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_compl ((yyvsp[(2) - (2)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 18:
-#line 241 "callweaver_expr2.y"
-    { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 188 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 19:
-#line 245 "callweaver_expr2.y"
-    { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 191 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 20:
-#line 249 "callweaver_expr2.y"
-    { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 194 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 21:
-#line 253 "callweaver_expr2.y"
-    { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 197 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 22:
-#line 257 "callweaver_expr2.y"
-    { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
-						DESTROY((yyvsp[(2) - (3)].val));	
+#line 200 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 23:
-#line 261 "callweaver_expr2.y"
-    { (yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)); 
-						DESTROY((yyvsp[(2) - (5)].val));	
-						DESTROY((yyvsp[(4) - (5)].val));	
+#line 203 "callweaver_expr2.y"
+    { if (!((yyval.val) = op_cond ((yyvsp[(1) - (5)].val), (yyvsp[(3) - (5)].val), (yyvsp[(5) - (5)].val)))) YYABORT;
 	                        (yyloc).first_column = (yylsp[(1) - (5)]).first_column; (yyloc).last_column = (yylsp[(3) - (5)]).last_column; 
 							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
 
 /* Line 1267 of yacc.c.  */
-#line 1873 "callweaver_expr2.c"
+#line 1716 "callweaver_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2089,193 +1932,123 @@ yyreturn:
 }
 
 
-#line 268 "callweaver_expr2.y"
+#line 208 "callweaver_expr2.y"
 
 
-static struct val *
-make_integer (quad_t i)
+static struct val *make_number(long double n)
 {
-	struct val *vp;
+	struct val *vp = NULL;
 
-	vp = (struct val *) malloc (sizeof (*vp));
-	if (vp == NULL) {
-		cw_log(CW_LOG_WARNING, "malloc() failed\n");
-		return(NULL);
-	}
-
-	vp->type = CW_EXPR_integer;
-	vp->u.i  = i;
-	return vp; 
-}
-
-static struct val *
-make_str (const char *s)
-{
-	struct val *vp;
-	size_t i;
-	int isint;
-
-	vp = (struct val *) malloc (sizeof (*vp));
-	if (vp == NULL || ((vp->u.s = strdup (s)) == NULL)) {
-		cw_log(CW_LOG_WARNING,"malloc() failed\n");
-		return(NULL);
-	}
-
-	for(i = 1, isint = isdigit(s[0]) || s[0] == '-';
-	    isint && i < strlen(s);
-	    i++)
-	{
-		if(!isdigit(s[i]))
-			 isint = 0;
-	}
-
-	if (isint)
-		vp->type = CW_EXPR_numeric_string;
-	else	
-		vp->type = CW_EXPR_string;
+	if ((vp = malloc(sizeof(*vp)))) {
+		vp->type = CW_EXPR_number;
+		vp->u.n  = n;
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 
 	return vp;
+
+}
+
+static struct val *make_str(const char *s)
+{
+	struct val *vp;
+
+	if ((vp = malloc(sizeof(*vp)))) {
+		if ((vp->u.s = strdup (s))) {
+			vp->type = CW_EXPR_string;
+			return vp;
+		}
+		free(vp);
+	}
+
+	cw_log(CW_LOG_ERROR, "Out of memory!\n");
+	return NULL;
 }
 
 
-static void
-free_value (struct val *vp)
+static void free_value(struct val *vp)
 {	
-	if (vp==NULL) {
-		return;
+	if (vp) {
+		if (vp->type != CW_EXPR_number)
+			free (vp->u.s);
+		free(vp);
 	}
-	if (vp->type == CW_EXPR_string || vp->type == CW_EXPR_numeric_string)
-		free (vp->u.s);	
-	free(vp);
 }
 
 
-static quad_t
-to_integer (struct val *vp)
+static int to_number(struct val *vp)
 {
-	quad_t i;
-	
-	if (vp == NULL) {
-		cw_log(CW_LOG_WARNING,"vp==NULL in to_integer()\n");
-		return(0);
+	char *end;
+	long double n;
+	int res = 0;
+
+	if (vp) {
+		switch (vp->type) {
+			case CW_EXPR_numeric_string:
+				vp->type = CW_EXPR_string;
+				errno = 0;
+				n = strtold(vp->u.s, &end);
+				if (end != vp->u.s && end[0] == '\0') {
+					if (errno == ERANGE)
+						cw_log(CW_LOG_WARNING, "Conversion of %s to number under/overflowed!\n", vp->u.s);
+					free(vp->u.s);
+					vp->type = CW_EXPR_number;
+					vp->u.n = n;
+					res = 1;
+				}
+				break;
+
+			case CW_EXPR_number:
+				res = 1;
+				break;
+
+			default:
+				break;
+		}
+
+		if (!res && !extra_error_message_supplied)
+			cw_log(CW_LOG_WARNING, "non-numeric argument: %s\n", vp->u.s);
 	}
 
-	if (vp->type == CW_EXPR_integer)
-		return 1;
-
-	if (vp->type == CW_EXPR_string)
-		return 0;
-
-	/* vp->type == CW_EXPR_numeric_string, make it numeric */
-	errno = 0;
-	i  = strtoll(vp->u.s, (char**)NULL, 10);
-	if (errno != 0) {
-		cw_log(CW_LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
-		free(vp->u.s);
-		vp->u.s = 0;
-		return(0);
-	}
-	free (vp->u.s);
-	vp->u.i = i;
-	vp->type = CW_EXPR_integer;
-	return 1;
+	return res;
 }
 
 
-static void
-to_string (struct val *vp)
+static int to_string(struct val *vp)
 {
-	char *tmp;
-
-	if (vp->type == CW_EXPR_string || vp->type == CW_EXPR_numeric_string)
-		return;
-
-	tmp = malloc ((size_t)25);
-	if (tmp == NULL) {
-		cw_log(CW_LOG_WARNING,"malloc() failed\n");
-		return;
+	if (vp->type == CW_EXPR_number) {
+		if ((vp->u.s = malloc(32))) {
+			sprintf(vp->u.s, "%.18Lg", vp->u.n);
+			vp->type = CW_EXPR_numeric_string;
+		} else
+			cw_log(CW_LOG_WARNING,"Out of memory!\n");
 	}
 
-	sprintf(tmp, "%ld", (long int) vp->u.i);
-	vp->type = CW_EXPR_string;
-	vp->u.s  = tmp;
+	return vp->u.s != NULL;
 }
 
 
-static int
-isstring (struct val *vp)
+static int isstring(struct val *vp)
 {
-	/* only TRUE if this string is not a valid integer */
+	/* only TRUE if this string is not a valid number */
 	return (vp->type == CW_EXPR_string);
 }
 
 
-static int
-is_zero_or_null (struct val *vp)
+static int is_zero_or_null(struct val *vp)
 {
-	if (vp->type == CW_EXPR_integer) {
-		return (vp->u.i == 0);
-	} else {
-		return (*vp->u.s == 0 || (to_integer (vp) && vp->u.i == 0));
-	}
-	/* NOTREACHED */
-}
+	int res;
 
-#ifdef STANDALONE
-
-void cw_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
-{
-	va_list vars;
-	va_start(vars,fmt);
-	
-        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
-                   level, file, line, function);
-	vprintf(fmt, vars);
-	fflush(stdout);
-	va_end(vars);
-}
-
-
-int main(int argc,char **argv) {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
-	char s[4096];
-	FILE *infile;
-	
-	if( !argv[1] )
-		exit(20);
-	
-	if( access(argv[1],F_OK)== 0 )
-	{
-		int ret;
-		
-		infile = fopen(argv[1],"r");
-		if( !infile )
-		{
-			printf("Sorry, couldn't open %s for reading!\n", argv[1]);
-			exit(10);
-		}
-		while( fgets(s,sizeof(s),infile) )
-		{
-			if( s[strlen(s)-1] == '\n' )
-				s[strlen(s)-1] = 0;
-			
-			ret = cw_expr(s, &ds);
-			printf("Expression: %s    Result: [%d] '%s'\n",
-				   s, ret, ds.data);
-			cw_dynstr_reset(&ds);
-		}
-		fclose(infile);
-	}
+	if (vp->type == CW_EXPR_number)
+		res = (vp->u.n == 0.0L);
 	else
-	{
-		if (cw_expr(argv[1], &ds))
-			printf("=====%s======\n", ds.data);
-		else
-			printf("No result\n");
-	}
+		res = !vp->u.s
+			|| vp->u.s[0] == '\0'
+			|| (vp->type == CW_EXPR_numeric_string && to_number(vp) && vp->u.n == 0.0L);
+
+	return res;
 }
 
-#endif
 
 #undef cw_yyerror
 #define cw_yyerror(x) cw_yyerror(x, YYLTYPE *yylloc, struct parse_io *parseio)
@@ -2286,566 +2059,342 @@ int main(int argc,char **argv) {
    define all the structs, macros etc. in this file! */
 
 
-static struct val *
-op_or (struct val *a, struct val *b)
+static struct val * op_or(struct val *a, struct val *b)
 {
-	if (is_zero_or_null (a)) {
-		free_value (a);
-		return (b);
-	} else {
-		free_value (b);
-		return (a);
+	struct val *r = a;
+
+	if (is_zero_or_null(a)) {
+		r = b;
+		b = a;
 	}
+
+	free_value(b);
+	return r;
 }
 		
-static struct val *
-op_and (struct val *a, struct val *b)
+static struct val * op_and(struct val *a, struct val *b)
 {
-	if (is_zero_or_null (a) || is_zero_or_null (b)) {
-		free_value (a);
-		free_value (b);
-		return (make_integer ((quad_t)0));
-	} else {
-		free_value (b);
-		return (a);
-	}
-}
+	struct val *r = a;
 
-static struct val *
-op_eq (struct val *a, struct val *b)
-{
-	struct val *r; 
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);	
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) == 0));
-	} else {
-#ifdef DEBUG_FOR_CONVERSIONS
-		char buffer[2000];
-		sprintf(buffer,"Converting '%s' and '%s' ", a->u.s, b->u.s);
-#endif
-		(void)to_integer(a);
-		(void)to_integer(b);
-#ifdef DEBUG_FOR_CONVERSIONS
-		cw_log(CW_LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
-#endif
-		r = make_integer ((quad_t)(a->u.i == b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_gt (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) > 0));
-	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i > b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_lt (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) < 0));
-	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i < b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_ge (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) >= 0));
-	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i >= b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_le (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) <= 0));
-	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i <= b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_cond (struct val *a, struct val *b, struct val *c)
-{
-	struct val *r;
-
-	if( isstring(a) )
-	{
-		if( strlen(a->u.s) && strcmp(a->u.s, "\"\"") != 0 && strcmp(a->u.s,"0") != 0 )
-		{
-			free_value(a);
-			free_value(c);
-			r = b;
-		}
-		else
-		{
-			free_value(a);
-			free_value(b);
-			r = c;
-		}
-	}
-	else
-	{
-		(void)to_integer(a);
-		if( a->u.i )
-		{
-			free_value(a);
-			free_value(c);
-			r = b;
-		}
-		else
-		{
-			free_value(a);
-			free_value(b);
-			r = c;
-		}
-	}
-	return r;
-}
-
-static struct val *
-op_ne (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (isstring (a) || isstring (b)) {
-		to_string (a);
-		to_string (b);
-		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) != 0));
-	} else {
-		(void)to_integer(a);
-		(void)to_integer(b);
-		r = make_integer ((quad_t)(a->u.i != b->u.i));
-	}
-
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static int
-chk_plus (quad_t a, quad_t b, quad_t r)
-{
-	/* sum of two positive numbers must be positive */
-	if (a > 0 && b > 0 && r <= 0)
-		return 1;
-	/* sum of two negative numbers must be negative */
-	if (a < 0 && b < 0 && r >= 0)
-		return 1;
-	/* all other cases are OK */
-	return 0;
-}
-
-static struct val *
-op_plus (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (!to_integer (a)) {
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING,"non-numeric argument\n");
-		if (!to_integer (b)) {
-			free_value(a);
-			free_value(b);
-			return make_integer(0);
-		} else {
-			free_value(a);
-			return (b);
-		}
-	} else if (!to_integer(b)) {
-		free_value(b);
-		return (a);
-	}
-
-	r = make_integer (/*(quad_t)*/(a->u.i + b->u.i));
-	if (chk_plus (a->u.i, b->u.i, r->u.i)) {
-		cw_log(CW_LOG_WARNING,"overflow\n");
-	}
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static int
-chk_minus (quad_t a, quad_t b, quad_t r)
-{
-	/* special case subtraction of QUAD_MIN */
-	if (b == QUAD_MIN) {
-		if (a >= 0)
-			return 1;
-		else
-			return 0;
-	}
-	/* this is allowed for b != QUAD_MIN */
-	return chk_plus (a, -b, r);
-}
-
-static struct val *
-op_minus (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (!to_integer (a)) {
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		if (!to_integer (b)) {
-			free_value(a);
-			free_value(b);
-			return make_integer(0);
-		} else {
-			r = make_integer(0 - b->u.i);
-			free_value(a);
-			free_value(b);
-			return (r);
-		}
-	} else if (!to_integer(b)) {
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		free_value(b);
-		return (a);
-	}
-
-	r = make_integer (/*(quad_t)*/(a->u.i - b->u.i));
-	if (chk_minus (a->u.i, b->u.i, r->u.i)) {
-		cw_log(CW_LOG_WARNING, "overflow\n");
-	}
-	free_value (a);
-	free_value (b);
-	return r;
-}
-
-static struct val *
-op_negate (struct val *a)
-{
-	struct val *r;
-
-	if (!to_integer (a) ) {
+	if (is_zero_or_null(a) || is_zero_or_null(b)) {
 		free_value(a);
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		return make_integer(0);
+		r = make_number(0.0L);
 	}
 
-	r = make_integer (/*(quad_t)*/(- a->u.i));
-	if (chk_minus (0, a->u.i, r->u.i)) {
-		cw_log(CW_LOG_WARNING, "overflow\n");
-	}
-	free_value (a);
+	free_value(b);
 	return r;
 }
 
-static struct val *
-op_compl (struct val *a)
+static struct val * op_eq(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string(b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) == 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n == b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_gt(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string (b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) > 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n > b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_lt(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string(b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) < 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n < b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_ge(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string(b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) >= 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n >= b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_le(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string(b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) <= 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n <= b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_cond(struct val *a, struct val *b, struct val *c)
+{
+	struct val *r = c;
+
+	if ((a->type == CW_EXPR_string && a->u.s[0] && strcmp(a->u.s, "0") != 0)
+	|| (a->type != CW_EXPR_string && to_number(a) && a->u.n)) {
+		r = b;
+		b = c;
+	}
+
+	free_value(a);
+	free_value(b);
+
+	return r;
+}
+
+static struct val * op_ne(struct val *a, struct val *b)
+{
+	struct val *r = NULL;
+
+	if (isstring(a) || isstring(b)) {
+		if (to_string(a) && to_string(b))
+			r = make_number((long double)(strcoll(a->u.s, b->u.s) != 0));
+	} else {
+		to_number(a);
+		to_number(b);
+		r = make_number((long double)(a->u.n != b->u.n));
+	}
+
+	free_value(a);
+	free_value(b);
+	return r;
+}
+
+static struct val * op_plus(struct val *a, struct val *b)
+{
+	long double r = 0.0L;
+
+	if (to_number(a)) {
+		r = a->u.n;
+		if (to_number(b))
+			r += b->u.n;
+	}
+
+	free_value(a);
+	free_value(b);
+
+	return make_number(r);
+}
+
+static struct val * op_minus(struct val *a, struct val *b)
+{
+	long double r = 0.0L;
+
+	if (to_number(a)) {
+		r = a->u.n;
+		if (to_number(b))
+			r -= b->u.n;
+	}
+
+	free_value(a);
+	free_value(b);
+
+	return make_number(r);
+}
+
+static struct val * op_negate(struct val *a)
+{
+	long double r = 0.0L;
+
+	if (to_number(a))
+		r = -a->u.n;
+
+	free_value(a);
+	return make_number(r);
+}
+
+static struct val * op_compl(struct val *a)
 {
 	int v1 = 1;
-	struct val *r;
-	
-	if( !a )
-	{
-		v1 = 0;
-	}
-	else
-	{
-		switch( a->type )
-		{
-		case CW_EXPR_integer:
-			if( a->u.i == 0 )
+
+	switch (a->type) {
+		case CW_EXPR_number:
+			if (a->u.n == 0.0L)
 				v1 = 0;
 			break;
-			
-		case CW_EXPR_string:
-			if( a->u.s == 0 )
-				v1 = 0;
-			else
-			{
-				if( a->u.s[0] == 0 )
-					v1 = 0;
-				else if (strlen(a->u.s) == 1 && a->u.s[0] == '0' )
-					v1 = 0;
-			}
-			break;
-			
+
 		case CW_EXPR_numeric_string:
-			if( a->u.s == 0 )
+		case CW_EXPR_string:
+			if (a->u.s == 0)
 				v1 = 0;
-			else
-			{
-				if( a->u.s[0] == 0 )
-					v1 = 0;
-				else if (strlen(a->u.s) == 1 && a->u.s[0] == '0' )
+			else {
+				if (a->u.s[0] == 0
+				|| (a->u.s[0] == '0' && a->u.s[1] == '\0'))
 					v1 = 0;
 			}
 			break;
-		}
 	}
-	
-	r = make_integer (!v1);
-	free_value (a);
-	return r;
+
+	free_value(a);
+	return make_number(!v1);
 }
 
-static int
-chk_times (quad_t a, quad_t b, quad_t r)
+static struct val * op_times(struct val *a, struct val *b)
 {
-	/* special case: first operand is 0, no overflow possible */
-	if (a == 0)
-		return 0;
-	/* cerify that result of division matches second operand */
-	if (r / a != b)
-		return 1;
-	return 0;
+	long double r = 0.0L;
+
+	if (to_number(a) && to_number(b))
+		r = a->u.n * b->u.n;
+
+	free_value(a);
+	free_value(b);
+
+	return make_number(r);
 }
 
-static struct val *
-op_times (struct val *a, struct val *b)
+static struct val * op_div(struct val *a, struct val *b)
 {
-	struct val *r;
+	long double r = 0.0L;
 
-	if (!to_integer (a) || !to_integer (b)) {
-		free_value(a);
-		free_value(b);
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		return(make_integer(0));
+	if (to_number(a)) {
+		if (to_number(b) && b->u.n != 0.0L)
+			r = a->u.n / b->u.n;
+		else
+			r = INFINITY * (a->u.n >= 0 ? 1 : -1);
 	}
 
-	r = make_integer (/*(quad_t)*/(a->u.i * b->u.i));
-	if (chk_times (a->u.i, b->u.i, r->u.i)) {
-		cw_log(CW_LOG_WARNING, "overflow\n");
-	}
-	free_value (a);
-	free_value (b);
-	return (r);
-}
+	free_value(a);
+	free_value(b);
 
-static int
-chk_div (quad_t a, quad_t b)
-{
-	/* div by zero has been taken care of before */
-	/* only QUAD_MIN / -1 causes overflow */
-	if (a == QUAD_MIN && b == -1)
-		return 1;
-	/* everything else is OK */
-	return 0;
-}
-
-static struct val *
-op_div (struct val *a, struct val *b)
-{
-	struct val *r;
-
-	if (!to_integer (a)) {
-		free_value(a);
-		free_value(b);
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		return make_integer(0);
-	} else if (!to_integer (b)) {
-		free_value(a);
-		free_value(b);
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		return make_integer(INT_MAX);
-	}
-
-	if (b->u.i == 0) {
-		cw_log(CW_LOG_WARNING, "division by zero\n");		
-		free_value(a);
-		free_value(b);
-		return make_integer(INT_MAX);
-	}
-
-	r = make_integer (/*(quad_t)*/(a->u.i / b->u.i));
-	if (chk_div (a->u.i, b->u.i)) {
-		cw_log(CW_LOG_WARNING, "overflow\n");
-	}
-	free_value (a);
-	free_value (b);
-	return r;
+	return make_number(r);
 }
 	
-static struct val *
-op_rem (struct val *a, struct val *b)
+static struct val * op_rem(struct val *a, struct val *b)
 {
-	struct val *r;
+	long double r = 0.0L;
 
-	if (!to_integer (a) || !to_integer (b)) {
-		if( !extra_error_message_supplied )
-			cw_log(CW_LOG_WARNING, "non-numeric argument\n");
-		free_value(a);
-		free_value(b);
-		return make_integer(0);
-	}
+	if (to_number(a) && to_number(b) && b->u.n != 0.0L)
+		r = fmodl(a->u.n, b->u.n);
 
-	if (b->u.i == 0) {
-		cw_log(CW_LOG_WARNING, "div by zero\n");
-		free_value(a);
-		return(b);
-	}
+	free_value(a);
+	free_value(b);
 
-	r = make_integer (/*(quad_t)*/(a->u.i % b->u.i));
-	/* chk_rem necessary ??? */
-	free_value (a);
-	free_value (b);
-	return r;
+	return make_number(r);
 }
 	
 
-static struct val *
-op_colon (struct val *a, struct val *b)
+static struct val * op_colon(struct val *a, struct val *b)
 {
 	regex_t rp;
 	regmatch_t rm[2];
 	char errbuf[256];
 	int eval;
-	struct val *v;
+	struct val *v = NULL;
 
-	/* coerce to both arguments to strings */
-	to_string(a);
-	to_string(b);
-	/* strip double quotes from both -- they'll screw up the pattern, and the search string starting at ^ */
-	if (a->type == CW_EXPR_string || a->type == CW_EXPR_numeric_string)
-		cw_split_args(NULL, a->u.s, "", '\0', NULL);
-	if (b->type == CW_EXPR_string || b->type == CW_EXPR_numeric_string)
-		cw_split_args(NULL, b->u.s, "", '\0', NULL);
-	/* compile regular expression */
-	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
-		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		cw_log(CW_LOG_WARNING,"regcomp() error : %s",errbuf);
-		free_value(a);
-		free_value(b);
-		return make_str("");		
-	}
+	if (to_string(a) && to_string(b)) {
+		if (!(eval = regcomp(&rp, b->u.s, REG_EXTENDED))) {
+			/* remember that patterns are anchored to the beginning of the line */
+			if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
+				if (rm[1].rm_so >= 0) {
+					*(a->u.s + rm[1].rm_eo) = '\0';
+					v = make_str (a->u.s + rm[1].rm_so);
+				} else
+					v = make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
+			} else {
+				if (rp.re_nsub == 0)
+					v = make_number(0.0L);
+				else
+					v = make_str("");
+			}
 
-	/* compare string against pattern */
-	/* remember that patterns are anchored to the beginning of the line */
-	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 && rm[0].rm_so == 0) {
-		if (rm[1].rm_so >= 0) {
-			*(a->u.s + rm[1].rm_eo) = '\0';
-			v = make_str (a->u.s + rm[1].rm_so);
-
+			regfree(&rp);
 		} else {
-			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
-		}
-	} else {
-		if (rp.re_nsub == 0) {
-			v = make_integer ((quad_t)0);
-		} else {
-			v = make_str ("");
+			regerror(eval, &rp, errbuf, sizeof(errbuf));
+			cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
+			v = make_str("");
 		}
 	}
 
-	/* free arguments and pattern buffer */
-	free_value (a);
-	free_value (b);
-	regfree (&rp);
+	free_value(a);
+	free_value(b);
 
 	return v;
 }
 	
 
-static struct val *
-op_eqtilde (struct val *a, struct val *b)
+static struct val * op_eqtilde(struct val *a, struct val *b)
 {
 	regex_t rp;
 	regmatch_t rm[2];
 	char errbuf[256];
 	int eval;
-	struct val *v;
+	struct val *v = NULL;
 
-	/* coerce to both arguments to strings */
-	to_string(a);
-	to_string(b);
-	/* strip double quotes from both -- they'll screw up the pattern, and the search string starting at ^ */
-	if (a->type == CW_EXPR_string || a->type == CW_EXPR_numeric_string)
-		cw_split_args(NULL, a->u.s, "", '\0', NULL);
-	if (b->type == CW_EXPR_string || b->type == CW_EXPR_numeric_string)
-		cw_split_args(NULL, b->u.s, "", '\0', NULL);
-	/* compile regular expression */
-	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
-		regerror (eval, &rp, errbuf, sizeof(errbuf));
-		cw_log(CW_LOG_WARNING,"regcomp() error : %s",errbuf);
-		free_value(a);
-		free_value(b);
-		return make_str("");		
-	}
+	if (to_string(a) && to_string(b)) {
+		if (!(eval = regcomp(&rp, b->u.s, REG_EXTENDED))) {
+			/* remember that patterns are anchored to the beginning of the line */
+			if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 ) {
+				if (rm[1].rm_so >= 0) {
+					*(a->u.s + rm[1].rm_eo) = '\0';
+					v = make_str(a->u.s + rm[1].rm_so);
+				} else
+					v = make_number((long double)(rm[0].rm_eo - rm[0].rm_so));
+			} else {
+				if (rp.re_nsub == 0)
+					v = make_number(0.0L);
+				else
+					v = make_str("");
+			}
 
-	/* compare string against pattern */
-	/* remember that patterns are anchored to the beginning of the line */
-	if (regexec(&rp, a->u.s, (size_t)2, rm, 0) == 0 ) {
-		if (rm[1].rm_so >= 0) {
-			*(a->u.s + rm[1].rm_eo) = '\0';
-			v = make_str (a->u.s + rm[1].rm_so);
-
+			regfree(&rp);
 		} else {
-			v = make_integer ((quad_t)(rm[0].rm_eo - rm[0].rm_so));
-		}
-	} else {
-		if (rp.re_nsub == 0) {
-			v = make_integer ((quad_t)0);
-		} else {
-			v = make_str ("");
+			regerror(eval, &rp, errbuf, sizeof(errbuf));
+			cw_log(CW_LOG_WARNING, "regcomp() error : %s", errbuf);
+			v = make_str("");
 		}
 	}
 
-	/* free arguments and pattern buffer */
-	free_value (a);
-	free_value (b);
-	regfree (&rp);
+	free_value(a);
+	free_value(b);
 
 	return v;
 }

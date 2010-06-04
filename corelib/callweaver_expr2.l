@@ -38,52 +38,54 @@
 #endif
 
 #include <errno.h>
-#include <regex.h>
 #include <limits.h>
+#include <regex.h>
 
 #include "callweaver/logger.h"
 #include "callweaver/callweaver_expr.h"
 #include "callweaver/strings.h"
 
-enum valtype {
-	CW_EXPR_integer, CW_EXPR_numeric_string, CW_EXPR_string
-} ;
-
-struct val {
-	enum valtype type;
-	union {
-		char *s;
-		quad_t i;
-	} u;
-} ;
-
+#include "callweaver_expr2-common.h"
 #include "callweaver_expr2.h" /* the o/p of the bison on callweaver_expr2.y */
 
-#define SET_COLUMNS	do {		\
-	yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
-	yylloc_param->last_column += yyleng - 1; \
-	yylloc_param->first_line = yylloc_param->last_line = 1; \
+#define SET_COLUMNS \
+	do { \
+		yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf); \
+		yylloc_param->last_column += yyleng - 1; \
+		yylloc_param->first_line = yylloc_param->last_line = 1; \
 	} while (0)
 
-#define SET_STRING	do {		\
-	yylval_param->val = calloc(1, sizeof(struct val));	\
-	yylval_param->val->type = CW_EXPR_string;		\
-	yylval_param->val->u.s = strdup(yytext);		\
+#define SET_EOF	\
+	do { \
+		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
+			yylval_param->val->type = CW_EXPR_string; \
+			yylval_param->val->u.s = strdup(yytext); \
+		} \
 	} while (0)
 
-#define SET_NUMERIC_STRING	do {	\
-	yylval_param->val = calloc(1, sizeof(struct val));	\
-	yylval_param->val->type = CW_EXPR_numeric_string;	\
-	yylval_param->val->u.s = strdup(yytext);	\
+#define SET_STRING \
+	do {		\
+		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
+			yylval_param->val->type = CW_EXPR_string; \
+			cw_split_args(NULL, yytext, "", '\0', NULL); \
+			if (!(yylval_param->val->u.s = strdup(yytext))) { \
+				free(yylval_param->val); \
+				yylval_param->val = NULL; \
+			} \
+		} \
 	} while (0)
 
-struct parse_io
-{
-	const char *string;
-	struct val *val;
-	yyscan_t scanner;
-};
- 
+#define SET_NUMERIC_STRING \
+	do { \
+		if ((yylval_param->val = malloc(sizeof(struct val)))) { \
+			yylval_param->val->type = CW_EXPR_numeric_string; \
+			if (!(yylval_param->val->u.s = strdup(yytext))) { \
+				free(yylval_param->val); \
+				yylval_param->val = NULL; \
+			} \
+		} \
+	} while (0)
+
 void cw_yyset_column(int column_no, yyscan_t yyscanner);
 int cw_yyget_column(yyscan_t yyscanner);
 static int curlycount = 0;
@@ -119,29 +121,29 @@ static char *expr2_token_subst(const char *mess);
 
 %%
 
-\|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
-\&	{ SET_COLUMNS; SET_STRING; return TOK_AND;}
-\=	{ SET_COLUMNS; SET_STRING; return TOK_EQ;}
-\|\|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
-\&\&	{ SET_COLUMNS; SET_STRING; return TOK_AND;}
-\=\=	{ SET_COLUMNS; SET_STRING; return TOK_EQ;}
-\=~	{ SET_COLUMNS; SET_STRING; return TOK_EQTILDE;}
-\>	{ SET_COLUMNS; SET_STRING; return TOK_GT;}
-\<	{ SET_COLUMNS; SET_STRING; return TOK_LT;}
-\>\=	{ SET_COLUMNS; SET_STRING; return TOK_GE;}
-\<\=	{ SET_COLUMNS; SET_STRING; return TOK_LE;}
-\!\=	{ SET_COLUMNS; SET_STRING; return TOK_NE;}
-\+	{ SET_COLUMNS; SET_STRING; return TOK_PLUS;}
-\-	{ SET_COLUMNS; SET_STRING; return TOK_MINUS;}
-\*	{ SET_COLUMNS; SET_STRING; return TOK_MULT;}
-\/	{ SET_COLUMNS; SET_STRING; return TOK_DIV;}
-\%	{ SET_COLUMNS; SET_STRING; return TOK_MOD;}
-\?	{ SET_COLUMNS; SET_STRING; return TOK_COND;}
-\!	{ SET_COLUMNS; SET_STRING; return TOK_COMPL;}
-\:	{ SET_COLUMNS; SET_STRING; return TOK_COLON;}
-\:\:	{ SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
-\(	{ SET_COLUMNS; SET_STRING; return TOK_LP;}
-\)	{ SET_COLUMNS; SET_STRING; return TOK_RP;}
+\|	{ SET_COLUMNS; return TOK_OR;}
+\&	{ SET_COLUMNS; return TOK_AND;}
+\=	{ SET_COLUMNS; return TOK_EQ;}
+\|\|	{ SET_COLUMNS; return TOK_OR;}
+\&\&	{ SET_COLUMNS; return TOK_AND;}
+\=\=	{ SET_COLUMNS; return TOK_EQ;}
+\=~	{ SET_COLUMNS; return TOK_EQTILDE;}
+\>	{ SET_COLUMNS; return TOK_GT;}
+\<	{ SET_COLUMNS; return TOK_LT;}
+\>\=	{ SET_COLUMNS; return TOK_GE;}
+\<\=	{ SET_COLUMNS; return TOK_LE;}
+\!\=	{ SET_COLUMNS; return TOK_NE;}
+\+	{ SET_COLUMNS; return TOK_PLUS;}
+\-	{ SET_COLUMNS; return TOK_MINUS;}
+\*	{ SET_COLUMNS; return TOK_MULT;}
+\/	{ SET_COLUMNS; return TOK_DIV;}
+\%	{ SET_COLUMNS; return TOK_MOD;}
+\?	{ SET_COLUMNS; return TOK_COND;}
+\!	{ SET_COLUMNS; return TOK_COMPL;}
+\:	{ SET_COLUMNS; return TOK_COLON;}
+\:\:	{ SET_COLUMNS; return TOK_COLONCOLON;}
+\(	{ SET_COLUMNS; return TOK_LP;}
+\)	{ SET_COLUMNS; return TOK_RP;}
 \$\{	{
 		/* gather the contents of ${} expressions, with trailing stuff,
 		 * into a single TOKEN.
@@ -153,20 +155,16 @@ static char *expr2_token_subst(const char *mess);
 	}
 
 [ \t\r]		{}
-\"(\\\"|[^"])*\"	{SET_COLUMNS; SET_STRING; return TOKEN;}
-\'[^']*\'	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
 [\n]		{/* what to do with eol */}
-[0-9]+		{
+
+[0-9]+(\.[0-9]+)?([eE]-?[0-9]+)?	{
 		SET_COLUMNS;
-		/* the original behavior of the expression parser was
-		 * to bring in numbers as a numeric string
-		 */
 		SET_NUMERIC_STRING;
 		return TOKEN;
 	}
 
-[a-zA-Z0-9,.';\\_^$#@]+	{
+(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|$[^{]|[a-zA-Z0-9,.;_^#@\x80-\xff])+	{
 		SET_COLUMNS;
 		SET_STRING;
 		return TOKEN;
@@ -214,7 +212,7 @@ static char *expr2_token_subst(const char *mess);
 <trail><<EOF>>	{
 		BEGIN(0);
 		SET_COLUMNS;
-		SET_STRING;
+		SET_EOF;
 		return TOKEN;
 		/*actually, if an expr is only a variable ref, this could happen a LOT */
 	}
@@ -242,23 +240,25 @@ int cw_expr(const char *expr, struct cw_dynstr *result)
 	
 	cw_yy_scan_string(expr, io.scanner);
 	
-	cw_yyparse ((void *) &io);
+	if (!cw_yyparse((void *) &io)) {
+		if (!io.val) {
+			cw_dynstr_printf(result, "0");
+			return_value = 1;
+		} else {
+			if (io.val->type == CW_EXPR_number) {
+				return_value = cw_dynstr_printf(result, "%.18Lg", io.val->u.n);
+			} else {
+				cw_dynstr_printf(result, "%s", io.val->u.s);
+				return_value = result->used;
+				free(io.val->u.s);
+			}
+			free(io.val);
+		}
+	} else
+		result->error = 1;
 
 	cw_yylex_destroy(io.scanner);
 
-	if (!io.val) {
-		cw_dynstr_printf(result, "0");
-		return_value = 1;
-	} else {
-		if (io.val->type == CW_EXPR_integer) {
-			return_value = cw_dynstr_printf(result, "%ld", (long int) io.val->u.i);
-		} else {
-			cw_dynstr_printf(result, "%s", io.val->u.s);
-			return_value = result->used;
-			free(io.val->u.s);
-		}
-		free(io.val);
-	}
 	return return_value;
 }
 
@@ -282,52 +282,52 @@ void  cw_expr_clear_extra_error_info(void)
 
 static const char *expr2_token_equivs1[] =
 {
-	"TOKEN",
-	"TOK_COND",
-	"TOK_COLONCOLON",
-	"TOK_OR",
-	"TOK_AND",
-	"TOK_EQ",
-	"TOK_GT",
-	"TOK_LT",
-	"TOK_GE",
-	"TOK_LE",
-	"TOK_NE",
-	"TOK_PLUS",
-	"TOK_MINUS",
-	"TOK_MULT",
-	"TOK_DIV",
-	"TOK_MOD",
-	"TOK_COMPL",
-	"TOK_COLON",
-	"TOK_EQTILDE",
-	"TOK_RP",
-	"TOK_LP"
+	[TOKEN] = "TOKEN",
+	[TOK_COND] = "TOK_COND",
+	[TOK_COLONCOLON] = "TOK_COLONCOLON",
+	[TOK_OR] = "TOK_OR",
+	[TOK_AND] = "TOK_AND",
+	[TOK_EQ] = "TOK_EQ",
+	[TOK_GT] = "TOK_GT",
+	[TOK_LT] = "TOK_LT",
+	[TOK_GE] = "TOK_GE",
+	[TOK_LE] = "TOK_LE",
+	[TOK_NE] = "TOK_NE",
+	[TOK_PLUS] = "TOK_PLUS",
+	[TOK_MINUS] = "TOK_MINUS",
+	[TOK_MULT] = "TOK_MULT",
+	[TOK_DIV] = "TOK_DIV",
+	[TOK_MOD] = "TOK_MOD",
+	[TOK_COMPL] = "TOK_COMPL",
+	[TOK_COLON] = "TOK_COLON",
+	[TOK_EQTILDE] = "TOK_EQTILDE",
+	[TOK_RP] = "TOK_RP",
+	[TOK_LP] = "TOK_LP"
 };
 
 static const char *expr2_token_equivs2[] =
 {
-	"<token>",
-	"?",
-	"::",
-	"|",
-	"&",
-	"=",
-	">",
-	"<",
-	">=",
-	"<=",
-	"!=",
-	"+",
-	"-",
-	"*",
-	"/",
-	"%",
-	"!",
-	":",
-	"=~",
-	")",
-	"("
+	[TOKEN] = "<token>",
+	[TOK_COND] = "?",
+	[TOK_COLONCOLON] = "::",
+	[TOK_OR] = "|",
+	[TOK_AND] = "&",
+	[TOK_EQ] = "=",
+	[TOK_GT] = ">",
+	[TOK_LT] = "<",
+	[TOK_GE] = ">=",
+	[TOK_LE] = "<=",
+	[TOK_NE] = "!=",
+	[TOK_PLUS] = "+",
+	[TOK_MINUS] = "-",
+	[TOK_MULT] = "*",
+	[TOK_DIV] = "/",
+	[TOK_MOD] = "%",
+	[TOK_COMPL] = "!",
+	[TOK_COLON] = ":",
+	[TOK_EQTILDE] = "=~",
+	[TOK_RP] = ")",
+	[TOK_LP] = "("
 };
 
 
@@ -339,12 +339,11 @@ static char *expr2_token_subst(const char *mess)
 	char *res, *s;
 	int expr2_token_equivs_entries = sizeof(expr2_token_equivs1)/sizeof(char*);
 
-	for (p=mess; *p; p++) {
-		for (i=0; i<expr2_token_equivs_entries; i++) {
-			if ( strncmp(p,expr2_token_equivs1[i],strlen(expr2_token_equivs1[i])) == 0 )
-			{
-				len+=strlen(expr2_token_equivs2[i])+2;
-				p += strlen(expr2_token_equivs1[i])-1;
+	for (p = mess; *p; p++) {
+		for (i = 0; i < expr2_token_equivs_entries; i++) {
+			if (expr2_token_equivs1[i] && !strncmp(p, expr2_token_equivs1[i], strlen(expr2_token_equivs1[i]))) {
+				len += strlen(expr2_token_equivs2[i]) + 2;
+				p += strlen(expr2_token_equivs1[i]) - 1;
 				break;
 			}
 		}
@@ -353,12 +352,12 @@ static char *expr2_token_subst(const char *mess)
 	res = malloc(len+1);
 	res[0] = 0;
 	s = res;
-	for (p=mess; *p;) {
+	for (p = mess; *p;) {
 		int found = 0;
-		for (i=0; i<expr2_token_equivs_entries; i++) {
-			if ( strncmp(p,expr2_token_equivs1[i],strlen(expr2_token_equivs1[i])) == 0 ) {
+		for (i = 0; i < expr2_token_equivs_entries; i++) {
+			if (expr2_token_equivs1[i] && !strncmp(p, expr2_token_equivs1[i], strlen(expr2_token_equivs1[i]))) {
 				*s++ = '\'';
-				for (t=expr2_token_equivs2[i]; *t;) {
+				for (t = expr2_token_equivs2[i]; *t;) {
 					*s++ = *t++;
 				}
 				*s++ = '\'';
@@ -367,10 +366,10 @@ static char *expr2_token_subst(const char *mess)
 				break;
 			}
 		}
-		if( !found )
+		if (!found )
 			*s++ = *p++;
 	}
-	*s++ = 0;
+	*s = 0;
 	return res;
 }
 
@@ -395,17 +394,11 @@ int cw_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 	spacebuf2[i++]='^';
 	spacebuf2[i]= 0;
 
-#ifdef STANDALONE3
-	/* easier to read in the standalone version */
-	printf("cw_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
-			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
-#else
-	cw_log(CW_LOG_WARNING,"cw_yyerror(): %s syntax error: %s; Input:\n%s\n%s\n",  
-			(extra_error_message_supplied?extra_error_message:""), s2, parseio->string,spacebuf2);
-#endif
-#ifndef STANDALONE
-	cw_log(CW_LOG_WARNING,"If you have questions, please refer to doc/channelvariables.txt in the callweaver source.\n");
-#endif
+	cw_log(CW_LOG_WARNING, "%s%ssyntax error: %s; Input:\n%s\n%s\n",  
+		(extra_error_message_supplied ? extra_error_message : ""),
+		(extra_error_message_supplied ? " " : ""),
+		s2, parseio->string,spacebuf2);
+
 	free(s2);
 	return(0);
 }

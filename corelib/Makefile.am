@@ -162,7 +162,7 @@ callweaver_expr2.c callweaver_expr2.h: callweaver_expr2.y
 	$(YACC) -d --name-prefix=cw_yy -o callweaver_expr2.c "${srcdir}/callweaver_expr2.y"
 
 callweaver_expr2f.c: callweaver_expr2.l
-	$(LEX) -f -t "${srcdir}/callweaver_expr2.l" > callweaver_expr2f.c
+	$(LEX) -8 -f -t "${srcdir}/callweaver_expr2.l" > callweaver_expr2f.c
 
 defaults.h: defaults.h.in Makefile
 	rm -f defaults.h.tmp
