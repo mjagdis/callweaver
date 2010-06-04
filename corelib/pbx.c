@@ -2889,10 +2889,9 @@ struct cw_context *cw_context_create(struct cw_context **extcontexts, const char
     {
         if (hash == tmp->hash && !strcmp(name, tmp->name))
         {
-            cw_mutex_unlock(&conlock);
-            cw_log(CW_LOG_WARNING, "Failed to register context '%s' because it is already in use\n", name);
             if (!extcontexts)
                 cw_mutex_unlock(&conlock);
+            cw_log(CW_LOG_WARNING, "Failed to register context '%s' because it is already in use\n", name);
             return NULL;
         }
         tmp = tmp->next;
