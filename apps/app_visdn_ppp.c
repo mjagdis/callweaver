@@ -170,10 +170,10 @@ static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, struct
 		cw_fr_free(f);
 
 		int status;
-		res = wait4(pid, &status, WNOHANG, NULL);
+		res = waitpid(pid, &status, WNOHANG);
 		if (res < 0) {
 			cw_log(CW_LOG_WARNING,
-				"wait4 returned %d: %s\n",
+				"waitpid returned %d: %s\n",
 				res, strerror(errno));
 
 			break;

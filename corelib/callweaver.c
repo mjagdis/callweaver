@@ -340,7 +340,6 @@ int cw_safe_system(const char *s)
     pid_t pid;
     int x;
     int res;
-    struct rusage rusage;
     int status;
     unsigned int level;
 
@@ -378,7 +377,7 @@ int cw_safe_system(const char *s)
     {
         for (;;)
         {
-            res = wait4(pid, &status, 0, &rusage);
+            res = waitpid(pid, &status, 0);
             if (res > -1)
             {
                 res = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
