@@ -68,6 +68,7 @@ int cw_address_parse(cw_address_t *addr, const char *spec)
 		unlink(spec);
 		ret = 0;
 	} else if (!strncmp(spec, "ipv6:[", sizeof("ipv6:[") - 1)) {
+		memset(addr, 0, sizeof(*addr));
 		addr->sin6.sin6_family = AF_INET6;
 		memset(&addr->sin6.sin6_addr, 0, sizeof(addr->sin6.sin6_addr));
 		addr->sin6.sin6_port = 0;
