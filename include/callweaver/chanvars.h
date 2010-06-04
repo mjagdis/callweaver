@@ -52,7 +52,6 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_var_name(const char *n
 extern CW_API_PUBLIC struct cw_var_t *cw_var_new(const char *name, const char *value, int refs);
 extern CW_API_PUBLIC int cw_var_assign(struct cw_registry *registry, const char *name, const char *value);
 
-#define cw_var_hash(v) (v ? v->hash : 0)
 
 static inline __attribute__ ((pure)) const char *cw_var_name(struct cw_var_t *var)
 {
