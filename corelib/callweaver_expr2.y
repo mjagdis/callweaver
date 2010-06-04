@@ -31,8 +31,9 @@
 #include <regex.h>
 #include <limits.h>
 
-#include "callweaver/logger.h"
 #include "callweaver/callweaver_expr.h"
+#include "callweaver/logger.h"
+#include "callweaver/pbx.h"
 
 #if defined(LONG_LONG_MIN) && !defined(QUAD_MIN)
 #define QUAD_MIN LONG_LONG_MIN
@@ -355,28 +356,6 @@ to_integer (struct val *vp)
 	return 1;
 }
 
-static void
-strip_quotes(struct val *vp)
-{
-	if (vp->type != CW_EXPR_string && vp->type != CW_EXPR_numeric_string)
-		return;
-	
-	if( vp->u.s[0] == '"' && vp->u.s[strlen(vp->u.s)-1] == '"' )
-	{
-		char *f, *t;
-		f = vp->u.s;
-		t = vp->u.s;
-		
-		while( *f )
-		{
-			if( *f  && *f != '"' )
-				*t++ = *f++;
-			else
-				f++;
-		}
-		*t = *f;
-	}
-}
 
 static void
 to_string (struct val *vp)
@@ -954,8 +933,10 @@ op_colon (struct val *a, struct val *b)
 	to_string(a);
 	to_string(b);
 	/* strip double quotes from both -- they'll screw up the pattern, and the search string starting at ^ */
-	strip_quotes(a);
-	strip_quotes(b);
+	if (a->type == CW_EXPR_string || a->type == CW_EXPR_numeric_string)
+		cw_split_args(NULL, a->u.s, "", '\0', NULL);
+	if (b->type == CW_EXPR_string || b->type == CW_EXPR_numeric_string)
+		cw_split_args(NULL, b->u.s, "", '\0', NULL);
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
@@ -1005,8 +986,10 @@ op_eqtilde (struct val *a, struct val *b)
 	to_string(a);
 	to_string(b);
 	/* strip double quotes from both -- they'll screw up the pattern, and the search string starting at ^ */
-	strip_quotes(a);
-	strip_quotes(b);
+	if (a->type == CW_EXPR_string || a->type == CW_EXPR_numeric_string)
+		cw_split_args(NULL, a->u.s, "", '\0', NULL);
+	if (b->type == CW_EXPR_string || b->type == CW_EXPR_numeric_string)
+		cw_split_args(NULL, b->u.s, "", '\0', NULL);
 	/* compile regular expression */
 	if ((eval = regcomp (&rp, b->u.s, REG_EXTENDED)) != 0) {
 		regerror (eval, &rp, errbuf, sizeof(errbuf));
