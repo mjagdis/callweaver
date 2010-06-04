@@ -727,14 +727,15 @@ static void rebuild_matrix(void)
 {
 #ifdef __linux__
 	char governor[sizeof("performance")];
+	int governor_len;
 #endif
 #if HAVE_SETAFFINITY
 	cpu_set_t old_cpuset, new_cpuset;
+	int affinity;
 #endif
 	pthread_mutex_t serialize = PTHREAD_MUTEX_INITIALIZER;
 	struct rebuild_matrix_args args;
 	struct trans_state *old_tr, *new_tr;
-	int affinity;
 	int changed, x, y, z;
 
 	if (option_debug)
@@ -793,15 +794,18 @@ static void rebuild_matrix(void)
 	 * fact that CPU0 could be disabled, offline or just not in our set
 	 * would require root privs with the current (kernel 2.6.25) sysfs.
 	 */
-	governor[0] = '\0';
-	if (affinity == 0
-	&& lseek(cw_cpu0_governor_fd, SEEK_SET, 0) == 0
-	&& read(cw_cpu0_governor_fd, governor, sizeof(governor) - 1) > 0
-	&& governor[strlen(governor) - 1] == '\n') {
+	governor_len = 0;
+	if (
+#if HAVE_SETAFFINITY
+	affinity == 0
+	&&
+#endif
+	lseek(cw_cpu0_governor_fd, SEEK_SET, 0) == 0
+	&& (governor_len = read(cw_cpu0_governor_fd, governor, sizeof(governor) - 1)) > 0
+	&& governor[governor_len - 1] == '\n') {
 		lseek(cw_cpu0_governor_fd, SEEK_SET, 0);
 		write(cw_cpu0_governor_fd, "performance\n", sizeof("performance\n") - 1);
-	} else
-		governor[0] = '\0';
+	}
 #endif
 
 	/* Do a dummy run of each translator to grow heap/stack space appropriately
@@ -821,13 +825,13 @@ static void rebuild_matrix(void)
 
 #ifdef __linux__
 	/* Restore the original cpufreq governor */
-	if (governor[0])
-		write(cw_cpu0_governor_fd, governor, strlen(governor));
+	if (governor_len > 0)
+		write(cw_cpu0_governor_fd, governor, governor_len);
 #endif
 
 #if HAVE_SETAFFINITY
 	/* Restore the original CPU affinity */
-	if (affinity != -1)
+	if (affinity != CPU_SETSIZE)
 		sched_setaffinity(0, sizeof(old_cpuset), &old_cpuset);
 #endif
 
