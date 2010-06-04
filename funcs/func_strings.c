@@ -261,7 +261,7 @@ static int function_eval(struct cw_channel *chan, int argc, char **argv, struct 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(eval_func_syntax);
 
-	pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], result);
+	pbx_substitute_variables(chan, NULL, argv[0], result);
 	return 0;
 }
 
@@ -290,7 +290,7 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, struct c
 		/* String form of the delimiter, for use with strsep(3) */
 		snprintf(ds, sizeof(ds), "%c", d);
 
-		pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), tmp, &varvalue);
+		pbx_substitute_variables(chan, NULL, tmp, &varvalue);
 
 		tmp2 = varvalue.data;
 		curfieldnum = 1;

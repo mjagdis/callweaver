@@ -672,7 +672,7 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 		struct cw_dynstr app_data = CW_DYNSTR_INIT;
 
 		cache = container_of(obj, struct cache, obj);
-		pbx_substitute_variables(chan, &chan->vars, cache->app_data[priority], &app_data);
+		pbx_substitute_variables(chan, NULL, cache->app_data[priority], &app_data);
 		res = cw_function_exec_str(chan, 
                                 cw_hash_string(cache->app_name[priority]),
                                 cache->app_name[priority], app_data.data, NULL);

@@ -192,7 +192,7 @@ static int pgsql_log(struct cw_cdr *batch)
 
 				if (!sql_tmp_cmd.error) {
 					chan->cdr = cdr;
-					pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd.data, &cmd_ds);
+					pbx_substitute_variables(chan, NULL, sql_tmp_cmd.data, &cmd_ds);
 
 					if (!cmd_ds.error) {
 						cdrset = cdrset->next;

@@ -76,7 +76,7 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 		if (newvar && (newvar[0] != '\0')) {
 			struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], &ds);
+			pbx_substitute_variables(chan, NULL, argv[0], &ds);
 			if (!ds.error) {
 				pbx_builtin_setvar_helper(chan, newvar, ds.data);
 				res = 0;

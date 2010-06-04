@@ -630,7 +630,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                 {
                     /* Substitute variables now */
                     if (sw->eval) 
-                        pbx_substitute_variables(chan, &chan->vars, sw->data, data);
+                        pbx_substitute_variables(chan, NULL, sw->data, data);
 
 		    res = 0;
                     if (action == HELPER_CANMATCH && asw->canmatch)
@@ -706,12 +706,13 @@ static void normalize_offset_length(int *offset, int *length, size_t avail)
 /*! \brief  pbx_retrieve_variable: Support for CallWeaver built-in variables and
  *  functions in the dialplan
  */
-static int pbx_retrieve_variable(struct cw_registry *vars, const char *varname, struct cw_dynstr *result, int offset, int length)
+static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *vars, const char *varname, struct cw_dynstr *result, int offset, int length)
 {
 	struct cw_object *obj = NULL;
 	const char *str = NULL;
 	unsigned int hash = cw_hash_var_name(varname);
 
+	/* Local/private variables */
 	if (vars) {
 		if ((obj = cw_registry_find(vars, 1, hash, varname))) {
 			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
@@ -719,6 +720,15 @@ static int pbx_retrieve_variable(struct cw_registry *vars, const char *varname, 
 		}
 	}
 
+	/* Channel variables */
+	if (!str && chan) {
+		if ((obj = cw_registry_find(&chan->vars, 1, hash, varname))) {
+			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
+			str = var->value;
+		}
+	}
+
+	/* Global variables */
 	if (!str) {
 		if ((obj = cw_registry_find(&var_registry, 1, hash, varname))) {
 			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
@@ -780,7 +790,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 		/* Just a variable name. Fetch it and add it to the result.
 		 * Note that pbx_retrieve_variable itself handles slicing.
 		 */
-		res = pbx_retrieve_variable(vars, src, result, offset, length);
+		res = pbx_retrieve_variable(chan, vars, src, result, offset, length);
 	}
 
 	/* Could be a function with args or, if the variable look up
@@ -911,9 +921,6 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 }
 void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst)
 {
-	if (chan)
-		vars = &chan->vars;
-
 	expand_string(chan, vars, src, dst, '\0');
 }
 
@@ -953,7 +960,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
                 cw_copy_string(c->exten, exten, sizeof(c->exten));
             c->priority = priority;
             cw_dynstr_reset(&data);
-            pbx_substitute_variables(c, &c->vars, e->data, &data);
+            pbx_substitute_variables(c, NULL, e->data, &data);
             cw_manager_event(EVENT_FLAG_CALL, "Newexten",
                 7,
                 cw_msg_tuple("Channel",     "%s", c->name),

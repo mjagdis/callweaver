@@ -1184,7 +1184,7 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 	if (chan) {
 		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-		pbx_substitute_variables(chan2, &chan2->vars, argv[4], &ds);
+		pbx_substitute_variables(chan2, NULL, argv[4], &ds);
 		fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
 		cw_dynstr_free(&ds);
 	} else {

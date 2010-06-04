@@ -203,7 +203,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 
 		if (v_app && !cw_strlen_zero(v_app->value)) {
 			if (v_appdata && !cw_strlen_zero(v_appdata->value)) {
-				pbx_substitute_variables(chan, &chan->vars, v_appdata->value, &appdata);
+				pbx_substitute_variables(chan, NULL, v_appdata->value, &appdata);
 				if (appdata.error)
 					goto out;
 			} else

@@ -306,7 +306,7 @@ static void *muxmon_thread(void *obj)
             if (*p == '^'  &&  *(p+1) == '{')
                 *p = '$';
         }
-        pbx_substitute_variables(muxmon->chan, (muxmon->chan ? &muxmon->chan->vars : NULL), muxmon->post_process, &post_process);
+        pbx_substitute_variables(muxmon->chan, NULL, muxmon->post_process, &post_process);
         free(muxmon->post_process);
         muxmon->post_process = NULL;
     }

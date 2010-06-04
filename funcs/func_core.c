@@ -805,7 +805,7 @@ static int pbx_builtin_importvar(struct cw_channel *chan, int argc, char **argv,
 
 		if ((s = alloca(strlen(argv[1]) + 4))) {
 			sprintf(s, "${%s}", argv[1]);
-			pbx_substitute_variables(chan2, &chan2->vars, s, &ds);
+			pbx_substitute_variables(chan2, NULL, s, &ds);
 		}
 		cw_channel_unlock(chan2);
 		cw_object_put(chan2);

@@ -167,7 +167,7 @@ static int sqlite3_log(struct cw_cdr *batch)
 				sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
 
 				chan->cdr = cdr;
-				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, &cmd_ds);
+				pbx_substitute_variables(chan, NULL, sql_tmp_cmd, &cmd_ds);
 				do_escape(&esc_ds, &cmd_ds);
 
 				sqlite3_free(sql_tmp_cmd);

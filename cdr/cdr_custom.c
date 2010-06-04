@@ -107,7 +107,7 @@ static int custom_log(struct cw_cdr *batch)
 
 			while ((cdr = cdrset)) {
 				chan->cdr = cdr;
-				pbx_substitute_variables(chan, &chan->vars, format, &ds);
+				pbx_substitute_variables(chan, NULL, format, &ds);
 
 				if (!ds.error) {
 					cdrset = cdrset->next;

@@ -1630,7 +1630,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, fromstring, &ds);
+				pbx_substitute_variables(chan, NULL, fromstring, &ds);
 				fprintf(p, "From: %s <%s>\n", ds.data, who);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
@@ -1644,7 +1644,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, emailsubject, &ds);
+				pbx_substitute_variables(chan, NULL, emailsubject, &ds);
 				fprintf(p, "Subject: %s\n", ds.data);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
@@ -1673,7 +1673,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, emailbody, &ds);
+				pbx_substitute_variables(chan, NULL, emailbody, &ds);
 				fprintf(p, "%s\n", ds.data);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
@@ -1775,7 +1775,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, pagerfromstring, &ds);
+				pbx_substitute_variables(chan, NULL, pagerfromstring, &ds);
 				fprintf(p, "From: %s <%s>\n", ds.data, who);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
@@ -1788,7 +1788,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 		       if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, pagersubject, &ds);
+				pbx_substitute_variables(chan, NULL, pagersubject, &ds);
 				fprintf(p, "Subject: %s\n\n", ds.data);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
@@ -1801,7 +1801,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 
 		       if ((chan = cw_channel_alloc(0, NULL))) {
 				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, &chan->vars, pagerbody, &ds);
+				pbx_substitute_variables(chan, NULL, pagerbody, &ds);
 				fprintf(p, "%s\n", ds.data);
 				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
