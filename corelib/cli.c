@@ -828,9 +828,11 @@ static int help_workhorse_one(struct cw_object *obj, void *data)
 	size_t mark;
 	int i;
 
-	for (i = 0; args->match[i]; i++)
-		if (strcasecmp(args->match[i], clicmd->cmda[i]))
-			goto out;
+	if (args->match) {
+		for (i = 0; args->match[i]; i++)
+			if (strcasecmp(args->match[i], clicmd->cmda[i]))
+				goto out;
+	}
 
 	mark = args->ds_p->used;
 
