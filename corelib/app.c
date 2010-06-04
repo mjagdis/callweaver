@@ -1018,13 +1018,37 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, 
 			c = '\0';
 			if (*next) {
 				while (*next && (inquote || *next != stop)) {
-					if (*next == '\\' && strchr("\"\\", *(next + 1))) {
+					if (*next == '\\') {
 						next++;
-						tws = -1;
+						switch (*next) {
+							case 'n':
+								*(end++) = '\n';
+								break;;
+							case 'r':
+								*(end++) = '\r';
+								break;;
+							case 't':
+								*(end++) = '\t';
+								break;;
+							default:
+								*(end++) = *next;
+						}
+						next++;
+						tws = 0;
+						continue;
 					} else if (*next == '"') {
 						inquote = !inquote;
 						tws = 0;
 						if (!*(++next)) break;
+						continue;
+					} else if (*next == '\'' && !inquote) {
+						tws = 0;
+						next++;
+						while (*next && *next != '\'')
+							*(end++) = *(next++);
+						if (!*next)
+							break;
+						next++;
 						continue;
 					} else if (!inquote && strchr(delim, *next))
 						break;

@@ -95,6 +95,17 @@ static void loopback_parse(cw_dynstr_t *ds_p, const char *data, const char **new
 					inquote = !inquote;
 					i++;
 					break;
+				case '\'':
+					if (!inquote) {
+						i++;
+						while (ds_p->data[i] && ds_p->data[i] != '\'')
+							ds_p->data[j++] = ds_p->data[i++];
+						if (ds_p->data[i])
+							i++;
+						continue;
+					} else
+						ds_p->data[j++] = ds_p->data[i++];
+					break;
 
 				case '@':
 					if (!inquote && !con) {
@@ -119,7 +130,7 @@ static void loopback_parse(cw_dynstr_t *ds_p, const char *data, const char **new
 					break;
 
 				case '\\':
-					if (ds_p->data[i + 1] && strchr("\"\\", ds_p->data[i + 1]))
+					if (ds_p->data[i + 1])
 						i++;
 					/* Fall through */
 				default:

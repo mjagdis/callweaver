@@ -872,16 +872,17 @@ static void cw_copy_escape(cw_dynstr_t *ds_p, const char *s)
 	}
 }
 
-static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst, char stop, int *error)
+static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst, char stop, char *quote)
 {
 	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	cw_dynstr_t rds = CW_DYNSTR_INIT;
 	const char *start;
-	int len, inquote;
+	int len;
+	char inquote;
 
 	start = src;
 	len = 0;
-	inquote = 0;
+	inquote = '\0';
 	while (start[len] && (start[len] != stop || inquote)) {
 		switch (start[len]) {
 			case '$':
@@ -892,12 +893,12 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 						cw_dynstr_printf(dst, "%.*s", len, start);
 
 					if (start[len + 1] == '{') {
-						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', error);
+						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', quote);
 
 						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, &rds) == -1)
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
-						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', error);
+						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', quote);
 
 						if (ds.error || (cw_expr(ds.data, &rds),rds.error))
 							dst->error = 1;
@@ -917,13 +918,26 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 				}
 				break;
 
+			case '\\':
+				len += (start[len + 1] ? 2 : 1);
+				break;
+
 			case '"':
-				inquote = !inquote;
+				inquote = (inquote ? '\0' : '"');
 				len++;
 				break;
 
-			case '\\':
-				len += (start[len + 1] ? 2 : 1);
+			case '\'':
+				len++;
+				if (!inquote) {
+					inquote = '\'';
+					while (start[len] && start[len] != '\'')
+						len++;
+					if (start[len]) {
+						len++;
+						inquote = '\0';
+					}
+				}
 				break;
 
 			default:
@@ -939,18 +953,18 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 		cw_dynstr_printf(dst, "%.*s", len, start);
 
 	if (inquote)
-		*error = 1;
+		*quote = inquote;
 
 	return (&start[len] - src);
 }
 void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, cw_dynstr_t *dst)
 {
-	int error = 0;
+	char quote = 0;
 
-	expand_string(chan, vars, src, dst, '\0', &error);
+	expand_string(chan, vars, src, dst, '\0', &quote);
 
-	if (error) {
-		cw_log(CW_LOG_ERROR, "Unmatched quote in: %s\n", src);
+	if (quote) {
+		cw_log(CW_LOG_ERROR, "Unmatched %c in: %s\n", quote, src);
 		dst->error = 1;
 	}
 }

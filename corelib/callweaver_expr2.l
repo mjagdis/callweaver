@@ -154,6 +154,7 @@ static char *expr2_token_subst(const char *mess);
 
 [ \t\r]		{}
 \"(\\\"|[^"])*\"	{SET_COLUMNS; SET_STRING; return TOKEN;}
+\'[^']*\'	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
 [\n]		{/* what to do with eol */}
 [0-9]+		{

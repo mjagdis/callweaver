@@ -6077,29 +6077,8 @@ static int load_config(void)
 		}
 		if ((s=cw_variable_retrieve(cfg, "general", "emailsubject")))
 			emailsubject = strdup(s);
-		if ((s=cw_variable_retrieve(cfg, "general", "emailbody"))) {
-			char *tmpread, *tmpwrite;
+		if ((s=cw_variable_retrieve(cfg, "general", "emailbody")))
 			emailbody = strdup(s);
-
-			/* substitute strings \t and \n into the apropriate characters */
-			tmpread = tmpwrite = emailbody;
-                       while ((tmpwrite = strchr(tmpread,'\\'))) {
-                               int len = strlen("\n");
-                               switch (tmpwrite[1]) {
-                                       case 'n':
-                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-                                               strncpy(tmpwrite,"\n",len);
-                                               break;
-                                       case 't':
-                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
-                                               strncpy(tmpwrite,"\t",len);
-                                               break;
-                                       default:
-                                               cw_log(CW_LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
-                               }
-                               tmpread = tmpwrite+len;
-                       }
-               }
                if ((s=cw_variable_retrieve(cfg, "general", "pagersubject")))
                        pagersubject = strdup(s);
                if ((s=cw_variable_retrieve(cfg, "general", "pagerbody"))) {
