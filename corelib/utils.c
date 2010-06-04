@@ -67,7 +67,7 @@ int cw_writev_all(int fd, struct iovec *iov, int count)
 
 		written += n;
 
-		while (x >= iov[0].iov_len) {
+		while (x && x >= iov[0].iov_len) {
 			x -= iov[0].iov_len;
 			count--;
 			iov++;
