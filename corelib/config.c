@@ -94,11 +94,6 @@ struct cw_registry config_engine_registry = {
 
 #define MAX_INCLUDE_LEVEL 10
 
-struct cw_comment {
-	struct cw_comment *next;
-	char cmt[0];
-};
-
 struct cw_category {
 	char name[80];
 	int ignored;			/* do not let user of the config see this category */
@@ -119,15 +114,17 @@ struct cw_config {
 struct cw_variable *cw_variable_new(const char *name, const char *value) 
 {
 	struct cw_variable *variable;
+	int name_len, value_len, length;
 
-	int length = strlen(name) + strlen(value) + 2 + sizeof(struct cw_variable);
-	variable = malloc(length);
-	if (variable) {
+	name_len = strlen(name) + 1;
+	value_len = strlen(value) + 1;
+	length = sizeof(struct cw_variable) + name_len + value_len;
+
+	if ((variable = malloc(length))) {
 		memset(variable, 0, length);
-		variable->name = variable->stuff;
-		variable->value = variable->stuff + strlen(name) + 1;		
-		strcpy(variable->name,name);
-		strcpy(variable->value,value);
+		variable->value = variable->name + name_len;
+		memcpy(variable->name, name, name_len);
+		memcpy(variable->value, value, value_len);
 	}
 
 	return variable;
@@ -193,12 +190,8 @@ static struct cw_variable *variable_clone(const struct cw_variable *old)
 {
 	struct cw_variable *new = cw_variable_new(old->name, old->value);
 
-	if (new) {
+	if (new)
 		new->lineno = old->lineno;
-		new->object = old->object;
-		new->blanklines = old->blanklines;
-		/* TODO: clone comments? */
-	}
 
 	return new;
 }
@@ -390,7 +383,7 @@ static int process_text_line(struct cw_config *cfg, struct cw_category **cat, ch
 	char *cur = buf;
 	struct cw_variable *v;
 	char cmd[512], exec_file[512];
-	int object, do_exec, do_include;
+	int do_exec, do_include;
 
 	/* Actually parse the entry */
 	if (cur[0] == '[') {
@@ -524,17 +517,12 @@ static int process_text_line(struct cw_config *cfg, struct cw_category **cat, ch
 			*c = 0;
 			c++;
 			/* Ignore > in => */
-			if (*c== '>') {
-				object = 1;
+			if (*c== '>')
 				c++;
-			} else
-				object = 0;
 			v = cw_variable_new(cw_strip(cur), cw_strip(c));
 			if (v) {
 				v->lineno = lineno;
-				v->object = object;
 				/* Put and reset comments */
-				v->blanklines = 0;
 				cw_variable_append(*cat, v);
 			} else {
 				cw_log(CW_LOG_WARNING, "Out of memory, line %d\n", lineno);

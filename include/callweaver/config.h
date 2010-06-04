@@ -39,15 +39,10 @@ struct cw_config;
 struct cw_category;
 
 struct cw_variable {
-	char *name;
 	char *value;
 	int lineno;
-	int object;		/*!< 0 for variable, 1 for object */
-	int blanklines; 	/*!< Number of blanklines following entry */
-	struct cw_comment *precomments;
-	struct cw_comment *sameline;
 	struct cw_variable *next;
-	char stuff[0];
+	char name[0];
 };
 
 typedef struct cw_config *config_load_func(const char *database, const char *table, const char *configfile, struct cw_config *config);
