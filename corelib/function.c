@@ -127,29 +127,31 @@ static struct cw_func *cw_find_function(unsigned int hash, const char *name)
 int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, cw_dynstr_t *result)
 {
 	struct cw_func *func;
-	const char *saved_c_appl;
+	const char *saved_c_appl = NULL;
 	int ret = -1;
 
 	errno = ENOENT;
 	if ((func = cw_find_function(hash, name))) {
-		/* FIXME: The last argument to cw_cdr_setapp should be the
-		 * argv as a comma separated string. But doing that costs.
-		 * Is it really needed? (It's for lastdata in CDR)
-		 * N.B. The reason we don't do this in the args-as-string wrapper
-		 * is because real languages will probably want to pass args as
-		 * arrays. So we better get used to it now.
-		 * N.N.B. The reason we don't do the setapp if there is a buffer
-		 * for a return value is because the post-hangup CDR generation
-		 * seems to keep expanding ${CDR(...)} expressions. So if we log
-		 * expression context function calls CDRs will always say the
-		 * last app was "CDR".
-		 */
-		if (chan->cdr && !result && !cw_check_hangup(chan))
-			cw_cdr_setapp(chan->cdr, name, argv[0]);
+		if (chan) {
+			/* FIXME: The last argument to cw_cdr_setapp should be the
+			 * argv as a comma separated string. But doing that costs.
+			 * Is it really needed? (It's for lastdata in CDR)
+			 * N.B. The reason we don't do this in the args-as-string wrapper
+			 * is because real languages will probably want to pass args as
+			 * arrays. So we better get used to it now.
+			 * N.N.B. The reason we don't do the setapp if there is a buffer
+			 * for a return value is because the post-hangup CDR generation
+			 * seems to keep expanding ${CDR(...)} expressions. So if we log
+			 * expression context function calls CDRs will always say the
+			 * last app was "CDR".
+			 */
+			if (chan->cdr && !result && !cw_check_hangup(chan))
+				cw_cdr_setapp(chan->cdr, name, argv[0]);
 
-		/* save channel values - for the sake of CDR and debug output from DumpChan and the CLI <bleurgh> */
-		saved_c_appl = chan->appl;
-		chan->appl = name;
+			/* save channel values - for the sake of CDR and debug output from DumpChan and the CLI <bleurgh> */
+			saved_c_appl = chan->appl;
+			chan->appl = name;
+		}
 
 		ret = ((*func->handler)(chan, argc, argv, result) || (result && result->error));
 		cw_object_put(func);
@@ -160,8 +162,10 @@ int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *nam
 		 */
 		errno = EINVAL;
 
-		/* restore channel values */
-		chan->appl = saved_c_appl;
+		if (chan) {
+			/* restore channel values */
+			chan->appl = saved_c_appl;
+		}
 	}
 
 	return ret;
