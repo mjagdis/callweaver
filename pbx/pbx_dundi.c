@@ -2115,32 +2115,11 @@ static void network_thread_cleanup(void *data)
 
 static void *network_thread(void *data)
 {
-	struct sockaddr_in sain;
-
 	CW_UNUSED(data);
 
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
 	pthread_cleanup_push(network_thread_cleanup, NULL);
-	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-
-	for (;;) {
-		pthread_testcancel();
-		if ((netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
-			if (!bind(netsocket, (struct sockaddr *)&sain, sizeof(sain)))
-				break;
-			close(netsocket);
-		}
-		sleep(1);
-	}
-
-	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-
-	if (option_verbose > 1)
-		cw_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-
-	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
-		cw_log(CW_LOG_WARNING, "Unable to set TOS to %d\n", tos);
 
 	/* Establish I/O callback for socket read */
 	cw_io_add(io, &netsocket_io_id, netsocket, CW_IO_IN);
@@ -4886,18 +4865,27 @@ static int reload_module(void)
 
 	set_config("dundi.conf", &sain);
 
-	if (cw_pthread_create(&netthreadid, &global_attr_default, network_thread, NULL)
-	|| cw_pthread_create(&precachethreadid, &global_attr_default, process_precache, NULL)) {
-		cw_log(CW_LOG_ERROR, "Unable to start network threads\n");
-		stop_threads();
-		return -1;
+	if ((netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
+		if (!bind(netsocket, (struct sockaddr *)&sain, sizeof(sain))) {
+			if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
+				cw_log(CW_LOG_WARNING, "Unable to set TOS to %d\n", tos);
+			else if (option_verbose > 1)
+				cw_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+
+			if (option_verbose > 1)
+				cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port));
+
+			if (!cw_pthread_create(&netthreadid, &global_attr_default, network_thread, NULL)
+			&& !cw_pthread_create(&precachethreadid, &global_attr_default, process_precache, NULL))
+				return 0;
+
+			stop_threads();
+			cw_log(CW_LOG_ERROR, "Unable to start network threads\n");
+		}
+		close(netsocket);
 	}
 
-	if (option_verbose > 1)
-		cw_verbose(VERBOSE_PREFIX_2 "DUNDi Ready and Listening on %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port));
-
-
-	return 0;
+	return 1;
 }
 
 static int load_module(void)
