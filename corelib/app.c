@@ -983,9 +983,7 @@ int cw_app_group_list_unlock(void)
 
 int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 {
-	char *start;
 	int argc;
-	char c;
 
 	if (option_debug && option_verbose > 6)
 		cw_log(CW_LOG_DEBUG, "delim='%c', args: %s\n", delim, buf);
@@ -997,14 +995,16 @@ int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 
 	argc = 0;
 	if (buf) {
-		start = buf;
+		char c;
+
+		argv[argc] = buf;
 		do {
 			char *next, *end;
 			int parens, inquote;
 
 			/* Skip leading white space */
-			start = cw_skip_blanks(start);
-			next = end = start;
+			argv[argc] = cw_skip_blanks(argv[argc]);
+			next = end = argv[argc];
 
 			/* Find the end of this arg. Backslash removes any special
 			 * meaning from the next character. Otherwise quotes
@@ -1012,40 +1012,41 @@ int cw_separate_app_args(char *buf, char delim, int max_args, char **argv)
 			 * string) must balance.
 			 */
 			inquote = parens = 0;
-			for (; *next; next++) {
-				if (*next == '\\') {
-					if (!*(++next)) break;
-				} else if (*next == '"') {
-					inquote = !inquote;
-					continue;
-				} else if (*next == '(')
-					parens++;
-				else if (*next == ')')
-					parens--;
-				else if (*next == delim && !parens && !inquote)
-					break;
+			c = '\0';
+			if (*next) {
+				do {
+					if (*next == '\\') {
+						if (!*(++next)) break;
+					} else if (*next == '"') {
+						inquote = !inquote;
+						if (!*(++next)) break;
+					} else if (*next == '(')
+						parens++;
+					else if (*next == ')')
+						parens--;
+					else if (*next == delim && !parens && !inquote)
+						break;
 
-				*(end++) = *next;
+					*(end++) = *(next++);
+				} while (*next);
+
+				/* Note whether we hit a delimiter or '\0' in case
+				 * we're about to overwrite it
+				 */
+				c = *next;
+
+				/* Terminate and backtrack trimming off trailing whitespace */
+				*end = '\0';
+				while (end > argv[argc] && isspace(end[-1]))
+					*(--end) = '\0';
 			}
 
-			/* Note whether we hit a delimiter or '\0' in case
-			 * we're about to overwrite it
-			 */
-			c = *next;
-
-			/* Terminate and backtrack trimming off trailing whitespace */
-			*end = '\0';
-			while (end > start && isspace(end[-1]))
-				*(--end) = '\0';
-
-			/* Save the arg and its length if wanted */
-			argv[argc] = start;
 #if 0
-			if (argl) argl[argc] = end - start;
+			if (argl) argl[argc] = end - argv[argc];
 #endif
 			argc++;
 
-			start = next + 1;
+			argv[argc] = next + 1;
 		} while (c && argc < max_args);
 	}
 

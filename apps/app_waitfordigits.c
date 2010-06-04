@@ -97,7 +97,7 @@ static const char waitfordigits_descrip[] =
 
 
 
-static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char numsubst[255];
 	struct cw_var_t *var;
@@ -117,7 +117,6 @@ static int waitfordigits_exec(struct cw_channel *chan, int argc, char **argv, ch
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 5)
 	{

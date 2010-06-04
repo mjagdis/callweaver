@@ -377,14 +377,13 @@ static int aMYSQL_disconnect(struct cw_channel *chan, char *data)
 	return 0;
 }
 
-static int MYSQL_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int MYSQL_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char sresult[10];
 	struct localuser *u;
 	int res;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc == 0 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "APP_MYSQL requires an argument (see manual)\n");

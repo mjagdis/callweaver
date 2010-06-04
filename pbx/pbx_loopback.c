@@ -69,18 +69,24 @@ static const char tdesc[] = "Loopback Switch";
 
 
 #define LOOPBACK_COMMON \
-	char buf[1024]; \
+	struct cw_dynstr ds = CW_DYNSTR_INIT; \
 	int res; \
 	char *newexten=(char *)exten, *newcontext=(char *)context; \
 	int newpriority=priority; \
 	char *newpattern=NULL; \
-	loopback_helper(buf, sizeof(buf), exten, context, priority, data); \
-	loopback_subst(&newexten, &newcontext, &newpriority, &newpattern, buf); \
-	cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
-	if (!strcasecmp(newcontext, context)) return -1
+	loopback_helper(&ds, exten, context, priority, data); \
+	if (!ds.error) { \
+		loopback_subst(&newexten, &newcontext, &newpriority, &newpattern, ds.data); \
+		cw_dynstr_free(&ds); \
+		cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
+		if (!strcasecmp(newcontext, context)) return -1; \
+	} else { \
+		cw_dynstr_free(&ds); \
+		cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
+	}
 
 
-static char *loopback_helper(char *buf, int buflen, const char *exten, const char *context, int priority, const char *data)
+static void loopback_helper(struct cw_dynstr *ds_p, const char *exten, const char *context, int priority, const char *data)
 {
 	char tmp[80];
 	struct cw_registry reg;
@@ -91,11 +97,9 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 	cw_var_assign(&reg, "CONTEXT", context);
 	cw_var_assign(&reg, "PRIORITY", tmp);
 
-	pbx_substitute_variables(NULL, &reg, data, buf, buflen);
+	pbx_substitute_variables(NULL, &reg, data, ds_p);
 
 	cw_registry_destroy(&reg);
-
-	return buf;
 }
 
 static void loopback_subst(char **newexten, char **newcontext, int *priority, char **newpattern, char *buf)

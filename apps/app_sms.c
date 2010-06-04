@@ -1698,7 +1698,7 @@ generate:
     sms_generate,
 };
 
-static int sms_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sms_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     sms_t h = { 0 };
     int res = -1;
@@ -1711,7 +1711,6 @@ static int sms_exec(struct cw_channel *chan, int argc, char **argv, char *result
     uint8_t tx_msg[256];
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1  ||  argc > 2)
         return cw_function_syntax(sms_syntax);

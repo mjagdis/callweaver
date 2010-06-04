@@ -67,18 +67,16 @@ static char h323driver[80] = "";
 
 
 /*--- enumlookup_exec: Look up number in ENUM and return result */
-static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int dep_warning = 0;
 	char tech[80];
-	char dest[80];
-	char tmp[256];
+	struct cw_dynstr dest = CW_DYNSTR_INIT;
 	struct localuser *u;
 	char *c, *t;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
@@ -92,74 +90,76 @@ static int enumlookup_exec(struct cw_channel *chan, int argc, char **argv, char 
 
 	tech[0] = '\0';
 
-	res = cw_get_enum(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
-	
-	if (!res) {	/* Failed to do a lookup */
+	if (cw_get_enum(chan, argv[0], &dest, tech, sizeof(tech), NULL, NULL)) {
+		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", tech);
+		/* Parse it out */
+		if (res > 0 && !dest.error) {
+			struct cw_dynstr tmp = CW_DYNSTR_INIT;
+
+			if (!strcasecmp(tech, "SIP")) {
+				c = dest.data;
+				if (!strncmp(c, "sip:", 4))
+					c += 4;
+				cw_dynstr_printf(&tmp, "SIP/%s", c);
+			} else if (!strcasecmp(tech, "h323")) {
+				c = dest.data;
+				if (!strncmp(c, "h323:", 5))
+					c += 5;
+				/* do a s!;.*!! on the H323 URI */
+				t = strchr(c,';');
+				if (t)
+					*t = 0;
+				cw_dynstr_printf(&tmp, "%s/%s", h323driver, c);
+			} else if (!strcasecmp(tech, "iax")) {
+				c = dest.data;
+				if (!strncmp(c, "iax:", 4))
+					c += 4;
+				cw_dynstr_printf(&tmp, "IAX/%s", c);
+			} else if (!strcasecmp(tech, "iax2")) {
+				c = dest.data;
+				if (!strncmp(c, "iax2:", 5))
+					c += 5;
+				cw_dynstr_printf(&tmp, "IAX2/%s", c);
+			} else if (!strcasecmp(tech, "tel")) {
+				c = dest.data;
+				if (!strncmp(c, "tel:", 4))
+					c += 4;
+
+				if (c[0] != '+') {
+					cw_log(CW_LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
+					res = 0;
+				} else {
+					/* now copy over the number, skipping all non-digits and stop at ; or NULL */
+					cw_dynstr_need(&tmp, dest.used);
+					if (!tmp.error) {
+						t = tmp.data;
+						while (*c && *c != ';') {
+							if (isdigit(*c))
+								*(t++) = *c;
+							c++;
+						}
+						*t = 0;
+						cw_log(CW_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp.data);
+					}
+				}
+			} else if (!cw_strlen_zero(tech)) {
+				cw_log(CW_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
+				pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
+				res = 0;
+			}
+
+			if (tmp.size && !tmp.error)
+				pbx_builtin_setvar_helper(chan, "ENUM", tmp.data);
+
+			cw_dynstr_free(&tmp);
+		}
+	} else {
 		/* Look for a "busy" place */
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-	pbx_builtin_setvar_helper(chan, "ENUMSTATUS", tech);
-	/* Parse it out */
-	if (res > 0) {
-		if (!strcasecmp(tech, "SIP")) {
-			c = dest;
-			if (!strncmp(c, "sip:", 4))
-				c += 4;
-			snprintf(tmp, sizeof(tmp), "SIP/%s", c);
-			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "h323")) {
-			c = dest;
-			if (!strncmp(c, "h323:", 5))
-				c += 5;
-			snprintf(tmp, sizeof(tmp), "%s/%s", h323driver, c);
-/* do a s!;.*!! on the H323 URI */
-			t = strchr(c,';');
-                       if (t)
-				*t = 0;
-			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "iax")) {
-			c = dest;
-			if (!strncmp(c, "iax:", 4))
-				c += 4;
-			snprintf(tmp, sizeof(tmp), "IAX/%s", c);
-			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "iax2")) {
-			c = dest;
-			if (!strncmp(c, "iax2:", 5))
-				c += 5;
-			snprintf(tmp, sizeof(tmp), "IAX2/%s", c);
-			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "tel")) {
-			c = dest;
-			if (!strncmp(c, "tel:", 4))
-				c += 4;
-
-			if (c[0] != '+') {
-				cw_log(CW_LOG_NOTICE, "tel: uri must start with a \"+\" (got '%s')\n", c);
-				res = 0;
-			} else {
-/* now copy over the number, skipping all non-digits and stop at ; or NULL */
-                               t = tmp;
-				while( *c && (*c != ';') && (t - tmp < (sizeof(tmp) - 1))) {
-					if (isdigit(*c))
-						*t++ = *c;
-					c++;
-				}
-				*t = 0;
-				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-				cw_log(CW_LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-			}
-		} else if (!cw_strlen_zero(tech)) {
-			cw_log(CW_LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
-			pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
-			res = 0;
-		}
 	}
 
+	cw_dynstr_free(&dest);
 	LOCAL_USER_REMOVE(u);
-
 	return 0;
 }
 

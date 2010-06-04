@@ -25,6 +25,7 @@
 #define _CALLWEAVER_DUNDI_H
 
 #include "callweaver/channel.h"
+#include "callweaver/dynstr.h"
 
 #define DUNDI_PORT 4520
 
@@ -199,7 +200,7 @@ struct dundi_result {
 	dundi_eid eid;
 	char eid_str[20];
 	char tech[10];
-	char dest[256];
+	struct cw_dynstr dest;
 };
 
 struct dundi_entity_info {

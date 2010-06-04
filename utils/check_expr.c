@@ -167,8 +167,8 @@ unsigned int check_expr(char* buffer, char* error_report)
 
 int check_eval(char *buffer, char *error_report)
 {
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *cp, *ep;
-	char s[4096];
 	char evalbuf[80000];
 	int result;
 
@@ -228,9 +228,9 @@ int check_eval(char *buffer, char *error_report)
 	*ep++ = 0;
 
 	/* now, run the test */
-	result = cw_expr(evalbuf, s, sizeof(s));
+	result = cw_expr(evalbuf, &ds);
 	if (result) {
-		sprintf(error_report, "line %u, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
+		sprintf(error_report, "line %u, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, ds.data);
 		return 1;
 	} else {
 		sprintf(error_report, "line %u, evaluation of $[ %s ] result: ****SYNTAX ERROR****\n", global_lineno, evalbuf);

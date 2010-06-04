@@ -51,7 +51,7 @@ static const char checkmd5_func_syntax[] = "CHECK_MD5(digest, data)";
 static const char checkmd5_func_desc[] = "Returns 1 on a match, 0 otherwise\n";
 
 
-static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char md5[33];
 
@@ -60,15 +60,15 @@ static int builtin_function_md5(struct cw_channel *chan, int argc, char **argv, 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(md5_func_syntax);
 
-	if (buf) {
+	if (result) {
 		cw_md5_hash(md5, argv[0]);
-		cw_copy_string(buf, md5, len);
+		cw_dynstr_printf(result, "%s", md5);
 	}
 
 	return 0;
 }
 
-static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char newmd5[33];
 
@@ -77,9 +77,9 @@ static int builtin_function_checkmd5(struct cw_channel *chan, int argc, char **a
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(checkmd5_func_syntax);
 
-	if (buf) {
+	if (result) {
 		cw_md5_hash(newmd5, argv[1]);
-		cw_copy_string(buf, (strcasecmp(newmd5, argv[0]) ? "0" : "1"), len);
+		cw_dynstr_printf(result, "%c", (strcasecmp(newmd5, argv[0]) ? '0' : '1'));
 	}
 
 	return 0;

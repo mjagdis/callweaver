@@ -503,7 +503,7 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 			if (args[x] == '/')
 				args[x] = '-';
 		
-		cw_function_exec_str(callee_chan, CW_KEYWORD_Monitor, "Monitor", args, NULL, 0);
+		cw_function_exec_str(callee_chan, CW_KEYWORD_Monitor, "Monitor", args, NULL);
 		
 		return FEATURE_RETURN_SUCCESS;
 	}
@@ -1040,7 +1040,7 @@ static int feature_exec_app(struct cw_channel *chan, struct cw_channel *peer, st
 	res = strlen(feature->app_args) + 1;
 	args = alloca(res);
 	memcpy(args, feature->app_args, res);
-	res = cw_function_exec_str(work, cw_hash_string(feature->app), feature->app, args, NULL, 0);
+	res = cw_function_exec_str(work, cw_hash_string(feature->app), feature->app, args, NULL);
 	if (res < 0)
 		return res; 
 	
@@ -1390,7 +1390,7 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 		}
 
 		if (argv[0])
-			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL, 0);
+			cw_function_exec(peer, CW_KEYWORD_Monitor, "Monitor", 3, argv, NULL);
 	}
 	
 	set_config_flags(chan, peer, config);
@@ -1755,7 +1755,7 @@ std:					for (x=0; x<CW_MAX_FDS; x++) {
 	}
 }
 
-static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int park_call_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res = 0;
@@ -1763,7 +1763,6 @@ static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -1786,7 +1785,7 @@ static int park_call_exec(struct cw_channel *chan, int argc, char **argv, char *
 	return res;
 }
 
-static int park_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int park_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;
@@ -1799,7 +1798,6 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	struct cw_bridge_config config;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax("Park(exten)");

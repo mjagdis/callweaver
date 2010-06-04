@@ -85,13 +85,12 @@ static const char dt_descrip[] =
 	"Sets DBSTATUS to SUCCESS if the key is found and FAIL on error.\n";
 
 
-static int deltree_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int deltree_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *family, *keytree;
 	struct localuser *u;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(dt_syntax);
@@ -133,13 +132,12 @@ static int deltree_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 	return 0;
 }
 
-static int del_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int del_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *family, *key;
 	struct localuser *u;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(d_syntax);
@@ -172,14 +170,13 @@ static int del_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 	return 0;
 }
 
-static int put_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int put_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int dep_warning = 0;
 	char *val, *family, *key;
 	struct localuser *u;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
@@ -219,15 +216,15 @@ static int put_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 	return 0;
 }
 
-static int get_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int get_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int dep_warning = 0;
-	char dbresult[256];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *varname, *family, *key;
 	struct localuser *u;
+	int ret = 0;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!dep_warning) {
 		cw_log(CW_LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
@@ -248,13 +245,20 @@ static int get_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
+
 		if (option_verbose > 2)
 			cw_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
-		if (!cw_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
-			pbx_builtin_setvar_helper(chan, varname, dbresult);
-			if (option_verbose > 2)
-				cw_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
-			pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
+
+		if (!cw_db_get(family, key, &ds)) {
+			ret = -1;
+			if (!ds.error) {
+				pbx_builtin_setvar_helper(chan, varname, ds.data);
+				if (option_verbose > 2)
+					cw_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, ds.data);
+				cw_dynstr_free(&ds);
+				pbx_builtin_setvar_helper(chan, "DBSTATUS", "SUCCESS");
+				ret = 0;
+			}
 		} else {
 			if (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
@@ -266,7 +270,7 @@ static int get_exec(struct cw_channel *chan, int argc, char **argv, char *buf, s
 
 	LOCAL_USER_REMOVE(u);
 
-	return 0;
+	return ret;
 }
 
 static int unload_module(void)

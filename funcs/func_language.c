@@ -51,7 +51,7 @@ static const char language_func_desc[] =
 	"functions, like SayNumber.\n";
 
 
-static int builtin_function_language_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_language_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc > 1)
 		return cw_function_syntax(language_func_syntax);
@@ -59,8 +59,9 @@ static int builtin_function_language_rw(struct cw_channel *chan, int argc, char 
 	if (chan) {
 		if (argc > 0)
 			cw_copy_string(chan->language, argv[0], sizeof(chan->language));
-		if (buf)
-			cw_copy_string(buf, chan->language, len);
+
+		if (result)
+			cw_dynstr_printf(result, "%s", chan->language);
 	}
 
 	return 0;

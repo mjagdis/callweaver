@@ -56,23 +56,23 @@ static const char descrip[] =
   "calls.  Always returns 0.\n";
 
 
-static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int lookupcidname_exec (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char dbname[64];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct localuser *u;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD (u);
 	if (chan->cid.cid_num) {
-		if (!cw_db_get ("cidname", chan->cid.cid_num, dbname, sizeof (dbname))) {
-			cw_set_callerid (chan, NULL, dbname, NULL);
+		if (!cw_db_get("cidname", chan->cid.cid_num, &ds)) {
+			cw_set_callerid (chan, NULL, ds.data, NULL);
 				if (option_verbose > 2)
-					cw_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n", dbname);
+					cw_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID name to %s\n", ds.data);
 		}
+		cw_dynstr_free(&ds);
 	}
 	LOCAL_USER_REMOVE (u);
 	return 0;

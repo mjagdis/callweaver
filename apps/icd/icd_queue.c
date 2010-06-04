@@ -741,8 +741,9 @@ char *icd_queue__get_monitor_args(icd_queue * that)
 
 char *icd_queue__check_recording(icd_queue *that, icd_caller *caller) 
 {
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     char *monitor_args = NULL;
-    char buf[512], buf2[768];
+    char buf[512];
     struct cw_channel *chan;
     struct tm *ptr;
     time_t tm;
@@ -753,11 +754,11 @@ char *icd_queue__check_recording(icd_queue *that, icd_caller *caller)
         tm = time(NULL);
         ptr = localtime(&tm);
         strftime(buf, sizeof(buf), monitor_args, ptr);
-	strncpy(buf2, buf, sizeof(buf2));
         chan = icd_caller__get_channel(caller);
         if (chan) {
-            pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), buf, buf2, sizeof(buf2));
-            cw_function_exec_str(chan, CW_KEYWORD_Muxmon, "Muxmon", buf2, NULL, 0);
+            pbx_substitute_variables(chan, &chan->vars, buf, &ds);
+            cw_function_exec_str(chan, CW_KEYWORD_Muxmon, "Muxmon", ds.data, NULL);
+            cw_dynstr_free(&ds);
         }
       
     }

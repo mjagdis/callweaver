@@ -79,11 +79,10 @@ static const char pop_descrip[] =
 "  Always returns 0, even if the stack is empty.\n";
 
 
-static int pop_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pop_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 0)
 		return cw_function_syntax(pop_syntax);
@@ -93,7 +92,7 @@ static int pop_exec(struct cw_channel *chan, int argc, char **argv, char *result
 	return 0;
 }
 
-static int return_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int return_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[3 + 3 + 1];
 	struct cw_var_t *var;
@@ -101,7 +100,6 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 0)
 		return cw_function_syntax(return_syntax);
@@ -132,14 +130,13 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	return 0;
 }
 
-static int gosub_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int gosub_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[3 + 1 + CW_MAX_CONTEXT + 1 + CW_MAX_EXTENSION + 1 + 11 + 11];
 	char *context, *exten, *p, *q;
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(gosub_syntax);
@@ -174,13 +171,12 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 	return 0;
 }
 
-static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *s, *q;
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
@@ -202,7 +198,7 @@ static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, char *re
 				break;
 			}
 		}
-		return gosub_exec(chan, argc, argv, NULL, 0);
+		return gosub_exec(chan, argc, argv, NULL);
 	} else {
 		/* False: we want everything after ':' (if anything) */
 		argv[0] = s;
@@ -210,7 +206,7 @@ static int gosubif_exec(struct cw_channel *chan, int argc, char **argv, char *re
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
 				argv[i] = s;
-				return gosub_exec(chan, argc - i, argv + i, NULL, 0);
+				return gosub_exec(chan, argc - i, argv + i, NULL);
 			}
 		}
 		/* No ": ..." so we just drop through */

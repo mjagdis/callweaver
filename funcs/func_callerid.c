@@ -49,7 +49,7 @@ static const char callerid_func_desc[] =
 	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n";
 
 
-static int callerid_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *p;
 
@@ -84,9 +84,9 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, char *buf
         	}
 	}
 
-	if (buf) {
+	if (result) {
 		if (!strncasecmp("all", argv[0], 3)) {
-			snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
+			cw_dynstr_printf(result, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");
 		} else {
 			if (!strncasecmp("name", argv[0], 4)) {
 				p = chan->cid.cid_name;
@@ -104,7 +104,7 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, char *buf
 			}
 
 			if (p)
-				cw_copy_string(buf, p, len);
+				cw_dynstr_printf(result, "%s", p);
 		}
 	}
 

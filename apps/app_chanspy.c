@@ -106,7 +106,7 @@ static struct cw_frame *spy_generate(struct cw_channel *chan, void *data, int le
 static void start_spying(struct cw_channel *chan, struct cw_channel *spychan, struct cw_channel_spy *spy);
 static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy);
 static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *volfactor, int fd);
-static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 
 static __inline__ int db_to_scaling_factor(int db)
 {
@@ -537,7 +537,7 @@ out:
 	return res;
 }
 
-static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct chanspy_by_prefix_args args;
 	struct cw_flags flags;
@@ -549,8 +549,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, char *bu
 	int res = -1;
 	signed char zero_volume = 0;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(chanspy_syntax);

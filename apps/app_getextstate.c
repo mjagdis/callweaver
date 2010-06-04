@@ -60,14 +60,13 @@ static char g_descrip[] =
 	"Example: Set(EXTSTATE=${GetExtState(715&523, default)}\n";
 
 
-static int get_extstate(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int get_extstate(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecated_var = 0;
-	char hints[1024] = "";
-	char hint[CW_MAX_EXTENSION] = "";
+	struct cw_dynstr hint = CW_DYNSTR_INIT;
 	struct localuser *u;
-	char *cur, *rest;
-	int res = -1;
+	const char *exten;
+	char *state = NULL;
 	int allunavailable = 1, allbusy = 1, allfree = 1;
 	int busy = 0, inuse = 0, ring = 0;
 			
@@ -76,100 +75,74 @@ static int get_extstate(struct cw_channel *chan, int argc, char **argv, char *bu
 
 	LOCAL_USER_ADD(u);
 
-	cur = argv[0];
+	exten = strtok_r(argv[0], "&", &state);
+	while (exten) {
+		if (cw_get_hint(&hint, NULL, NULL, argv[1], exten) && !hint.error) {
+			switch (cw_device_state(hint.data)) {
+				case CW_DEVICE_NOT_INUSE:
+					allunavailable = 0;
+					allbusy = 0;
+					break;
+				case CW_DEVICE_INUSE:
+					inuse = 1;
+					allunavailable = 0;
+					allfree = 0;
+					break;
+				case CW_DEVICE_RINGING:
+					ring = 1;
+					allunavailable = 0;
+					allfree = 0;
+					break;
+				case CW_DEVICE_BUSY:
+					allunavailable = 0;
+					allfree = 0;
+					busy = 1;
+					break;
+				case CW_DEVICE_UNAVAILABLE:
+				case CW_DEVICE_INVALID:
+					allbusy = 0;
+					allfree = 0;
+					break;
+				default:
+					allunavailable = 0;
+					allbusy = 0;
+					allfree = 0;
+					break;
+			}
+		}
 
-	do {
-		rest = strchr(cur, '&');
-		if (rest) {
-			*rest = 0;
-			rest++;
-		}
-	    cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, argv[1], cur);
-	    //cw_log(CW_LOG_DEBUG,"HINT: %s Context: %s Exten: %s\n",hint,argv[1],cur);
-	    if (!cw_strlen_zero(hint)) {
-		//let's concat hints!
-		if ( strlen(hint)+strlen(hints)+2<sizeof(hints) ) {
-		    if ( strlen(hints) ) strcat(hints,"&");
-		    strcat(hints,hint);
-		}
-	    }
-	    //cw_log(CW_LOG_DEBUG,"HINTS: %s \n",hints);
-	    cur=rest;
-	} while (cur);
-	//res=cw_device_state(hint);
-	//res=cw_extension_state2(hint);
+		cw_dynstr_reset(&hint);
 
-	cur=hints;
-	do {
-		rest = strchr(cur, '&');
-		if (rest) {
-			*rest = 0;
-			rest++;
-		}
-	
-		res = cw_device_state(cur);
-		//cw_log(CW_LOG_DEBUG,"Ext: %s State: %d \n",cur,res);
-		switch (res) {
-		case CW_DEVICE_NOT_INUSE:
-			allunavailable = 0;
-			allbusy = 0;
-			break;
-		case CW_DEVICE_INUSE:
-			inuse = 1;
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case CW_DEVICE_RINGING:
-			ring = 1;
-			allunavailable = 0;
-			allfree = 0;
-			break;
-		case CW_DEVICE_BUSY:
-			allunavailable = 0;
-			allfree = 0;
-			busy = 1;
-			break;
-		case CW_DEVICE_UNAVAILABLE:
-		case CW_DEVICE_INVALID:
-			allbusy = 0;
-			allfree = 0;
-			break;
-		default:
-			allunavailable = 0;
-			allbusy = 0;
-			allfree = 0;
-		}
-		cur = rest;
-	} while (cur);
+		exten = strtok_r(NULL, "&", &state);
+	}
+
+	cw_dynstr_free(&hint);
 
         // 0-idle; 1-inuse; 2-busy; 4-unavail 8-ringing
-	//cw_log(CW_LOG_VERBOSE, "allunavailable %d, allbusy %d, allfree %d, busy %d, inuse %d, ring %d \n", allunavailable, allbusy, allfree, busy, inuse, ring );
-	if      (!inuse && ring)
-		res=8;
+	if (!inuse && ring)
+		exten = "8";
 	else if (inuse && ring)
-		res=1;
+		exten = "1";
 	else if (inuse)
-		res=1;
+		exten = "1";
 	else if (allfree)
-		res=0;
+		exten = "0";
 	else if (allbusy)		
-		res=2;
+		exten = "2";
 	else if (allunavailable)
-		res=4;
+		exten = "4";
 	else if (busy) 
-		res=2;
-	else 	res=-1;
+		exten = "2";
+	else 	exten = "-1";
 	
-	if (buf) {
-		snprintf(buf, len, "%d", res);
+	if (result) {
+		cw_dynstr_printf(result, "%s", exten);
 	} else {
-		char resc[8];
 		if (!deprecated_var) {
 			cw_log(CW_LOG_WARNING, "Deprecated usage. Use Set(varname=${%s(args)}) instead.\n", g_name);
 			deprecated_var = 1;
 		}
-		snprintf(resc, sizeof(resc), "%d", res);
-		pbx_builtin_setvar_helper(chan, "EXTSTATE", resc);	
+		pbx_builtin_setvar_helper(chan, "EXTSTATE", exten);
 	}
 
 	LOCAL_USER_REMOVE(u);

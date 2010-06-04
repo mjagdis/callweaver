@@ -1391,7 +1391,6 @@ static const char mandescr_extensionstate[] =
 
 static struct cw_manager_message *action_extensionstate(struct mansession *sess, const struct message *req)
 {
-	char hint[256] = "";
 	struct cw_manager_message *msg = NULL;
 	const char *exten = cw_manager_msg_header(req, "Exten");
 	const char *context = cw_manager_msg_header(req, "Context");
@@ -1401,18 +1400,22 @@ static struct cw_manager_message *action_extensionstate(struct mansession *sess,
 
 	if (!cw_strlen_zero(exten)) {
 		if ((msg = cw_manager_response("Success", "Extension Status"))) {
+			struct cw_dynstr hint = CW_DYNSTR_INIT;
+
 			if (cw_strlen_zero(context))
 				context = "default";
 
 			status = cw_extension_state(NULL, context, exten);
-			cw_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
+			cw_get_hint(&hint, NULL, NULL, context, exten);
 
 			cw_manager_msg(&msg, 4,
 				cw_msg_tuple("Exten", "%s", exten),
 				cw_msg_tuple("Context", "%s", context),
-				cw_msg_tuple("Hint", "%s", hint),
+				cw_msg_tuple("Hint", "%s", hint.data),
 				cw_msg_tuple("Status", "%d", status)
 			);
+
+			cw_dynstr_free(&hint);
 		}
 	} else
 		msg = cw_manager_response("Error", "Extension not specified");

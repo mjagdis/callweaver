@@ -525,34 +525,32 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *cw_uri_encode(const char *string, char *outbuf, int buflen, int doreserved)
+char *cw_uri_encode(const char *src, struct cw_dynstr *dst, int doreserved)
 {
-	const char *reserved = ";/?:@&=+$,# ";	/* Reserved chars */
+	static const char reserved[] = ";/?:@&=+$,# ";
+	size_t mark;
 
-	const char *ptr  = string;	/* Start with the string */
-	char *out = NULL;
-	char *buf = NULL;
+	mark = cw_dynstr_end(dst);
 
-	strncpy(outbuf, string, buflen);
+	while (*src) {
+		int n = 0;
 
-	/* If there's no characters to convert, just go through and don't do anything */
-	while (*ptr) {
-		if (((unsigned char) *ptr) > 127 || (doreserved && strchr(reserved, *ptr)) ) {
-			/* Oops, we need to start working here */
-			if (!buf) {
-				buf = outbuf;
-				out = buf + (ptr - string) ;	/* Set output ptr */
-			}
-			out += sprintf(out, "%%%02x", (unsigned char) *ptr);
-		} else if (buf) {
-			*out = *ptr;	/* Continue copying the string */
-			out++;
-		} 
-		ptr++;
+		if (!doreserved)
+			while (src[n] && src[n] <= 127) n++;
+		else
+			while (src[n] && src[n] <= 127 && !strchr(reserved, src[n])) n++;
+
+		cw_dynstr_printf(dst, "%.*s", n, src);
+
+		if (!src[n])
+			break;
+
+		cw_dynstr_printf(dst, "%%%02x", (unsigned char)src[n]);
+
+		src += n + 1;
 	}
-	if (buf)
-		*out = '\0';
-	return outbuf;
+
+	return &dst->data[mark];
 }
 
 /*! \brief  cw_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/

@@ -173,8 +173,8 @@ static int pgsql_reconnect(void)
 
 static int pgsql_log(struct cw_cdr *batch)
 {
-	char sql_insert_cmd[2048];
-	char sql_tmp_cmd[1024];
+	struct cw_dynstr sql_tmp_cmd = CW_DYNSTR_INIT;
+	struct cw_dynstr cmd_ds = CW_DYNSTR_INIT;
 	struct cw_channel *chan;
 	PGresult *res;
 	struct cw_cdr *cdrset, *cdr;
@@ -187,36 +187,52 @@ static int pgsql_log(struct cw_cdr *batch)
 			batch = batch->batch_next;
 
 			while ((cdr = cdrset)) {
-				cdrset = cdrset->next;
+				if (!sql_tmp_cmd.used)
+					cw_dynstr_printf(&sql_tmp_cmd, "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
 
-				snprintf(sql_tmp_cmd, sizeof(sql_tmp_cmd), "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
+				if (!sql_tmp_cmd.error) {
+					chan->cdr = cdr;
+					pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd.data, &cmd_ds);
 
-				chan->cdr = cdr;
-				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+					if (!cmd_ds.error) {
+						cdrset = cdrset->next;
 
-				cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", sql_insert_cmd);
+						cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", cmd_ds.data);
 
-				/* check if database connection is still good */
-				if (!pgsql_reconnect()) {
-					cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
-					goto out;
+						/* check if database connection is still good */
+						if (!pgsql_reconnect()) {
+							cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
+							goto out;
+						}
+
+						res = PQexec(conn, cmd_ds.data);
+
+						if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+							cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
+							cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
+							PQclear(res);
+							goto out;
+						}
+
+						PQclear(res);
+
+						cw_dynstr_reset(&cmd_ds);
+						continue;
+					}
 				}
 
-				res = PQexec(conn, sql_insert_cmd);
-
-				if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-					cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
-					cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
-					PQclear(res);
-					goto out;
-				}
-
-				PQclear(res);
+				cw_dynstr_free(&cmd_ds);
+				cw_dynstr_free(&sql_tmp_cmd);
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				sleep(1);
 			}
 		}
 
 out:
 		cw_mutex_unlock(&pgsql_lock);
+
+		cw_dynstr_free(&cmd_ds);
+		cw_dynstr_free(&sql_tmp_cmd);
 		cw_channel_free(chan);
 		ret = 0;
 	}

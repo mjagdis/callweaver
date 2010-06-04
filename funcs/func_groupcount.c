@@ -65,26 +65,26 @@ static const char group_list_func_syntax[] = "GROUP_LIST()";
 static const char group_list_func_desc[] = "Gets a list of the groups set on a channel.\n";
 
 
-static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_count_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char group[80] = "", category[80] = "";
 	int count= -1;
 
 	CW_UNUSED(argc);
 
-	if (buf) {
+	if (result) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
 		if ((count = cw_app_group_get_count(group, category)) == -1)
 			cw_log(CW_LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 		else
-			snprintf(buf, len, "%d", count);
+			cw_dynstr_printf(result, "%d", count);
 	}
 
 	return 0;
 }
 
-static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_match_count_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char group[80] = "";
 	char category[80] = "";
@@ -93,36 +93,40 @@ static int group_match_count_function_read(struct cw_channel *chan, int argc, ch
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
 
-	if (buf) {
+	if (result) {
 		cw_app_group_split_group(argv[0], group, sizeof(group), category, sizeof(category));
 
 		if (!cw_strlen_zero(group)) {
 			count = cw_app_group_match_get_count(group, category);
-			snprintf(buf, len, "%d", count);
+			cw_dynstr_printf(result, "%d", count);
 		}
 	}
 
 	return 0;
 }
 
-static int group_function_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_function_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc > 0) {
-		char tmp[256];
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 		if (argc > 1 && argv[1][0]) {
-			snprintf(tmp, sizeof(tmp), "%s@%s", argv[1], argv[0]);
+			cw_dynstr_printf(&ds, "%s@%s", argv[1], argv[0]);
 		} else {
-			cw_copy_string(tmp, argv[0], sizeof(tmp));
+			cw_dynstr_printf(&ds, "%s", argv[0]);
 		}
 
-        	if (cw_app_group_set_channel(chan, tmp)) {
+		if (!ds.error && cw_app_group_set_channel(chan, ds.data)) {
                 	cw_log(CW_LOG_WARNING, "Setting a group requires an argument (group name)\n");
-			return -1;
+			ds.error = 1;
 		}
+
+		cw_dynstr_free(&ds);
+		if (ds.error)
+			return -1;
 	}
 
-	if (buf) {
+	if (result) {
 		struct cw_group_info *gi;
 
 		cw_app_group_list_lock();
@@ -139,7 +143,7 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cha
 		}
 
 		if (gi)
-			cw_copy_string(buf, gi->group, len);
+			cw_dynstr_printf(result, "%s", gi->group);
 
 		cw_app_group_list_unlock();
 	}
@@ -148,10 +152,10 @@ static int group_function_rw(struct cw_channel *chan, int argc, char **argv, cha
 }
 
 
-static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_list_function_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char tmp1[1024] = "";
-	char tmp2[1024] = "";
+	struct cw_dynstr tmp1 = CW_DYNSTR_INIT;
+	struct cw_dynstr tmp2 = CW_DYNSTR_INIT;
 	struct cw_group_info *gi = NULL;
 
 	CW_UNUSED(argc);
@@ -162,23 +166,36 @@ static int group_list_function_read(struct cw_channel *chan, int argc, char **ar
 	for (gi = cw_app_group_list_head(); gi; gi = CW_LIST_NEXT(gi, list)) {
 		if (gi->chan != chan)
 			continue;
-		if (!cw_strlen_zero(tmp1)) {
-			cw_copy_string(tmp2, tmp1, sizeof(tmp2));
-			if (!cw_strlen_zero(gi->category))
-				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, gi->group, gi->category);
-			else
-				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, gi->group);
+		if (tmp1.used) {
+			cw_dynstr_printf(&tmp2, "%s", tmp1.data);
+
+			if (!tmp2.error) {
+				if (!cw_strlen_zero(gi->category))
+					cw_dynstr_printf(&tmp1, "%s %s@%s", tmp2.data, gi->group, gi->category);
+				else
+					cw_dynstr_printf(&tmp1, "%s %s", tmp2.data, gi->group);
+			} else
+				tmp1.error = 1;
+
+			cw_dynstr_reset(&tmp2);
 		} else {
 			if (!cw_strlen_zero(gi->category))
-				snprintf(tmp1, sizeof(tmp1), "%s@%s", gi->group, gi->category);
+				cw_dynstr_printf(&tmp1, "%s@%s", gi->group, gi->category);
 			else
-				snprintf(tmp1, sizeof(tmp1), "%s", gi->group);
+				cw_dynstr_printf(&tmp1, "%s", gi->group);
 		}
 	}
 
 	cw_app_group_list_unlock();
 
-	cw_copy_string(buf, tmp1, len);
+	cw_dynstr_free(&tmp2);
+
+	if (!tmp1.error)
+		cw_dynstr_printf(result, "%s", tmp1.data);
+	else
+		result->error = 1;
+
+	cw_dynstr_free(&tmp1);
 
 	return 0;
 }

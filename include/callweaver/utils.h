@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <openssl/evp.h>
 
+#include "callweaver/dynstr.h"
 #include "callweaver/time.h"
 #include "callweaver/strings.h"
 #include "callweaver/module.h"
@@ -50,6 +51,9 @@
 #ifdef __GNUC__
 #  define likely(x)	__builtin_expect(!!(x), 1)
 #  define unlikely(x)	__builtin_expect(!!(x), 0)
+#else
+#  define likely(x)	x
+#  define unlikely(x)	x
 #endif
 
 
@@ -249,25 +253,23 @@ extern CW_API_PUBLIC void cw_md5_hash_two(char *output, char *input1, char *inpu
 extern CW_API_PUBLIC int cw_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 extern CW_API_PUBLIC int cw_base64decode(unsigned char *dst, const char *src, int max);
 
-/*! cw_uri_encode
-	\brief Turn text string to URI-encoded %XX version 
- 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
-	as in the SIP protocol spec 
-	If doreserved == 1 we will convert reserved characters also.
-	RFC 2396, section 2.4
-	outbuf needs to have more memory allocated than the instring
-	to have room for the expansion. Every char that is converted
-	is replaced by three ASCII characters.
-	\param string	String to be converted
-	\param outbuf	Resulting encoded string
-	\param buflen	Size of output buffer
-	\param doreserved	Convert reserved characters
-*/
+/*! \brief Turn text string to URI-encoded %XX version
+ *
+ * At this point, we're converting from ISO-8859-x (8-bit), not UTF8
+ * as in the SIP protocol spec
+ * If doreserved == 1 we will convert reserved characters also.
+ * RFC 2396, section 2.4
+ *
+ * \param string      String to be converted
+ * \param result      Resulting encoded dynamic string
+ * \param doreserved  Convert reserved characters
+ */
 
-extern CW_API_PUBLIC char *cw_uri_encode(const char *string, char *outbuf, int buflen, int doreserved);
+extern CW_API_PUBLIC char *cw_uri_encode(const char *string, struct cw_dynstr *result, int doreserved);
 
-/*!	\brief Decode URI, URN, URL (overwrite string)
-	\param s	String to be decoded 
+/*! \brief Decode URI, URN, URL (overwrite string)
+ *
+ * \param s           String to be decoded
  */
 extern CW_API_PUBLIC void cw_uri_decode(char *s);
 

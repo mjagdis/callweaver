@@ -69,7 +69,7 @@ static const char timeout_func_desc[] =
 	"	   terminated.  The default timeout is 10 seconds.\n";
 
 
-static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(timeout_func_syntax);
@@ -121,26 +121,26 @@ static int builtin_function_timeout_rw(struct cw_channel *chan, int argc, char *
 		}
 	}
 	
-	if (buf) {
+	if (result) {
 		switch(argv[0][0]) {
 		case 'a':
 		case 'A':
 			if (chan->whentohangup == 0)
-				cw_copy_string(buf, "0", len);
+				cw_dynstr_printf(result, "0");
 			else
-				snprintf(buf, len, "%d", (int) (chan->whentohangup - time(NULL)));
+				cw_dynstr_printf(result, "%d", (int) (chan->whentohangup - time(NULL)));
 			break;
 
 		case 'r':
 		case 'R':
 			if (chan->pbx)
-				snprintf(buf, len, "%d", chan->pbx->rtimeout);
+				cw_dynstr_printf(result, "%d", chan->pbx->rtimeout);
 			break;
 
 		case 'd':
 		case 'D':
 			if (chan->pbx)
-				snprintf(buf, len, "%d", chan->pbx->dtimeout);
+				cw_dynstr_printf(result, "%d", chan->pbx->dtimeout);
 			break;
 
 		default:

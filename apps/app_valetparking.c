@@ -479,7 +479,7 @@ std:					for (x=0;x<CW_MAX_FDS;x++) {
 	return NULL;	/* Never reached */
 }
 
-static int valetpark_call(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int valetpark_call(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char tmp[80];
 	struct localuser *u;
@@ -487,7 +487,6 @@ static int valetpark_call(struct cw_channel *chan, int argc, char **argv, char *
 	int ext = 0, res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vpcsyntax);
@@ -645,7 +644,7 @@ static struct cw_channel *valet_request(const char *type, int format, void *data
 }
 
 
-static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_bridge_config config;
 	struct localuser *u;
@@ -655,7 +654,6 @@ static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, char
 	int res=0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vupsyntax);
@@ -709,13 +707,12 @@ static int valetunpark_call(struct cw_channel *chan, int argc, char **argv, char
 }
 
 
-static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res=0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 2 || argc > 6 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(vpsyntax);
@@ -727,14 +724,14 @@ static int cw_valetparking(struct cw_channel *chan, int argc, char **argv, char 
 
 	LOCAL_USER_ADD(u);
 
-	res = (!cw_is_valetparked(argv[0], argv[1]) ? valetpark_call(chan, argc, argv, NULL, 0) : valetunpark_call(chan, argc, argv, NULL, 0));
+	res = (!cw_is_valetparked(argv[0], argv[1]) ? valetpark_call(chan, argc, argv, NULL) : valetunpark_call(chan, argc, argv, NULL));
 
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 
-static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int valetpark_list(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[64];
 	char *nargv[3];
@@ -742,7 +739,6 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(vlsyntax);
@@ -756,7 +752,7 @@ static int valetpark_list(struct cw_channel *chan, int argc, char **argv, char *
 		nargv[0] = buf;
 		nargv[1] = argv[0];
 		nargv[2] = NULL;
-		res = valetunpark_call(chan, 2, nargv, NULL, 0);
+		res = valetunpark_call(chan, 2, nargv, NULL);
 	}
 
 	LOCAL_USER_REMOVE(u);

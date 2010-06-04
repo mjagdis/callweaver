@@ -42,14 +42,13 @@ static const char nocdr_syntax[] = "NoCDR()";
 static const char nocdr_descrip[] = "Makes sure there won't be any CDR written for a certain call";
 
 
-static int nocdr_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int nocdr_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

@@ -45,9 +45,8 @@ static const char cdr_func_syntax[] = "CDR(name[, options[, value]])";
 static const char cdr_func_desc[] = "Option 'r' searches the entire stack of CDRs on the channel\n";
 
 
-static int builtin_function_cdr_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_cdr_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char *ret;
 	int recursive = 0;
 
 	if (argc < 1 || argc > 3 || !argv[0][0])
@@ -68,8 +67,8 @@ static int builtin_function_cdr_rw(struct cw_channel *chan, int argc, char **arg
 			cw_cdr_setvar(chan->cdr, argv[0], argv[2], recursive);
 	}
 
-	if (buf && chan->cdr)
-		cw_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
+	if (result && chan->cdr)
+		cw_cdr_getvar(chan->cdr, argv[0], result, recursive);
 
 	return 0;
 }

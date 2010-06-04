@@ -153,7 +153,7 @@ static struct cw_generator v110_gen = {
 };
 
 
-static int login_v110(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int login_v110(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_var_t *var;
@@ -166,7 +166,6 @@ static int login_v110(struct cw_channel *chan, int argc, char **argv, char *resu
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

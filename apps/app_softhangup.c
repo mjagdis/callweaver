@@ -87,13 +87,12 @@ static int softhangup_one(struct cw_object *obj, void *data)
 	return !args->all;
 }
 
-static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int softhangup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct softhangup_args args;
 	struct localuser *u;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc == 0) {
 		if (chan){

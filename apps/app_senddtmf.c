@@ -52,14 +52,13 @@ static const char senddtmf_descrip[] =
 " Returns 0 on success or -1 on a hangup.\n";
 
 
-static int senddtmf_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int senddtmf_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int timeout = 250;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(senddtmf_syntax);

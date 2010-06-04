@@ -31,13 +31,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 void cw_dynstr_grow(struct cw_dynstr *ds_p, size_t len)
 {
-	char *ndata;
+	char *ndata[2] = { ds_p->data, NULL };
 
 	len = (len | ds_p->chunk) + 1;
 
-	if ((ndata = realloc(ds_p->data, len))) {
+	if ((ndata[0] = realloc(ndata[(ds_p->size == 0 ? 1 : 0)], len))) {
 		ds_p->size = len;
-		ds_p->data = ndata;
+		ds_p->data = ndata[0];
 	} else
 		ds_p->error = 1;
 }

@@ -229,7 +229,7 @@ static char *expr2_token_subst(const char *mess);
 int cw_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
 int cw_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-int cw_expr(const char *expr, char *buf, int length)
+int cw_expr(const char *expr, struct cw_dynstr *result)
 {
 	struct parse_io io;
 	int return_value = 0;
@@ -246,23 +246,14 @@ int cw_expr(const char *expr, char *buf, int length)
 	cw_yylex_destroy(io.scanner);
 
 	if (!io.val) {
-		if (length > 1) {
-			strcpy(buf, "0");
-			return_value = 1;
-		}
+		cw_dynstr_printf(result, "0");
+		return_value = 1;
 	} else {
 		if (io.val->type == CW_EXPR_integer) {
-			int res_length;
-
-			res_length = snprintf(buf, length, "%ld", (long int) io.val->u.i);
-			return_value = (res_length <= length) ? res_length : length;
+			return_value = cw_dynstr_printf(result, "%ld", (long int) io.val->u.i);
 		} else {
-#ifdef STANDALONE
-			strncpy(buf, io.val->u.s, length - 1);
-#else /* !STANDALONE */
-			cw_copy_string(buf, io.val->u.s, length);
-#endif /* STANDALONE */
-			return_value = strlen(buf);
+			cw_dynstr_printf(result, "%s", io.val->u.s);
+			return_value = result->used;
 			free(io.val->u.s);
 		}
 		free(io.val);

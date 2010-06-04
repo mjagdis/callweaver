@@ -63,12 +63,11 @@ static int devstate_cli(struct cw_dynstr *ds_p, int argc, char *argv[])
     return RESULT_SUCCESS;
 }
 
-static int devstate_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int devstate_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc != 2)
         return cw_function_syntax(devstate_syntax);
@@ -88,19 +87,22 @@ static int devstate_exec(struct cw_channel *chan, int argc, char **argv, char *r
 
 static int ds_devicestate(void *data)
 {
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     char *dest = data;
-    char stateStr[16];
-    if (cw_db_get("DEVSTATES", dest, stateStr, sizeof(stateStr)))
+    int res = 0;
+
+    if (!cw_db_get("DEVSTATES", dest, &ds) && !ds.error)
     {
-        cw_log(CW_LOG_DEBUG, "ds_devicestate couldnt get state in cwdb\n");
-        return 0;
+        res = atoi(ds.data);
+        cw_log(CW_LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n", dest, res);
     }
     else
     {
-        cw_log(CW_LOG_DEBUG, "ds_devicestate dev=%s returning state %d\n",
-               dest, atoi(stateStr));
-        return (atoi(stateStr));
+        cw_log(CW_LOG_DEBUG, "ds_devicestate couldnt get state in cwdb\n");
     }
+
+    cw_dynstr_free(&ds);
+    return res;
 }
 
 static struct cw_channel_tech devstate_tech = {

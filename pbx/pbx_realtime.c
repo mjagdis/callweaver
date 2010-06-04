@@ -187,33 +187,34 @@ static int realtime_canmatch(struct cw_channel *chan, const char *context, const
 
 static int realtime_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	char app[256];
-	char appdata[512]="";
-	char *tmp = NULL;
-	struct cw_variable *v;
+	struct cw_dynstr appdata = CW_DYNSTR_INIT;
+	struct cw_variable *v, *v_app = NULL, *v_appdata = NULL;
 
 	CW_UNUSED(callerid);
 
 	REALTIME_COMMON(MODE_MATCH);
 	if (var) {
-		v = var;
-		while(v) {
+		for (v = var; v; v = v->next) {
 			if (!strcasecmp(v->name, "app"))
-				strncpy(app, v->value, sizeof(app) -1 );
+				v_app = v;
 			else if (!strcasecmp(v->name, "appdata"))
-				tmp = cw_strdupa(v->value);
-			v = v->next;
+				v_appdata = v;
 		}
-		cw_variables_destroy(var);
-		if (!cw_strlen_zero(app)) {
-			if(!cw_strlen_zero(tmp))
-			   pbx_substitute_variables(chan, &chan->vars, tmp, appdata, sizeof(appdata));
+
+		if (v_app && !cw_strlen_zero(v_app->value)) {
+			if (v_appdata && !cw_strlen_zero(v_appdata->value)) {
+				pbx_substitute_variables(chan, &chan->vars, v_appdata->value, &appdata);
+				if (appdata.error)
+					goto out;
+			} else
+				cw_dynstr_printf(&appdata, "%s", "");
+
 			if (option_verbose > 2)
 	 		    cw_verbose( VERBOSE_PREFIX_3 "Executing [%s@%s:%d] %s(\"%s\", \"%s\")\n",
 				    exten, context, priority,
-			            app,
+			            v_app->value,
 				    chan->name,
-				    appdata
+				    appdata.data
 			    );
 			cw_manager_event(EVENT_FLAG_CALL, "Newexten",
 				7,
@@ -221,12 +222,16 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 				cw_msg_tuple("Context",     "%s\r\n", chan->context),
 				cw_msg_tuple("Extension",   "%s\r\n", chan->exten),
 				cw_msg_tuple("Priority",    "%d\r\n", chan->priority),
-				cw_msg_tuple("Application", "%s\r\n", app),
-				cw_msg_tuple("AppData",     "%s\r\n", appdata),
+				cw_msg_tuple("Application", "%s\r\n", v_app->value),
+				cw_msg_tuple("AppData",     "%s\r\n", appdata.data),
 				cw_msg_tuple("Uniqueid",    "%s\r\n", chan->uniqueid)
 			);
-			res = cw_function_exec_str(chan, cw_hash_string(app), app, appdata, NULL, 0);
+			res = cw_function_exec_str(chan, cw_hash_string(v_app->value), v_app->value, appdata.data, NULL);
+out:
+			cw_dynstr_free(&appdata);
 		}
+
+		cw_variables_destroy(var);
 	}
 	return res;
 }

@@ -113,7 +113,7 @@ static void launch_page(struct cw_channel *chan, const char *nconferenceopts, co
 	}
 }
 
-static int page_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int page_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char nconferenceopts[80];
 	struct localuser *u;
@@ -123,7 +123,6 @@ static int page_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	unsigned char flags;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(page_syntax);
@@ -156,7 +155,7 @@ static int page_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	}
 	if (!res) {
 		snprintf(nconferenceopts, sizeof(nconferenceopts), "%ud/%sq", confid, ((flags & PAGE_DUPLEX) ? "" : "T"));
-		cw_function_exec_str(chan, CW_KEYWORD_NConference, "NConference", nconferenceopts, NULL, 0);
+		cw_function_exec_str(chan, CW_KEYWORD_NConference, "NConference", nconferenceopts, NULL);
 	}
 
 	LOCAL_USER_REMOVE(u);

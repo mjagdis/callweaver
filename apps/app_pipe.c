@@ -86,7 +86,7 @@ static int timed_read(int fd, void *data, int datalen, int timeout)
 
 }
 
-static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pipe_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;
@@ -105,7 +105,6 @@ static int pipe_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	} myf;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	last.tv_usec = 0;
 	last.tv_sec = 0;

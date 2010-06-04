@@ -50,7 +50,7 @@ static const char config_func_desc[] = "This function will read configuration va
 /* }}} */
 
 /* function_config_read() {{{ */
-static int function_config_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_config_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const struct {
 		const char *key, *value;
@@ -83,10 +83,10 @@ static int function_config_rw(struct cw_channel *chan, int argc, char **argv, ch
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
 
-	if (buf) {
+	if (result) {
 		for (i = 0; i < arraysize(keytab); i++) {
 			if (!strcasecmp(keytab[i].key, argv[0])) {
-				cw_copy_string(buf, keytab[i].value, len);
+				cw_dynstr_printf(result, "%s", keytab[i].value);
 				return 0;
 			}
 		}

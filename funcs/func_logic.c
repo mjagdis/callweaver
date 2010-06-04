@@ -75,27 +75,27 @@ static const char if_time_func_desc[] =
 "NOTE: Both true and false are evaluated regardless of which is to be returned\n";
 
 
-static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_isnull(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
-	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "0" : "1"), len);
+	cw_dynstr_printf(result, "%s", (argc > 0 && argv[0][0] ? "0" : "1"));
 	return 0;
 }
 
-static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
-	cw_copy_string(buf, (argc > 0 && argv[0][0] ? "1" : "0"), len);
+	cw_dynstr_printf(result, "%s", (argc > 0 && argv[0][0] ? "1" : "0"));
 	return 0;
 }
 
-static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_iftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_timing timing;
 	char *s, *q, **a = NULL;
-	int i, n, l, first;
+	int i, n;
 
 	CW_UNUSED(chan);
 
@@ -112,7 +112,7 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 		return -1;
 	}
 
-	if (buf) {
+	if (result) {
 		do { *(s++) = '\0'; } while (isspace(*s));
 		n = 0;
 		if (cw_check_timing(&timing)) {
@@ -141,33 +141,21 @@ static int builtin_function_iftime(struct cw_channel *chan, int argc, char **arg
 			/* No ": ..." so we just drop through */
 		}
 
-		first = 1;
-		len--; /* one for the terminating null */
-		q = buf;
-		for (i = 0; len && i < n; i++) {
-			if (!first) {
-				*(q++) = ',';
-				len--;
-			} else
-				first = 0;
-			l = strlen(a[i]);
-			if (l > len)
-				l = len;
-			memcpy(q, a[i], l);
-			q += l;
-			len -= l;
+		if (n) {
+			cw_dynstr_printf(result, "%s", a[i]);
+			for (i = 1; i < n; i++)
+				cw_dynstr_printf(result, ",%s", a[i]);
 		}
-		*q = '\0';
 	}
 
 	return 0;
 }
 
-static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	char *s, *q, **a = NULL;
-	int i, n, l, first;
+	int i, n;
 
 	CW_UNUSED(chan);
 
@@ -180,7 +168,7 @@ static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, c
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
 		return cw_function_syntax(if_func_syntax);
 
-	if (buf) {
+	if (result) {
 		/* Trim trailing space from the condition */
 		q = s;
 		do { *(q--) = '\0'; } while (q >= argv[0] && isspace(*q));
@@ -214,23 +202,11 @@ static int builtin_function_if(struct cw_channel *chan, int argc, char **argv, c
 			/* No ": ..." so we just drop through */
 		}
 
-		first = 1;
-		len--; /* one for the terminating null */
-		q = buf;
-		for (i = 0; len && i < n; i++) {
-			if (!first) {
-				*(q++) = ',';
-				len--;
-			} else
-				first = 0;
-			l = strlen(a[i]);
-			if (l > len)
-				l = len;
-			memcpy(q, a[i], l);
-			q += l;
-			len -= l;
+		if (n) {
+			cw_dynstr_printf(result, "%s", a[0]);
+			for (i = 1; i < n; i++)
+				cw_dynstr_printf(result, ",%s", a[i]);
 		}
-		*q = '\0';
 	}
 
 	return 0;

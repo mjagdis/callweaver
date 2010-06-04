@@ -54,14 +54,13 @@ static const char setrdnis_descrip[] =
 "CALLERID(rdnis)\n";
 
 
-static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int setrdnis_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
+	static int deprecation_warning = 0;
 	struct localuser *u;
 	char *n, *l;
-	static int deprecation_warning = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (!deprecation_warning) {
 		cw_log(CW_LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");

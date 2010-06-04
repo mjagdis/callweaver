@@ -71,13 +71,12 @@ static const char endwhile_desc[] =
 static const char tdesc[] = "While Loops and Conditional Execution";
 
 
-static int execif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int execif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res=0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(execif_syntax);
@@ -85,7 +84,7 @@ static int execif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	LOCAL_USER_ADD(u);
 
 	if (cw_true(argv[0]))
-		res = cw_function_exec(chan, cw_hash_string(argv[1]), argv[1], argc - 2, argv + 2, NULL, 0);
+		res = cw_function_exec(chan, cw_hash_string(argv[1]), argv[1], argc - 2, argv + 2, NULL);
 		
 	ALL_DONE(u,res);
 }
@@ -196,7 +195,7 @@ static int find_matching_endwhile(struct cw_channel *chan)
 	return res;
 }
 
-static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max, int end)
+static int _while_exec(struct cw_channel *chan, int argc, char **argv, int end)
 {
 	char end_varname[VAR_SIZE + sizeof("END_") - 1] = "END_WHILE_";
 	char *varname = end_varname + sizeof("END_") - 1;
@@ -206,9 +205,6 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	size_t size=0;
 	int x;
 	int res = 0;
-
-	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (!end && argc != 1)
 		return cw_function_syntax(while_syntax);
@@ -299,20 +295,18 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	ALL_DONE(u, res);
 }
 
-static int while_start_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int while_start_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
-	return _while_exec(chan, argc, argv, NULL, 0, 0);
+	return _while_exec(chan, argc, argv, 0);
 }
 
-static int while_end_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int while_end_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
-	return _while_exec(chan, argc, argv, NULL, 0, 1);
+	return _while_exec(chan, argc, argv, 1);
 }
 
 

@@ -62,7 +62,7 @@ static const char chanisavail_descrip[] =
 "when the channel is in use at all, even if it can take another call.\n";
 
 
-static int chanavail_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int chanavail_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
 	struct localuser *u;
@@ -71,7 +71,6 @@ static int chanavail_exec(struct cw_channel *chan, int argc, char **argv, char *
 	int res=-1, inuse=-1, option_state=0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 0 || argc > 2)
 		return cw_function_syntax(chanisavail_syntax);

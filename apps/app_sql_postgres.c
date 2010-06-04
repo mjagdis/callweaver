@@ -501,13 +501,12 @@ static int aPGSQL_debug(struct cw_channel *chan, void *data)
 		
 	
 
-static int PGSQL_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int PGSQL_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc == 0 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");

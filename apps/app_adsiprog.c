@@ -1613,13 +1613,12 @@ static int adsi_prog(struct cw_channel *chan, char *script)
 	return 0;
 }
 
-static int adsi_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int adsi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	LOCAL_USER_ADD(u);
 

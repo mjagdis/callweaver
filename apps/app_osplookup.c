@@ -107,12 +107,14 @@ static int str2cause(char *cause)
 	return CW_CAUSE_NORMAL;
 }
 
-static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
 	char *provider;
 	int res = 0;
+
+	CW_UNUSED(result);
 
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(syntax);
@@ -148,13 +150,15 @@ static int osplookup_exec(struct cw_channel *chan, int argc, char **argv, char *
 	return res;
 }
 
-static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
 	struct cw_var_t *var;
 	int cause;
 	int res = 0;
+
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(syntax2);
@@ -197,7 +201,7 @@ static int ospnext_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	return res;
 }
 
-static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_osp_result ospres;
 	struct localuser *u;
@@ -205,6 +209,8 @@ static int ospfinished_exec(struct cw_channel *chan, int argc, char **argv, char
 	time_t start=0, duration=0;
 	int cause;
 	int res=0;
+
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(syntax3);

@@ -62,11 +62,11 @@ static const char backticks_func_descrip[] =
 	"Executes a shell command and evaluates to the result.";
 
 
-static int do_backticks(char *command, char *buf, size_t len)
+static int do_backticks(char *command, struct cw_dynstr *result)
 {
         int fds[2];
 	pid_t pid = 0;
-	int n, ret = -1;
+	int ret = -1;
 
         if (pipe(fds)) {
                 cw_log(CW_LOG_ERROR, "Pipe failed: %s\n", strerror(errno));
@@ -81,18 +81,28 @@ static int do_backticks(char *command, char *buf, size_t len)
                         close(fds[0]);
                         close(fds[1]);
                 } else if (pid) { /* parent */
+			ssize_t n = 1;
+
                         close(fds[1]);
-			if (buf) {
-				/* Reserve the last for null */
-				len--;
-                        	while (len && (n = read(fds[0], buf, len)) > 0) {
-					buf += n;
-					len -= n;
+
+			if (result) {
+				cw_dynstr_need(result, 512);
+				while (!result->error && (n = read(fds[0], &result->data[cw_dynstr_end(result)], cw_dynstr_space(result))) > 0) {
+					result->used += n;
+					if (cw_dynstr_space(result) < 64)
+						cw_dynstr_need(result, 256);
 				}
-				*buf = '\0';
+				/* Add a terminating null by printing an empty string */
+				cw_dynstr_printf(result, "%s", "");
 			}
+
 			/* Dump any remaining input */
-			while (read(fds[0], &n, sizeof(n)) > 0);
+			if (n > 0) {
+				char buf[256];
+
+				while (read(fds[0], buf, sizeof(buf)) > 0);
+			}
+
 			waitpid(pid, &ret, 0);
                 } else { /* child */
                         close(fds[0]);
@@ -110,33 +120,39 @@ static int do_backticks(char *command, char *buf, size_t len)
         return ret;
 }
 
-static int backticks_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int backticks_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char buf[1024] = "";
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct localuser *u;
+	int ret = -1;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 2)
 		return cw_function_syntax(backticks_syntax);
 
 	LOCAL_USER_ADD(u);
 
-	do_backticks(argv[1], buf, sizeof(buf));
-	pbx_builtin_setvar_helper(chan, argv[0], buf);
+	do_backticks(argv[1], &ds);
+
+	if (!ds.error) {
+		pbx_builtin_setvar_helper(chan, argv[0], ds.data);
+		ret = 0;
+	}
+
+	cw_dynstr_free(&ds);
 
 	LOCAL_USER_REMOVE(u);
-	return 0;
+	return ret;
 }
 
 
-static int function_backticks(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_backticks(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
         if (argc > 0)
-		do_backticks(argv[0], buf, len);
+		do_backticks(argv[0], result);
 
         return 0;
 }

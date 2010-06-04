@@ -243,15 +243,13 @@ static int onedigit_goto(struct cw_channel *chan, const char *context, const cha
 }
 
 
-static char *get_cid_name(char *name, int namelen, struct cw_channel *chan)
+static char *get_cid_name(struct cw_dynstr *name, struct cw_channel *chan)
 {
-	if (!cw_get_hint(NULL, 0, name, namelen, chan,
-			(!cw_strlen_zero(chan->proc_context) ? chan->proc_context : chan->context),
-			(!cw_strlen_zero(chan->proc_exten) ? chan->proc_exten : chan->exten))
-	)
-		name[0] = '\0';
+	cw_get_hint(NULL, name, chan,
+		(!cw_strlen_zero(chan->proc_context) ? chan->proc_context : chan->context),
+		(!cw_strlen_zero(chan->proc_exten) ? chan->proc_exten : chan->exten));
 
-	return name;
+	return name->data;
 }
 
 static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
@@ -270,7 +268,6 @@ static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan *outgoing, int *to, struct cw_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
 	struct cw_channel *watchers[CW_MAX_WATCHERS];
-	char cidname[CW_MAX_EXTENSION];
 	struct outchan *o;
 	struct cw_frame *f;
 	struct cw_channel *peer = NULL;
@@ -431,8 +428,12 @@ static struct cw_channel *wait_for_answer(struct cw_channel *in, struct outchan 
 						} else {
 							senddialevent(in, o->chan);
 							/* After calling, set callerid to extension */
-							if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-								cw_set_callerid(o->chan, cw_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(cidname, sizeof(cidname), in), NULL);
+							if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID)) {
+								struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+								cw_set_callerid(o->chan, cw_strlen_zero(in->proc_exten) ? in->exten : in->proc_exten, get_cid_name(&ds, in), NULL);
+								cw_dynstr_free(&ds);
+							}
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -647,7 +648,6 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	int cause;
 	char numsubst[CW_MAX_EXTENSION];
 	char restofit[CW_MAX_EXTENSION];
-	char cidname[CW_MAX_EXTENSION];
 	char *options = NULL;
 	char *newnum;
 	char *l;
@@ -1227,8 +1227,12 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 			senddialevent(chan, tmp->chan);
 			if (option_verbose > 2)
 				cw_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
-			if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID))
-				cw_set_callerid(tmp->chan, cw_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
+			if (!cw_test_flag(peerflags, DIAL_PRESERVE_CALLERID)) {
+				struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+				cw_set_callerid(tmp->chan, cw_strlen_zero(chan->proc_exten) ? chan->exten : chan->proc_exten, get_cid_name(&ds, chan), NULL);
+				cw_dynstr_free(&ds);
+			}
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
@@ -1542,7 +1546,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 				for (res = 0;  res < strlen(proc_name);  res++)
 					if (proc_name[res] == '^')
 						proc_name[res] = ',';
-				res = cw_function_exec_str(peer, CW_KEYWORD_Proc, "Proc", proc_name, NULL, 0);
+				res = cw_function_exec_str(peer, CW_KEYWORD_Proc, "Proc", proc_name, NULL);
 				res = 0;
 			}
 
@@ -1703,18 +1707,17 @@ out:
 	return res;
 }
 
-static int dial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dial_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_flags peerflags;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	memset(&peerflags, 0, sizeof(peerflags));
 	return dial_exec_full(chan, argc, argv, &peerflags);
 }
 
-static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_flags peerflags;
 	struct cw_var_t *context;
@@ -1723,7 +1726,6 @@ static int retrydial_exec(struct cw_channel *chan, int argc, char **argv, char *
 	int retryinterval = 0, loops = 0, res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 4 || argc > 7)
 		return cw_function_syntax(retrydial_syntax);

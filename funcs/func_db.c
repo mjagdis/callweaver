@@ -67,7 +67,7 @@ static const char db_func_desc[] =
 	"will also set the variable DB_RESULT.\n";
 
 
-static int function_db_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_db_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *key;
 
@@ -81,14 +81,16 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, char *
 			cw_log(CW_LOG_WARNING, "DB: Error setting %s/%s to %s\n", argv[0], key, argv[1]);
 	}
 
-	if (buf) {
-		if (cw_db_get(argv[0], key, buf, len))
+	if (result) {
+		size_t mark = cw_dynstr_end(result);
+
+		if (cw_db_get(argv[0], key, result))
 			cw_log(CW_LOG_DEBUG, "DB: %s/%s not found in database.\n", argv[0], key);
 		else {
 			/* FIXME: Why do we set a variable as well as fill the result buffer?
 			 * Why do we leave the variable unchanged if the key does not exist?
 			 */
-			pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
+			pbx_builtin_setvar_helper(chan, "DB_RESULT", &result->data[mark]);
 		}
 	}
 
@@ -96,23 +98,20 @@ static int function_db_rw(struct cw_channel *chan, int argc, char **argv, char *
 }
 
 
-static int function_db_exists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_db_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *key;
 
 	if (argc != 1 || !argv[0][0] || !(key = strrchr(argv[0], '/')))
 		return cw_function_syntax(db_exists_func_syntax);
 
-	if (len < 2) {
-		cw_log(CW_LOG_ERROR, "Out of space in return buffer\n");
-		return -1;
-	}
-
 	*(key++) = '\0';
 
-	if (buf) {
-		cw_copy_string(buf, (cw_db_get(argv[0], key, buf, len) ? "0" : "1"), len);
-		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
+	if (result) {
+		size_t mark = cw_dynstr_end(result);
+
+		cw_dynstr_printf(result, "%s", (cw_db_get(argv[0], key, NULL) ? "0" : "1"));
+		pbx_builtin_setvar_helper(chan, "DB_RESULT", &result->data[mark]);
 	}
 
 	return 0;

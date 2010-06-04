@@ -5524,20 +5524,33 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
     
     if (debug)
     {
-        /* shame on whoever coded this.... */
-        const unsigned slen=512;
-        char s1[slen], s2[slen], s3[slen], s4[slen];
+        struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-        cw_verbose("Capabilities: us - %s, peer - audio=%s/video=%s, combined - %s\n",
-            cw_getformatname_multiple(s1, slen, p->capability),
-            cw_getformatname_multiple(s2, slen, peercapability),
-            cw_getformatname_multiple(s3, slen, vpeercapability),
-            cw_getformatname_multiple(s4, slen, p->jointcapability));
+        cw_dynstr_printf(&ds, "Capabilities: us - ");
+        cw_getformatname_multiple(&ds, p->capability);
+        cw_dynstr_printf(&ds, ", peer - audio=");
+        cw_getformatname_multiple(&ds, peercapability);
+        cw_dynstr_printf(&ds, "/video=");
+        cw_getformatname_multiple(&ds, vpeercapability);
+        cw_dynstr_printf(&ds, ", combined - ");
+        cw_getformatname_multiple(&ds, p->jointcapability);
+        cw_dynstr_printf(&ds, "\n");
+        if (!ds.error)
+            cw_verbose(ds.data);
 
-        cw_verbose("Non-codec capabilities: us - %s, peer - %s, combined - %s\n",
-            cw_rtp_lookup_mime_multiple(s1, slen, noncodeccapability, 0),
-            cw_rtp_lookup_mime_multiple(s2, slen, peernoncodeccapability, 0),
-            cw_rtp_lookup_mime_multiple(s3, slen, p->noncodeccapability, 0));
+        cw_dynstr_reset(&ds);
+
+        cw_dynstr_printf(&ds, "Non-codec capabilities: us - ");
+        cw_rtp_lookup_mime_multiple(&ds, noncodeccapability, 0);
+        cw_dynstr_printf(&ds, ", peer - ");
+        cw_rtp_lookup_mime_multiple(&ds, peernoncodeccapability, 0);
+        cw_dynstr_printf(&ds, ", combined - ");
+        cw_rtp_lookup_mime_multiple(&ds, p->noncodeccapability, 0);
+        cw_dynstr_printf(&ds, "\n");
+        if (!ds.error)
+            cw_verbose(ds.data);
+
+        cw_dynstr_free(&ds);
     }
     if (!p->jointcapability)
     {
@@ -5550,13 +5563,18 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
     if (!(p->owner->nativeformats & p->jointcapability))
     {
-        const unsigned slen = 512;
-        char s1[slen];
-        char s2[slen];
+        struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-        cw_log(CW_LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
-                 cw_getformatname_multiple(s1, slen, p->jointcapability),
-                 cw_getformatname_multiple(s2, slen, p->owner->nativeformats));
+        cw_dynstr_printf(&ds, "Oooh, we need to change our formats since our peer supports only ");
+        cw_getformatname_multiple(&ds, p->jointcapability);
+        cw_dynstr_printf(&ds, " and not ");
+        cw_getformatname_multiple(&ds, p->owner->nativeformats);
+        cw_dynstr_printf(&ds, "\n");
+        if (!ds.error)
+            cw_log(CW_LOG_DEBUG, "%s", ds.data);
+
+        cw_dynstr_free(&ds);
+
         p->owner->nativeformats = cw_codec_choose(&p->prefs, p->jointcapability, 1);
         cw_set_read_format(p->owner, p->owner->readformat);
         cw_set_write_format(p->owner, p->owner->writeformat);
@@ -7144,8 +7162,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
     size_t invite_max = sizeof(invite_buf);
     char from[256];
     char to[256];
-    char tmp[BUFSIZ/2];
-    char tmp2[BUFSIZ/2];
+    struct cw_dynstr tmp = CW_DYNSTR_INIT;
+    struct cw_dynstr tmp2 = CW_DYNSTR_INIT;
     char iabuf[INET_ADDRSTRLEN];
     const char *l = NULL, *n = NULL;
     int x;
@@ -7211,16 +7229,16 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
 
     if (pedanticsipchecking)
     {
-        cw_uri_encode(n, tmp, sizeof(tmp), 0);
-        n = tmp;
-        cw_uri_encode(l, tmp2, sizeof(tmp2), 0);
-        l = tmp2;
+        n = cw_uri_encode(n, &tmp, 0);
+        l = cw_uri_encode(l, &tmp2, 0);
     }
 
     if ((p->ourport != 5060) && cw_strlen_zero(p->fromdomain))    /* Needs to be 5060 */
         snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->ourport, p->tag);
     else
         snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
+
+    cw_dynstr_free(&tmp2);
 
     /* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
     if (!cw_strlen_zero(p->fullcontact))
@@ -7237,8 +7255,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
             n = p->username;
             if (pedanticsipchecking)
             {
-                cw_uri_encode(n, tmp, sizeof(tmp), 0);
-                n = tmp;
+                cw_dynstr_reset(&tmp);
+                n = cw_uri_encode(n, &tmp, 0);
             }
             cw_build_string(&invite, &invite_max, "%s@", n);
         }
@@ -7273,7 +7291,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
     memset(req, 0, sizeof(struct sip_request));
     init_req(req, sipmethod, p->uri);
     req->seqno = ++p->ocseq;
-    snprintf(tmp, sizeof(tmp), "%u %s", req->seqno, sip_methods[sipmethod].text);
+    cw_dynstr_reset(&tmp);
+    cw_dynstr_printf(&tmp, "%u %s", req->seqno, sip_methods[sipmethod].text);
 
     add_header(req, "Via", p->via, SIP_DL_HEAD_VIA);
     /* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
@@ -7293,11 +7312,13 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
     build_contact(p);
     add_header(req, "Contact", p->our_contact, SIP_DL_HEAD_CONTACT);
     add_header(req, "Call-ID", p->callid, SIP_DL_HEAD_CALLID);
-    add_header(req, "CSeq", tmp, SIP_DL_DONTCARE);
+    add_header(req, "CSeq", (tmp.used ? tmp.data : ""), SIP_DL_DONTCARE);
     add_header(req, "User-Agent", default_useragent, SIP_DL_DONTCARE);
     add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS, SIP_DL_DONTCARE);
     if (p->rpid)
         add_header(req, "Remote-Party-ID", p->rpid, SIP_DL_DONTCARE);
+
+    cw_dynstr_free(&tmp);
 }
 
 /*! \brief  transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it */
@@ -7409,7 +7430,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout)
 {
 	char tmp[4000], from[256], to[256];
-	char hint[CW_MAX_EXTENSION];
+	struct cw_dynstr hint = CW_DYNSTR_INIT;
 	char *t = tmp, *c, *a, *mfrom, *mto;
 	size_t maxbytes = sizeof(tmp);
 	struct sip_request *msg;
@@ -7467,14 +7488,15 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		subscriptiontype = find_subscription_type(p->subscribed);
     
 		/* Check which device/devices we are watching  and if they are registered */
-		if (cw_get_hint(hint, sizeof(hint), NULL, 0, NULL, p->context, p->exten)) {
+		if (cw_get_hint(&hint, NULL, NULL, p->context, p->exten) && !hint.error) {
 			/* If they are not registered, we will override notification and show no availability */
-			if (cw_device_state(hint) == CW_DEVICE_UNAVAILABLE) {
+			if (cw_device_state(hint.data) == CW_DEVICE_UNAVAILABLE) {
 				local_state = NOTIFY_CLOSED;
 				pidfstate = "away";
 				pidfnote = "Not online";
 			}
 		}
+		cw_dynstr_free(&hint);
 
 		cw_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 		c = get_in_brackets(from);
@@ -8247,8 +8269,8 @@ static int expire_register(void *data)
 /*! \brief  reg_source_db: Get registration details from CallWeaver DB */
 static void reg_source_db(struct sip_peer *peer)
 {
-    char data[256];
     char iabuf[INET_ADDRSTRLEN];
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     struct in_addr in;
     int expiry;
     int port;
@@ -8256,54 +8278,47 @@ static void reg_source_db(struct sip_peer *peer)
 
     if (cw_test_flag(&(peer->flags_page2), SIP_PAGE2_RT_FROMCONTACT)) 
         return;
-    if (cw_db_get("SIP/Registry", peer->name, data, sizeof(data)))
-        return;
 
-    scan = data;
-    addr = strsep(&scan, ":");
-    port_str = strsep(&scan, ":");
-    expiry_str = strsep(&scan, ":");
-    username = strsep(&scan, ":");
-    contact = scan;    /* Contact include sip: and has to be the last part of the database entry as long as we use : as a separator */
+    if (!cw_db_get("SIP/Registry", peer->name, &ds) && !ds.error) {
+        scan = ds.data;
+        addr = strsep(&scan, ":");
+        port_str = strsep(&scan, ":");
+        expiry_str = strsep(&scan, ":");
+        username = strsep(&scan, ":");
+        contact = scan;    /* Contact include sip: and has to be the last part of the database entry as long as we use : as a separator */
 
-    if (!inet_aton(addr, &in))
-        return;
+        if (inet_aton(addr, &in) && port_str && expiry_str) {
+            port = atoi(port_str);
+            expiry = atoi(expiry_str);
 
-    if (port_str)
-        port = atoi(port_str);
-    else
-        return;
+            if (username)
+                cw_copy_string(peer->username, username, sizeof(peer->username));
+            if (contact)
+                cw_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
-    if (expiry_str)
-        expiry = atoi(expiry_str);
-    else
-        return;
+            if (option_verbose > 3)
+                cw_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from cwdb: '%s' at %s@%s:%d for %d\n",
+                        peer->name, peer->username, cw_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
 
-    if (username)
-        cw_copy_string(peer->username, username, sizeof(peer->username));
-    if (contact)
-        cw_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
+            memset(&peer->addr, 0, sizeof(peer->addr));
+            peer->addr.sin_family = AF_INET;
+            peer->addr.sin_addr = in;
+            peer->addr.sin_port = htons(port);
 
-    if (option_verbose > 3)
-        cw_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from cwdb: '%s' at %s@%s:%d for %d\n",
-                peer->name, peer->username, cw_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
+            if (sipsock >= 0) {
+                /* SIP is already up, so schedule a poke in the near future */
+                if (peer->pokeexpire == -1)
+                    peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
+            }
 
-    memset(&peer->addr, 0, sizeof(peer->addr));
-    peer->addr.sin_family = AF_INET;
-    peer->addr.sin_addr = in;
-    peer->addr.sin_port = htons(port);
-
-    if (sipsock >= 0)
-    {
-        /* SIP is already up, so schedule a poke in the near future */
-        if (peer->pokeexpire == -1)
-            peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
+            if (peer->expire > -1)
+                cw_sched_del(sched, peer->expire);
+            peer->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+            register_peer_exten(peer, 1);
+        }
     }
 
-    if (peer->expire > -1)
-        cw_sched_del(sched, peer->expire);
-    peer->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
-    register_peer_exten(peer, 1);
+    cw_dynstr_free(&ds);
 }
 
 /*! \brief  parse_ok_contact: Parse contact header for 200 OK on INVITE */
@@ -10674,7 +10689,6 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
     char iabuf1[INET_ADDRSTRLEN];
     char iabuf2[INET_ADDRSTRLEN];
     struct sip_peer *peer;
-    char codec_buf[512];
     struct cw_variable *v;
     struct sip_auth *auth;
     int x = 0, load_realtime = 0;
@@ -10728,16 +10742,18 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
             cw_fmtval("  RTT              : %dms\n", peer->timer_t1),
             cw_fmtval("  Useragent        : %s\n", peer->useragent),
             cw_fmtval("  Reg-Contact      : %s\n", peer->fullcontact),
-            cw_fmtval("  Codecs           : %s\n", cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability))
+            cw_fmtval("  Codecs           : ")
 	);
 
-        cw_dynstr_printf(ds_p, "  Codec Order  : (");
+        cw_getformatname_multiple(ds_p, peer->capability);
+
+        cw_dynstr_printf(ds_p, "\n  Codec Order      : (");
         print_codec_to_cli(ds_p, &peer->prefs);
         cw_dynstr_printf(ds_p, ")\n");
 
         for (auth = peer->auth; auth; auth = auth->next) {
             cw_dynstr_printf(ds_p,
-                  "  Realm-auth   : Realm %-15.15s User %-10.20s %s\n",
+                  "  Realm-auth        : Realm %-15.15s User %-10.20s %s\n",
                   auth->realm, auth->username,
                   (!cw_strlen_zero(auth->secret) ? "<Secret set>"
                       : (!cw_strlen_zero(auth->md5secret) ? "<MD5secret set>" : "<Not set>"))
@@ -10746,7 +10762,7 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 
         if (peer->sipoptions)
         {
-            cw_dynstr_printf(ds_p, "  SIP Options  : ");
+            cw_dynstr_printf(ds_p, "  SIP Options      : ");
             for (x = 0;  (x < (sizeof(sip_options)/sizeof(sip_options[0])));  x++)
             {
                 if (peer->sipoptions & sip_options[x].id)
@@ -10759,9 +10775,9 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 
         if (peer->chanvars)
         {
-            cw_dynstr_printf(ds_p, "  Variables    :\n");
+            cw_dynstr_printf(ds_p, "  Variables        :\n");
             for (v = peer->chanvars;  v;  v = v->next)
-                cw_dynstr_printf(ds_p, "                 %s = %s\n", v->name, v->value);
+                cw_dynstr_printf(ds_p, "                     %s = %s\n", v->name, v->value);
         }
 
         cw_object_put(peer);
@@ -10777,11 +10793,11 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*! \brief  manager_sip_show_peer: Show SIP peers in the manager API  */
 static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess, const struct message *req)
 {
-	char codec_buf[512];
 	char callgroup[256], pickupgroup[256];
 	char cbuf[256];
 	char iabuf1[INET_ADDRSTRLEN];
 	char iabuf2[INET_ADDRSTRLEN];
+	struct cw_dynstr codec_buf = CW_DYNSTR_INIT;
 	struct sip_peer *peer;
 	struct sip_auth *auth;
 	struct cw_codec_pref *pref;
@@ -10795,7 +10811,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 	if (!cw_strlen_zero(peer_s)) {
 		if ((peer = find_peer(peer_s, NULL, 0))) {
 			if ((msg = cw_manager_response("Success", NULL))) {
-				cw_manager_msg(&msg, 39,
+				cw_manager_msg(&msg, 38,
 					cw_msg_tuple("Channeltype",       "%s",    "SIP"),
 					cw_msg_tuple("ObjectName",        "%s",    peer->name),
 					cw_msg_tuple("ChanObjectType",    "%s",    "peer"),
@@ -10833,23 +10849,27 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 					cw_msg_tuple("Status",            "%s",    peer_status(peer)),
 					cw_msg_tuple("RTT",               "%dms",  peer->timer_t1),
 					cw_msg_tuple("SIP-Useragent",     "%s",    peer->useragent),
-					cw_msg_tuple("Reg-Contact",       "%s",    peer->fullcontact),
-					cw_msg_tuple("Codecs",            "%s",    cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability))
+					cw_msg_tuple("Reg-Contact",       "%s",    peer->fullcontact)
 				);
 
 				if (msg) {
-					int ret = 0;
+					cw_getformatname_multiple(&codec_buf, peer->capability);
+					cw_manager_msg(&msg, 1, cw_msg_tuple("Codecs", "%s", codec_buf.data));
+					cw_dynstr_reset(&codec_buf);
+				}
+
+				if (msg) {
 					pref = &peer->prefs;
 					for (x = 0;  x < 32;  x++) {
 						if (!(codec = cw_codec_pref_index(pref, x)))
 							break;
-						if (ret < sizeof(codec_buf) - 1)
-							ret += snprintf(codec_buf + ret, sizeof(codec_buf) - ret, ",%s", cw_getformatname(codec));
+						cw_dynstr_printf(&codec_buf, ",%s", cw_getformatname(codec));
 					}
-					codec_buf[sizeof(codec_buf) - 1] = '\0';
 
-					cw_manager_msg(&msg, 1, cw_msg_tuple("CodecOrder", "%s", codec_buf + 1));
+					cw_manager_msg(&msg, 1, cw_msg_tuple("CodecOrder", "%s", codec_buf.data));
 				}
+
+				cw_dynstr_free(&codec_buf);
 
 				if (msg) {
 					for (auth = peer->auth; msg && auth; auth = auth->next) {
@@ -12146,8 +12166,7 @@ static const char show_settings_usage[] =
 
 struct func_sipbuilddial_args {
 	regex_t preg;
-	size_t len;
-	char *buf;
+	struct cw_dynstr *result;
 	int isfirst:1;
 };
 
@@ -12155,30 +12174,23 @@ static int func_sipbuilddial_one(struct cw_object *obj, void *data)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
 	struct func_sipbuilddial_args *args = data;
-	int n;
 
 	if (regexec(&args->preg, peer->name, 0, NULL, 0)) {
-		if ((n = snprintf(args->buf, args->len, "%sSIP/%s", (args->isfirst ? "" : "&"), peer->name)) < args->len) {
-			args->buf += n;
-			args->len -= n;
-			args->isfirst= 0;
-		} else {
-			args->buf[0] = '\0';
-			cw_log(CW_LOG_WARNING, "Insufficient buffer space to add SIP/%s - dropped from dial list\n", peer->name);
-		}
+		cw_dynstr_printf(args->result, "%sSIP/%s", (args->isfirst ? "" : "&"), peer->name);
+		args->isfirst= 0;
 	}
 
 	return 0;
 }
 
 /*! \brief  func_sipbuilddial_read: Read DIAL string based on regex (dialplan function) */
-static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct func_sipbuilddial_args args = {
-		.buf = buf,
-		.len = len,
+		.result = result,
 		.isfirst = 1,
 	};
+	char *buf;
 	size_t l;
 	int err;
 
@@ -12203,7 +12215,7 @@ static int func_sipbuilddial(struct cw_channel *chan, int argc, char **argv, cha
 
 
 /*! \brief  func_header_read: Read SIP header (dialplan function) */
-static int func_header_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int func_header_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
     char *content;
@@ -12229,11 +12241,11 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
         return -1;
     }
 
-    if (buf) {
+    if (result) {
         content = get_header(&p->initreq, argv[0]);
 
         if (!cw_strlen_zero(content))
-            cw_copy_string(buf, content, len);
+            cw_dynstr_printf(result, "%s", content);
 
     }
     cw_channel_unlock(chan);
@@ -12242,22 +12254,22 @@ static int func_header_read(struct cw_channel *chan, int argc, char **argv, char
 
 
 /*! \brief  function_check_sipdomain: Dial plan function to check if domain is local */
-static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int func_check_sipdomain(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(checksipdomain_func_syntax);
 
-	if (buf && check_sip_domain(argv[0], NULL, 0))
-		cw_copy_string(buf, argv[0], len);
+	if (result && check_sip_domain(argv[0], NULL, 0))
+		cw_dynstr_printf(result, "%s", argv[0]);
 
 	return 0;
 }
 
 
 /*! \brief  function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
-static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_sippeer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char iabuf[INET_ADDRSTRLEN];
     struct sip_peer *peer;
@@ -12267,7 +12279,7 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
     if (argc < 1 || argc > 2 || !argv[0][0])
 	    return cw_function_syntax(sippeer_func_syntax);
 
-    if (!buf)
+    if (!result)
 	    return 0;
 
     if (argc == 1)
@@ -12294,7 +12306,7 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
 
     if (!strcasecmp(argv[1], "ip"))
     {
-        cw_copy_string(buf, peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+        cw_dynstr_printf(result, "%s", (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : ""));
     }
     else  if (!strcasecmp(argv[1], "status"))
     {
@@ -12305,83 +12317,79 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
             deprecated= 1;
         }
         if (peer->maxms && peer->timer_t1 >= 0)
-            snprintf(buf, len, "%s (%d ms)", peer_status(peer), peer->timer_t1);
+            cw_dynstr_printf(result, "%s (%d ms)", peer_status(peer), peer->timer_t1);
         else
-            snprintf(buf, len, "%s", peer_status(peer));
+            cw_dynstr_printf(result, "%s", peer_status(peer));
     }
     else  if (!strcasecmp(argv[1], "reachability"))
     {
-        snprintf(buf, len, "%s", peer_status(peer));
+        cw_dynstr_printf(result, "%s", peer_status(peer));
     }
     else  if (!strcasecmp(argv[1], "rtt"))
     {
-        snprintf(buf, len, "%d", peer->timer_t1);
+        cw_dynstr_printf(result, "%d", peer->timer_t1);
     }
     else  if (!strcasecmp(argv[1], "language"))
     {
-        cw_copy_string(buf, peer->language, len);
+        cw_dynstr_printf(result, "%s", peer->language);
     }
     else  if (!strcasecmp(argv[1], "regexten"))
     {
-        cw_copy_string(buf, peer->regexten, len);
+        cw_dynstr_printf(result, "%s", peer->regexten);
     }
     else  if (!strcasecmp(argv[1], "limit"))
     {
-        snprintf(buf, len, "%d", peer->call_limit);
+        cw_dynstr_printf(result, "%d", peer->call_limit);
     }
     else  if (!strcasecmp(argv[1], "curcalls"))
     {
-        snprintf(buf, len, "%d", peer->inUse);
+        cw_dynstr_printf(result, "%d", peer->inUse);
     }
     else  if (!strcasecmp(argv[1], "useragent"))
     {
-        cw_copy_string(buf, peer->useragent, len);
+        cw_dynstr_printf(result, "%s", peer->useragent);
     }
     else  if (!strcasecmp(argv[1], "mailbox"))
     {
-        cw_copy_string(buf, peer->mailbox, len);
+        cw_dynstr_printf(result, "%s", peer->mailbox);
     }
     else  if (!strcasecmp(argv[1], "context"))
     {
-        cw_copy_string(buf, peer->context, len);
+        cw_dynstr_printf(result, "%s", peer->context);
     }
     else  if (!strcasecmp(argv[1], "expire"))
     {
-        snprintf(buf, len, "%d", peer->expire);
+        cw_dynstr_printf(result, "%d", peer->expire);
     }
     else  if (!strcasecmp(argv[1], "dynamic"))
     {
-        cw_copy_string(buf, (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no"), len);
+        cw_dynstr_printf(result, "%s", (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no"));
     }
     else  if (!strcasecmp(argv[1], "callerid_name"))
     {
-        cw_copy_string(buf, peer->cid_name, len);
+        cw_dynstr_printf(result, "%s", peer->cid_name);
     }
     else  if (!strcasecmp(argv[1], "callerid_num"))
     {
-        cw_copy_string(buf, peer->cid_num, len);
+        cw_dynstr_printf(result, "%s", peer->cid_num);
     }
     else  if (!strcasecmp(argv[1], "codecs"))
     {
-        cw_getformatname_multiple(buf, len -1, peer->capability);
+        cw_getformatname_multiple(result, peer->capability);
     }
     else  if (!strncasecmp(argv[1], "codec[", 6))
     {
         char *codecnum, *ptr;
-        int i = 0, codec = 0;
+        int codec = 0;
         
         codecnum = strchr(argv[1], '[');
         *codecnum = '\0';
         codecnum++;
         if ((ptr = strchr(codecnum, ']')))
-        {
             *ptr = '\0';
-        }
-        i = atoi(codecnum);
-        if ((codec = cw_codec_pref_index(&peer->prefs, i)))
-        {
-            cw_copy_string(buf, cw_getformatname(codec), len);
-        }
+
+        if ((codec = cw_codec_pref_index(&peer->prefs, atoi(codecnum))))
+            cw_dynstr_printf(result, "%s", cw_getformatname(codec));
     }
 
     cw_object_put(peer);
@@ -12390,7 +12398,7 @@ static int function_sippeer(struct cw_channel *chan, int argc, char **argv, char
 }
 
 
-static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_peer *peer;
     struct cw_variable *var;
@@ -12400,14 +12408,14 @@ static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, c
     if (argc != 2 || !argv[0][0])
 	    return cw_function_syntax(sippeervar_func_syntax);
 
-    if (!buf || !(peer = find_peer(argv[0], NULL, 1)))
+    if (!result || !(peer = find_peer(argv[0], NULL, 1)))
         return 0;
 
     for (var = peer->chanvars; var; var = var->next)
     {
         if (!strcmp(var->name, argv[1]))
         {
-            cw_copy_string(buf, var->value, len);
+            cw_dynstr_printf(result, "%s", var->value);
             break;
         }
     }
@@ -12418,7 +12426,7 @@ static int function_sippeervar(struct cw_channel *chan, int argc, char **argv, c
 
 
 /*! \brief  function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
-static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result) 
 {
     struct sip_pvt *p;
     char iabuf[INET_ADDRSTRLEN];
@@ -12444,34 +12452,34 @@ static int function_sipchaninfo_read(struct cw_channel *chan, int argc, char **a
         return -1;
     }
 
-    if (!buf) {
+    if (!result) {
         cw_channel_unlock(chan);
         return 0;
     }
 
     if (!strcasecmp(argv[0], "peerip"))
     {
-        cw_copy_string(buf, p->sa.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr) : "", len);
+        cw_dynstr_printf(result, "%s", (p->sa.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr) : ""));
     }
     else  if (!strcasecmp(argv[0], "recvip"))
     {
-        cw_copy_string(buf, p->recv.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr) : "", len);
+        cw_dynstr_printf(result, "%s", (p->recv.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr) : ""));
     }
     else  if (!strcasecmp(argv[0], "from"))
     {
-        cw_copy_string(buf, p->from, len);
+        cw_dynstr_printf(result, "%s", p->from);
     }
     else  if (!strcasecmp(argv[0], "uri"))
     {
-        cw_copy_string(buf, p->uri, len);
+        cw_dynstr_printf(result, "%s", p->uri);
     }
     else  if (!strcasecmp(argv[0], "useragent"))
     {
-        cw_copy_string(buf, p->useragent, len);
+        cw_dynstr_printf(result, "%s", p->useragent);
     }
     else  if (!strcasecmp(argv[0], "peername"))
     {
-        cw_copy_string(buf, p->peername, len);
+        cw_dynstr_printf(result, "%s", p->peername);
     }
     else
     {
@@ -17332,7 +17340,7 @@ static char sipt38switchover_description[] = ""
 "Forces a T38 switchover on a non-bridged channel.\n";
 
 /*! \brief  app_sipt38switchover: forces a T38 Switchover on a sip channel. */
-static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len) 
+static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
     struct cw_channel *bchan;
@@ -17340,8 +17348,7 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
 
     CW_UNUSED(argc);
     CW_UNUSED(argv);
-    CW_UNUSED(buf);
-    CW_UNUSED(len);
+    CW_UNUSED(result);
 
     if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_T38_DISABLE, "T38_DISABLE"))) {
         cw_object_put(var);
@@ -17413,7 +17420,7 @@ static int sip_t38switchover(struct cw_channel *chan, int argc, char **argv, cha
 }
 
 static int sip_do_t38switchover(const struct cw_channel *chan) {
-    return sip_t38switchover( (struct cw_channel*) chan, 0, NULL, NULL, 0);
+    return sip_t38switchover( (struct cw_channel*) chan, 0, NULL, NULL);
 }
 
 
@@ -17456,14 +17463,13 @@ static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *d
 /*
  * Display message onto phone LCD, if supported. -- Antonio Gallo
  */
-static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sip_osd(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const char blank[] = " ";
 	struct sip_pvt *p = NULL;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	/* parameter checking */
 	if (argc != 1 || !argv[0][0]) {
@@ -17502,12 +17508,11 @@ static int sip_osd(struct cw_channel *chan, int argc, char **argv, char *result,
 
 
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) */
-static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct sip_pvt *p;
 
-    CW_UNUSED(buf);
-    CW_UNUSED(len);
+    CW_UNUSED(result);
 
     if (argc != 1 || !argv[0][0])
         return cw_function_syntax(dtmfmode_syntax);
@@ -17565,14 +17570,13 @@ static int sip_dtmfmode(struct cw_channel *chan, int argc, char **argv, char *bu
 }
 
 /*! \brief  sip_addheader: Add a SIP header */
-static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int sip_addheader(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char varbuf[sizeof("_SIPADDHEADERnn")];
     struct cw_var_t *var;
     int no = 0;
 
-    CW_UNUSED(buf);
-    CW_UNUSED(len);
+    CW_UNUSED(result);
 
     if (argc < 1 || !argv[0][0])
         return cw_function_syntax(sipaddheader_syntax);
@@ -17608,10 +17612,11 @@ static int sip_addheader(struct cw_channel *chan, int argc, char **argv, char *b
 /* coded by Martin Pycko (m78pl@yahoo.com) */
 static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 {
+    char tmp[80];
+    struct cw_dynstr ds = CW_DYNSTR_INIT;
     char *cdest;
     char *extension, *host, *port;
-    char tmp[80];
-    
+
     cdest = cw_strdupa(dest);
     extension = strsep(&cdest, "@");
     host = strsep(&cdest, ":");
@@ -17625,17 +17630,14 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     /* we'll issue the redirect message here */
     if (!host)
     {
-
         char *localtmp;
-        char data[256];
 	char *scan;
 
-      if (!cw_db_get("SIP/Registry", extension, data, sizeof(data))) {
-	    scan = data;
+      if (!cw_db_get("SIP/Registry", extension, &ds)) {
+	    scan = ds.data;
 	    host = strsep(&scan, ":");
     	    port = strsep(&scan, ":");
       } else {
-
         cw_copy_string(tmp, get_header(&p->initreq, "To"), sizeof(tmp));
         if (!strlen(tmp))
         {
@@ -17665,6 +17667,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
     }
 
     snprintf(p->our_contact, sizeof(p->our_contact), "Transfer <sip:%s@%s%s%s>", extension, host, port ? ":" : "", port ? port : "");
+
+    cw_dynstr_free(&ds);
+
     transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
 
     /* this is all that we want to send to that SIP device */

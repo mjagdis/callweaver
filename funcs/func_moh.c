@@ -42,7 +42,7 @@ static const char moh_func_desc[] =
 	"This function will read or set the music on hold class for a channel.\n";
 
 
-static int function_moh_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_moh_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc > 1)
 		return cw_function_syntax(moh_func_syntax);
@@ -50,8 +50,8 @@ static int function_moh_rw(struct cw_channel *chan, int argc, char **argv, char 
 	if (chan) {
 		if (argc > 0)
 			cw_copy_string(chan->musicclass, argv[0], MAX_MUSICCLASS);
-		if (buf)
-			cw_copy_string(buf, chan->musicclass, len);
+		if (result)
+			cw_dynstr_printf(result, "%s", chan->musicclass);
 	}
 
 	return 0;

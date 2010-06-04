@@ -1678,7 +1678,7 @@ static struct cw_clicmd cli_agent_logoff = {
  * @param callbackmode
  * @returns 
  */
-static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max, int callbackmode)
+static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result, int callbackmode)
 {
 	char agent_goodbye[CW_MAX_FILENAME_LEN];
 	char user[CW_MAX_AGENT] = "";
@@ -1699,7 +1699,6 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -2129,9 +2128,9 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, char *re
  * @returns
  * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int login_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int login_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	return __login_exec(chan, argc, argv, result, result_max, 0);
+	return __login_exec(chan, argc, argv, result, 0);
 }
 
 /**
@@ -2142,9 +2141,9 @@ static int login_exec(struct cw_channel *chan, int argc, char **argv, char *resu
  * @returns
  * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
  */
-static int callback_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int callback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	return __login_exec(chan, argc, argv, result, result_max, 1);
+	return __login_exec(chan, argc, argv, result, 1);
 }
 
 /**
@@ -2250,7 +2249,7 @@ static struct cw_manager_message *action_agent_callback_login(struct mansession 
  * @returns
  * @sa login_exec(), callback_login_exec(), load_module().
  */
-static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_var_t *var;
 	int exitifnoagentid = 0;
@@ -2259,7 +2258,6 @@ static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **a
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc > 1) {
 		for (; argv[0][0]; argv[0]++) {
@@ -2336,11 +2334,11 @@ static void dump_agents(void)
  */
 static void reload_agents(void)
 {
+	struct cw_dynstr agent_data = CW_DYNSTR_INIT;
 	char *agent_num;
 	struct cw_db_entry *db_tree;
 	struct cw_db_entry *entry;
 	struct agent_pvt *cur_agent;
-	char agent_data[256];
 	char *parse;
 	char *agent_chan;
 	char *agent_callerid;
@@ -2348,12 +2346,14 @@ static void reload_agents(void)
 	db_tree = cw_db_gettree(pa_family, NULL);
 
 	cw_mutex_lock(&agentlock);
+
 	for (entry = db_tree; entry; entry = entry->next) {
         	if (!strncmp(entry->key, pa_family, strlen(pa_family))){
                        agent_num = entry->key + strlen(pa_family) + 2;
                	} else {
                        agent_num = entry->key;
 	        }
+
 		cur_agent = agents;
 		while (cur_agent) {
 			cw_mutex_lock(&cur_agent->lock);
@@ -2362,15 +2362,19 @@ static void reload_agents(void)
 			cw_mutex_unlock(&cur_agent->lock);
 			cur_agent = cur_agent->next;
 		}
+
 		if (!cur_agent) {
 			cw_db_del(pa_family, agent_num);
 			continue;
 		} else
 			cw_mutex_unlock(&cur_agent->lock);
-		if (!cw_db_get(pa_family, agent_num, agent_data, sizeof(agent_data)-1)) {
+
+		cw_dynstr_reset(&agent_data);
+
+		if (!cw_db_get(pa_family, agent_num, &agent_data)) {
 			if (option_debug)
-				cw_log(CW_LOG_DEBUG, "Reload Agent: %s on %s\n", cur_agent->agent, agent_data);
-			parse = agent_data;
+				cw_log(CW_LOG_DEBUG, "Reload Agent: %s on %s\n", cur_agent->agent, agent_data.data);
+			parse = agent_data.data;
 			agent_chan = strsep(&parse, ";");
 			agent_callerid = strsep(&parse, ";");
 			cw_copy_string(cur_agent->loginchan, agent_chan, sizeof(cur_agent->loginchan));
@@ -2384,7 +2388,11 @@ static void reload_agents(void)
 			cw_device_state_changed("Agent/%s", cur_agent->agent);	
 		}
 	}
+
 	cw_mutex_unlock(&agentlock);
+
+	cw_dynstr_free(&agent_data);
+
 	if (db_tree) {
 		cw_log(CW_LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
 		cw_db_freetree(db_tree);

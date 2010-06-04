@@ -86,7 +86,7 @@ static const char background_detect_descrip[] =
 #define CALLERID_FIELD cid.cid_num
 
 
-static int background_detect_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int background_detect_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char dtmf_did[256] = "\0";
 	struct timeval start = { 0, 0};
@@ -109,7 +109,6 @@ static int background_detect_exec(struct cw_channel *chan, int argc, char **argv
 	int longdtmf = 1;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "0");
 	pbx_builtin_setvar_helper(chan, "FAXEXTEN", "unknown");

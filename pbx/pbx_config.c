@@ -1104,7 +1104,7 @@ static int unload_module(void)
 
 static int pbx_load_module(void)
 {
-	char realvalue[4096];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cw_config *cfg;
 	struct cw_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
@@ -1129,9 +1129,16 @@ static int pbx_load_module(void)
 
 		v = cw_variable_browse(cfg, "globals");
 		while(v) {
-			pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
-			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
-			v = v->next;
+			pbx_substitute_variables(NULL, NULL, v->value, &ds);
+			if (!ds.error) {
+				pbx_builtin_setvar_helper(NULL, v->name, ds.data);
+				cw_dynstr_reset(&ds);
+				v = v->next;
+			} else {
+				cw_dynstr_free(&ds);
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				return -1;
+			}
 		}
 		cxt = cw_category_browse(cfg, NULL);
 		while(cxt) {
@@ -1144,18 +1151,18 @@ static int pbx_load_module(void)
 				v = cw_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
-						char *stringp=NULL;
-						int ipri = -2;
-						char realext[256]="";
+						char *stringp;
 						char *plus, *firstp, *firstc;
+						int ipri = -2;
+
 						tc = strdup(v->value);
 						if(tc!=NULL){
-							stringp=tc;
+							stringp = tc;
 							ext = strsep(&stringp, ",");
 							if (!ext)
 								ext = (char *)"";
-							pbx_substitute_variables(NULL, NULL, ext, realext, sizeof(realext));
-							cidmatch = strchr(realext, '/');
+							pbx_substitute_variables(NULL, NULL, ext, &ds);
+							cidmatch = strchr(ds.data, '/');
 							if (cidmatch) {
 								*cidmatch = '\0';
 								cidmatch++;
@@ -1193,7 +1200,7 @@ static int pbx_load_module(void)
 									cw_log(CW_LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%d", &ipri) != 1) {
-									if ((ipri = cw_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
+									if ((ipri = cw_findlabel_extension2(NULL, con, ds.data, pri, cidmatch)) < 1) {
 										cw_log(CW_LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;
 									}
@@ -1233,44 +1240,51 @@ static int pbx_load_module(void)
 									ipri += atoi(plus);
 								lastpri = ipri;
 								if(!option_dontwarn) {
-									if (!strcmp(realext, "_."))
+									if (!strcmp(ds.data, "_."))
 										cw_log(CW_LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								}
-								if (cw_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
+								if (cw_add_extension2(con, 0, ds.data, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
 									cw_log(CW_LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
 							}
+
 							free(tc);
-						} else 
+						} else
 						    cw_log(CW_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
-						pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
-						if (cw_context_add_include2(con, realvalue, registrar))
+						pbx_substitute_variables(NULL, NULL, v->value, &ds);
+						if (cw_context_add_include2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
-						pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
-						if (cw_context_add_ignorepat2(con, realvalue, registrar))
+						pbx_substitute_variables(NULL, NULL, v->value, &ds);
+						if (cw_context_add_ignorepat2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-						char *stringp=NULL;
+						char *stringp;
+
 						if (!strcasecmp(v->name, "switch"))
-							pbx_substitute_variables(NULL, NULL, v->value, realvalue, sizeof(realvalue));
+							pbx_substitute_variables(NULL, NULL, v->value, &ds);
 						else
-							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
-						tc = realvalue;
-						stringp=tc;
+							cw_dynstr_printf(&ds, "%s", v->value);
+
+						stringp = ds.data;
 						appl = strsep(&stringp, "/");
 						data = strsep(&stringp, "");
+
 						if (!data)
 							data = (char *)"";
 						if (cw_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
 					}
+
+					cw_dynstr_reset(&ds);
 					v = v->next;
 				}
 			}
 			cxt = cw_category_browse(cfg, cxt);
 		}
+
+		cw_dynstr_free(&ds);
 		cw_config_destroy(cfg);
 	}
 	cw_merge_contexts_and_delete(&local_contexts,registrar);

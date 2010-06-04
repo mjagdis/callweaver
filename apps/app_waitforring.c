@@ -53,7 +53,7 @@ static const char waitforring_descrip[] =
 "success or -1 on hangup\n";
 
 
-static int waitforring_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int waitforring_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_frame *f;
@@ -61,7 +61,6 @@ static int waitforring_exec(struct cw_channel *chan, int argc, char **argv, char
 	int ms;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !isdigit(argv[0][0]))
                 return cw_function_syntax(waitforring_syntax);

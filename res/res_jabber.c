@@ -197,7 +197,7 @@ static void jabber_profile_init(struct jabber_profile *profile, const char *reso
 static void jabber_profile_destroy(struct jabber_profile *profile);
 static int create_udp_socket(const char *ip, int port, struct sockaddr_in *sockaddr, int client);
 static int parse_jabber_command_main(struct jabber_message *jmsg);
-static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max);
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 static void init_globals(int do_free); 
 static int config_jabber(int reload); 
 static void *cli_command_thread(void *cli_command);
@@ -856,7 +856,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			data = (char *)"";
 		}
 		
-		res = cw_function_exec_str(chan, cw_hash_string(appname), appname, data, NULL, 0);
+		res = cw_function_exec_str(chan, cw_hash_string(appname), appname, data, NULL);
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
 											   "EVENT ENDAPP\n"
@@ -1863,7 +1863,7 @@ static int parse_jabber_command_main(struct jabber_message *jmsg)
 
 
 
-static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct jabber_message_node *node;
@@ -1871,7 +1871,6 @@ static int res_jabber_exec(struct cw_channel *chan, int argc, char **argv, char 
 	char *master;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (cw_set_read_format(chan, CW_FORMAT_SLINEAR)) {
 		cw_log(CW_LOG_ERROR, "Error Setting Read Format.\n");

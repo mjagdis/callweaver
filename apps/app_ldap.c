@@ -33,14 +33,7 @@
 
 char *replace_cw_vars(struct cw_channel *chan, const char *string);
 int ldap_lookup(const char *host, int port, int version, int timeout, const char *user, const char *pass, const char *base, const char *scope, const char *filter, const char *attribute, char *result);
-static int strconvert(const char *incharset,
-                      const char *outcharset,
-#if 0
-                      const char *in,
-#else
-                      char *in,
-#endif
-                      char *out);
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result) ;
 static char *strtrim(char *string);
 
 static const char tdesc[] = "LDAP directory lookup function for CallWeaver extension logic.";
@@ -54,7 +47,7 @@ static const char g_descrip[] =
 "Upon exit, set the variable LDAPSTATUS to either SUCCESS or FAILURE.\n"
 "Always returns 0.\n";
 
-static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ldap_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     const char *varname;
@@ -62,7 +55,6 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     char *keys = NULL;
     const char *key = NULL;
     char *tail = NULL;
-    char *result_conv;
     struct cw_config *cfg;
     int port = LDAP_PORT;
     int version = LDAP_VERSION2;
@@ -78,8 +70,7 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     const char *attribute;
     const char *convert_from = NULL;
     const char *convert_to = NULL;
-
-    CW_UNUSED(result_max);
+    int mark;
 
     if (argc != 1)
     {
@@ -195,29 +186,34 @@ static int ldap_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     if (option_verbose > 2)
         cw_verbose (VERBOSE_PREFIX_3 "LDAPget: ldap://%s/%s?%s?%s?%s\n", host, base, attribute, scope, filter);
 
-    if (ldap_lookup(host, port, version, timeout, user, pass, base, scope, filter, attribute, result)) {
+    cw_dynstr_need(result, 4096);
+    mark = cw_dynstr_end(result);
+
+    if (!result->error && ldap_lookup(host, port, version, timeout, user, pass, base, scope, filter, attribute, &result->data[mark])) {
 
         if (convert_from)
         {
+            char *s = cw_strdupa(&result->data[mark]);
+            size_t l = result->used - mark;
+
             if (option_verbose > 2)
                 cw_verbose(VERBOSE_PREFIX_3 "LDAPget: convert: %s -> %s\n", convert_from, convert_to);
-            result_conv = malloc(strlen(result) * 2);
-            strconvert(convert_from, convert_to, result, result_conv);
-            strcpy(result, result_conv);
-            free(result_conv);
+
+            cw_dynstr_truncate(result, mark);
+            strconvert(convert_from, s, l, convert_to, result);
         }
         
         if (strcmp("CALLERIDNAME", varname) == 0)
         {
-            cw_set_callerid(chan, NULL, result, NULL);
+            cw_set_callerid(chan, NULL, &result->data[mark], NULL);
             if (option_verbose > 2)
-                cw_verbose (VERBOSE_PREFIX_3 "LDAPget: set CIDNAME to \"%s\"\n", result);
+                cw_verbose (VERBOSE_PREFIX_3 "LDAPget: set CIDNAME to \"%s\"\n", &result->data[mark]);
         }
         else
         {
             if (option_verbose > 2)
-                cw_verbose (VERBOSE_PREFIX_3 "LDAPget: set %s='%s'\n", varname, result);
-            pbx_builtin_setvar_helper(chan, varname, result);
+                cw_verbose (VERBOSE_PREFIX_3 "LDAPget: set %s='%s'\n", varname, &result->data[mark]);
+            pbx_builtin_setvar_helper(chan, varname, &result->data[mark]);
         }
         
     }
@@ -372,30 +368,42 @@ char *replace_cw_vars(struct cw_channel *chan, const char *_string)
     return string;
 }
 
-static int strconvert(const char *incharset,
-                      const char *outcharset,
-#if 0
-                      const char *in,
-#else
-                      char *in,
-#endif
-                      char *out) 
+static void strconvert(const char *incharset, char *in, size_t in_len, const char *outcharset, struct cw_dynstr *result)
 {
-    iconv_t cd;
-    size_t incount;
-    size_t outcount;
+	iconv_t cd;
 
-    incount = outcount = strlen(in) * 2;
-    if ((cd = iconv_open(outcharset, incharset)) == (iconv_t) -1)
-    {
-        if (errno == EINVAL) cw_log(CW_LOG_DEBUG, "conversion from '%s' to '%s' not available", incharset, outcharset);
-        *out = L'\0';
-        return -1;
-    }
-    iconv(cd, &in, &incount, &out, &outcount);
-    iconv_close(cd);
-    out[strlen(out)] = '\0';
-    return 1;
+	if ((cd = iconv_open(outcharset, incharset)) != (iconv_t) -1) {
+		size_t mark = cw_dynstr_end(result);
+		size_t need;
+
+		do {
+			char *src = in;
+			char *dst = &result->data[mark];
+			size_t src_len = in_len;
+			size_t space = result->size - mark - 1;
+			int err;
+
+			if (iconv(cd, &src, &src_len, &dst, &space) != -1) {
+				*dst = '\0';
+				result->used += (result->size - mark - 1) - space;
+				break;
+			}
+			err = errno;
+
+			cw_dynstr_truncate(result, mark);
+
+			if (err == E2BIG) {
+				need = result->size + src_len;
+				cw_dynstr_need(result, need);
+			} else
+				cw_log(CW_LOG_ERROR, "conversion from '%s' to '%s' failed: %s", incharset, outcharset, strerror(err));
+		} while (!result->error);
+
+		iconv_close(cd);
+	} else {
+		if (errno == EINVAL)
+			cw_log(CW_LOG_ERROR, "conversion from '%s' to '%s' not available", incharset, outcharset);
+	}
 }
 
 static char *strtrim(char *str) 

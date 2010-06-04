@@ -75,7 +75,7 @@ static int hasvoicemail_internal(const char *context, const char *box, const cha
 	return count;
 }
 
-static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	const char *context;
@@ -95,7 +95,7 @@ static int acf_vmcount_exec(struct cw_channel *chan, int argc, char **argv, char
 	} else
 		context = "default";
 
-	snprintf(result, result_max, "%d", hasvoicemail_internal(context, argv[0], (argc > 1 && argv[1][0] ? argv[1] : "INBOX")));
+	cw_dynstr_printf(result, "%d", hasvoicemail_internal(context, argv[0], (argc > 1 && argv[1][0] ? argv[1] : "INBOX")));
 
 	LOCAL_USER_REMOVE(u);
 	return 0;

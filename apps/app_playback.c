@@ -57,7 +57,7 @@ static const char playback_descrip[] =
 "\n";
 
 
-static int playback_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int playback_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	char *front = NULL, *back = NULL;
@@ -67,7 +67,6 @@ static int playback_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1)
 		return cw_function_syntax(playback_syntax);

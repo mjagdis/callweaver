@@ -99,7 +99,7 @@ static const char detectfax_descrip[] =
 #define CALLERID_FIELD cid.cid_num
 
 
-static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int res = 0;
     struct localuser *u;
@@ -134,7 +134,6 @@ static int detectfax_exec(struct cw_channel *chan, int argc, char **argv, char *
     struct cw_dsp *dsp = NULL;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     pbx_builtin_setvar_helper(chan, "FAX_DETECTED", "0");
     pbx_builtin_setvar_helper(chan, "FAXEXTEN", "unknown");

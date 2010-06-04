@@ -71,16 +71,14 @@ static int find_channel_by_mark_one(struct cw_object *obj, void *data)
 	return (args->target != NULL);
 }
  
-static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pickup_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char workspace[256] = "";
 	struct localuser *u = NULL;
 	struct cw_channel *origin = NULL, *target = NULL;
-	char *tmp = NULL, *exten = NULL, *context = NULL;
+	char *exten = NULL, *context = NULL;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1)
 		return cw_function_syntax(pickup_syntax);
@@ -106,17 +104,20 @@ static int pickup_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	} else {
 		origin = cw_get_channel_by_exten_locked(exten, context);
 		if (origin) {
-			cw_cdr_getvar(origin->cdr, "dstchannel", &tmp, workspace,
-			       sizeof(workspace), 0);
-			if (tmp) {
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+			cw_cdr_getvar(origin->cdr, "dstchannel", &ds, 0);
+			if (ds.used) {
 				/* We have a possible channel... now we need to find it! */
-				target = cw_get_channel_by_name_locked(tmp);
+				target = cw_get_channel_by_name_locked(ds.data);
 			} else {
 				cw_log(CW_LOG_DEBUG, "No target channel found.\n");
 				res = -1;
 			}
 			cw_channel_unlock(origin);
 			cw_object_put(origin);
+
+			cw_dynstr_free(&ds);
 		} else {
 			cw_log(CW_LOG_DEBUG, "No originating channel found.\n");
 		}

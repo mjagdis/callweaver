@@ -48,7 +48,7 @@ static const char verbose_descrip[] =
 "  Always returns 0.\n";
 
 
-static int verbose_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int verbose_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const char *prefix[] = {
 		"",
@@ -61,7 +61,6 @@ static int verbose_exec(struct cw_channel *chan, int argc, char **argv, char *re
 	struct localuser *u;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	level = 0;
 	if (argc == 2 && isdigit(argv[0][0])) {

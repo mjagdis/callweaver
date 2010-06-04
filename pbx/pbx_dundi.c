@@ -561,6 +561,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			cw_copy_string(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
+			cw_dynstr_init(&dr[anscnt].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
 			if (cw_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
 				struct cw_registry reg;
 				cw_var_registry_init(&reg, 8);
@@ -568,10 +569,9 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 				cw_var_assign(&reg, "EID", dr[anscnt].eid_str);
 				cw_var_assign(&reg, "SECRET", cursecret);
 				cw_var_assign(&reg, "IPADDR", ipaddr);
-				pbx_substitute_variables(NULL, &reg, map->dest, dr[anscnt].dest, sizeof(dr[anscnt].dest));
+				pbx_substitute_variables(NULL, &reg, map->dest, &dr[anscnt].dest);
 				cw_registry_destroy(&reg);
-			} else
-				dr[anscnt].dest[0] = '\0';
+			}
 			anscnt++;
 		} else {
 			/* No answers...  Find the fewest number of digits from the
@@ -613,6 +613,8 @@ static void *dundi_lookup_thread(void *data)
 		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
 	memset(&ied, 0, sizeof(ied));
 	memset(&dr, 0, sizeof(dr));
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_init(&dr[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
 	memset(&hmd, 0, sizeof(hmd));
 	/* Assume 'don't ask for anything' and 'unaffected', no TTL expired */
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
@@ -649,7 +651,7 @@ static void *dundi_lookup_thread(void *data)
 			/* Add answers */
 			if (dr[x].expiration && (expiration > dr[x].expiration))
 				expiration = dr[x].expiration;
-			dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest);
+			dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest.data);
 		}
 		dundi_ie_append_hint(&ied, DUNDI_IE_HINT, hmd.flags, hmd.exten);
 		dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, expiration);
@@ -657,6 +659,8 @@ static void *dundi_lookup_thread(void *data)
 		st->trans->thread = 0;
 	}
 	cw_mutex_unlock(&peerlock);
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_free(&dr[x].dest);
 	free(st);
 	return NULL;	
 }
@@ -866,10 +870,10 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	snprintf(data, sizeof(data), "%ld,", (long)(timeout));
 	for (x=start;x<req->respcount;x++) {
 		/* Skip anything with an illegal comma in it */
-		if (strchr(req->dr[x].dest, ','))
+		if (strchr(req->dr[x].dest.data, ','))
 			continue;
 		snprintf(data + strlen(data), sizeof(data) - strlen(data), "%u/%d/%d/%s/%s,",
-			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest,
+			req->dr[x].flags, req->dr[x].weight, req->dr[x].techint, req->dr[x].dest.data,
 			dundi_eid_to_str_short(eidpeer_str, sizeof(eidpeer_str), &req->dr[x].eid));
 	}
 	cw_db_put("dundi/cache", key1, data);
@@ -887,7 +891,6 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	struct dundi_result dr2[MAX_RESULTS];
 	struct dundi_request dr;
 	struct dundi_hint_metadata hmd;
-
 	struct dundi_mapping *cur;
 	int mapcount;
 	int skipfirst = 0;
@@ -895,9 +898,11 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	pthread_t lookupthread;
 
 	memset(&dr2, 0, sizeof(dr2));
+	for (x = 0; x < arraysize(dr2); x++)
+		cw_dynstr_init(&dr2[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
 	memset(&dr, 0, sizeof(dr));
 	memset(&hmd, 0, sizeof(hmd));
-	
+
 	/* Forge request structure to hold answers for cache */
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
 	dr.dr = dr2;
@@ -914,7 +919,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			/* Make sure it's not already there */
 			for (z=0;z<trans->parent->respcount;z++) {
 				if ((trans->parent->dr[z].techint == ies->answers[x]->protocol) &&
-				    !strcmp(trans->parent->dr[z].dest, (char *)ies->answers[x]->data)) 
+				    !strcmp(trans->parent->dr[z].dest.data, (char *)ies->answers[x]->data))
 						break;
 			}
 			if (z == trans->parent->respcount) {
@@ -930,9 +935,8 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 					sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 					&ies->answers[x]->eid);
-				cw_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies->answers[x]->data,
-					sizeof(trans->parent->dr[trans->parent->respcount].dest));
-					cw_copy_string(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
+				cw_dynstr_printf(&trans->parent->dr[trans->parent->respcount].dest, "%s", (char *)ies->answers[x]->data);
+				cw_copy_string(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
 					sizeof(trans->parent->dr[trans->parent->respcount].tech));
 				trans->parent->respcount++;
 				cw_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);	
@@ -945,6 +949,10 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				trans->parent->number, trans->parent->dcontext);
 
 	}
+
+	for (x = 0; x < arraysize(dr2); x++)
+		cw_dynstr_free(&dr2[x].dest);
+
 	/* Save all the results (if any) we had.  Even if no results, still cache lookup. */
 	cache_save(&trans->them_eid, trans->parent, 0, 0, ies->expiration, 1);
 	if (ies->hint)
@@ -1120,7 +1128,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 
 static int cache_lookup_internal(time_t now, struct dundi_request *req, char *key, char *eid_str_full, int *lowexpiration)
 {
-	char data[1024];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *ptr, *term, *src;
 	int tech;
 	struct cw_flags flags;
@@ -1130,9 +1138,10 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 	int expiration;
 	char fs[256];
 	time_t timeout;
+
 	/* Build request string */
-	if (!cw_db_get("dundi/cache", key, data, sizeof(data))) {
-		ptr = data;
+	if (!cw_db_get("dundi/cache", key, &ds)) {
+		ptr = ds.data;
 		if (sscanf(ptr, "%ld,%n", &timeout, &length) == 1) {
 			expiration = timeout - now;
 			if (expiration > 0) {
@@ -1154,7 +1163,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 						/* Make sure it's not already there */
 						for (z=0;z<req->respcount;z++) {
 							if ((req->dr[z].techint == tech) &&
-							    !strcmp(req->dr[z].dest, ptr)) 
+							    !strcmp(req->dr[z].dest.data, ptr))
 									break;
 						}
 						if (z == req->respcount) {
@@ -1166,8 +1175,7 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							dundi_str_short_to_eid(&req->dr[req->respcount].eid, src);
 							dundi_eid_to_str(req->dr[req->respcount].eid_str, 
 								sizeof(req->dr[req->respcount].eid_str), &req->dr[req->respcount].eid);
-							cw_copy_string(req->dr[req->respcount].dest, ptr,
-								sizeof(req->dr[req->respcount].dest));
+							cw_dynstr_printf(&req->dr[req->respcount].dest, "%s", ptr);
 							cw_copy_string(req->dr[req->respcount].tech, tech2str(tech),
 								sizeof(req->dr[req->respcount].tech));
 							req->respcount++;
@@ -1185,6 +1193,8 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 				cw_db_del("dundi/cache", key);
 		} else 
 			cw_db_del("dundi/cache", key);
+
+		cw_dynstr_free(&ds);
 	}
 		
 	return 0;
@@ -1645,7 +1655,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							/* Make sure it's not already there */
 							for (z=0;z<trans->parent->respcount;z++) {
 								if ((trans->parent->dr[z].techint == ies.answers[x]->protocol) &&
-								    !strcmp(trans->parent->dr[z].dest, (char *)ies.answers[x]->data)) 
+								    !strcmp(trans->parent->dr[z].dest.data, (char *)ies.answers[x]->data))
 										break;
 							}
 							if (z == trans->parent->respcount) {
@@ -1661,8 +1671,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 									sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 									&ies.answers[x]->eid);
-								cw_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies.answers[x]->data,
-									sizeof(trans->parent->dr[trans->parent->respcount].dest));
+								cw_dynstr_printf(&trans->parent->dr[trans->parent->respcount].dest, "%s", (char *)ies.answers[x]->data);
 								cw_copy_string(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies.answers[x]->protocol),
 									sizeof(trans->parent->dr[trans->parent->respcount].tech));
 								trans->parent->respcount++;
@@ -2029,32 +2038,37 @@ static void save_secret(const char *newkey, const char *oldkey)
 
 static void load_password(void)
 {
-	char *current=NULL;
-	char *last=NULL;
-	char tmp[256];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	char *current = NULL;
+	char *last = NULL;
 	time_t expired;
-	
-	cw_db_get(secretpath, "secretexpiry", tmp, sizeof(tmp));
-	if (sscanf(tmp, "%ld", &expired) == 1) {
-		cw_db_get(secretpath, "secret", tmp, sizeof(tmp));
-		current = strchr(tmp, ';');
-		if (!current)
-			current = tmp;
-		else {
-			*current = '\0';
-			current++;
-		};
-		if ((time(NULL) - expired) < 0) {
-			if ((expired - time(NULL)) > DUNDI_SECRET_TIME)
-				expired = time(NULL) + DUNDI_SECRET_TIME;
-		} else if ((time(NULL) - (expired + DUNDI_SECRET_TIME)) < 0) {
-			last = current;
-			current = NULL;
-		} else {
-			last = NULL;
-			current = NULL;
+
+	if (!cw_db_get(secretpath, "secretexpiry", &ds)) {
+		if (sscanf(ds.data, "%ld", &expired) == 1) {
+			cw_dynstr_reset(&ds);
+
+			if (!cw_db_get(secretpath, "secret", &ds)) {
+				current = strchr(ds.data, ';');
+				if (!current)
+					current = ds.data;
+				else {
+					*current = '\0';
+					current++;
+				};
+				if ((time(NULL) - expired) < 0) {
+					if ((expired - time(NULL)) > DUNDI_SECRET_TIME)
+						expired = time(NULL) + DUNDI_SECRET_TIME;
+				} else if ((time(NULL) - (expired + DUNDI_SECRET_TIME)) < 0) {
+					last = current;
+					current = NULL;
+				} else {
+					last = NULL;
+					current = NULL;
+				}
+			}
 		}
 	}
+
 	if (current) {
 		/* Current key is still valid, just setup rotatation properly */
 		cw_copy_string(cursecret, current, sizeof(cursecret));
@@ -2064,6 +2078,8 @@ static void load_password(void)
 		build_secret(cursecret, sizeof(cursecret));
 		save_secret(cursecret, last);
 	}
+
+	cw_dynstr_free(&ds);
 }
 
 static void check_password(void)
@@ -2325,28 +2341,35 @@ static void sort_results(struct dundi_result *results, int count)
 
 static int dundi_do_lookup(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	int res;
+	struct dundi_result dr[MAX_RESULTS];
 	char tmp[256];
 	char fs[80] = "";
+	struct timeval start;
 	char *context;
+	int res;
 	int x;
 	int bypass = 0;
-	struct dundi_result dr[MAX_RESULTS];
-	struct timeval start;
+
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
+
 	if (argc > 3) {
 		if (!strcasecmp(argv[3], "bypass"))
 			bypass=1;
 		else
 			return RESULT_SHOWUSAGE;
 	}
+
 	cw_copy_string(tmp, argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
 		context++;
 	}
+
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_init(&dr[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
+
 	start = cw_tvnow();
 	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
 	
@@ -2356,11 +2379,17 @@ static int dundi_do_lookup(struct cw_dynstr *ds_p, int argc, char *argv[])
 		cw_dynstr_printf(ds_p, "DUNDi lookup returned no results.\n");
 	else
 		sort_results(dr, res);
-	for (x=0;x<res;x++) {
-		cw_dynstr_printf(ds_p, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
+
+	for (x = 0; x < res; x++) {
+		cw_dynstr_printf(ds_p, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest.data, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
 		cw_dynstr_printf(ds_p, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
 	}
+
 	cw_dynstr_printf(ds_p, "DUNDi lookup completed in %d ms\n", cw_tvdiff_ms(cw_tvnow(), start));
+
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_free(&dr[x].dest);
+
 	return RESULT_SUCCESS;
 }
 
@@ -3226,21 +3255,26 @@ static int dundi_discover(struct dundi_transaction *trans)
 
 static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping *maps, int mapcount, int *minexp, int *foundanswers)
 {
+	struct dundi_result dr[MAX_RESULTS];
+	struct dundi_hint_metadata hmd;
 	struct dundi_ie_data ied;
+	dundi_eid *avoid[1] = { NULL, };
 	int x, res;
 	int max = 999999;
 	int expiration = dundi_cache_time;
-	int ouranswers=0;
-	dundi_eid *avoid[1] = { NULL, };
+	int ouranswers = 0;
 	int direct[1] = { 0, };
-	struct dundi_result dr[MAX_RESULTS];
-	struct dundi_hint_metadata hmd;
+
 	if (!trans->parent) {
 		cw_log(CW_LOG_WARNING, "Tried to discover a transaction with no parent?!?\n");
 		return -1;
 	}
+
 	memset(&hmd, 0, sizeof(hmd));
 	memset(&dr, 0, sizeof(dr));
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_init(&dr[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
+
 	/* Look up the answers we're going to include */
 	for (x=0;x<mapcount;x++)
 		ouranswers = dundi_lookup_local(dr, maps + x, trans->parent->number, &trans->us_eid, ouranswers, &hmd);
@@ -3274,7 +3308,7 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 			/* Add answers */
 			if (dr[x].expiration && (expiration > dr[x].expiration))
 				expiration = dr[x].expiration;
-			dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest);
+			dundi_ie_append_answer(&ied, DUNDI_IE_ANSWER, &dr[x].eid, dr[x].techint, dr[x].flags, dr[x].weight, dr[x].dest.data);
 		}
 		dundi_ie_append_hint(&ied, DUNDI_IE_HINT, hmd.flags, hmd.exten);
 		dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, expiration);
@@ -3282,12 +3316,17 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 			trans->autokillid = cw_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
 		if (expiration < *minexp)
 			*minexp = expiration;
-		return dundi_send(trans, DUNDI_COMMAND_PRECACHERQ, 0, 0, &ied);
+		res = dundi_send(trans, DUNDI_COMMAND_PRECACHERQ, 0, 0, &ied);
 	} else {
 		/* Oops, nothing to send... */
 		destroy_trans(trans, 0);
-		return 0;
+		res = 0;
 	}
+
+	for (x = 0; x < arraysize(dr); x++)
+		cw_dynstr_free(&dr[x].dest);
+
+	return res;
 }
 
 static int dundi_query(struct dundi_transaction *trans)
@@ -3741,8 +3780,10 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct cw_channel *cha
 	dundi_eid *avoid[1] = { NULL, };
 	int direct[1] = { 0, };
 	int expiration = dundi_cache_time;
+
 	memset(&hmd, 0, sizeof(hmd));
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
+
 	return dundi_lookup_internal(result, maxret, chan, dcontext, number, dundi_ttl, 0, &hmd, &expiration, cbypass, 0, NULL, avoid, direct);
 }
 
@@ -3820,17 +3861,25 @@ static void dundi_precache_full(void)
 
 static int dundi_precache_internal(const char *context, const char *number, int ttl, dundi_eid *avoids[])
 {
+	struct dundi_result dr2[MAX_RESULTS];
 	struct dundi_request dr;
 	struct dundi_hint_metadata hmd;
-	struct dundi_result dr2[MAX_RESULTS];
 	struct timeval start;
 	struct dundi_mapping *maps=NULL, *cur;
 	int nummaps;
 	int foundanswers;
-	int foundcache, skipped, ttlms, ms;
+	int foundcache, skipped, ttlms, ms, x;
+
 	if (!context)
 		context = "e164";
+
 	cw_log(CW_LOG_DEBUG, "Precache internal (%s@%s)!\n", number, context);
+
+	memset(&hmd, 0, sizeof(hmd));
+	memset(&dr2, 0, sizeof(dr2));
+	for (x = 0; x < arraysize(dr2); x++)
+		cw_dynstr_init(&dr2[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
+	memset(&dr, 0, sizeof(dr));
 
 	cw_mutex_lock(&peerlock);
 	nummaps = 0;
@@ -3854,9 +3903,6 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	if (!nummaps || !maps)
 		return -1;
 	ttlms = DUNDI_FLUFF_TIME + ttl * DUNDI_TTL_TIME;
-	memset(&dr2, 0, sizeof(dr2));
-	memset(&dr, 0, sizeof(dr));
-	memset(&hmd, 0, sizeof(hmd));
 	dr.dr = dr2;
 	cw_copy_string(dr.number, number, sizeof(dr.number));
 	cw_copy_string(dr.dcontext, context ? context : "e164", sizeof(dr.dcontext));
@@ -3888,6 +3934,10 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 		close(dr.pfds[0]);
 		close(dr.pfds[1]);
 	}
+
+	for (x = 0; x < arraysize(dr2); x++)
+		cw_dynstr_free(&dr2[x].dest);
+
 	return 0;
 }
 
@@ -3953,21 +4003,21 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 }
 
 
-static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecated_app = 0;
 	static int deprecated_jump = 0;
+	struct dundi_result dr[MAX_RESULTS];
 	const char *context;
+	struct localuser *u;
 	int results;
 	int x;
 	int bypass = 0;
-	struct localuser *u;
-	struct dundi_result dr[MAX_RESULTS];
 
 	if (argc < 1 || argc > 3 || !argv[0][0])
 		return cw_function_syntax(dundifunc_syntax);
 
-	if (!buf)
+	if (!result)
 		return 0;
 
 	LOCAL_USER_ADD(u);
@@ -3987,8 +4037,8 @@ static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, char *
 		sort_results(dr, results);
 		for (x = 0; x < results; x++) {
 			if (cw_test_flag(dr + x, DUNDI_FLAG_EXISTS)) {
-				if (buf) {
-					snprintf(buf, len, "%s/%s", dr[x].tech, dr[x].dest);
+				if (result) {
+					cw_dynstr_printf(result, "%s/%s", dr[x].tech, dr[x].dest.data);
 				} else {
 					/* DEPRECATED
 					 * When used as an app rather than a func we return
@@ -3999,12 +4049,12 @@ static int dundifunc_read(struct cw_channel *chan, int argc, char **argv, char *
 						cw_log(CW_LOG_WARNING, "%s with no return is deprecated. Use Set(varname=${%s(args)}) instead\n", dundifunc_name, dundifunc_name);
 					}
 					pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
-					pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
+					pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest.data);
 				}
 				break;
 			}
 		}
-	} else if (!buf && option_priority_jumping) {
+	} else if (!result && option_priority_jumping) {
 		/* DEPRECATED
 		 * When used as an app rather than a func we return
 		 * the result in variables
@@ -4297,24 +4347,27 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 }
 static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 {
-	char data[256];
+	char eid_str[20];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *c;
 	int port, expire;
-	char eid_str[20];
+
 	dundi_eid_to_str(eid_str, sizeof(eid_str), eid);
-	if (!cw_db_get("dundi/dpeers", eid_str, data, sizeof(data))) {
-		c = strchr(data, ':');
+	if (!cw_db_get("dundi/dpeers", eid_str, &ds)) {
+		c = strchr(ds.data, ':');
 		if (c) {
 			*c = '\0';
 			c++;
 			if (sscanf(c, "%d:%d", &port, &expire) == 2) {
 				/* Got it! */
-				inet_aton(data, &peer->addr.sin_addr);
+				inet_aton(ds.data, &peer->addr.sin_addr);
 				peer->addr.sin_family = AF_INET;
 				peer->addr.sin_port = htons(port);
 				peer->registerexpire = cw_sched_add(sched, (expire + 10) * 1000, do_register_expire, peer);
 			}
 		}
+
+		cw_dynstr_free(&ds);
 	}
 }
 
@@ -4577,6 +4630,10 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 			data = context;
 	}
 
+	memset(results, 0, sizeof(results));
+	for (x = 0; x < arraysize(results); x++)
+		cw_dynstr_init(&results[x].dest, 0, CW_DYNSTR_DEFAULT_CHUNK);
+
 	res = dundi_lookup(results, MAX_RESULTS, chan, data, exten, 0);
 
 	if (var)
@@ -4584,18 +4641,23 @@ static int dundi_exec(struct cw_channel *chan, const char *context, const char *
 
 	if (res > 0) {
 		sort_results(results, res);
+
 		for (x = 0; x < res; x++) {
 			if (cw_test_flag(results + x, DUNDI_FLAG_EXISTS)) {
 				if (!--priority)
 					break;
 			}
 		}
+
 		if (x < res) {
 			/* Got a hit! */
-			snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest);
-			res = cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
+			snprintf(req, sizeof(req), "%s/%s", results[x].tech, results[x].dest.data);
+			res = cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL);
 		} else
 			res = -1;
+
+		for (x = 0; x < res; x++)
+			cw_dynstr_free(&results[x].dest);
 	}
 
 	return res;

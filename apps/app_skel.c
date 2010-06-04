@@ -53,21 +53,17 @@ static const char skel_descrip[] = "This application is a template to build othe
  * \param chan the channel the function is being run on
  * \param argc the number of entries in argv (not counting the terminal NULL)
  * \param argv an array of argc argument strings followed by a NULL
- * \param result an optional pointer to the space any result is to be written (in string form) to
- * \param result_max the maximum number of data bytes that may be written to the result buffer.
- * Note that the caller has already reserved space for a terminating null so all bytes may be written.
+ * \param result an optional pointer to the dynamic string any result is to be written to
  *
  * Return 0 on success, -1 on failure.
  * A return of -1 causes further processing to be aborted and
  * the channel is hung up. You SHOULD log an error before
  * returning -1.
  */
-static int skel_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int skel_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res = 0;
 	struct localuser *u;
-
-	CW_UNUSED(result_max);
 
 	/* Check the argument count is within range and any
 	 * required arguments are none blank.

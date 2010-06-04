@@ -2979,6 +2979,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 /* Reload dynamic queue members persisted into the cwdb */
 static void reload_queue_members(void)
 {
+    struct cw_dynstr queue_data = CW_DYNSTR_INIT;
     char *cur_ptr;  
     char *queue_name;
     char *member;
@@ -2990,7 +2991,6 @@ static void reload_queue_members(void)
     struct cw_db_entry *db_tree;
     struct cw_db_entry *entry;
     struct cw_call_queue *cur_queue;
-    char queue_data[PM_MAX_LEN];
 
     cw_mutex_lock(&qlock);
 
@@ -3021,10 +3021,12 @@ static void reload_queue_members(void)
         }
         cw_mutex_unlock(&cur_queue->lock);
 
-        if (cw_db_get(pm_family, queue_name, queue_data, PM_MAX_LEN))
+        cw_dynstr_reset(&queue_data);
+
+        if (cw_db_get(pm_family, queue_name, &queue_data) || queue_data.error)
             continue;
 
-        cur_ptr = queue_data;
+        cur_ptr = queue_data.data;
         while ((member = strsep(&cur_ptr, "|,")))
         {
             if (cw_strlen_zero(member))
@@ -3069,6 +3071,8 @@ static void reload_queue_members(void)
         }
     }
 
+    cw_dynstr_free(&queue_data);
+
     cw_mutex_unlock(&qlock);
     if (db_tree)
     {
@@ -3077,12 +3081,11 @@ static void reload_queue_members(void)
     }
 }
 
-static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_pqm_syntax);
@@ -3102,12 +3105,11 @@ static int pqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
     return 0;
 }
 
-static int upqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int upqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc != 2 || !argv[1][0])
         return cw_function_syntax(app_upqm_syntax);
@@ -3127,14 +3129,13 @@ static int upqm_exec(struct cw_channel *chan, int argc, char **argv, char *resul
     return 0;
 }
 
-static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int rqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     time_t added = 0;
     int res = -1;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 3)
         return cw_function_syntax(app_rqm_syntax);
@@ -3176,14 +3177,13 @@ static int rqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
     return res;
 }
 
-static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int aqm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     int penalty = 0;
     int res = -1;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 3)
         return cw_function_syntax(app_aqm_syntax);
@@ -3228,7 +3228,7 @@ static int aqm_exec(struct cw_channel *chan, int argc, char **argv, char *result
     return res;
 }
 
-static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int queue_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     struct cw_var_t *var;
@@ -3244,7 +3244,6 @@ static int queue_exec(struct cw_channel *chan, int argc, char **argv, char *resu
     struct queue_ent qe;
     
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 5 || !argv[0][0])
         return cw_function_syntax(syntax);
@@ -3503,7 +3502,7 @@ check_turns:
     return res;
 }
 
-static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     int count = 0;
     struct cw_call_queue *q;
@@ -3513,7 +3512,7 @@ static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, ch
     if (argc != 1)
         return cw_function_syntax(queueagentcount_func_syntax);
 
-    if (!buf)
+    if (!result)
         return 0;
 
     LOCAL_USER_ADD(u);
@@ -3543,7 +3542,8 @@ static int queue_function_qac(struct cw_channel *chan, int argc, char **argv, ch
         cw_mutex_unlock(&q->lock);
     }
 
-    snprintf(buf, len, "%d", count);
+    cw_dynstr_printf(result, "%d", count);
+
     LOCAL_USER_REMOVE(u);
     return 0;
 }

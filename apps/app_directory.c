@@ -401,7 +401,7 @@ static int do_directory(struct cw_channel *chan, struct cw_config *cfg, const ch
 	return res;
 }
 
-static int directory_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int directory_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_config *cfg;
@@ -410,7 +410,6 @@ static int directory_exec(struct cw_channel *chan, int argc, char **argv, char *
 	int last = 1;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 3)
 		return cw_function_syntax(directory_syntax);

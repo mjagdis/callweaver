@@ -58,14 +58,13 @@ static const char g_descrip[] =
 	"Example: GetDevState(SIP/715)\n";
 
 
-static int get_devstate(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int get_devstate(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char resc[8]="-1";
 	struct localuser *u;
 	int res=-1;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

@@ -53,14 +53,13 @@ static const char zapateller_descrip[] =
 "characters\n";
 
 
-static int zapateller_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int zapateller_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int answer = 0, nocallerid = 0;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

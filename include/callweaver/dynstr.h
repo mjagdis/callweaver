@@ -42,7 +42,7 @@ struct cw_dynstr {
 	.size = 0, \
 	.chunk = CW_DYNSTR_DEFAULT_CHUNK, \
 	.error = 0, \
-	.data = NULL, \
+	.data = (char *)"", \
 }
 
 
@@ -55,19 +55,23 @@ struct cw_dynstr {
  */
 static inline void cw_dynstr_init(struct cw_dynstr *ds_p, size_t len, size_t chunk)
 {
+	char *data;
+
 	ds_p->used = 0;
 	ds_p->size = 0;
 	ds_p->chunk = chunk - 1;
 	ds_p->error = 0;
-	ds_p->data = NULL;
+	ds_p->data = (char *)"";
 
 	/* N.B. We don't set the error flag if this malloc fails because any
 	 * initial length is just a hint how much might be needed. If this
 	 * malloc doesn't happen we might still manage to malloc later when
 	 * the space is actually needed.
 	 */
-	if (len && (ds_p->data = malloc(len)))
+	if (len && (data = malloc(len))) {
 		ds_p->size = len;
+		ds_p->data = data;
+	}
 }
 
 
@@ -81,7 +85,101 @@ static inline void cw_dynstr_reset(struct cw_dynstr *ds_p)
 
 static inline void cw_dynstr_reset(struct cw_dynstr *ds_p)
 {
+	if (ds_p->size)
+		ds_p->data[0] = '\0';
 	ds_p->used = ds_p->error = 0;
+}
+
+
+/* \brief Return the amount of unused but allocated space in a dynamic
+ * string.
+ *
+ *	\param ds_p	dynamic string to query
+ */
+static inline size_t cw_dynstr_space(struct cw_dynstr *ds_p)
+	__attribute__ ((nonnull (1)));
+
+static inline size_t cw_dynstr_space(struct cw_dynstr *ds_p)
+{
+	return ds_p->size - ds_p->used;
+}
+
+
+/* \brief Return the length of a dynamic string.
+ *
+ *	\param ds_p	dynamic string to query
+ */
+static inline size_t cw_dynstr_end(struct cw_dynstr *ds_p)
+	__attribute__ ((nonnull (1)));
+
+static inline size_t cw_dynstr_end(struct cw_dynstr *ds_p)
+{
+	return ds_p->used;
+}
+
+
+/* \brief Truncate a dynamic string to the given length.
+ *
+ * The given dynamic string is truncated to the length given and null
+ * terminated.
+ *
+ * \note The given length MUST be less than the current size of the dynamic
+ * string and SHOULD be less than the current length of the dynamic string.
+ * If the given length is greater than the current length but less than the
+ * current size data between the current length and the given length is
+ * undefined although the user of the dynamic string is allowed to assume that
+ * any data written to that region will not have changed absent any explicit
+ * dynamic string operations affecting that region.
+ *
+ *	\param ds_p	dynamic string to truncate
+ *	\param count	length to truncate to
+ */
+static inline void cw_dynstr_truncate(struct cw_dynstr *ds_p, size_t count)
+	__attribute__ ((nonnull (1)));
+
+static inline void cw_dynstr_truncate(struct cw_dynstr *ds_p, size_t count)
+{
+	ds_p->used = count;
+	if (ds_p->size)
+		ds_p->data[count] = '\0';
+}
+
+
+/* \brief Steal the data from a dynstr.
+ *
+ * The data owned by the dynstr is returned and the dynstr is reset to be empty.
+ * The returned data is in the form of a malloc'd, null terminated string
+ * and must be freed after use.
+ *
+ * \note Calling cw_dynstr_steal() on a dynstr that is marked as errored will
+ * return a string with arbitrary contents.
+ *
+ * \note Calling cw_dynstr_steal() on an empty dynstr will return NULL rather
+ * than a zero length string.
+ *
+ * In all cases the dynstr is reset to be empty and not in an error state.
+ *
+ *	\param ds_p	dynamic string to steal data from
+ *
+ *	\returns the previous contents of the dynstr as a malloc'd, null
+ *	terminated string or NULL if the dynstr was empty
+ */
+static inline char *cw_dynstr_steal(struct cw_dynstr *ds_p)
+	__attribute__ ((nonnull (1)));
+
+static inline char *cw_dynstr_steal(struct cw_dynstr *ds_p)
+{
+	char *data = NULL;
+
+	if (ds_p->size) {
+		data = ds_p->data;
+		ds_p->size = ds_p->used = 0;
+		ds_p->data = (char *)"";
+	}
+
+	ds_p->error = 0;
+
+	return data;
 }
 
 
@@ -121,10 +219,10 @@ static inline void cw_dynstr_free(struct cw_dynstr *ds_p)
 
 static inline void cw_dynstr_free(struct cw_dynstr *ds_p)
 {
-	if (ds_p->data) {
+	if (ds_p->size) {
 		free(ds_p->data);
 		ds_p->used = ds_p->size = ds_p->error = 0;
-		ds_p->data = NULL;
+		ds_p->data = (char *)"";
 	}
 }
 

@@ -150,10 +150,10 @@ static void *muxmon_thread(void *obj)
 {
 
     short buf0[1280], buf1[1280], buf[1280];
-    char post_process[1024] = "";
     struct cw_slinfactory slinfactory[2];
     struct cw_channel_spy spy;
     struct cw_frame frame;
+    struct cw_dynstr post_process = CW_DYNSTR_INIT;
     struct cw_channel *bchan;
     struct muxmon *muxmon = obj;
     struct cw_filestream *fs = NULL;
@@ -306,7 +306,7 @@ static void *muxmon_thread(void *obj)
             if (*p == '^'  &&  *(p+1) == '{')
                 *p = '$';
         }
-        pbx_substitute_variables(muxmon->chan, (muxmon->chan ? &muxmon->chan->vars : NULL), muxmon->post_process, post_process, sizeof(post_process));
+        pbx_substitute_variables(muxmon->chan, (muxmon->chan ? &muxmon->chan->vars : NULL), muxmon->post_process, &post_process);
         free(muxmon->post_process);
         muxmon->post_process = NULL;
     }
@@ -328,13 +328,14 @@ static void *muxmon_thread(void *obj)
         free(muxmon->filename);
     free(muxmon);
 
-    if (!cw_strlen_zero(post_process))
+    if (post_process.used && !post_process.error)
     {
         if (option_verbose > 2)
-            cw_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process);
-        cw_safe_system(post_process);
+            cw_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process.data);
+        cw_safe_system(post_process.data);
     }
 
+    cw_dynstr_free(&post_process);
     return NULL;
 }
 
@@ -370,7 +371,7 @@ static void launch_monitor_thread(struct cw_channel *chan, char *filename, unsig
 }
 
 
-static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct cw_flags flags = {0};
     struct localuser *u;
@@ -380,7 +381,6 @@ static int muxmon_exec(struct cw_channel *chan, int argc, char **argv, char *res
     int writevol = 0;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1 || argc > 3)
         return cw_function_syntax(muxmon_syntax);
@@ -450,7 +450,7 @@ static int muxmon_cli(struct cw_dynstr *ds_p, int argc, char **argv)
 
         if (!strcasecmp(op, "start"))
         {
-            muxmon_exec(chan, argc - 3, argv + 3, NULL, 0);
+            muxmon_exec(chan, argc - 3, argv + 3, NULL);
         }
         else if (!strcasecmp(op, "stop"))
         {

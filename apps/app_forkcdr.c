@@ -67,13 +67,12 @@ static void cw_cdr_fork(struct cw_channel *chan)
 	cw_set_flag(cdr, CW_CDR_FLAG_CHILD | CW_CDR_FLAG_LOCKED);
 }
 
-static int forkcdr_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int forkcdr_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

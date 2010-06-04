@@ -87,13 +87,15 @@ static pid_t spawn_ppp(struct cw_channel *chan, const char *argv[])
 }
 
 
-static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int visdn_ppp_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct visdn_chan *visdn_chan;
 	const char **nargv;
 	struct localuser *u;
 	struct cw_frame *f;
 	int res=-1;
+
+	CW_UNUSED(result);
 
 	LOCAL_USER_ADD(u);
 

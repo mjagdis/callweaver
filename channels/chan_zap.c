@@ -9811,12 +9811,11 @@ static const char dahdidisableec_syntax[] = "DAHDIDisableEC()";
 static const char dahdidisableec_synopsis[] = "Disable Echo Canceller onto the current channel";
 static const char dahdidisableec_description[] = "Disable Echo Canceller onto the current channel\n";
 
-static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int action_dahdidisableec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (chan==NULL) {
 	cw_log(CW_LOG_WARNING, "channel is NULL\n");

@@ -49,7 +49,7 @@ static const char changrab_description[] =
 "          been answered yet\n";
 
 
-static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int changrab_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	struct localuser *u;
@@ -58,8 +58,7 @@ static int changrab_exec(struct cw_channel *chan, int argc, char **argv, char *b
 	struct cw_frame *f;
 	struct cw_bridge_config config;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc < 1 || argc > 2)
 		return cw_function_syntax(changrab_syntax);

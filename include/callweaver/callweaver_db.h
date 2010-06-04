@@ -23,6 +23,9 @@
 #ifndef _CALLWEAVER_CALLWEAVER_DB_H
 #define _CALLWEAVER_CALLWEAVER_DB_H
 
+#include "callweaver/dynstr.h"
+
+
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
@@ -35,7 +38,7 @@ struct cw_db_entry {
 };
 
 
-extern CW_API_PUBLIC int cw_db_get(const char *family, const char *key, char *out, int outlen);
+extern CW_API_PUBLIC int cw_db_get(const char *family, const char *key, struct cw_dynstr *result);
 
 extern CW_API_PUBLIC int cw_db_put(const char *family, const char *key, const char *value);
 

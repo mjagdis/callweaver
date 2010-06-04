@@ -1541,14 +1541,15 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
-static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *dur, const char *date, char *passdata, size_t passdatasize)
+static void prep_email_sub_vars(struct cw_channel *ast, struct cw_vm_user *vmu, int msgnum, const char *context, const char *mailbox, const char *cidnum, const char *cidname, const char *dur, const char *date, struct cw_dynstr *ds_p)
 {
 	char callerid[256];
 	/* Prepare variables for substition in email body and subject */
 	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
 	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
-	snprintf(passdata, passdatasize, "%d", msgnum);
-	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+	cw_dynstr_printf(ds_p, "%d", msgnum);
+	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", ds_p->data);
+	cw_dynstr_reset(ds_p);
 	pbx_builtin_setvar_helper(ast, "VM_CONTEXT", context);
 	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
 	pbx_builtin_setvar_helper(ast, "VM_CALLERID", cw_callerid_merge(callerid, sizeof(callerid), cidname, cidnum, "Unknown Caller"));
@@ -1564,9 +1565,9 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 	char bound[256];
 	char fname[256];
 	char dur[256];
-	char tmp2[256];
 	char host[MAXHOSTNAMELEN] = "";
 	char tmp[80] = "/tmp/astmail-XXXXXX";
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
@@ -1628,12 +1629,10 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			struct cw_channel *chan;
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
-				char *passdata;
-				int vmlen = strlen(fromstring)*3 + 200;
-				passdata = alloca(vmlen);
-				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables(chan, &chan->vars, fromstring, passdata, vmlen);
-				fprintf(p, "From: %s <%s>\n", passdata, who);
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, fromstring, &ds);
+				fprintf(p, "From: %s <%s>\n", ds.data, who);
+				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
 			}
 		} else
@@ -1644,12 +1643,10 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			struct cw_channel *chan;
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
-				char *passdata;
-				int vmlen = strlen(emailsubject)*3 + 200;
-				passdata = alloca(vmlen);
-				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables(chan, &chan->vars, emailsubject, passdata, vmlen);
-				fprintf(p, "Subject: %s\n", passdata);
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, emailsubject, &ds);
+				fprintf(p, "Subject: %s\n", ds.data);
+				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
 			}
 		} else
@@ -1675,12 +1672,10 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			struct cw_channel *chan;
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
-				char *passdata;
-				int vmlen = strlen(emailbody)*3 + 200;
-				passdata = alloca(vmlen);
-				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables(chan, &chan->vars, emailbody, passdata, vmlen);
-				fprintf(p, "%s\n", passdata);
+				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, emailbody, &ds);
+				fprintf(p, "%s\n", ds.data);
+				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
 			}
 		} else {
@@ -1707,9 +1702,12 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			fprintf(p, "\n\n--%s--\n.\n", bound);
 		}
 		fclose(p);
-		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
-		cw_safe_system(tmp2);
-		cw_log(CW_LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
+		cw_dynstr_printf(&ds, "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
+		if (!ds.error) {
+			cw_safe_system(ds.data);
+			cw_log(CW_LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
+		}
+		cw_dynstr_free(&ds);
 	} else {
 		cw_log(CW_LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
@@ -1726,7 +1724,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	char who[256];
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
-	char tmp2[256];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
@@ -1776,12 +1774,10 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			struct cw_channel *chan;
 
 			if ((chan = cw_channel_alloc(0, NULL))) {
-				char *passdata;
-				int vmlen = strlen(fromstring)*3 + 200;
-				passdata = alloca(vmlen);
-				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-				pbx_substitute_variables(chan, &chan->vars, pagerfromstring, passdata, vmlen);
-				fprintf(p, "From: %s <%s>\n", passdata, who);
+				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, pagerfromstring, &ds);
+				fprintf(p, "From: %s <%s>\n", ds.data, who);
+				cw_dynstr_reset(&ds);
 				cw_channel_free(chan);
 			}
 		} else
@@ -1791,13 +1787,11 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                        struct cw_channel *chan;
 
 		       if ((chan = cw_channel_alloc(0, NULL))) {
-                               char *passdata;
-                               int vmlen = strlen(pagersubject)*3 + 200;
-                               passdata = alloca(vmlen);
-                               prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-                               pbx_substitute_variables(chan, &chan->vars, pagersubject, passdata, vmlen);
-                               fprintf(p, "Subject: %s\n\n", passdata);
-                               cw_channel_free(chan);
+				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, pagersubject, &ds);
+				fprintf(p, "Subject: %s\n\n", ds.data);
+				cw_dynstr_reset(&ds);
+				cw_channel_free(chan);
                        }
                } else
                        fprintf(p, "Subject: New VM\n\n");
@@ -1806,22 +1800,23 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                        struct cw_channel *chan;
 
 		       if ((chan = cw_channel_alloc(0, NULL))) {
-                               char *passdata;
-                               int vmlen = strlen(pagerbody)*3 + 200;
-                               passdata = alloca(vmlen);
-                               prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, passdata, vmlen);
-                               pbx_substitute_variables(chan, &chan->vars, pagerbody, passdata, vmlen);
-                               fprintf(p, "%s\n", passdata);
-                               cw_channel_free(chan);
+				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
+				pbx_substitute_variables(chan, &chan->vars, pagerbody, &ds);
+				fprintf(p, "%s\n", ds.data);
+				cw_dynstr_reset(&ds);
+				cw_channel_free(chan);
                        }
                } else {
                        fprintf(p, "New %s long msg in box %s\n"
                                        "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
                }
 		fclose(p);
-		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
-		cw_safe_system(tmp2);
-		cw_log(CW_LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
+		cw_dynstr_printf(&ds, "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
+		if (!ds.error) {
+			cw_safe_system(ds.data);
+			cw_log(CW_LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
+		}
+		cw_dynstr_free(&ds);
 	} else {
 		cw_log(CW_LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
@@ -3350,7 +3345,7 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 				memcpy(old_exten, chan->exten, sizeof(chan->exten));
 				old_priority = chan->priority;
 
-				res = cw_function_exec_str(chan, CW_KEYWORD_Directory, "Directory", s, NULL, 0);
+				res = cw_function_exec_str(chan, CW_KEYWORD_Directory, "Directory", s, NULL);
 				if (res < 0) {
 					cw_log(CW_LOG_WARNING, "Could not find the Directory application, disabling directory_forward\n");
 					cw_clear_flag((&globalflags), VM_DIRECFORWARD);	
@@ -4979,7 +4974,7 @@ static int vm_authenticate(struct cw_channel *chan, char *mailbox, int mailbox_s
 	return 0;
 }
 
-static int vm_execmain(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int vm_execmain(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
 	   reason it just seemed a lot easier to do with GOTO's.  I feel
@@ -5001,7 +4996,6 @@ static int vm_execmain(struct cw_channel *chan, int argc, char **argv, char *res
 	signed char record_gain = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -5429,7 +5423,7 @@ out:
 	return res;
 }
 
-static int vm_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int vm_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *opts[OPT_ARG_ARRAY_SIZE];
 	char tmp[256];
@@ -5439,7 +5433,6 @@ static int vm_exec(struct cw_channel *chan, int argc, char **argv, char *result,
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 	
@@ -5545,14 +5538,13 @@ static int append_mailbox(const char *context, const char *mb, const char *data)
 	return 0;
 }
 
-static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_vm_user svm;
 	char *context;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(syntax_vm_box_exists);
@@ -5573,7 +5565,7 @@ static int vm_box_exists(struct cw_channel *chan, int argc, char **argv, char *r
 	return 0;
 }
 
-static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char mailbox[CW_MAX_EXTENSION];
 	struct cw_vm_user vmus;
@@ -5583,7 +5575,6 @@ static int vmauthenticate(struct cw_channel *chan, int argc, char **argv, char *
 	int res = -1;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

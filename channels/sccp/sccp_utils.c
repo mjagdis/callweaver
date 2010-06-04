@@ -267,34 +267,38 @@ static void sccp_cfwd_parse(sccp_device_t * d, char * tmp, uint8_t type) {
 }
 
 void sccp_dev_dbget(sccp_device_t * d) {
-	char result[256]="", *tmp, *tmp1, *r;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	char *tmp, *tmp1, *r;
 	int i=0;
 
 	if (!d)
 		return;
+
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Restoring device status (dnd, cfwd*) from the callweaver db\n", d->id);
-	if (cw_db_get("SCCP", d->id, result, sizeof(result))) {
-		return;
-	}
-	r = result;
-	while ( (tmp = strsep(&r,",")) ) {
-		tmp1 = strsep(&tmp,"=");
-		if (tmp1) {
-			if (!strcasecmp(tmp1, "dnd")) {
-				if ( (tmp1 = strsep(&tmp,"")) ) {
-					sscanf(tmp1, "%i", &i);
-					d->dnd = (i) ? 1 : 0;
-					sccp_log(10)(VERBOSE_PREFIX_3 "%s: dnd status is: %s\n", d->id, (d->dnd) ? "ON" : "OFF");
+
+	if (!cw_db_get("SCCP", d->id, &ds)) {
+		r = ds.data;
+		while ( (tmp = strsep(&r,",")) ) {
+			tmp1 = strsep(&tmp,"=");
+			if (tmp1) {
+				if (!strcasecmp(tmp1, "dnd")) {
+					if ( (tmp1 = strsep(&tmp,"")) ) {
+						sscanf(tmp1, "%i", &i);
+						d->dnd = (i) ? 1 : 0;
+						sccp_log(10)(VERBOSE_PREFIX_3 "%s: dnd status is: %s\n", d->id, (d->dnd) ? "ON" : "OFF");
+					}
+				} else if (!strcasecmp(tmp1, "cfwdall")) {
+					tmp1 = strsep(&tmp,"");
+					sccp_cfwd_parse(d, tmp1, SCCP_CFWD_ALL);
+				} else if (!strcasecmp(tmp1, "cfwdbusy")) {
+					tmp1 = strsep(&tmp,"");
+					sccp_cfwd_parse(d, tmp1, SCCP_CFWD_BUSY);
 				}
-			} else if (!strcasecmp(tmp1, "cfwdall")) {
-				tmp1 = strsep(&tmp,"");
-				sccp_cfwd_parse(d, tmp1, SCCP_CFWD_ALL);
-			} else if (!strcasecmp(tmp1, "cfwdbusy")) {
-				tmp1 = strsep(&tmp,"");
-				sccp_cfwd_parse(d, tmp1, SCCP_CFWD_BUSY);
 			}
 		}
 	}
+
+	cw_dynstr_free(&ds);
 }
 
 void sccp_dev_dbclean() {

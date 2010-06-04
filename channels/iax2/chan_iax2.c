@@ -1542,7 +1542,6 @@ static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 	char cbuf[256];
 	char iabuf[INET_ADDRSTRLEN];
 	struct iax2_peer *peer;
-	char codec_buf[512];
 	int x = 0, codec = 0, load_realtime = 0;
 
 	if (argc < 4)
@@ -1552,7 +1551,7 @@ static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 	peer = find_peer(argv[3], load_realtime);
 	if (peer) {
-		cw_dynstr_tprintf(ds_p, 14,
+		cw_dynstr_tprintf(ds_p, 13,
 			cw_fmtval("\n\n"),
 			cw_fmtval("  * Name       : %s\n", peer->name),
 			cw_fmtval("  Secret       : %s\n", cw_strlen_zero(peer->secret)?"<Not set>":"<Set>"),
@@ -1565,9 +1564,10 @@ static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 			cw_fmtval("  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port)),
 			cw_fmtval("  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port)),
 			cw_fmtval("  Username     : %s\n", peer->username),
-			cw_fmtval("  Codecs       : %s\n", cw_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability)),
-			cw_fmtval("  Codec Order  : (")
+			cw_fmtval("  Codecs       : ")
 		);
+		cw_getformatname_multiple(ds_p, peer->capability);
+		cw_dynstr_printf(ds_p, "\n  Codec Order  : (");
 		for(x = 0; x < 32 ; x++) {
 			codec = cw_codec_pref_index(&peer->prefs,x);
 			if(!codec)
@@ -2116,6 +2116,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 	if (cw_strlen_zero(peer->dbsecret)) {
 		cw_copy_string(cai->secret, peer->secret, sizeof(cai->secret));
 	} else {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		char *family;
 		char *key = NULL;
 
@@ -2123,12 +2124,17 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		key = strchr(family, '/');
 		if (key)
 			*key++ = '\0';
-		if (!key || cw_db_get(family, key, cai->secret, sizeof(cai->secret))) {
+		if (!key || cw_db_get(family, key, &ds) || ds.error) {
+			cw_dynstr_free(&ds);
 			cw_log(CW_LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
 			if (cw_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
 			return -1;
 		}
+
+		if (ds.used)
+			cw_copy_string(cai->secret, ds.data, sizeof(cai->secret));
+		cw_dynstr_free(&ds);
 	}
 
 	if (peer->addr.sin_addr.s_addr) {
@@ -2546,11 +2552,13 @@ static enum cw_bridge_result iax2_bridge(struct cw_channel *c0, struct cw_channe
 		}
 		if (c0->nativeformats != c1->nativeformats) {
 			if (option_verbose > 2) {
-				char buf0[255];
-				char buf1[255];
-				cw_getformatname_multiple(buf0, sizeof(buf0) -1, c0->nativeformats);
-				cw_getformatname_multiple(buf1, sizeof(buf1) -1, c1->nativeformats);
-				cw_verbose(VERBOSE_PREFIX_3 "Operating with different codecs %d[%s] %d[%s] , can't native bridge...\n", c0->nativeformats, buf0, c1->nativeformats, buf1);
+				struct cw_dynstr buf0 = CW_DYNSTR_INIT;
+				struct cw_dynstr buf1 = CW_DYNSTR_INIT;
+				cw_getformatname_multiple(&buf0, c0->nativeformats);
+				cw_getformatname_multiple(&buf1, c1->nativeformats);
+				cw_verbose(VERBOSE_PREFIX_3 "Operating with different codecs %d[%s] %d[%s], can't native bridge...\n", c0->nativeformats, (buf0.used ? buf0.data : ""), c1->nativeformats, (buf1.used ? buf1.data : ""));
+				cw_dynstr_free(&buf0);
+				cw_dynstr_free(&buf1);
 			}
 			/* Remove from native mode */
 			lock_both(callno0, callno1);
@@ -4197,6 +4205,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		cw_copy_flags(iaxs[callno], user, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 		/* Keep this check last */
 		if (!cw_strlen_zero(user->dbsecret)) {
+			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			char *family, *key=NULL;
 			family = cw_strdupa(user->dbsecret);
 			key = strchr(family, '/');
@@ -4204,13 +4213,15 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				*key = '\0';
 				key++;
 			}
-			if (!key || cw_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (!key || cw_db_get(family, key, &ds) || ds.error) {
 				cw_log(CW_LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (cw_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
 					user = NULL;
 				}
-			}
+			} else
+				cw_copy_string(iaxs[callno]->secret, ds.data, sizeof(iaxs[callno]->secret));
+			cw_dynstr_free(&ds);
 		} else
 			cw_copy_string(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)); 
 		res = 0;
@@ -4945,16 +4956,17 @@ static int expire_registry(void *data)
 
 static void reg_source_db(struct iax2_peer *p)
 {
-	char data[80];
-	struct in_addr in;
 	char iabuf[INET_ADDRSTRLEN];
+	struct in_addr in;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char *c, *d;
-	if (!cw_test_flag(p, IAX_TEMPONLY) && (!cw_db_get("IAX/Registry", p->name, data, sizeof(data)))) {
-		c = strchr(data, ':');
+
+	if (!cw_test_flag(p, IAX_TEMPONLY) && (!cw_db_get("IAX/Registry", p->name, &ds)) && ds.used && !ds.error) {
+		c = strchr(ds.data, ':');
 		if (c) {
 			*c = '\0';
 			c++;
-			if (inet_aton(data, &in)) {
+			if (inet_aton(ds.data, &in)) {
 				d = strchr(c, ':');
 				if (d) {
 					*d = '\0';
@@ -4980,6 +4992,7 @@ static void reg_source_db(struct iax2_peer *p)
 			}
 		}
 	}
+	cw_dynstr_free(&ds);
 }
 
 static int update_registry(char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
@@ -8509,7 +8522,7 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
 		if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_DIALSTATUS, "DIALSTATUS"))) {
-			cw_function_exec_str(chan, var->hash, var->value, (char *)"", NULL, 0);
+			cw_function_exec_str(chan, var->hash, var->value, (char *)"", NULL);
 			cw_object_put(var);
 		}
 		return -1;
@@ -8537,10 +8550,10 @@ static int iax2_exec(struct cw_channel *chan, const char *context, const char *e
 		}
 	}
 	cw_mutex_unlock(&dpcache_lock);
-	return cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL, 0);
+	return cw_function_exec_str(chan, CW_KEYWORD_Dial, "Dial", req, NULL);
 }
 
-static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct iax2_peer *peer;
 	char iabuf[INET_ADDRSTRLEN];
@@ -8548,13 +8561,13 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 	if (argc < 1 || argc > 2 || !argv[0][0])
 		return cw_function_syntax(iaxpeer_func_syntax);
 
-	if (!buf)
+	if (!result)
 		return 0;
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(argv[0], "CURRENTCHANNEL")) {
 	        unsigned short callno = PTR_TO_CALLNO(chan->tech_pvt);
-		cw_copy_string(buf, iaxs[callno]->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : "", len);
+		cw_dynstr_printf(result, "%s", (iaxs[callno]->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr) : ""));
 		return 0;
 	}
 
@@ -8577,35 +8590,33 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, char
 		return 0;
 
 	if (!strcasecmp(argv[1], "ip")) {
-		cw_copy_string(buf, peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+		cw_dynstr_printf(result, "%s", peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "");
 	} else  if (!strcasecmp(argv[1], "mailbox")) {
-		cw_copy_string(buf, peer->mailbox, len);
+		cw_dynstr_printf(result, "%s", peer->mailbox);
 	} else  if (!strcasecmp(argv[1], "context")) {
-		cw_copy_string(buf, peer->context, len);
+		cw_dynstr_printf(result, "%s", peer->context);
 	} else  if (!strcasecmp(argv[1], "expire")) {
-		snprintf(buf, len, "%d", peer->expire);
+		cw_dynstr_printf(result, "%d", peer->expire);
 	} else  if (!strcasecmp(argv[1], "dynamic")) {
-		cw_copy_string(buf, (cw_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no"), len);
+		cw_dynstr_printf(result, "%s", (cw_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no"));
 	} else  if (!strcasecmp(argv[1], "callerid_name")) {
-		cw_copy_string(buf, peer->cid_name, len);
+		cw_dynstr_printf(result, "%s", peer->cid_name);
 	} else  if (!strcasecmp(argv[1], "callerid_num")) {
-		cw_copy_string(buf, peer->cid_num, len);
+		cw_dynstr_printf(result, "%s", peer->cid_num);
 	} else  if (!strcasecmp(argv[1], "codecs")) {
-		cw_getformatname_multiple(buf, len -1, peer->capability);
+		cw_getformatname_multiple(result, peer->capability);
 	} else  if (!strncasecmp(argv[1], "codec[", 6)) {
 		char *codecnum, *ptr;
-		int i = 0, codec = 0;
-		
+		int codec = 0;
+
 		codecnum = strchr(argv[1], '[');
 		*codecnum = '\0';
 		codecnum++;
 		if ((ptr = strchr(codecnum, ']'))) {
 			*ptr = '\0';
 		}
-		i = atoi(codecnum);
-		if((codec = cw_codec_pref_index(&peer->prefs, i))) {
-			cw_copy_string(buf, cw_getformatname(codec), len);
-		}
+		if ((codec = cw_codec_pref_index(&peer->prefs, atoi(codecnum))))
+			cw_dynstr_printf(result, "%s", cw_getformatname(codec));
 	}
 
 	return 0;

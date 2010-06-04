@@ -549,11 +549,10 @@ static void *monitor_custom_command(void *data)
 	return NULL;
 }
 
-static int moh0_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int moh0_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (cw_moh_start(chan, argv[0])) {
 		cw_log(CW_LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", argv[0], chan->name);
@@ -564,12 +563,11 @@ static int moh0_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return -1;
 }
 
-static int moh1_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int moh1_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !(res = atoi(argv[0])))
 		return cw_function_syntax("WaitMusicOnHold(seconds)");
@@ -583,10 +581,9 @@ static int moh1_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int moh2_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int moh2_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax("SetMusicOnHold(class)");
@@ -595,12 +592,11 @@ static int moh2_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return 0;
 }
 
-static int moh3_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int moh3_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	const char *class = (argc > 1 && argv[0][0] ? argv[0] : "default");
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (cw_moh_start(chan, class))
 		cw_log(CW_LOG_NOTICE, "Unable to start music on hold class '%s' on channel %s\n", class, chan->name);
@@ -608,12 +604,11 @@ static int moh3_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return 0;
 }
 
-static int moh4_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int moh4_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	cw_moh_stop(chan);
 

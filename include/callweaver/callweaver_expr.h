@@ -19,6 +19,9 @@
 #ifndef _CALLWEAVER_CALLWEAVER_EXPR_H
 #define _CALLWEAVER_CALLWEAVER_EXPR_H
 
+#include "callweaver/dynstr.h"
+
+
 #if !defined (__P)
 #  if defined (__STDC__) || defined (__GNUC__) || defined (__cplusplus)
 #    define __P(protos) protos /* full-blown ANSI C */
@@ -31,7 +34,7 @@
 extern "C" {
 #endif
 
-extern CW_API_PUBLIC int cw_expr(const char *expr, char *buf, int length);
+extern CW_API_PUBLIC int cw_expr(const char *expr, struct cw_dynstr *result);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -102,13 +102,12 @@ static struct cw_manager_message *action_setcdruserfield(struct mansession *sess
 }
 
 
-static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
@@ -121,13 +120,12 @@ static int setcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, 
 	return res;
 }
 
-static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

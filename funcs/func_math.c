@@ -79,7 +79,7 @@ enum TypeOfResult
 };
 
 
-static int builtin_function_math(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_math(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	double fnum1;
 	double fnum2;
@@ -94,7 +94,7 @@ static int builtin_function_math(struct cw_channel *chan, int argc, char **argv,
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(math_func_syntax);
 
-	if (buf) {
+	if (result) {
 		if (!strcasecmp(argv[1],"float") || !strcasecmp(argv[1],"f"))
 			type_of_result=FLOAT_RESULT;
 		else if (!strcasecmp(argv[1],"int") || !strcasecmp(argv[1],"i"))
@@ -193,19 +193,19 @@ static int builtin_function_math(struct cw_channel *chan, int argc, char **argv,
 			break;
 		}
 		case GTFUNCTION :
-			cw_copy_string (buf, (fnum1 > fnum2)?"TRUE":"FALSE", len);
+			cw_dynstr_printf(result, "%s", (fnum1 > fnum2)?"TRUE":"FALSE");
 			break;
 		case LTFUNCTION :
-			cw_copy_string (buf, (fnum1 < fnum2)?"TRUE":"FALSE", len);
+			cw_dynstr_printf(result, "%s", (fnum1 < fnum2)?"TRUE":"FALSE");
 			break;
 		case GTEFUNCTION :
-			cw_copy_string (buf, (fnum1 >= fnum2)?"TRUE":"FALSE", len);
+			cw_dynstr_printf(result, "%s", (fnum1 >= fnum2)?"TRUE":"FALSE");
 			break;
 		case LTEFUNCTION :
-			cw_copy_string (buf, (fnum1 <= fnum2)?"TRUE":"FALSE", len);
+			cw_dynstr_printf(result, "%s", (fnum1 <= fnum2)?"TRUE":"FALSE");
 			break;					
 		case EQFUNCTION :
-			cw_copy_string (buf, (fnum1 == fnum2)?"TRUE":"FALSE", len);
+			cw_dynstr_printf(result, "%s", (fnum1 == fnum2)?"TRUE":"FALSE");
 			break;
 		default :
 			cw_log(CW_LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);
@@ -214,13 +214,13 @@ static int builtin_function_math(struct cw_channel *chan, int argc, char **argv,
 
 		if (iaction < GTFUNCTION || iaction > EQFUNCTION) {
 			if (type_of_result == FLOAT_RESULT)
-				snprintf(buf, len, "%lf", ftmp);
+				cw_dynstr_printf(result, "%lf", ftmp);
 			else if (type_of_result == INT_RESULT)
-				snprintf(buf, len, "%i", (int) ftmp);
+				cw_dynstr_printf(result, "%i", (int) ftmp);
 			else if (type_of_result == HEX_RESULT)
-				snprintf(buf, len, "%x", (unsigned int) ftmp);
+				cw_dynstr_printf(result, "%x", (unsigned int) ftmp);
 			else if (type_of_result == CHAR_RESULT)
-				snprintf(buf, len, "%c", (unsigned char) ftmp);
+				cw_dynstr_printf(result, "%c", (unsigned char) ftmp);
 		}
 	}
 

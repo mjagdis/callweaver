@@ -55,30 +55,35 @@ static const char urlencode_func_desc[] = "";
 
 
 /*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
-static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_uriencode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(urlencode_func_syntax);
 
-	if (buf)
-		cw_uri_encode(argv[0], buf, len, 1);
+	if (result)
+		cw_uri_encode(argv[0], result, 1);
 
 	return 0;
 }
 
 /*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
-static int builtin_function_uridecode(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_uridecode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(urldecode_func_syntax);
 
-	if (buf) {
-		cw_copy_string(buf, argv[0], len);
-		cw_uri_decode(buf);
+	if (result) {
+		int mark = cw_dynstr_end(result);
+
+		cw_dynstr_printf(result, "%s", argv[0]);
+		if (!result->error) {
+			cw_uri_decode(&result->data[mark]);
+			cw_dynstr_truncate(result, mark + strlen(&result->data[mark]));
+		}
 	}
 
 	return 0;

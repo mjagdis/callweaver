@@ -223,13 +223,12 @@ static int handle_show_indications(struct cw_dynstr *ds_p, int argc, char *argv[
 /*
  * Playtones command stuff
  */
-static int handle_playtones(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int handle_playtones(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct tone_zone_sound *ts;
     int res;
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     if (argc < 1 || !argv[0][0])
     {
@@ -249,12 +248,11 @@ static int handle_playtones(struct cw_channel *chan, int argc, char **argv, char
 /*
  * StopPlaylist command stuff
  */
-static int handle_stopplaytones(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int handle_stopplaytones(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     CW_UNUSED(argc);
     CW_UNUSED(argv);
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     cw_playtones_stop(chan);
     return 0;

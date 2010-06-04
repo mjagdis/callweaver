@@ -349,14 +349,13 @@ static int __cw_monitor_change_fname(struct cw_channel *chan, const char *fname_
 	return 0;
 }
 
-static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int joinfiles = 0;
 	int waitforbridge = 0;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc > 2) {
 		for (; argv[2][0]; argv[2]++) {
@@ -384,21 +383,19 @@ static int start_monitor_exec(struct cw_channel *chan, int argc, char **argv, ch
 	return res;
 }
 
-static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int stop_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	return __cw_monitor_stop(chan, 1);
 }
 
-static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int change_monitor_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	return __cw_monitor_change_fname(chan, argv[0], 1);
 }

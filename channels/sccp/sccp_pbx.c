@@ -537,15 +537,18 @@ uint8_t sccp_pbx_channel_allocate(sccp_channel_t * c) {
 	sccp_log(2)(VERBOSE_PREFIX_3 "%s: format request: %d/%d\n", d->id, tmp->nativeformats, c->format);
 
 	if (GLOB(debug) > 2) {
-	  const unsigned slen=512;
-	  char s1[slen];
-	  char s2[slen];
+	  struct cw_dynstr s1 = CW_DYNSTR_INIT;
+	  struct cw_dynstr s2 = CW_DYNSTR_INIT;
+	  cw_getformatname_multiple(&s1, d->capability);
+	  cw_getformatname_multiple(&s2, tmp->nativeformats);
 	  sccp_log(2)(VERBOSE_PREFIX_3 "%s: Channel %s, capabilities: DEVICE %s NATIVE %s BEST %d (%s)\n",
 		d->id,
 		c->owner->name,
-		cw_getformatname_multiple(s1, slen, d->capability),
-		cw_getformatname_multiple(s2, slen, tmp->nativeformats),
+		(s1.used ? s1.data : ""),
+		(s2.used ? s2.data : ""),
 		fmt, cw_getformatname(fmt));
+	  cw_dynstr_free(&s1);
+	  cw_dynstr_free(&s2);
 	}
 
 	tmp->type = "SCCP";

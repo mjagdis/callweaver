@@ -96,7 +96,7 @@ static const char group_match_count_descrip[] =
 "GroupMatchCount.\n";
 
 
-static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -107,8 +107,7 @@ static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char
 	int res = 0;
 	int count;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!deprecation_warning) {
 	        cw_log(CW_LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
@@ -138,7 +137,7 @@ static int group_count_exec(struct cw_channel *chan, int argc, char **argv, char
 	return res;
 }
 
-static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	char group[80] = "";
@@ -148,8 +147,7 @@ static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv
 	int res = 0;
 	int count;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!deprecation_warning) {
 	        cw_log(CW_LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
@@ -174,14 +172,13 @@ static int group_match_count_exec(struct cw_channel *chan, int argc, char **argv
 	return res;
 }
 
-static int group_set_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_set_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	struct localuser *u;
 	int res = 0;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!deprecation_warning) {
 	        cw_log(CW_LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
@@ -200,7 +197,7 @@ static int group_set_exec(struct cw_channel *chan, int argc, char **argv, char *
 	return res;
 }
 
-static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int group_check_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static int deprecation_warning = 0;
 	char limit[80]="";
@@ -210,8 +207,7 @@ static int group_check_exec(struct cw_channel *chan, int argc, char **argv, char
 	int res = 0;
 	int max, count;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (!deprecation_warning) {
 	        cw_log(CW_LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");

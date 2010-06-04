@@ -26,6 +26,7 @@
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/module.h"
+#include "callweaver/dynstr.h"
 
 
 struct cw_channel;
@@ -36,7 +37,7 @@ struct cw_func {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	unsigned int hash;
-	int (*handler)(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
+	int (*handler)(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 	const char *name;
 	const char *synopsis;
 	const char *syntax;

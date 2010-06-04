@@ -43,7 +43,7 @@ static const char env_func_syntax[] = "ENV(envname[, value])";
 static const char env_func_desc[] = "";
 
 
-static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *ret;
 
@@ -61,9 +61,9 @@ static int builtin_function_env_rw(struct cw_channel *chan, int argc, char **arg
 		}
 	}
 
-	if (buf) {
+	if (result) {
 		if ((ret = getenv(argv[0])))
-			cw_copy_string(buf, ret, len);
+			cw_dynstr_printf(result, "%s", ret);
 	}
 
 	return 0;

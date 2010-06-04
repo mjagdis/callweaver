@@ -67,14 +67,13 @@ static struct {
 	{ CW_TRANS_CAP_VIDEO,				"VIDEO" },
 };
 
-static int settransfercapability_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int settransfercapability_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int x;
 	int transfercapability = -1;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(settransfercapability_syntax);

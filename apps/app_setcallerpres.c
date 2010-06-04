@@ -64,13 +64,12 @@ static const char setcallerid_pres_descrip[] =
 ;
 
 
-static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int setcallerid_pres_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	int pres = -1;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc != 1)
 		return cw_function_syntax(setcallerid_pres_syntax);

@@ -41,10 +41,12 @@ static char *admin_description =
 
 // TODO - Do it if someone needs it
 
-static int app_admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int app_admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct cw_conference *conf;
+
+	CW_UNUSED(result);
 
 	if (argc < 2 || argc > 3 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(admin_syntax);
@@ -80,7 +82,7 @@ static char count_description[] =
 "will be returned in the variable. Returns 0.\n";
 
 
-static int app_count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int app_count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 
@@ -104,8 +106,8 @@ static int app_count_exec(struct cw_channel *chan, int argc, char **argv, char *
 	else
 		count = 0;
 
-	if (buf) {
-		snprintf(buf, len, "%i", count);
+	if (result) {
+		cw_dynstr_printf(result, "%i", count);
 	} else if (argc > 1 && argv[1][0]) {
 		snprintf(val, sizeof(val), "%i", count);
 		pbx_builtin_setvar_helper(chan, argv[1], val);

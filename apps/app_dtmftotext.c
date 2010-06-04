@@ -989,7 +989,7 @@ static int get_input_text(struct cw_channel *chan, const char *variable_name, co
     return  res;
 }
 
-static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	char *initial_digits;
@@ -997,8 +997,7 @@ static int dtmftotext_exec(struct cw_channel *chan, int argc, char **argv, char 
 	int imax_time;
 	int res;
 
-	CW_UNUSED(buf);
-	CW_UNUSED(len);
+	CW_UNUSED(result);
 
 	if (argc != 3 || argv[0][0] == '=' || !(initial_digits = strchr(argv[0], '=')))
 		return cw_function_syntax(dtmftotext_syntax);

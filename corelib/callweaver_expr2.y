@@ -433,8 +433,8 @@ void cw_log(int level, const char *file, int line, const char *function, const c
 
 
 int main(int argc,char **argv) {
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char s[4096];
-	char out[4096];
 	FILE *infile;
 	
 	if( !argv[1] )
@@ -455,16 +455,17 @@ int main(int argc,char **argv) {
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
 			
-			ret = cw_expr(s, out, sizeof(out));
+			ret = cw_expr(s, &ds);
 			printf("Expression: %s    Result: [%d] '%s'\n",
-				   s, ret, out);
+				   s, ret, ds.data);
+			cw_dynstr_reset(&ds);
 		}
 		fclose(infile);
 	}
 	else
 	{
-		if (cw_expr(argv[1], s, sizeof(s)))
-			printf("=====%s======\n",s);
+		if (cw_expr(argv[1], &ds))
+			printf("=====%s======\n", ds.data);
 		else
 			printf("No result\n");
 	}

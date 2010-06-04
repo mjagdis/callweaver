@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Eris Associates Limited, UK
+ * Copyright (C) 2009 - 2010, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
@@ -96,7 +96,7 @@ static int csvmaster_open(void)
 
 static int custom_log(struct cw_cdr *batch)
 {
-	char buf[4096]; /* Make sure we have a big enough buf */
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cw_cdr *cdrset, *cdr;
 
 	pthread_mutex_lock(&csv_lock);
@@ -106,12 +106,18 @@ static int custom_log(struct cw_cdr *batch)
 			batch = batch->batch_next;
 
 			while ((cdr = cdrset)) {
-				cdrset = cdrset->next;
-
 				chan->cdr = cdr;
-				pbx_substitute_variables(chan, &chan->vars, format, buf, sizeof(buf));
+				pbx_substitute_variables(chan, &chan->vars, format, &ds);
 
-				fputs(buf, csvmaster_fd);
+				if (!ds.error) {
+					cdrset = cdrset->next;
+					fputs(ds.data, csvmaster_fd);
+					cw_dynstr_reset(&ds);
+				} else {
+					cw_dynstr_free(&ds);
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					sleep(1);
+				}
 			}
 		}
 
@@ -120,6 +126,8 @@ static int custom_log(struct cw_cdr *batch)
 	}
 
 	pthread_mutex_unlock(&csv_lock);
+
+	cw_dynstr_free(&ds);
 	return 0;
 }
 

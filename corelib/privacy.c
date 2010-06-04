@@ -49,30 +49,40 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 int cw_privacy_check(char *dest, char *cid)
 {
 	char tmp[256] = "";
+	char key[256];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	const char *trimcid = "";
 	char *n, *l;
 	int res;
-	char key[256], result[256];
+
 	if (cid)
 		cw_copy_string(tmp, cid, sizeof(tmp));
+
 	cw_callerid_parse(tmp, &n, &l);
+
 	if (l) {
 		cw_shrink_phone_number(l);
 		trimcid = l;
 	}
+
 	snprintf(key, sizeof(key), "%s/%s", dest, trimcid);
-	res = cw_db_get("privacy", key, result, sizeof(result));
-	if (!res) {
-		if (!strcasecmp(result, "allow"))
-			return CW_PRIVACY_ALLOW;
-		if (!strcasecmp(result, "deny"))
-			return CW_PRIVACY_DENY;
-		if (!strcasecmp(result, "kill"))
-			return CW_PRIVACY_KILL;
-		if (!strcasecmp(result, "torture"))
-			return CW_PRIVACY_TORTURE;
+
+	res = CW_PRIVACY_UNKNOWN;
+
+	if (!cw_db_get("privacy", key, &ds) && !ds.error) {
+		if (!strcasecmp(ds.data, "allow"))
+			res = CW_PRIVACY_ALLOW;
+		if (!strcasecmp(ds.data, "deny"))
+			res = CW_PRIVACY_DENY;
+		if (!strcasecmp(ds.data, "kill"))
+			res = CW_PRIVACY_KILL;
+		if (!strcasecmp(ds.data, "torture"))
+			res = CW_PRIVACY_TORTURE;
 	}
-	return CW_PRIVACY_UNKNOWN;
+
+	cw_dynstr_free(&ds);
+
+	return res;
 }
 
 int cw_privacy_reset(char *dest)

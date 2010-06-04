@@ -67,7 +67,7 @@ static const char record_descrip[] =
 "Returns -1 when the user hangs up.\n";
 
 
-static int record_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int record_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char tmp[256];
 	struct cw_filestream *s = '\0';
@@ -94,7 +94,6 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	int flags;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > 4 || !argv[0][0])
 		return cw_function_syntax(record_syntax);

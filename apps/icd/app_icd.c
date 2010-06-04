@@ -554,7 +554,7 @@ icd_status autologin(void)
 /* this is where the customer enters the queue. Assumes channel already available. */
 /* TBD - All these _exec() functions have the same building blocks. These need to be
    refactored out. */
-int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     icd_customer *customer;
     char custname[256];
@@ -575,7 +575,6 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -843,7 +842,7 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, char 
  * Its also is intended to be used by external api that just want to schedule customer for callbacks
  *
  * */
-int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_customer *customer;
@@ -864,7 +863,6 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1031,7 +1029,7 @@ int app_icd__customer_callback_login(struct cw_channel *chan, int argc, char **a
 }
 
 /* this is where the agent logs in */
-int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char agentbuf[256];
     struct localuser *u;
@@ -1055,7 +1053,6 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1290,7 +1287,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, char *re
 }
 
 /* this is where the agent becomes a member of a queue */
-int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_queue *queue = NULL;
@@ -1299,7 +1296,6 @@ int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cha
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1337,14 +1333,13 @@ int app_icd__add_member_exec(struct cw_channel *chan, int argc, char **argv, cha
 }
 
 /* this is where the agent drops membership in a queue */
-int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
 
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1360,7 +1355,7 @@ int app_icd__remove_member_exec(struct cw_channel *chan, int argc, char **argv, 
 }
 
 /* This is intended to duplicate the AgentCallbackLogin function from chan_agent */
-int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_agent *agent;
@@ -1391,7 +1386,6 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);
@@ -1709,7 +1703,7 @@ int app_icd__agent_callback_login(struct cw_channel *chan, int argc, char **argv
 }
 
 /* this is where the agent logs out */
-int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct localuser *u;
     icd_agent *agent = NULL;
@@ -1719,7 +1713,6 @@ int app_icd__logout_exec(struct cw_channel *chan, int argc, char **argv, char *r
     void_hash_table *arghash = vh_init("args");
 
     CW_UNUSED(result);
-    CW_UNUSED(result_max);
 
     for (; argc; argv++, argc--)
 	    split_and_add(arghash, argv[0]);

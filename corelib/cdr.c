@@ -124,72 +124,75 @@ static struct cw_var_t *cw_cdr_getvar_internal(struct cw_cdr *cdr, const char *n
 	return NULL;
 }
 
-void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, char **ret, char *workspace, int workspacelen, int recur) 
+void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, struct cw_dynstr *workspace, int recur)
 {
 	struct tm tm;
 	time_t t;
 	struct cw_var_t *var;
 	const char *fmt = "%Y-%m-%d %T";
+	const size_t fmtlen = sizeof("YYYY-MM-DD HH:MM:SS") - 1;
 
-	*ret = NULL;
 	/* special vars (the ones from the struct cw_cdr when requested by name) 
 	   I'd almost say we should convert all the stringed vals to vars */
 
 	if (!strcasecmp(name, "clid"))
-		cw_copy_string(workspace, cdr->clid, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->clid);
 	else if (!strcasecmp(name, "src"))
-		cw_copy_string(workspace, cdr->src, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->src);
 	else if (!strcasecmp(name, "dst"))
-		cw_copy_string(workspace, cdr->dst, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->dst);
 	else if (!strcasecmp(name, "dcontext"))
-		cw_copy_string(workspace, cdr->dcontext, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->dcontext);
 	else if (!strcasecmp(name, "channel"))
-		cw_copy_string(workspace, cdr->channel, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->channel);
 	else if (!strcasecmp(name, "dstchannel"))
-		cw_copy_string(workspace, cdr->dstchannel, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->dstchannel);
 	else if (!strcasecmp(name, "lastapp"))
-		cw_copy_string(workspace, cdr->lastapp, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->lastapp);
 	else if (!strcasecmp(name, "lastdata"))
-		cw_copy_string(workspace, cdr->lastdata, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->lastdata);
 	else if (!strcasecmp(name, "start")) {
 		t = cdr->start.tv_sec;
 		if (t) {
 			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+			cw_dynstr_need(workspace, fmtlen + 1);
+			if (!workspace->error)
+				workspace->used += strftime(&workspace->data[workspace->used], fmtlen + 1, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "answer")) {
 		t = cdr->answer.tv_sec;
 		if (t) {
 			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+			cw_dynstr_need(workspace, fmtlen + 1);
+			if (!workspace->error)
+				workspace->used += strftime(&workspace->data[workspace->used], fmtlen + 1, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "end")) {
 		t = cdr->end.tv_sec;
 		if (t) {
 			localtime_r(&t, &tm);
-			strftime(workspace, workspacelen, fmt, &tm);
+			cw_dynstr_need(workspace, fmtlen + 1);
+			if (!workspace->error)
+				workspace->used += strftime(&workspace->data[workspace->used], fmtlen + 1, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "duration"))
-		snprintf(workspace, workspacelen, "%d", cdr->duration);
+		cw_dynstr_printf(workspace, "%d", cdr->duration);
 	else if (!strcasecmp(name, "billsec"))
-		snprintf(workspace, workspacelen, "%d", cdr->billsec);
+		cw_dynstr_printf(workspace, "%d", cdr->billsec);
 	else if (!strcasecmp(name, "disposition"))
-		cw_copy_string(workspace, cw_cdr_disp2str(cdr->disposition), workspacelen);
+		cw_dynstr_printf(workspace, "%s", cw_cdr_disp2str(cdr->disposition));
 	else if (!strcasecmp(name, "amaflags"))
-		cw_copy_string(workspace, cw_cdr_flags2str(cdr->amaflags), workspacelen);
+		cw_dynstr_printf(workspace, "%s", cw_cdr_flags2str(cdr->amaflags));
 	else if (!strcasecmp(name, "accountcode"))
-		cw_copy_string(workspace, cdr->accountcode, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->accountcode);
 	else if (!strcasecmp(name, "uniqueid"))
-		cw_copy_string(workspace, cdr->uniqueid, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->uniqueid);
 	else if (!strcasecmp(name, "userfield"))
-		cw_copy_string(workspace, cdr->userfield, workspacelen);
+		cw_dynstr_printf(workspace, "%s", cdr->userfield);
 	else if ((var = cw_cdr_getvar_internal(cdr, name, recur))) {
-		cw_copy_string(workspace, var->value, workspacelen);
+		cw_dynstr_printf(workspace, "%s", var->value);
 		cw_object_put(var);
 	}
-
-	if (!cw_strlen_zero(workspace))
-		*ret = workspace;
 }
 
 int cw_cdr_setvar(struct cw_cdr *cdr, const char *name, const char *value, int recur) 
@@ -280,7 +283,7 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 		"uniqueid",
 		"userfield"
 	};
-	char workspace[256];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cdr_serialize_args args = {
 		.buf_p = &buf,
 		.size_p = &size,
@@ -289,7 +292,6 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 		.x = 0,
 		.total = 0,
 	};
-	char *tmp;
 	int i;
 
 	memset(buf, 0, size);
@@ -301,18 +303,23 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 		cw_registry_iterate_ordered(&cdr->vars, cdr_serialize_one, &args);
 
 		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
-			cw_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
-			if (tmp) {
-				if (!cw_build_string(&buf, &size, "level %d: %s%c%s%c", args.x, cdrcols[i], delim, tmp, sep))
+			cw_cdr_getvar(cdr, cdrcols[i], &ds, 0);
+			if (!ds.error) {
+				if (!cw_build_string(&buf, &size, "level %d: %s%c%s%c", args.x, cdrcols[i], delim, ds.data, sep))
 					args.total++;
 				else {
 					cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
 					break;
 				}
+			} else {
+				cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				break;
 			}
+			cw_dynstr_reset(&ds);
 		}
 	}
 
+	cw_dynstr_free(&ds);
 	return args.total;
 }
 

@@ -87,7 +87,7 @@ static const char exit_descrip[] =
 "behavior.\n";
 
 
-static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int proc_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char oldexten[256] = "";
 	char fullproc[80];
@@ -110,7 +110,6 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int autoloopflag;
  
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1)
 		return cw_function_syntax(proc_syntax);
@@ -307,13 +306,12 @@ static int proc_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max) 
+static int procif_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char *s, *q;
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	/* First argument is "<condition ? ..." */
 	if (argc < 1 || !(s = strchr(argv[0], '?')))
@@ -335,7 +333,7 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 				break;
 			}
 		}
-		return proc_exec(chan, argc, argv, NULL, 0);
+		return proc_exec(chan, argc, argv, NULL);
 	} else {
 		/* False: we want everything after ':' (if anything) */
 		argv[0] = s;
@@ -343,7 +341,7 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 			if ((s = strchr(argv[i], ':'))) {
 				do { *(s++) = '\0'; } while (isspace(*s));
 				argv[i] = s;
-				return proc_exec(chan, argc - i, argv + i, NULL, 0);
+				return proc_exec(chan, argc - i, argv + i, NULL);
 			}
 		}
 		/* No ": ..." so we just drop through */
@@ -351,13 +349,12 @@ static int procif_exec(struct cw_channel *chan, int argc, char **argv, char *res
 	}
 }
 			
-static int proc_exit_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int proc_exit_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	return PROC_EXIT_RESULT;
 }

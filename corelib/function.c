@@ -123,45 +123,49 @@ static struct cw_func* cw_find_function(unsigned int hash, const char *name)
  * \param argc		the number of arguments
  * \param argv		an array of pointers to argument strings
  * \param result	where to write any result
- * \param result_max	how much space is available in out for a result
  *
  * \return 0 on success, -1 on failure
  */
-int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *out, size_t outlen)
+int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_func *func;
 	const char *saved_c_appl;
 	int ret = -1;
 
-	if (!(func = cw_find_function(hash, name)))
-		goto out;
+	errno = ENOENT;
+	if ((func = cw_find_function(hash, name))) {
+		/* FIXME: The last argument to cw_cdr_setapp should be the
+		 * argv as a comma separated string. But doing that costs.
+		 * Is it really needed? (It's for lastdata in CDR)
+		 * N.B. The reason we don't do this in the args-as-string wrapper
+		 * is because real languages will probably want to pass args as
+		 * arrays. So we better get used to it now.
+		 * N.N.B. The reason we don't do the setapp if there is a buffer
+		 * for a return value is because the post-hangup CDR generation
+		 * seems to keep expanding ${CDR(...)} expressions. So if we log
+		 * expression context function calls CDRs will always say the
+		 * last app was "CDR".
+		 */
+		if (chan->cdr && !result && !cw_check_hangup(chan))
+			cw_cdr_setapp(chan->cdr, name, argv[0]);
 
-	/* FIXME: The last argument to cw_cdr_setapp should be the
-	 * argv as a comma separated string. But doing that costs.
-	 * Is it really needed? (It's for lastdata in CDR)
-	 * N.B. The reason we don't do this in the args-as-string wrapper
-	 * is because real languages will probably want to pass args as
-	 * arrays. So we better get used to it now.
-	 * N.N.B. The reason we don't do the setapp if there is a buffer
-	 * for a return value is because the post-hangup CDR generation
-	 * seems to keep expanding ${CDR(...)} expressions. So if we log
-	 * expression context function calls CDRs will always say the
-	 * last app was "CDR".
-	 */
-	if (chan->cdr && !out && !cw_check_hangup(chan))
-		cw_cdr_setapp(chan->cdr, name, argv[0]);
+		/* save channel values - for the sake of CDR and debug output from DumpChan and the CLI <bleurgh> */
+		saved_c_appl = chan->appl;
+		chan->appl = name;
 
-	/* save channel values - for the sake of CDR and debug output from DumpChan and the CLI <bleurgh> */
-	saved_c_appl = chan->appl;
-	chan->appl = name;
+		ret = ((*func->handler)(chan, argc, argv, result) || (result && result->error));
+		cw_object_put(func);
 
-	ret = (*func->handler)(chan, argc, argv, out, outlen);
-	cw_object_put(func);
+		/* We use errno to indicate "function not found" so we have to
+		 * make sure it is set to something different after the function
+		 * has done whatever it does.
+		 */
+		errno = EINVAL;
 
-	/* restore channel values */
-	chan->appl= saved_c_appl;
+		/* restore channel values */
+		chan->appl = saved_c_appl;
+	}
 
-out:
 	return ret;
 }
 
@@ -181,11 +185,10 @@ out:
  * \param name		name of function to execute
  * \param args		the argument string
  * \param result	where to write any result
- * \param result_max	how much space is available in out for a result
  *
  * \return 0 on success, -1 on failure
  */
-int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *out, size_t outlen)
+int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, struct cw_dynstr *result)
 {
 	char *argv[100];
 	int ret;
@@ -193,20 +196,17 @@ int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char 
 	if (!args)
 		args = (char *)"";
 
-	/* Save the last byte for a terminating '\0' */
-	outlen--;
-
 	if (option_verbose > 2)
 		cw_verbose(VERBOSE_PREFIX_3 "%s: Call %s(%s)\n", (chan ? chan->name : "[no channel]"), name, args);
 
-	ret = cw_function_exec(chan, hash, name, cw_separate_app_args(args, ',', arraysize(argv), argv), argv, out, outlen);
+	ret = cw_function_exec(chan, hash, name, cw_separate_app_args(args, ',', arraysize(argv), argv), argv, result);
 
-	if (out)
-		out[outlen] = '\0';
-
-	if (option_debug && option_verbose > 5)
+	if (option_debug && option_verbose > 5) {
+		int e = errno;
                	cw_log(CW_LOG_DEBUG, "%s:  ret %d: %s\n",
-			(chan ? chan->name : "[no channel]"), ret, (out ? out : ""));
+			(chan ? chan->name : "[no channel]"), ret, (result ? result->data : ""));
+		errno = e;
+	}
 
 	return ret;
 }

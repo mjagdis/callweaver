@@ -75,7 +75,7 @@ static int play_and_wait(struct cw_channel *chan, const char *file, const char *
 	return res;
 }
 
-static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dictate_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char filein[256];
 	char dftbase[256];
@@ -97,7 +97,6 @@ static int dictate_exec(struct cw_channel *chan, int argc, char **argv, char *re
 		mode = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 	

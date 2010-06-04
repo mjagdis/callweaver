@@ -50,7 +50,7 @@ static const char milliwatt_descrip[] =
 "Generate a Constant 1004Hz tone at 0dbm (mu-law)\n";
 
 
-static int milliwatt_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int milliwatt_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static char deprecated = 0;
 	struct localuser *u;
@@ -58,7 +58,6 @@ static int milliwatt_exec(struct cw_channel *chan, int argc, char **argv, char *
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (!deprecated) {
 		deprecated = 1;

@@ -98,7 +98,7 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 }
 
 /*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
+static int parse_naptr(struct cw_dynstr *ds_p, char *tech, int techsize, char *answer, int len, char *naptrinput)
 {
 	char tech_return[80];
 	char *oanswer = answer;
@@ -117,9 +117,9 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 	regex_t preg;
 	regmatch_t pmatch[9];
 
-	tech_return[0] = '\0';
+	cw_dynstr_reset(ds_p);
 
-	dst[0] = '\0';
+	tech_return[0] = '\0';
 
 	if (len < sizeof(struct naptr)) {
 		cw_log(CW_LOG_WARNING, "NAPTR record length too short\n");
@@ -254,8 +254,8 @@ static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *a
 		}
 	}
 	*d = 0;
-	cw_copy_string(dst, temp, dstsize);
-	dst[dstsize - 1] = '\0';
+
+	cw_dynstr_printf(ds_p, "%s", temp);
 
 	if(*tech != '\0'){ /* check if it is requested NAPTR */
 		if(!strncasecmp(tech, "ALL", techsize)){
@@ -288,12 +288,9 @@ struct enum_naptr_rr {
 };
 
 struct enum_context {
-	char *dst;	/* Destination part of URL from ENUM */
-	int dstlen;	/* Length */
+	struct cw_dynstr *ds_p;	/* Destination part of URL from ENUM */
 	char *tech;	/* Technology (from URL scheme) */
 	int techlen;	/* Length */
-	char *txt;	/* TXT record in TXT lookup */
-	int txtlen;	/* Length */
 	char *naptrinput;	/* The number to lookup */
 	int position; /* used as counter for RRs or specifies position of required RR */
 	int options; /* options , see ENUMLOOKUP_OPTIONS_* defined above */
@@ -305,34 +302,27 @@ struct enum_context {
 static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
+	int ret = 0;
 
 	CW_UNUSED(fullanswer);
 
-	if (answer == NULL) {
-		c->txt = NULL;
-		c->txtlen = 0;
-		return 0;
+	if (answer) {
+		/* skip over first byte, as for some reason it's a vertical tab character */
+		answer += 1;
+		len -= 1;
+
+		/* answer SHOULD be null-terminated, but may not be.
+		 * This is safe to do, as answer has extra bytes on the end
+		 * that we can safely overwrite with a null.
+		 */
+		answer[len] = '\0';
+
+		cw_dynstr_printf(c->ds_p, "%s", answer);
+
+		ret = 1;
 	}
 
-	/* skip over first byte, as for some reason it's a vertical tab character */
-	answer += 1;
-	len -= 1;
-
-	/* answer is not null-terminated, but should be */
-	/* this is safe to do, as answer has extra bytes on the end we can
-	    safely overwrite with a null */
-	answer[len] = '\0';
-	/* now increment len so that len includes the null, so that we can
-	   compare apples to apples */
-	len +=1;
-
-	/* finally, copy the answer into c->txt */
-	cw_copy_string(c->txt, answer, len < c->txtlen ? len : (c->txtlen));
-
-	/* just to be safe, let's make sure c->txt is null terminated */
-	c->txt[(c->txtlen)-1] = '\0';
-
-	return 1;
+	return ret;
 }
 
 /*--- enum_callback: Callback from ENUM lookup function */
@@ -344,30 +334,39 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 
 	CW_UNUSED(fullanswer);
 
-	res = parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput);
+	res = parse_naptr(c->ds_p, c->tech, c->techlen, answer, len, c->naptrinput);
 
-	if(res < 0){
+	if (res < 0) {
 		cw_log(CW_LOG_WARNING, "Failed to parse naptr :(\n");
 		return -1;
-	} else if(res > 0 && !cw_strlen_zero(c->dst)){ /* ok, we got needed NAPTR */
-		if ((p = realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
-			c->naptr_rrs = p;
-			memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
-			c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
-			c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
-			c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
-			c->naptr_rrs_count++;
-		 }
-		 return 0;
+	} else if (res > 0) { /* ok, we got needed NAPTR */
+		char *data;
+		int error;
+
+		error= c->ds_p->error;
+		data = cw_dynstr_steal(c->ds_p);
+
+		if (data) {
+			if (!error && (p = realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
+				c->naptr_rrs = p;
+				memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
+				c->naptr_rrs[c->naptr_rrs_count].result = data;
+				c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
+				c->naptr_rrs[c->naptr_rrs_count].sort_pos = c->naptr_rrs_count;
+				c->naptr_rrs_count++;
+			} else
+				free(data);
+		}
 	}
 
 	return 0;
 }
 
 /*--- cw_get_enum: ENUM lookup */
-int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, const char *suffix, const char *options)
+int cw_get_enum(struct cw_channel *chan, const char *number, struct cw_dynstr *dst, char *tech, int techlen, const char *suffix, const char *options)
 {
 	struct enum_context context;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char tmp[259 + 512];
 	char naptrinput[512];
 	int pos = strlen(number) - 1;
@@ -389,8 +388,7 @@ int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstl
 	}
 
 	context.naptrinput = naptrinput;	/* The number */
-	context.dst = dst;			/* Return string */
-	context.dstlen = dstlen;
+	context.ds_p = &ds;
 	context.tech = tech;
 	context.techlen = techlen;
 	context.options = 0;
@@ -508,17 +506,14 @@ int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstl
 		 }
 		if ((context.options & ENUMLOOKUP_OPTIONS_ARRAY)) {
 			for (k = 0; k < context.naptr_rrs_count; k++) {
-				if (snprintf(dst, dstlen, options, context.naptr_rrs[k].sort_pos+1) >= dstlen) {
-					cw_log(CW_LOG_WARNING, "ENUM buffer too small setting result vars!");
-					break;
-				} else {
-					pbx_builtin_setvar_helper(chan, dst, context.naptr_rrs[k].result);	
-				}
+				cw_dynstr_reset(&ds);
+				cw_dynstr_printf(&ds, options, context.naptr_rrs[k].sort_pos+1);
+				pbx_builtin_setvar_helper(chan, (ds.used ? ds.data : ""), context.naptr_rrs[k].result);
 			}
 		} else {
 			for (k = 0; k < context.naptr_rrs_count; k++) {
 				if (context.naptr_rrs[k].sort_pos == context.position-1) {
-					cw_copy_string(dst, context.naptr_rrs[k].result, dstlen);
+					cw_dynstr_printf(dst, "%s", context.naptr_rrs[k].result);
 					cw_copy_string(tech, context.naptr_rrs[k].tech, techlen);
 					break;
 				}
@@ -526,11 +521,13 @@ int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstl
 		}
 	}
 	if ((context.options & ENUMLOOKUP_OPTIONS_COUNT)) {
-		snprintf(dst, dstlen, "%d", context.naptr_rrs_count);
+		cw_dynstr_printf(dst, "%d", context.naptr_rrs_count);
 	}
 
 	if (chan)
 		ret |= cw_autoservice_stop(chan);
+
+	cw_dynstr_free(&ds);
 
 	for(k=0; k<context.naptr_rrs_count; k++){
 		 free(context.naptr_rrs[k].result);
@@ -545,7 +542,7 @@ int cw_get_enum(struct cw_channel *chan, const char *number, char *dst, int dstl
 /*--- cw_get_txt: Get TXT record from DNS.
 	Really has nothing to do with enum, but anyway...
  */
-int cw_get_txt(struct cw_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
+int cw_get_txt(struct cw_channel *chan, const char *number, struct cw_dynstr *result, char *tech, int techlen)
 {
 	struct enum_context context;
 	char tmp[259 + 512];
@@ -559,12 +556,9 @@ int cw_get_txt(struct cw_channel *chan, const char *number, char *dst, int dstle
 	strncat(naptrinput, number, sizeof(naptrinput) - 2);
 
 	context.naptrinput = naptrinput;
-	context.dst = dst;
-	context.dstlen = dstlen;
+	context.ds_p = result;
 	context.tech = tech;
 	context.techlen = techlen;
-	context.txt = txt;
-	context.txtlen = txtlen;
 
 	if (pos > 128)
 		pos = 128;

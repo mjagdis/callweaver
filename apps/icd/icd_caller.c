@@ -3186,7 +3186,7 @@ icd_status icd_caller__dial_channel(icd_caller * that)
 
             result = ICD_ERESOURCE;
             if (!verify_app_arg || (p = strdup(verify_app_arg))) {
-                result = cw_function_exec_str(that->chan, cw_hash_string(verify_app), verify_app, p, NULL, 0);
+                result = cw_function_exec_str(that->chan, cw_hash_string(verify_app), verify_app, p, NULL);
                 if (p)
                     free(p);
             }

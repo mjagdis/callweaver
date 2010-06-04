@@ -132,27 +132,26 @@ static int load_config(int reload)
 	return 0;
 }
 
-/* assumues 'to' buffer is at least strlen(from) * 2 + 1 bytes */
-static int do_escape(char *to, const char *from)
+static void do_escape(struct cw_dynstr *dst, const struct cw_dynstr *src)
 {
-        char *out = to;
+	const char *p = src->data;
 
-        for (; *from; from++) {
-                if (*from == '\"' || *from == '\\')
-                        *out++ = *from;
-                *out++ = *from;
-        }
-        *out = '\0';
-
-        return 0;
+	while (*p) {
+		int n = strcspn(p, "\"\\");
+		cw_dynstr_printf(dst, "%.*s", n, p);
+		if (!p[n])
+			break;
+		cw_dynstr_printf(dst, "%c%c", p[n], p[n]);
+		p += n + 1;
+	}
 }
 
 static int sqlite3_log(struct cw_cdr *batch)
 {
-	char sql_insert_cmd[2048];
+	struct cw_dynstr cmd_ds = CW_DYNSTR_INIT;
+	struct cw_dynstr esc_ds = CW_DYNSTR_INIT;
 	struct cw_channel *chan;
 	struct cw_cdr *cdrset, *cdr;
-	char *sql_cmd;
 	char *sql_tmp_cmd;
 	char *zErr;
 	int count;
@@ -165,36 +164,50 @@ static int sqlite3_log(struct cw_cdr *batch)
 			batch = batch->batch_next;
 
 			while ((cdr = cdrset)) {
-				cdrset = cdrset->next;
-
 				sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
+
 				chan->cdr = cdr;
-				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, sql_insert_cmd, sizeof(sql_insert_cmd));
+				pbx_substitute_variables(chan, &chan->vars, sql_tmp_cmd, &cmd_ds);
+				do_escape(&esc_ds, &cmd_ds);
+
 				sqlite3_free(sql_tmp_cmd);
-				sql_cmd = alloca(strlen(sql_insert_cmd) * 2 + 1);
-				do_escape(sql_cmd, sql_insert_cmd);
 
-				for (count = 0; count < 5; count++) {
-					zErr = NULL;
-					res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
+				if (!cmd_ds.error && !esc_ds.error) {
+					cdrset = cdrset->next;
 
-					if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-						break;
+					for (count = 0; count < 5; count++) {
+						zErr = NULL;
+						res = sqlite3_exec(db, esc_ds.data, NULL, NULL, &zErr);
 
-					if (zErr)
+						if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
+							break;
+
+						if (zErr)
+							sqlite3_free(zErr);
+
+						usleep(200);
+					}
+
+					if (zErr) {
+						cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, esc_ds.data);
 						sqlite3_free(zErr);
+					}
 
-					usleep(200);
-				}
-
-				if (zErr) {
-					cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, sql_cmd);
-					sqlite3_free(zErr);
+					cw_dynstr_reset(&esc_ds);
+					cw_dynstr_reset(&cmd_ds);
+				} else {
+					cw_dynstr_free(&esc_ds);
+					cw_dynstr_free(&cmd_ds);
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					sleep(1);
 				}
 			}
 		}
 
 		cw_mutex_unlock(&lock);
+
+		cw_dynstr_free(&esc_ds);
+		cw_dynstr_free(&cmd_ds);
 		cw_channel_free(chan);
 	}
 

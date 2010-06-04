@@ -213,14 +213,13 @@ static struct cw_variable *realtime_curl(const char *database, const char *table
 	return config_data.vars;
 }
 
-static int realtime_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int realtime_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct config_data config_data;
 	struct cw_variable *v;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	memset(&config_data, 0, sizeof(config_data));
 	config_data.database = argv[0];

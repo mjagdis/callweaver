@@ -579,6 +579,7 @@ OUT:
 void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	sccp_line_t * l;
 	char tmp[256] = "";
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	int timeout = 0;
 	uint8_t res = 0;
 
@@ -626,13 +627,14 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 		goto OUT;
 	}
 
-	if (!cw_db_get("SCCP/message", "timeout", tmp, sizeof(tmp))) {
-		sscanf(tmp, "%i", &timeout);
+	if (!cw_db_get("SCCP/message", "timeout", &ds) && !ds.error) {
+		sscanf(ds.data, "%i", &timeout);
 	}
-	if (!cw_db_get("SCCP/message", "text", tmp, sizeof(tmp))) {
-		if (!cw_strlen_zero(tmp)) {
-			/* sccp_dev_displayprompt(d, 0, 0, tmp, timeout); */
-			sccp_dev_displayprinotify(d, tmp, 5, timeout);
+	cw_dynstr_reset(&ds);
+	if (!cw_db_get("SCCP/message", "text", &ds)) {
+		if (ds.used) {
+			/* sccp_dev_displayprompt(d, 0, 0, ds.data, timeout); */
+			sccp_dev_displayprinotify(d, ds.data, 5, timeout);
 			goto OUT;
 		}
 	}
@@ -645,6 +647,7 @@ void sccp_dev_check_displayprompt(sccp_device_t * d) {
 	/* when we are here, there's nothing to display */
 OUT:
 	cw_mutex_unlock(&d->lock);
+	cw_dynstr_free(&ds);
 }
 
 void sccp_dev_select_line(sccp_device_t * d, sccp_line_t * wanted) {

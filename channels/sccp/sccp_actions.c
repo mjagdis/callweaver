@@ -249,15 +249,14 @@ void sccp_handle_unregister(sccp_session_t * s, sccp_moo_t * r)
 }
 
 static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
+	struct cw_dynstr hint_ds = CW_DYNSTR_INIT;
 	sccp_hint_t *h;
 	sccp_line_t *l;
-	char hint[256] = "", hint_dialplan[256] = "";
+	char hint[256] = "", *hint_dialplan;
 	char *splitter, *hint_exten, *hint_context;
 
 	if (cw_strlen_zero(k->hint))
 		return 0;
-
-	memset(&hint_dialplan, 0, sizeof(hint_dialplan));
 
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Parsing speedial hint %s for speedial: %s,%s\n", d->id, k->hint, k->ext, k->name);
 	cw_copy_string(hint, k->hint, sizeof(k->hint));
@@ -270,15 +269,18 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 		cw_strip(hint_context);
 	else
 		hint_context = GLOB(context);
-	cw_get_hint(hint_dialplan, sizeof(hint_dialplan) - 1, NULL, 0, NULL, hint_context, hint_exten);
-	if (cw_strlen_zero(hint_dialplan)) {
-		sccp_log(10)(VERBOSE_PREFIX_3 "%s: No hint configuration in the dialplan %s for exten: %s and context: %s\n", d->id, hint_dialplan, hint_exten, hint_context);
+	cw_get_hint(&hint_ds, NULL, NULL, hint_context, hint_exten);
+	if (!hint_ds.used || hint_ds.error) {
+		sccp_log(10)(VERBOSE_PREFIX_3 "%s: No hint configuration in the dialplan for exten: %s and context: %s\n", d->id, hint_exten, hint_context);
+		cw_dynstr_free(&hint_ds);
 		return 0;
 	}
+	hint_dialplan = hint_ds.data;
 
 	h = sccp_hint_make(d, k->instance);
 	if (!h) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Error creating speeddial hint %s for extension %s and context: %s\n", d->id, hint_dialplan, hint_exten, hint_context);
+		cw_dynstr_free(&hint_ds);
 		return 0;
 	}
 
@@ -292,12 +294,14 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 			h->next = d->hints;
 			d->hints = h;
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Added hint (CALLWEAVER), extension %s@%s, device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
+			cw_dynstr_free(&hint_ds);
 			return 1;
 		}
 		/* error */
 		free(h);
 		h = NULL;
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Error adding hint (CALLWEAVER) for extension %s@%s and device %s\n", d->id, hint_exten, hint_context, hint_dialplan);
+		cw_dynstr_free(&hint_ds);
 		return 0;
 	}
 
@@ -309,6 +313,7 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 	if (!(l = sccp_line_find_byname(hint_dialplan))) {
 		sccp_log(10)(VERBOSE_PREFIX_3 "%s: Error adding hint (SCCP) for line: %s. The line does not exist!\n", d->id, hint_dialplan);
 		free(h);
+		cw_dynstr_free(&hint_ds);
 		return 0;
 	}
 
@@ -316,6 +321,7 @@ static uint8_t sccp_activate_hint(sccp_device_t *d, sccp_speed_t *k) {
 	l->hints = h;
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Added hint (SCCP) on line %s, extension %s, context: %s\n", d->id, l->name, hint_exten, hint_context);
 
+	cw_dynstr_free(&hint_ds);
 	return 1;
 }
 

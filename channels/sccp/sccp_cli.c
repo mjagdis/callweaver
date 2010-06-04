@@ -77,7 +77,6 @@ static char *sccp_print_group(char *buf, int buflen, cw_group_t group) {
 static int sccp_show_globals(struct cw_dynstr *ds_p, int argc, char * argv[])
 {
 	char pref_buf[128];
-	char cap_buf[512];
 	char buf[256];
 	char iabuf[INET_ADDRSTRLEN];
 
@@ -86,9 +85,8 @@ static int sccp_show_globals(struct cw_dynstr *ds_p, int argc, char * argv[])
 
 	cw_mutex_lock(&GLOB(lock));
 	cw_codec_pref_string(&GLOB(global_codecs), pref_buf, sizeof(pref_buf) - 1);
-	cw_getformatname_multiple(cap_buf, sizeof(cap_buf), GLOB(global_capability)),
 
-	cw_dynstr_tprintf(ds_p, 33,
+	cw_dynstr_tprintf(ds_p, 20,
 		cw_fmtval("SCCP channel driver global settings\n"),
 		cw_fmtval("------------------------------------\n\n"),
 #if SCCP_PLATFORM_BYTE_ORDER == SCCP_LITTLE_ENDIAN
@@ -116,7 +114,11 @@ static int sccp_show_globals(struct cw_dynstr *ds_p, int argc, char * argv[])
 #else
 		cw_fmtval(""),
 #endif
-		cw_fmtval("Capabilities          : %s\n", cap_buf),
+		cw_fmtval("Capabilities          : ")
+	);
+	cw_getformatname_multiple(ds_p, GLOB(global_capability));
+	cw_dynstr_tprintf(ds_p, 14,
+		cw_fmtval("\n"),
 		cw_fmtval("Codecs preference     : %s\n", pref_buf),
 		cw_fmtval("DND                   : %s\n", GLOB(dndmode) ? sccp_dndmode2str(GLOB(dndmode)) : "Disabled"),
 #ifdef CS_SCCP_PARK
@@ -153,7 +155,6 @@ static int sccp_show_device(struct cw_dynstr *ds_p, int argc, char * argv[]) {
 	sccp_speed_t * k;
 	sccp_line_t * l;
 	char pref_buf[128];
-	char cap_buf[512];
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
@@ -165,9 +166,8 @@ static int sccp_show_device(struct cw_dynstr *ds_p, int argc, char * argv[]) {
 	}
 	cw_mutex_lock(&d->lock);
 	cw_codec_pref_string(&d->codecs, pref_buf, sizeof(pref_buf) - 1);
-	cw_getformatname_multiple(cap_buf, sizeof(cap_buf), d->capability),
 
-	cw_dynstr_tprintf(ds_p, 25,
+	cw_dynstr_tprintf(ds_p, 15,
 		cw_fmtval("Current settings for selected Device\n"),
 		cw_fmtval("------------------------------------\n\n"),
 		cw_fmtval("MAC-Address        : %s\n", d->id),
@@ -182,7 +182,12 @@ static int sccp_show_device(struct cw_dynstr *ds_p, int argc, char * argv[]) {
 		cw_fmtval("Autologin          : %s\n", d->autologin),
 		cw_fmtval("Image Version      : %s\n", d->imageversion),
 		cw_fmtval("Timezone Offset    : %d\n", d->tz_offset),
-		cw_fmtval("Capabilities       : %s\n", cap_buf),
+		cw_fmtval("Capabilities       : ")
+	);
+	cw_getformatname_multiple(ds_p, d->capability);
+
+	cw_dynstr_tprintf(ds_p, 11,
+		cw_fmtval("\n"),
 		cw_fmtval("Codecs preference  : %s\n", pref_buf),
 		cw_fmtval("Can DND            : %s\n", (d->dndmode ? sccp_dndmode2str(d->dndmode) : "Disabled")),
 		cw_fmtval("Can Transfer       : %s\n", (d->transfer ? "Yes" : "No")),
@@ -361,7 +366,7 @@ static struct cw_clicmd cli_message_devices = {
 
 static int sccp_show_lines(struct cw_dynstr *ds_p, int argc, char * argv[])
 {
-	char cap_buf[512];
+	struct cw_dynstr caps = CW_DYNSTR_INIT;
 	sccp_line_t * l = NULL;
 	sccp_channel_t * c = NULL;
 	sccp_device_t * d = NULL;
@@ -388,10 +393,9 @@ static int sccp_show_lines(struct cw_dynstr *ds_p, int argc, char * argv[])
 		}
 
 		if (!c || (c->line != l))
-		c = NULL;
-		memset(&cap_buf, 0, sizeof(cap_buf));
+			c = NULL;
 		if (c && c->owner)
-			cw_getformatname_multiple(cap_buf, sizeof(cap_buf),  c->owner->nativeformats);
+			cw_getformatname_multiple(&caps,  c->owner->nativeformats);
 
 		cw_dynstr_printf(ds_p, "%-16s %-16s %-4s %-4d %-10s %-10s %-16s %-10s\n",
 			l->name,
@@ -401,14 +405,15 @@ static int sccp_show_lines(struct cw_dynstr *ds_p, int argc, char * argv[])
 			(c) ? sccp_indicate2str(c->state) : "--",
 			(c) ? skinny_calltype2str(c->calltype) : "",
 			(c) ? ( (c->calltype == SKINNY_CALLTYPE_OUTBOUND) ? c->calledPartyName : c->callingPartyName ) : "",
-			cap_buf);
+			(caps.used ? caps.data : ""));
 
 		cw_mutex_unlock(&l->lock);
 		l = l->next;
-  }
+	}
 
-  cw_mutex_unlock(&GLOB(lines_lock));
-  return RESULT_SUCCESS;
+	cw_mutex_unlock(&GLOB(lines_lock));
+	cw_dynstr_free(&caps);
+	return RESULT_SUCCESS;
 }
 
 static struct cw_clicmd cli_show_lines = {

@@ -191,7 +191,7 @@ static int app_callback(void *pArg, int argc, char **argv, char **columnNames){
 	return 0;
 }
 
-static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	char *errmsg;
@@ -199,7 +199,6 @@ static int sqlite_execapp(struct cw_channel *chan, int argc, char **argv, char *
 	int res=0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "sql requires an argument (sql)\n");
@@ -642,7 +641,6 @@ static int SQLiteSwitch_canmatch(struct cw_channel *chan, const char *context, c
 
 static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	char app_data[1024];
 	struct extcon extcon;
 	time_t now;
 	struct cw_object *obj;
@@ -671,11 +669,14 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 	cw_verbose("%s\n", (obj ? "match" : "fail"));
 
 	if (obj) {
+		struct cw_dynstr app_data = CW_DYNSTR_INIT;
+
 		cache = container_of(obj, struct cache, obj);
-		pbx_substitute_variables(chan, &chan->vars, cache->app_data[priority], app_data, sizeof(app_data));
+		pbx_substitute_variables(chan, &chan->vars, cache->app_data[priority], &app_data);
 		res = cw_function_exec_str(chan, 
                                 cw_hash_string(cache->app_name[priority]),
-                                cache->app_name[priority], app_data, NULL, 0);
+                                cache->app_name[priority], app_data.data, NULL);
+		cw_dynstr_free(&app_data);
 		cw_object_put(cache);
 	}
 

@@ -505,7 +505,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		}
 
 		data = strdup(data ? data : "");
-		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(appname), appname, data, NULL, 0) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(appname), appname, data, NULL) ? JS_FALSE : JS_TRUE );
 		if (data)
 			free(data);
 
@@ -521,7 +521,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-	char dbuf[1024] = "";
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct jchan *jc = JS_GetPrivate(cx, obj);
 	char *fdata = NULL, *fname = NULL;
 	char *args, *p;
@@ -561,8 +561,8 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 			
 		}
 
-		if (!cw_function_exec_str(jc->chan, cw_hash_string(fname), fname, args, dbuf, sizeof(dbuf)))
-			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, dbuf) );
+		if (!cw_function_exec_str(jc->chan, cw_hash_string(fname), fname, args, &ds))
+			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, ds.data) );
 
 		free(fname);
 		return JS_TRUE;
@@ -631,7 +631,7 @@ chan_recordfile(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rv
 		return JS_FALSE;
 	}
 	
-	*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, CW_KEYWORD_Record, "Record", path_info, NULL, 0) ? JS_FALSE : JS_TRUE );
+	*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, CW_KEYWORD_Record, "Record", path_info, NULL) ? JS_FALSE : JS_TRUE );
 	return JS_TRUE;
 	
 }
@@ -743,12 +743,8 @@ chan_dbput(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 static JSBool
 chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
-        int res = 0;
-        char tmp[256];
-	tmp[0] = '\0';
- 
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
         JSString *str = NULL;
-
         char *family, *key;
 
 	CW_UNUSED(obj);
@@ -763,16 +759,13 @@ chan_dbget(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
                 return JS_FALSE;
         }
 
-        res = cw_db_get(family, key, tmp, sizeof(tmp));
-	if (( res = cw_db_get(family, key, tmp, sizeof(tmp)) )) {
-		// Error
-		return JS_TRUE; // Return information in *rval to JSVAL_NULL
-	} else {
-		*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);
-		if ( cw_strlen_zero(tmp) ) 
+	if (!cw_db_get(family, key, &ds)) {
+		if (!ds.used)
 			*rval = BOOLEAN_TO_JSVAL(JSVAL_NULL);  // NULL
 		else
-			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, tmp)); // Not null
+			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, ds.data)); // Not null
+
+		cw_dynstr_free(&ds);
 	}
 
         return JS_TRUE;
@@ -1333,7 +1326,7 @@ static JSObject *new_jchan(JSContext *cx, JSObject *obj, struct cw_channel *chan
 	return NULL;
 }
 
-static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int js_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char buf[512];
 	struct localuser *u;
@@ -1347,7 +1340,6 @@ static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result,
 	int flags = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || !argv[0][0]) {
 		cw_log(CW_LOG_ERROR, "js requires an argument (filename|code)\n");
@@ -1413,15 +1405,15 @@ static int js_exec(struct cw_channel *chan, int argc, char **argv, char *result,
 	return res;
 }
 
-static int function_js_read(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_js_read(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct cw_var_t *var;
 
 	if (argc < 1 || !argv[0][0])
 		return cw_function_syntax(js_func_syntax);
 
-	if (js_exec(chan, argc, argv, NULL, 0) > -1 && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_JSFUNC, "JSFUNC"))) {
-		cw_copy_string(buf, var->value, len);
+	if (js_exec(chan, argc, argv, NULL) > -1 && (var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_JSFUNC, "JSFUNC"))) {
+		cw_dynstr_printf(result, "%s", var->value);
 		cw_object_put(var);
 		return 0;
 	}

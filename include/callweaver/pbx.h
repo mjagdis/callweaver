@@ -263,7 +263,7 @@ extern CW_API_PUBLIC int cw_extension_state_del(int id, cw_state_cb_type callbac
  * is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-extern CW_API_PUBLIC int cw_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct cw_channel *c, const char *context, const char *exten);
+extern CW_API_PUBLIC int cw_get_hint(struct cw_dynstr *hint, struct cw_dynstr *name, struct cw_channel *c, const char *context, const char *exten);
 
 /*! If an extension exists, return non-zero */
 /*  work */
@@ -522,10 +522,11 @@ extern CW_API_PUBLIC int pbx_builtin_serialize_variables(struct cw_channel *chan
 extern CW_API_PUBLIC struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name);
 extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
-extern CW_API_PUBLIC void pbx_retrieve_variable(struct cw_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct cw_registry *var_reg);
 extern CW_API_PUBLIC void pbx_builtin_clear_globals(void);
 
-extern CW_API_PUBLIC int pbx_substitute_variables(struct cw_channel *c, struct cw_registry *var_reg, const char *cp1, char *cp2, int count);
+extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, struct cw_dynstr *ds, struct cw_dynstr *res, size_t lparen, size_t rparen);
+
+extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst);
 
 extern CW_API_PUBLIC int cw_extension_patmatch(const char *pattern, const char *data);
 
@@ -565,11 +566,10 @@ extern CW_API_PUBLIC int cw_function_syntax(const char *syntax);
  * \param argc		the number of arguments
  * \param argv		an array of pointers to argument strings
  * \param result	where to write any result
- * \param result_max	how much space is available in out for a result
  *
  * \return 0 on success, -1 on failure
  */
-extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, char *result, size_t result_max);
+extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int hash, const char *name, int argc, char **argv, struct cw_dynstr *result);
 
 /*! \brief Executes a function using an argument string
  *
@@ -587,11 +587,10 @@ extern CW_API_PUBLIC int cw_function_exec(struct cw_channel *chan, unsigned int 
  * \param name		name of function to execute
  * \param args		the argument string
  * \param result	where to write any result
- * \param result_max	how much space is available in out for a result
  *
  * \return 0 on success, -1 on failure
  */
-extern CW_API_PUBLIC int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *result, size_t result_max);
+extern CW_API_PUBLIC int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, struct cw_dynstr *result);
 
 
 /* Number of active calls */

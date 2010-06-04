@@ -45,15 +45,15 @@ static const char fileexists_func_syntax[] = "FILEEXISTS(filename)";
 static const char fileexists_func_desc[] = "Returns the file status. Results are 'EXISTS' if the file exists and 'NONEXISTENT' if the file does not exist.\n";
 
 
-static int builtin_function_fileexists(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_fileexists(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(fileexists_func_syntax);
 
-	if (buf)
-		strncpy(buf, (access(argv[0], F_OK) ? "EXISTS" : "NONEXISTENT"), len);
+	if (result)
+		cw_dynstr_printf(result, "%s", (access(argv[0], F_OK) ? "EXISTS" : "NONEXISTENT"));
 
 	return 0;
 }

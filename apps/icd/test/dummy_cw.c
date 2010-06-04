@@ -9,6 +9,7 @@
 #include "callweaver/cli.h"
 #include "callweaver/lock.h"
 #include "callweaver/logger.h"
+#include "callweaver/dynstr.h"
 #include "callweaver/icd/icd_types.h"
 
 struct cw_channel { int x; };
@@ -246,7 +247,7 @@ int cw_cli_register ( struct cw_clicmd * e ) {
     return 0; 
 }
 
-int cw_register_function( const char * name, int(* execute)(struct cw_channel *, int, char **, char *, size_t, const char *), const char * synopsis, const char * syntax, const char * description) {
+int cw_register_function( const char * name, int(* execute)(struct cw_channel *, int, char **, struct cw_dynstr *), const char * synopsis, const char * syntax, const char * description) {
     return 0;
 }
 
@@ -302,7 +303,7 @@ int cw_check_hangup(struct cw_channel *chan) {
     return 0;
 }
 
-int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, char *out, size_t outlen) {
+int cw_function_exec_str(struct cw_channel *chan, unsigned int hash, const char *name, char *args, struct cw_dynstr *out) {
  return 0;
 }
  

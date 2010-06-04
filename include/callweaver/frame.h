@@ -32,6 +32,7 @@ extern "C" {
 #include <inttypes.h>
 #include <string.h>
 
+#include "callweaver/dynstr.h"
 #include "callweaver/time.h"
 #include "callweaver/utils.h"
 
@@ -421,7 +422,7 @@ extern CW_API_PUBLIC const char *cw_getformatname(int format) __attribute__((__p
  * ex: for format=CW_FORMAT_GSM|CW_FORMAT_SPEEX|CW_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"
  * \return The return value is buf.
  */
-extern CW_API_PUBLIC char *cw_getformatname_multiple(char *buf, size_t size, int format);
+extern CW_API_PUBLIC void cw_getformatname_multiple(struct cw_dynstr *result, int format);
 
 /*!
  * \param name string of format

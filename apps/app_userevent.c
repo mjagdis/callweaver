@@ -70,50 +70,52 @@ static const char userevent_descrip[] =
 "Returns 0.";
 
 
-static int userevent_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int userevent_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char eventname[512];
+	struct cw_dynstr eventname = CW_DYNSTR_INIT;
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (argc < 1 || argc > MAX_KEY_VAL_PAIRS * 2 + 1 || !(argc & 1) || !argv[0][0])
 		return cw_function_syntax(userevent_syntax);
 
-	snprintf(eventname, sizeof(eventname), "UserEvent%s", argv[0]);
+	cw_dynstr_printf(&eventname, "UserEvent%s", argv[0]);
 
-	for (i = (argc - 1) / 2; i < MAX_KEY_VAL_PAIRS; i++) {
-		argv[1 + argc * 2 + 0] = (char *)"nokey";
-		argv[1 + argc * 2 + 1] = (char *)"";
+	if (!eventname.error) {
+		for (i = (argc - 1) / 2; i < MAX_KEY_VAL_PAIRS; i++) {
+			argv[1 + argc * 2 + 0] = (char *)"nokey";
+			argv[1 + argc * 2 + 1] = (char *)"";
+		}
+
+		cw_manager_event(EVENT_FLAG_USER, eventname.data,
+			22, /* MAX_KEY_VAL_PAIRS + 2 */
+			cw_msg_tuple("Channel",  "%s", chan->name),
+			cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
+			cw_msg_tuple(argv[ 1],   "%s", argv[ 2]),
+			cw_msg_tuple(argv[ 3],   "%s", argv[ 4]),
+			cw_msg_tuple(argv[ 5],   "%s", argv[ 6]),
+			cw_msg_tuple(argv[ 7],   "%s", argv[ 8]),
+			cw_msg_tuple(argv[ 9],   "%s", argv[10]),
+			cw_msg_tuple(argv[11],   "%s", argv[12]),
+			cw_msg_tuple(argv[13],   "%s", argv[14]),
+			cw_msg_tuple(argv[15],   "%s", argv[16]),
+			cw_msg_tuple(argv[17],   "%s", argv[18]),
+			cw_msg_tuple(argv[19],   "%s", argv[20]),
+			cw_msg_tuple(argv[21],   "%s", argv[22]),
+			cw_msg_tuple(argv[23],   "%s", argv[24]),
+			cw_msg_tuple(argv[25],   "%s", argv[26]),
+			cw_msg_tuple(argv[27],   "%s", argv[28]),
+			cw_msg_tuple(argv[29],   "%s", argv[30]),
+			cw_msg_tuple(argv[31],   "%s", argv[32]),
+			cw_msg_tuple(argv[33],   "%s", argv[34]),
+			cw_msg_tuple(argv[35],   "%s", argv[36]),
+			cw_msg_tuple(argv[37],   "%s", argv[38]),
+			cw_msg_tuple(argv[39],   "%s", argv[40])
+		);
 	}
 
-	cw_manager_event(EVENT_FLAG_USER, eventname,
-		22, /* MAX_KEY_VAL_PAIRS + 2 */
-		cw_msg_tuple("Channel",  "%s", chan->name),
-		cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
-		cw_msg_tuple(argv[ 1],   "%s", argv[ 2]),
-		cw_msg_tuple(argv[ 3],   "%s", argv[ 4]),
-		cw_msg_tuple(argv[ 5],   "%s", argv[ 6]),
-		cw_msg_tuple(argv[ 7],   "%s", argv[ 8]),
-		cw_msg_tuple(argv[ 9],   "%s", argv[10]),
-		cw_msg_tuple(argv[11],   "%s", argv[12]),
-		cw_msg_tuple(argv[13],   "%s", argv[14]),
-		cw_msg_tuple(argv[15],   "%s", argv[16]),
-		cw_msg_tuple(argv[17],   "%s", argv[18]),
-		cw_msg_tuple(argv[19],   "%s", argv[20]),
-		cw_msg_tuple(argv[21],   "%s", argv[22]),
-		cw_msg_tuple(argv[23],   "%s", argv[24]),
-		cw_msg_tuple(argv[25],   "%s", argv[26]),
-		cw_msg_tuple(argv[27],   "%s", argv[28]),
-		cw_msg_tuple(argv[29],   "%s", argv[30]),
-		cw_msg_tuple(argv[31],   "%s", argv[32]),
-		cw_msg_tuple(argv[33],   "%s", argv[34]),
-		cw_msg_tuple(argv[35],   "%s", argv[36]),
-		cw_msg_tuple(argv[37],   "%s", argv[38]),
-		cw_msg_tuple(argv[39],   "%s", argv[40])
-	);
-
+	cw_dynstr_free(&eventname);
 	return 0;
 }
 

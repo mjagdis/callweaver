@@ -323,8 +323,8 @@ static int start_bc_tones(struct chan_list *cl);
 static int stop_bc_tones(struct chan_list *cl);
 static void release_chan(struct misdn_bchannel *bc);
 
-static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
-static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
+static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 
 int chan_misdn_jb_empty(struct misdn_bchannel *bc, char *buf, int len);
 
@@ -710,9 +710,9 @@ static inline void show_config_description (struct cw_dynstr *ds_p, enum misdn_c
 	misdn_cfg_get_desc(elem, desc, sizeof(desc), def, sizeof(def));
 
 	if (elem < MISDN_CFG_LAST)
-		snprintf(section, BUFFERSIZE, "PORTS SECTION", sizeof(section));
+		cw_copy_string(section, "PORTS SECTION", sizeof(section));
 	else
-		snprintf(section, BUFFERSIZE, "GENERAL SECTION", sizeof(section));
+		cw_copy_string(section, "GENERAL SECTION", sizeof(section));
 
 	if (*def)
 		cw_dynstr_printf(ds_p, "[%s] %s   (Default: %s)\n\t%s\n", section, name, def, desc);
@@ -731,7 +731,7 @@ static int misdn_show_config (struct cw_dynstr *ds_p, int argc, char *argv[])
 	if (argc >= 4) {
 		if (!strcmp(argv[3], "description")) {
 			if (argc == 5) {
-				enum misdn_cfg_elements elem = misdn_cfg_get_elem (argv[4]);
+				elem = misdn_cfg_get_elem (argv[4]);
 				if (elem == MISDN_CFG_FIRST)
 					cw_dynstr_printf(ds_p, "Unknown element: %s\n", argv[4]);
 				else
@@ -1919,7 +1919,7 @@ static int misdn_call(struct cw_channel *cw, const char *dest)
 		
 		/* Finally The Options Override Everything */
 		if (opts)
-			misdn_set_opt_exec(cw, 1, &opts, NULL, 0);
+			misdn_set_opt_exec(cw, 1, &opts, NULL);
 		else
 			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
@@ -4667,22 +4667,24 @@ MODULE_INFO(load_module, reload_config, unload_module, NULL, desc)
 
 /*** SOME APPS ;)***/
 
-static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 
+	CW_UNUSED(result);
+
 	chan_misdn_log(0,0,"TYPE: %s\n",chan->tech->type);
-	
+
 	if (strcasecmp(chan->tech->type,"mISDN")) {
 		cw_log(CW_LOG_WARNING, "misdn_facility makes only sense with chan_misdn channels!\n");
 		return -1;
 	}
-	
+
 	if (argc < 1 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "misdn_facility Requires arguments\n");
 		return -1;
 	}
-	
+
 	if (!strcasecmp(argv[0],"calldeflect")) {
 		if (argc < 2 || !argv[1][0])
 			cw_log(CW_LOG_WARNING, "Facility: Call Defl Requires arguments\n");
@@ -4692,13 +4694,12 @@ static int misdn_facility_exec(struct cw_channel *chan, int argc, char **argv, c
 	} else {
 		cw_log(CW_LOG_WARNING, "Unknown Facility: %s\n", argv[0]);
 	}
-	
+
 	return 0;
-	
 }
 
 
-static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct chan_list *ch = MISDN_CALLWEAVER_TECH_PVT(chan);
 	char *tok,*tokb;
@@ -4706,12 +4707,14 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 	int rxgain=0;
 	int txgain=0;
 	int change_jitter=0;
-	
+
+	CW_UNUSED(result);
+
 	if (strcasecmp(chan->tech->type,"mISDN")) {
 		cw_log(CW_LOG_WARNING, "misdn_set_opt makes only sense with chan_misdn channels!\n");
 		return -1;
 	}
-	
+
 	if (argc != 1 || !argv[0][0]) {
 		cw_log(CW_LOG_WARNING, "misdn_set_opt Requires arguments\n");
 		return -1;
@@ -4721,19 +4724,19 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 	     tok;
 	     tok=strtok_r(NULL,":",&tokb) ) {
 		int neglect=0;
-		
+
 		if (tok[0] == '!' ) {
 			neglect=1;
 			tok++;
 		}
-		
+
 		switch(tok[0]) {
 			
 		case 'd' :
 			cw_copy_string(ch->bc->display,++tok,84);
 			chan_misdn_log(1, ch->bc->port, "SETOPT: Display:%s\n",ch->bc->display);
 			break;
-			
+
 		case 'n':
 			chan_misdn_log(1, ch->bc->port, "SETOPT: No DSP\n");
 			ch->bc->nodsp=1;
@@ -4743,7 +4746,7 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 			chan_misdn_log(1, ch->bc->port, "SETOPT: jitter\n");
 			tok++;
 			change_jitter=1;
-			
+
 			switch ( tok[0] ) {
 			case 'b' :
 				ch->jb_len=atoi(++tok);
@@ -4758,16 +4761,16 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 				ch->bc->nojitter=1;
 				chan_misdn_log(1, ch->bc->port, " --> nojitter\n");
 				break;
-				
+
 			default:
 				ch->jb_len=4000;
 				ch->jb_upper_threshold=0;
 				chan_misdn_log(1, ch->bc->port, " --> buffer_len:%d (default)\n",ch->jb_len);
 				chan_misdn_log(1, ch->bc->port, " --> upper_threshold:%d (default)\n",ch->jb_upper_threshold);
 			}
-			
+
 			break;
-      
+
 		case 'v':
 			tok++;
 
@@ -4788,7 +4791,7 @@ static int misdn_set_opt_exec(struct cw_channel *chan, int argc, char **argv, ch
 				break;
 			}
 			break;
-      
+
 		case 'c':
 			keyidx=atoi(++tok);
       

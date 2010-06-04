@@ -66,7 +66,7 @@ static int cpeid_setstatus(struct cw_channel *chan, char *stuff[], int voice)
 	return adsi_print(chan, tmp, justify, voice);
 }
 
-static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char data[4][80];
 	char *stuff[4];
@@ -80,7 +80,6 @@ static int cpeid_exec(struct cw_channel *chan, int argc, char **argv, char *resu
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 	stuff[0] = data[0];

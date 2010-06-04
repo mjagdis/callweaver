@@ -66,8 +66,7 @@ static const char curl_func_desc[] =
 
 
 struct curl_rw_args {
-	char *buf;
-	size_t len;
+	struct cw_dynstr *result;
 };
 
 
@@ -76,23 +75,19 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *data)
 	struct curl_rw_args *write_args = data;
 	int len;
 
-	len = (size * nmemb < write_args->len ? size * nmemb : write_args->len);
+	len = size * nmemb;
 
-	if (write_args->buf) {
-		memcpy(write_args->buf, ptr, len);
-		write_args->buf[len] = '\0';
-		write_args->buf += len;
-		write_args->len -= len;
-	}
+	if (write_args->result)
+		cw_dynstr_printf(write_args->result, "%.*s", len, (char *)ptr);
+
 	return len;
 }
 
 
-static int curl_rw(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int curl_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct curl_rw_args write_args = {
-		.buf = buf,
-		.len = len,
+		.result = result,
 	};
 	int ret;
 

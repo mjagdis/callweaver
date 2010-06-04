@@ -1378,41 +1378,25 @@ const char *cw_rtp_lookup_mime_subtype(const int is_cw_format, const int code)
     return "";
 }
 
-char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format)
+void cw_rtp_lookup_mime_multiple(struct cw_dynstr *result, const int capability, const int is_cw_format)
 {
+    size_t mark;
     int format;
-    unsigned int len;
-    char *end = buf;
-    char *start = buf;
 
-    if (!buf  ||  !size)
-        return NULL;
+    cw_dynstr_printf(result, "0x%x (", capability);
 
-    snprintf(end, size, "0x%x (", capability);
-
-    len = strlen(end);
-    end += len;
-    size -= len;
-    start = end;
+    mark = cw_dynstr_end(result);
 
     for (format = 1;  format < CW_RTP_MAX;  format <<= 1)
     {
         if (capability & format)
         {
             const char *name = cw_rtp_lookup_mime_subtype(is_cw_format, format);
-            snprintf(end, size, "%s|", name);
-            len = strlen(end);
-            end += len;
-            size -= len;
+            cw_dynstr_printf(result, "%s|", name);
         }
     }
 
-    if (start == end)
-        snprintf(start, size, "nothing)"); 
-    else if (size > 1)
-        *(end -1) = ')';
-    
-    return buf;
+    cw_dynstr_printf(result, (cw_dynstr_end(result) != mark ? ")" : "nothing)"));
 }
 
 struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr addr)

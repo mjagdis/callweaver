@@ -1082,7 +1082,7 @@ static int handle_exec(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	res = cw_function_exec_str(chan, cw_hash_string(argv[1]), argv[1], argv[2], NULL, 0);
+	res = cw_function_exec_str(chan, cw_hash_string(argv[1]), argv[1], argv[2], NULL);
 
 	fdprintf(ogi->fd, "200 result=%d\n", res);
 
@@ -1142,33 +1142,33 @@ static int handle_setvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 
 static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	char *ret, *args;
-	char tempstr[1024] = "";
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	char *args, *arge;
+	int ret;
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 
 	/* check if we want to execute a function */
-	if ((args = strchr(argv[2], '(')) && (ret = strrchr(argv[2], ')'))) {
-		*(args++) = '\0';
-		*ret = '\0';
-		ret = (!cw_function_exec_str(chan, cw_hash_string(argv[2]), argv[2], args, tempstr, sizeof(tempstr)) ? tempstr : NULL);
+	if ((args = strchr(argv[2], '(')) && (arge = strrchr(argv[2], ')'))) {
+		*(args++) = *arge = '\0';
+		ret = !cw_function_exec_str(chan, cw_hash_string(argv[2]), argv[2], args, &ds);
 	} else {
-		pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
+		ret = !pbx_retrieve_substr(chan, NULL, argv[2], strlen(argv[2]), &ds, 0, 0);
 	}
 
-	if (ret)
-		fdprintf(ogi->fd, "200 result=1 (%s)\n", ret);
+	if (ret && !ds.error)
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
 	else
 		fdprintf(ogi->fd, "200 result=0\n");
 
+	cw_dynstr_free(&ds);
 	return RESULT_SUCCESS;
 }
 
 
 static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	char tmp[4096];
 	struct cw_channel *chan2;
 
 	if ((argc != 4) && (argc != 5))
@@ -1177,8 +1177,11 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 	chan2 = (argc == 5 ? cw_get_channel_by_name_locked(argv[4]) : chan);
 
 	if (chan) {
-		pbx_substitute_variables(chan2, &chan2->vars, argv[4], tmp, sizeof(tmp));
-		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+
+		pbx_substitute_variables(chan2, &chan2->vars, argv[4], &ds);
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
+		cw_dynstr_free(&ds);
 	} else {
 		fdprintf(ogi->fd, "200 result=0\n");
 	}
@@ -1231,20 +1234,19 @@ static int handle_verbose(struct cw_channel *chan, OGI *ogi, int argc, char **ar
 
 static int handle_dbget(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 {
-	char tmp[256];
-	int res;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 
 	CW_UNUSED(chan);
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 
-	res = cw_db_get(argv[2], argv[3], tmp, sizeof(tmp));
-	if (res) 
-		fdprintf(ogi->fd, "200 result=0\n");
+	if (!cw_db_get(argv[2], argv[3], &ds))
+		fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
 	else
-		fdprintf(ogi->fd, "200 result=1 (%s)\n", tmp);
+		fdprintf(ogi->fd, "200 result=0\n");
 
+	cw_dynstr_free(&ds);
 	return RESULT_SUCCESS;
 }
 
@@ -2073,23 +2075,21 @@ static int ogi_exec_full(struct cw_channel *chan, int argc, char **argv, int enh
 	return res;
 }
 
-static int ogi_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int ogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (chan->_softhangup)
 		cw_log(CW_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
 	return ogi_exec_full(chan, argc, argv, 0, 0);
 }
 
-static int eogi_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int eogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int readformat;
 	int res;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	if (chan->_softhangup)
 		cw_log(CW_LOG_WARNING, "If you want to run OGI on hungup channels you should use DeadOGI!\n");
@@ -2107,12 +2107,11 @@ static int eogi_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	return res;
 }
 
-static int deadogi_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int deadogi_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	return ogi_exec_full(chan, argc, argv, 0, 1);
 }

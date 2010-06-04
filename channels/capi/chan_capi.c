@@ -4528,11 +4528,13 @@ static struct capicommands_s {
 /*
  * capi command interface
  */
-static int pbx_capicommand_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int pbx_capicommand_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct localuser *u;
 	struct capicommands_s *capicmd = &capicommands[0];
 	int res = 0;
+
+	CW_UNUSED(result);
 
 	if (argc < 1 || !argv[0][0])
 		return cw_function_syntax("capiCommand(command[, args...])");

@@ -118,32 +118,36 @@ struct sortable_keys {
 	float value;
 };
 
-static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char *varval, workspace[256];
-	int fieldcount = 0;
-
 	if (argc != 2 || !argv[0][0] || !argv[1][0])
 		return cw_function_syntax(fieldqty_func_syntax);
 
-	if (buf) {
-		pbx_retrieve_variable(chan, argv[0], &varval, workspace, sizeof(workspace), NULL);
-		/* FIXME: should we use cw_separate_app_args here to get quoting right */
-		while (strsep(&varval, argv[1]))
-			fieldcount++;
-		snprintf(buf, len, "%d", fieldcount);
+	if (result) {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+		int fieldcount = 0;
+
+		if (!pbx_retrieve_variable(chan, NULL, argv[0], strlen(argv[0]), &ds, 0, 0)) {
+			if (!ds.error) {
+				char *p = ds.data;
+
+				/* FIXME: should we use cw_separate_app_args here to get quoting right */
+				while (strsep(&p, argv[1]))
+					fieldcount++;
+				cw_dynstr_printf(result, "%d", fieldcount);
+			} else
+				result->error = 1;
+		}
+
+		cw_dynstr_free(&ds);
 	}
 
 	return 0;
 }
 
 
-static int function_filter(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_filter(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char *outbuf = buf;
-	char *allowed;
-	char *string;
-
 	CW_UNUSED(chan);
 
 	if (argc != 2 || !argv[0][0] || !argv[1][0]) {
@@ -151,124 +155,132 @@ static int function_filter(struct cw_channel *chan, int argc, char **argv, char 
 		return -1;
 	}
 
-	allowed = argv[0];
-	string = argv[1];
-
-	for (; *(string) && (buf + len - 1 > outbuf); (string)++) {
-		if (strchr(allowed, *(string)))
-			*(outbuf++) = *(string);
+	if (result) {
+		char *s = argv[1];
+		while (*s) {
+			int n = strcspn(s, argv[0]);
+			cw_dynstr_printf(result, "%.*s", n, s);
+			if (!s[n])
+				break;
+			s += n + 1;
+		}
 	}
-	*outbuf = '\0';
 
 	return 0;
 }
 
 
-static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_regex(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	char errstr[256] = "";
 	regex_t regexbuf;
-	int i;
+	int i, match;
+	int ret = -1;
 
 	CW_UNUSED(chan);
 
 	if (argc < 2 || !argv[0][0] || !argv[1])
 		return cw_function_syntax(regex_func_syntax);
 
-	if (!buf) {
-		cw_log(CW_LOG_ERROR, "%s should only be used in an expression context\n", regex_func_name);
-		return -1;
-	}
+	if (result) {
+		if (!(i = regcomp(&regexbuf, argv[0], REG_EXTENDED | REG_NOSUB))) {
+			match = 0;
+			for (i = 1; i < argc; i++) {
+				if (!regexec(&regexbuf, argv[i], 0, NULL, 0)) {
+					match = i;
+					break;
+				}
+			}
 
-	if ((i = regcomp(&regexbuf, argv[0], REG_EXTENDED | REG_NOSUB))) {
-		regerror(i, &regexbuf, errstr, sizeof(errstr));
-		cw_log(CW_LOG_ERROR, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
-		return -1;
-	}
+			cw_dynstr_printf(result, "%d", match);
 
-	if (len > 0) {
-		buf[0] = '0';
-		if (len > 1)
-			buf[1] = '\0';
-	}
-
-	for (i = 1; i < argc; i++) {
-		if (!regexec(&regexbuf, argv[i], 0, NULL, 0)) {
-			snprintf(buf, len, "%d", i);
-			break;
+			regfree(&regexbuf);
+			ret = 0;
+		} else {
+			regerror(i, &regexbuf, errstr, sizeof(errstr));
+			cw_log(CW_LOG_ERROR, "Malformed input %s(%s): %s\n", regex_func_name, argv[0], errstr);
 		}
+	} else {
+		cw_log(CW_LOG_ERROR, "%s should only be used in an expression context\n", regex_func_name);
 	}
 
-	regfree(&regexbuf);
-	return 0;
+	return ret;
 }
 
 
-static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int builtin_function_len(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	CW_UNUSED(chan);
 	CW_UNUSED(argc);
 
-	if (buf)
-		snprintf(buf, len, "%lu", (unsigned long)(argv[0] ? strlen(argv[0]) : 0));
+	if (result)
+		cw_dynstr_printf(result, "%lu", (unsigned long)(argv[0] ? strlen(argv[0]) : 0UL));
 
 	return 0;
 }
 
 
-static int acf_strftime(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int acf_strftime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char *epoch = NULL;
+	struct tm now;
+	struct timeval tv;
 	char *tz = NULL;
 	const char *format = "%c";
-	long epochi;
-	struct tm now_tm;
+	size_t mark;
+	int need, n;
 
 	CW_UNUSED(chan);
 
-	if ( (argc>0) && (!cw_strlen_zero(argv[0])) ) epoch=argv[0];
-	if ( (argc>1) && (!cw_strlen_zero(argv[1])) ) tz=argv[1];
-	if ( (argc>2) && (!cw_strlen_zero(argv[2])) ) format=argv[2];
+	if (argc < 1 || !argv[0][0] || !sscanf(argv[0], "%ld", &tv.tv_sec))
+		tv = cw_tvnow();
 
-	if (argc < 1 || !argv[0][0] || !sscanf(epoch, "%ld", &epochi)) {
-		struct timeval tv = cw_tvnow();
-		epochi = tv.tv_sec;
-	}
-	buf[0] = '\0';
-	cw_localtime(&epochi, &now_tm, tz);
+	if (argc > 1 && argv[1][0]) tz = argv[1];
+	if (argc > 2 && argv[2][0]) format = argv[2];
 
-	if (!strftime(buf, len, format, &now_tm)) {
-		cw_log(CW_LOG_DEBUG, "C function strftime() output nothing or needed more than %lu bytes\n", (unsigned long)len);
-		*buf = '\0';
-	}
-	buf[len - 1] = '\0';
+	cw_localtime(&tv.tv_sec, &now, tz);
+
+	mark = cw_dynstr_end(result);
+	need = 0;
+	do {
+		cw_dynstr_truncate(result, mark);
+
+		need += 256;
+		cw_dynstr_need(result, need);
+		if (result->error)
+			break;
+
+		n = strftime(result->data, need, format, &now);
+	} while (n == 0 || n == need);
+
 	return 0;
 }
 
 
-static int function_eval(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_eval(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(eval_func_syntax);
 
-	return pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], buf, len);
+	pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), argv[0], result);
+	return 0;
 }
 
 
-static int function_cut(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_cut(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char varvalue[MAXRESULT];
+	struct cw_dynstr varvalue = CW_DYNSTR_INIT;
 	char one[] = "1";
 	char *tmp2;
 	char *field=NULL;
 	char *tmp;
-	char d, ds[2];
 	int curfieldnum;
+	int first = 1;
+	char d, ds[2];
 
 	if (argc != 3 || !argv[0][0] || !argv[2][0])
 		return cw_function_syntax(cut_func_syntax);
 
-	if (buf) {
+	if (result) {
 		tmp = alloca(strlen(argv[0]) + 4);
 		snprintf(tmp, strlen(argv[0]) + 4, "${%s}", argv[0]);
 
@@ -278,9 +290,9 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, char *bu
 		/* String form of the delimiter, for use with strsep(3) */
 		snprintf(ds, sizeof(ds), "%c", d);
 
-		pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), tmp, varvalue, sizeof(varvalue));
+		pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), tmp, &varvalue);
 
-		tmp2 = varvalue;
+		tmp2 = varvalue.data;
 		curfieldnum = 1;
 		while ((tmp2 != NULL) && (field != NULL)) {
 			char *nextgroup = strsep(&field, "&");
@@ -323,17 +335,15 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, char *bu
 			/* Output fields until we either run out of fields or num2 is reached */
 			while ((tmp2 != NULL) && (curfieldnum <= num2)) {
 				char *tmp3 = strsep(&tmp2, ds);
-				int curlen = strlen(buf);
 
-				if (curlen) {
-					snprintf(buf + curlen, len - curlen, "%c%s", d, tmp3);
-				} else {
-					snprintf(buf, len, "%s", tmp3);
-				}
+				cw_dynstr_printf(result, "%s%s", (!first ? ds : ""), tmp3);
 
+				first = 0;
 				curfieldnum++;
 			}
 		}
+
+		cw_dynstr_free(&varvalue);
 	}
 
 	return 0;
@@ -352,7 +362,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 	}
 }
 
-static int function_sort(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_sort(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	struct sortable_keys *sortable_keys;
 	char *p;
@@ -363,7 +373,7 @@ static int function_sort(struct cw_channel *chan, int argc, char **argv, char *b
 	if (argc < 1 || !argv[0][0])
 		return cw_function_syntax(sort_func_syntax);
 
-	if (buf) {
+	if (result) {
 		sortable_keys = alloca(argc * sizeof(struct sortable_keys));
 		memset(sortable_keys, 0, argc * sizeof(struct sortable_keys));
 
@@ -379,28 +389,15 @@ static int function_sort(struct cw_channel *chan, int argc, char **argv, char *b
 		}
 
 		if (count2 > 0) {
-			int i, l, first = 1;
+			int i;
 
 			/* Sort the structs */
 			qsort(sortable_keys, count2, sizeof(struct sortable_keys), sort_subroutine);
 
-			len--; /* one for the terminating null */
-			p = buf;
-			for (i = 0; len && i < count2; i++) {
-				if (len > 0 && !first) {
-					*(p++) = ',';
-					len--;
-				} else
-					first = 0;
-				l = strlen(sortable_keys[i].key);
-				if (l > len)
-					l = len;
-				memcpy(p, sortable_keys[i].key, l);
-				p += l;
-				len -= l;
-			}
+			cw_dynstr_printf(result, "%s", sortable_keys[0].key);
+			for (i = 1; i < count2; i++)
+				cw_dynstr_printf(result, ",%s", sortable_keys[i].key);
 		}
-		*p = '\0';
 	}
 
 	return 0;

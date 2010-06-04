@@ -65,12 +65,13 @@ static const char txtcidname_func_desc[] = "This function looks up the given pho
 		"found in the TXT record in DNS.\n";
 
 
-static int function_enum(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_enum(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
        char tech[80];
        struct localuser *u;
        const char *suffix, *options;
        char *p, *s;
+       size_t mark;
 
        if (argc < 1 || argc == arraysize(argv) || !argv[0][0])
                return cw_function_syntax(enum_func_syntax);
@@ -93,7 +94,7 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
 		}
        }
 
-	if (buf) {
+	if (result) {
 		cw_copy_string(tech, (argc < 1 || !argv[1][0] ? "sip" : argv[1]), sizeof(tech));
 
 		options = (argc < 2 || !argv[2][0] ? "1" : argv[2]);
@@ -108,39 +109,36 @@ static int function_enum(struct cw_channel *chan, int argc, char **argv, char *b
 
 		LOCAL_USER_ADD(u);
 
-		/* N.B. The oly reason cw_get_enum returns tech is to support
+		mark = cw_dynstr_end(result);
+
+		/* N.B. The only reason cw_get_enum returns tech is to support
 		 * the old (and deprecated) apps/app_enum which hardcodes a mapping
 		 * from enum method to channel technology. With funcs/func_enum
 		 * you're expected to do it yourself in the dialplan.
 		 */
-		cw_get_enum(chan, argv[0], buf, len, tech, sizeof(tech), suffix, options);
+		cw_get_enum(chan, argv[0], result, tech, sizeof(tech), suffix, options);
 
 		LOCAL_USER_REMOVE(u);
 
-		if ((p = strchr(buf, ':')) && strcasecmp(argv[1], "ALL"))
-			cw_copy_string(buf, p+1, len);
+		if (!result->error && (p = strchr(&result->data[mark], ':')) && strcasecmp(argv[1], "ALL"))
+			memmove(&result->data[mark], p + 1, &result->data[cw_dynstr_end(result)] - (p + 1) + 1);
 	}
 
        return 0;
 }
 
-static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int function_txtcidname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char txt[256] = "";
 	char tech[80];
-	char dest[80];
 	struct localuser *u;
 
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(txtcidname_func_syntax);
 
-	if (buf) {
+	if (result) {
 		LOCAL_USER_ADD(u);
 
-		cw_get_txt(chan, argv[0], dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
-
-		if (!cw_strlen_zero(txt))
-	        	cw_copy_string(buf, txt, len);
+		cw_get_txt(chan, argv[0], result, tech, sizeof(tech));
 
 		LOCAL_USER_REMOVE(u);
 	}

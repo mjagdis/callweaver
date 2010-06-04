@@ -55,40 +55,30 @@ static const char lookupblacklist_descrip[] =
   "number was found, or FALSE otherwise.\n"
   "Example: database put blacklist <name/number> 1\n";
 
-static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int lookupblacklist_exec (struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char var[16] = "FALSE";
-	char blacklist[1];
+	const char *var = "FALSE";
 	struct localuser *u;
-	int bl = 0;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD (u);
 
-	if (chan->cid.cid_num)
-	{
-		if (!cw_db_get ("blacklist", chan->cid.cid_num, blacklist, sizeof (blacklist)))
-		{
+	if (chan->cid.cid_num) {
+		if (!cw_db_get("blacklist", chan->cid.cid_num, NULL)) {
 			if (option_verbose > 2)
-				cw_log(CW_LOG_NOTICE, "Blacklisted number %s found\n",chan->cid.cid_num);
-			bl = 1;
+				cw_log(CW_LOG_NOTICE, "Blacklisted number %s found\n", chan->cid.cid_num);
+			var = "TRUE";
 		}
 	}
 	if (chan->cid.cid_name) {
-		if (!cw_db_get ("blacklist", chan->cid.cid_name, blacklist, sizeof (blacklist))) 
-		{
+		if (!cw_db_get("blacklist", chan->cid.cid_name, NULL)) {
 			if (option_verbose > 2)
-				cw_log(CW_LOG_NOTICE,"Blacklisted name \"%s\" found\n",chan->cid.cid_name);
-			bl = 1;
+				cw_log(CW_LOG_NOTICE,"Blacklisted name \"%s\" found\n", chan->cid.cid_name);
+			var = "TRUE";
 		}
-	}
-	
-	if (bl) {
-		strcpy(var, "TRUE");
 	}
 
 	pbx_builtin_setvar_helper(chan, "BLACKLISTED", var);

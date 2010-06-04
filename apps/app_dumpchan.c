@@ -128,7 +128,7 @@ static int cw_serialize_showchan(struct cw_channel *c, char *buf, size_t size)
 	return 0;
 }
 
-static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const char line[] = "================================================================================";
 	char vars[1024];
@@ -137,7 +137,6 @@ static int dumpchan_exec(struct cw_channel *chan, int argc, char **argv, char *r
 	int level;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 

@@ -191,7 +191,7 @@ extern CW_API_PUBLIC void cw_rtp_get_current_formats(struct cw_rtp* rtp,
 extern CW_API_PUBLIC const char* cw_rtp_lookup_mime_subtype(int is_cw_format, int code);
 
 /* Build a string of MIME subtype names from a capability list */
-extern CW_API_PUBLIC char *cw_rtp_lookup_mime_multiple(char *buf, int size, const int capability, const int is_cw_format);
+extern CW_API_PUBLIC void cw_rtp_lookup_mime_multiple(struct cw_dynstr *result, const int capability, const int is_cw_format);
 
 extern CW_API_PUBLIC void cw_rtp_setnat(struct cw_rtp *rtp, int nat);
 

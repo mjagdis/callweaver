@@ -190,7 +190,7 @@ enum volume_action
 
 CW_MUTEX_DEFINE_STATIC(conflock);
 
-static int admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len);
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result);
 
 static void *recordthread(void *args);
 
@@ -681,7 +681,7 @@ static int conf_cmd(struct cw_dynstr *ds_p, int argc, char **argv)
     else
         return RESULT_SHOWUSAGE;
 
-    admin_exec(NULL, argc, argv + 2, NULL, 0);
+    admin_exec(NULL, argc, argv + 2, NULL);
     return 0;
 }
 
@@ -1159,7 +1159,7 @@ dahdiretry:
         if ((var = pbx_builtin_getvar_helper(chan, CW_KEYWORD_MEETME_OGI_BACKGROUND, "MEETME_OGI_BACKGROUND"))) {
             char *tmp;
             if ((tmp = strdup(var->value))) {
-                ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", tmp, NULL, 0);
+                ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", tmp, NULL);
                 free(tmp);
             } else {
                 cw_log(CW_LOG_ERROR, "Out of memory!\n");
@@ -1167,7 +1167,7 @@ dahdiretry:
             }
             cw_object_put(var);
         } else
-            ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", ogifiledefault, NULL, 0);
+            ret = cw_function_exec_str(chan, CW_KEYWORD_OGI, "OGI", ogifiledefault, NULL);
 
         if (user->dahdichannel)
         {
@@ -1890,7 +1890,7 @@ static struct cw_conference *find_conf(struct cw_channel *chan, char *confno, in
 }
 
 /*--- count_exec: The MeetmeCount application */
-static int count_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int count_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     static int deprecated_var = 0;
     char val[80] = "0";
@@ -1910,9 +1910,9 @@ static int count_exec(struct cw_channel *chan, int argc, char **argv, char *buf,
     else
         count = 0;
 
-    if (buf)
+    if (result)
     {
-        snprintf(buf, len, "%d", count);
+        cw_dynstr_printf(result, "%d", count);
     }
     else if (argc > 1)
     {
@@ -1936,7 +1936,7 @@ static int count_exec(struct cw_channel *chan, int argc, char **argv, char *buf,
 }
 
 /*--- conf_exec: The meetme() application */
-static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int conf_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     char confno[CW_MAX_EXTENSION] = "";
     char the_pin[CW_MAX_EXTENSION] = "";
@@ -1953,8 +1953,7 @@ static int conf_exec(struct cw_channel *chan, int argc, char **argv, char *buf, 
     int empty = 0, empty_no_pin = 0;
     int always_prompt = 0;
 
-    CW_UNUSED(buf);
-    CW_UNUSED(len);
+    CW_UNUSED(result);
 
     if (argc > 3)
         return cw_function_syntax(syntax);
@@ -2239,14 +2238,13 @@ static struct cw_conf_user* find_user(struct cw_conference *conf, char *callerid
 
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
-static int admin_exec(struct cw_channel *chan, int argc, char **argv, char *buf, size_t len)
+static int admin_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
     struct cw_conference *cnf;
     struct cw_conf_user *user;
     struct localuser *u;
 
-    CW_UNUSED(buf);
-    CW_UNUSED(len);
+    CW_UNUSED(result);
 
     if (argc < 2 || argc > 3)
         return cw_function_syntax(syntax3);

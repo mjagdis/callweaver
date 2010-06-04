@@ -54,30 +54,32 @@ static const char exec_descrip[] =
 "app returns or a non-zero value if the app cannot be found.\n";
 
 
-static int exec_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_max)
+static int exec_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	char args[MAXRESULT];
 	struct localuser *u;
 	char *s, *appname, *endargs;
 	int res = 0;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_max);
 
 	LOCAL_USER_ADD(u);
 
 	/* Check and parse arguments */
 	if (argc > 0) {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+
 		s = cw_strdupa(argv[0]);
 		appname = strsep(&s, "(");
 		if (s) {
 			endargs = strrchr(s, ')');
 			if (endargs)
 				*endargs = '\0';
-			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), s, args, sizeof(args));
+			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), s, &ds);
 		}
 		if (appname)
-			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, args, NULL, 0);
+			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, ds.data, NULL);
+
+		cw_dynstr_free(&ds);
 	}
 
 	LOCAL_USER_REMOVE(u);

@@ -402,35 +402,23 @@ const char *cw_getformatname(int format)
     return ret;
 }
 
-char *cw_getformatname_multiple(char *buf, size_t size, int format)
+void cw_getformatname_multiple(struct cw_dynstr *result, int format)
 {
-    int x = 0;
-    unsigned len;
-    char *end = buf;
-    char *start = buf;
+    size_t mark;
+    int x, first = 1;
 
-    if (!size)
-        return buf;
-    snprintf(end, size, "0x%x (", format);
-    len = strlen(end);
-    end += len;
-    size -= len;
-    start = end;
-    for (x = 0;  x < sizeof(cw_format_list)/sizeof(struct cw_format_list_s);  x++)
-    {
-        if (cw_format_list[x].visible && (cw_format_list[x].bits & format))
-        {
-            snprintf(end, size, "%s|", cw_format_list[x].name);
-            len = strlen(end);
-            end += len;
-            size -= len;
-        }
+    cw_dynstr_printf(result, "0x%x (", format);
+
+    mark = cw_dynstr_end(result);
+
+    for (x = 0;  x < sizeof(cw_format_list)/sizeof(struct cw_format_list_s);  x++) {
+        if (cw_format_list[x].visible && (cw_format_list[x].bits & format)) {
+            cw_dynstr_printf(result, "%s%s", (!first ? "|" : ""), cw_format_list[x].name);
+	    first = 0;
+	}
     }
-    if (start == end)
-        snprintf(start, size, "nothing)");
-    else if (size > 1)
-        *(end -1) = ')';
-    return buf;
+
+    cw_dynstr_printf(result, (result->used != mark ? ")" : "nothing)"));
 }
 
 static struct cw_codec_alias_table

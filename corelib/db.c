@@ -76,12 +76,6 @@ static struct {
 	const char *tablename;
 } globals;
 
-struct cw_db_data {
-	char *data;
-	int datalen;
-	int rownum;
-};
-
 static int dbinit(void);
 static void sqlite_pick_path(const char *dbname, char *buf, size_t size);
 static sqlite3 *sqlite_open_db(const char *filename);
@@ -241,26 +235,32 @@ int cw_db_put(const char *family, const char *keys, const char *value)
 	return res;
 }
 
+
+struct get_callback_args {
+	struct cw_dynstr *ds_p;
+	int rownum;
+};
+
 static int get_callback(void *pArg, int argc, char **argv, char **columnNames) 
 {
-	struct cw_db_data *result = pArg;
+	struct get_callback_args *args = pArg;
 
 	CW_UNUSED(argc);
 	CW_UNUSED(columnNames);
 
-	cw_copy_string(result->data, argv[0], result->datalen);
-	result->rownum++;
+	if (args->ds_p)
+		cw_dynstr_printf(args->ds_p, "%s", argv[0]);
+	args->rownum++;
 	return 0;
 }
 
-int cw_db_get(const char *family, const char *keys, char *value, int valuelen)
+int cw_db_get(const char *family, const char *keys, struct cw_dynstr *result)
 {
-
+	struct get_callback_args args;
+	sqlite3 *db;
 	char *sql;
 	char *zErr = 0;
 	int res = 0;
-	struct cw_db_data result;
-	sqlite3 *db;
 	int retry=0;
 
 	sanity_check();
@@ -272,9 +272,8 @@ int cw_db_get(const char *family, const char *keys, char *value, int valuelen)
 		family = "_undef_";
 	}
 
-	result.data = value;
-	result.datalen = valuelen;
-	result.rownum = 0;
+	args.ds_p = result;
+	args.rownum = 0;
 
 retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
@@ -282,7 +281,7 @@ retry_1:
 		res = sqlite3_exec(db,
 						   sql,
 						   get_callback,
-						   &result,
+						   &args,
 						   &zErr
 						   );
 		
@@ -297,7 +296,7 @@ retry_1:
 			}
 			res = -1;
 		} else {
-			if (result.rownum)
+			if (args.rownum)
 				res = 0;
 			else
 				res = -1;
@@ -592,44 +591,47 @@ static int database_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 static int database_put(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	int res;
 	if (argc != 5)
 		return RESULT_SHOWUSAGE;
-	res = cw_db_put(argv[2], argv[3], argv[4]);
-	if (res)  {
-		cw_dynstr_printf(ds_p, "Failed to update entry\n");
-	} else {
+
+	if (!cw_db_put(argv[2], argv[3], argv[4]))
 		cw_dynstr_printf(ds_p, "Updated database successfully\n");
-	}
+	else
+		cw_dynstr_printf(ds_p, "Failed to update entry\n");
+
 	return RESULT_SUCCESS;
 }
 
 static int database_get(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	int res;
-	char tmp[256];
+	size_t mark;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = cw_db_get(argv[2], argv[3], tmp, sizeof(tmp));
-	if (res) {
+
+	mark = cw_dynstr_end(ds_p);
+
+	cw_dynstr_printf(ds_p, "Value: ");
+	if (!cw_db_get(argv[2], argv[3], ds_p))
+		cw_dynstr_printf(ds_p, "\n");
+	else {
+		cw_dynstr_truncate(ds_p, mark);
 		cw_dynstr_printf(ds_p, "Database entry not found.\n");
-	} else {
-		cw_dynstr_printf(ds_p, "Value: %s\n", tmp);
 	}
+
 	return RESULT_SUCCESS;
 }
 
 static int database_del(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	int res;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	res = cw_db_del(argv[2], argv[3]);
-	if (res) {
-		cw_dynstr_printf(ds_p, "Database entry does not exist.\n");
-	} else {
+
+	if (!cw_db_del(argv[2], argv[3]))
 		cw_dynstr_printf(ds_p, "Database entry removed.\n");
-	}
+	else
+		cw_dynstr_printf(ds_p, "Database entry does not exist.\n");
+
 	return RESULT_SUCCESS;
 }
 

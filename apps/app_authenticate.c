@@ -68,7 +68,7 @@ static const char auth_descrip[] =
 "Default is 3, and if set to 0, no limit is enforced\n";
 
 
-static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *result, size_t result_len)
+static int auth_exec(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	int res=0;
 	int retries, trylimit=3, nolimit=0;
@@ -79,7 +79,6 @@ static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 	int i;
 
 	CW_UNUSED(result);
-	CW_UNUSED(result_len);
 
 	pbx_builtin_setvar_helper(chan, auth_chanvar, "FAILURE"); /* default to fail */
 	
@@ -121,13 +120,11 @@ static int auth_exec(struct cw_channel *chan, int argc, char **argv, char *resul
 		res = 0;
 		if (argv[0][0] == '/') {
 			if (argc > 1 && strchr(argv[1], 'd')) {
-				char tmp[256];
 				/* Compare against a database key */
-				if (!cw_db_get(argv[0] + 1, passwd, tmp, sizeof(tmp))) {
+				if (!cw_db_get(argv[0] + 1, passwd, NULL)) {
 					/* It's a good password */
-					if (argc > 1 && strchr(argv[1], 'r')) {
+					if (argc > 1 && strchr(argv[1], 'r'))
 						cw_db_del(argv[0] + 1, passwd);
-					}
 					break;
 				}
 			} else {
