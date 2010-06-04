@@ -806,8 +806,7 @@ int cw_queue_frame(struct cw_channel *chan, struct cw_frame *fin)
 
 	if (chan->alertpipe[1] > -1)
 	{
-		char blah;
-		if (write(chan->alertpipe[1], &blah, sizeof(blah)) != sizeof(blah))
+		if (write(chan->alertpipe[1], &chan, 1) != 1)
 			cw_log(CW_LOG_WARNING, 
 				"Unable to write to alert pipe on %s, frametype/subclass %d/%d (qlen = %d): %s!\n",
 				chan->name,
