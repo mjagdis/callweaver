@@ -111,7 +111,7 @@ static int return_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 		pbx_builtin_setvar_helper(chan, STACKVAR, NULL);
 
 		/* No one else should be messing with our stack frame so we can safely trash it */
-		cw_separate_app_args(&args, (char *)var->value, ",");
+		cw_separate_app_args(&args, (char *)var->value, ",", '\0', NULL);
 
 		if (!args.error) {
 			memcpy(buf, "ARG", 3);
@@ -172,7 +172,7 @@ static int gosub_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_
 	if (q)
 		*q = '\0';
 
-	i = snprintf(buf, sizeof(buf), "%s,%s,%d", chan->context, chan->exten, chan->priority + 1);
+	i = snprintf(buf, sizeof(buf), "\"%s\",\"%s\",%d", chan->context, chan->exten, chan->priority + 1);
 
 	res = -1;
 

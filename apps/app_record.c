@@ -69,16 +69,14 @@ static const char record_descrip[] =
 
 static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
-	char tmp[256];
+	cw_dynstr_t filename = CW_DYNSTR_INIT;
 	struct cw_filestream *s = '\0';
 	struct localuser *u;
 	struct cw_frame *f = NULL;
 	char *ext = NULL;
 	struct cw_dsp *sildet = NULL;   	/* silence detector dsp */
-	int res = 0;
+	int res = -1;
 	int count = 0;
-	int percentflag = 0;
-	int i = 0;
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
@@ -100,8 +98,6 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 
 	LOCAL_USER_ADD(u);
 
-	if (strstr(argv[0], "%d"))
-		percentflag = 1;
 	ext = strrchr(argv[0], '.'); /* to support filename with a . in the filename, not format */
 	if (!ext)
 		ext = strchr(argv[0], ':');
@@ -112,8 +108,7 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 
 	if (!ext) {
 		cw_log(CW_LOG_WARNING, "No extension specified to filename!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		goto out;
 	}
 
 	if (argc > 1) {
@@ -156,57 +151,51 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 	
 	/* these are to allow the use of the %d in the config file for a wild card of sort to
 	  create a new file with the inputed name scheme */
-	if (percentflag) {
-		args_t piece = CW_DYNARRAY_INIT;
+	do {
+		char *p = argv[0];
 
-		/* Separate each piece out by the format specifier */
-		cw_separate_app_args(&piece, argv[0], "%");
+		cw_dynstr_reset(&filename);
 
-		if (!piece.error) {
-			do {
-				int tmplen;
-				/* First piece has no leading percent, so it's copied verbatim */
-				cw_copy_string(tmp, piece.data[0], sizeof(tmp));
-				tmplen = strlen(tmp);
-				for (i = 1; i < piece.used; i++) {
-					if (piece.data[i][0] == 'd') {
-						/* Substitute the count */
-						snprintf(tmp + tmplen, sizeof(tmp) - tmplen, "%d", count);
-						tmplen += strlen(tmp + tmplen);
-					} else if (tmplen + 2 < sizeof(tmp)) {
-						/* Unknown format specifier - just copy it verbatim */
-						tmp[tmplen++] = '%';
-						tmp[tmplen++] = piece.data[i][0];
-					}
-					/* Copy the remaining portion of the piece */
-					cw_copy_string(tmp + tmplen, &(piece.data[i][1]), sizeof(tmp) - tmplen);
-				}
-				count++;
-			} while ( cw_fileexists(tmp, ext, chan->language) );
-
-			pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
+		while (p[0]) {
+			int n = strcspn(p, "%");
+			cw_dynstr_printf(&filename, "%.*s", n, p);
+			if (!p[n])
+				break;
+			p += n + 1;
+			switch (p[0]) {
+				case 'd':
+					cw_dynstr_printf(&filename, "%d", count++);
+					p++;
+					break;
+				default:
+					cw_dynstr_printf(&filename, "%%%c", p[0]);
+					if (p[0])
+						p++;
+					break;
+			}
 		}
 
-		cw_dynarray_free(&piece);
-	} else
-		strncpy(tmp, argv[0], sizeof(tmp)-1);
-	/* end of routine mentioned */
-	
-	
-	
+		if (filename.error)
+			goto out;
+	} while (cw_fileexists(filename.data, ext, chan->language));
+
+	pbx_builtin_setvar_helper(chan, "RECORDED_FILE", filename.data);
+
+	res = 0;
+
 	if (chan->_state != CW_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			LOCAL_USER_REMOVE(u);
-			return 0;
+			res = 0;
+			goto out;
 		} else if (!option_noanswer) {
 			/* Otherwise answer unless we're supposed to record while on-hook */
 			res = cw_answer(chan);
 		}
 	}
-	
+
 	if (!res) {
-	
 		if (!option_quiet) {
 			/* Some code to play a nice little beep to signify the start of the record operation */
 			res = cw_streamfile(chan, "beep", chan->language);
@@ -222,24 +211,19 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 		
 		if (silence > 0) {
 			rfmt = chan->readformat;
-			res = cw_set_read_format(chan, CW_FORMAT_SLINEAR);
-			if (res < 0) {
+			if ((res = cw_set_read_format(chan, CW_FORMAT_SLINEAR)) < 0) {
 				cw_log(CW_LOG_WARNING, "Unable to set to linear mode, giving up\n");
-				LOCAL_USER_REMOVE(u);
-				return -1;
+				goto out;
 			}
-			sildet = cw_dsp_new();
-			if (!sildet) {
+			if (!(sildet = cw_dsp_new())) {
 				cw_log(CW_LOG_WARNING, "Unable to create silence detector :(\n");
-				LOCAL_USER_REMOVE(u);
-				return -1;
+				goto out;
 			}
 			cw_dsp_set_threshold(sildet, 256);
 		} 
-		
-		
+
 		flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
-		s = cw_writefile( tmp, ext, NULL, flags , 0, 0644);
+		s = cw_writefile(filename.data, ext, NULL, flags , 0, 0644);
 		
 		if (s) {
 			int waitres;
@@ -318,7 +302,7 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 			}
 			cw_closestream(s);
 		} else
-			cw_log(CW_LOG_WARNING, "Could not create file %s\n", tmp);
+			cw_log(CW_LOG_WARNING, "Could not create file %s\n", filename.data);
 	} else
 		cw_log(CW_LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 	
@@ -330,8 +314,9 @@ static int record_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr
 			cw_dsp_free(sildet);
 	}
 
+out:
 	LOCAL_USER_REMOVE(u);
-
+	cw_dynstr_free(&filename);
 	return res;
 }
 

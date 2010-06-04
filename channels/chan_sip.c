@@ -7368,30 +7368,30 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 
 			while ((obj = cw_registry_find(&p->owner->vars, 1, cw_hash_var_name(buf), buf))) {
 				struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-				char *headdup = cw_strdupa(var->value);
-				char *content, *end;
+				char *content;
+
+				if ((content = strchr(var->value, ':'))) {
+					char *header;
+
+					if ((header = malloc((content - var->value) + 1))) {
+						memcpy(header, var->value, content - var->value);
+						header[(content - var->value) + 1] = '\0';
+
+						do {
+							content++;
+						} while (isblank(*content));
+
+						add_header(msg, header, content, SIP_DL_DONTCARE);
+
+						if (sipdebug)
+							cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", header, content);
+
+						free(header);
+					} else
+						cw_log(CW_LOG_ERROR, "Out of memory!\n");
+				}
 
 				cw_object_put_obj(obj);
-
-				/* Strip of the starting " (if it's there) */
-				if (*headdup == '"')
-					headdup++;
-				if ((content = strchr(headdup, ':'))) {
-					*content = '\0';
-					content++;    /* Move pointer ahead */
-					/* Skip white space */
-					while (*content == ' ')
-						content++;
-					/* Strip the ending " (if it's there) */
-					end = content + strlen(content) - 1;
-					if (*end == '"')
-						*end = '\0';
-
-					add_header(msg, headdup, content, SIP_DL_DONTCARE);
-
-					if (sipdebug)
-						cw_log(CW_LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
-				}
 
 				sprintf(buf + sizeof(buf) - 3, "%.2d", i++);
 			}

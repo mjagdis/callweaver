@@ -1,16 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 2010, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com>
- *
- * cdr_pgsql_custom.c <PostgreSQL module for CDR logging with custom columns>
- * 
- * Copyright (C) 2005 Business Technology Group (http://www.btg.co.nz)
- *  Danel Swarbrick <daniel@btg.co.nz>
- *
- * Based in part on original by Matthew D. Hardeman <mhardemn@papersoft.com>
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -25,21 +18,29 @@
 
 /*! \file
  *
- * \brief Custom PostgreSQL CDR logger
+ * \brief Store CDR records in a PostgreSQL database using a configurable field list.
  *
- * \author Mikael Bjerkeland <mikael@bjerkeland.com>
- * based on original code by Daniel Swarbrick <daniel@btg.co.nz>
+ * \author Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See also
  * \arg \ref Config_cdr
  * \arg http://www.postgresql.org/
+ *
+ * \ingroup cdr_drivers
  */
-
-#include <sys/types.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <time.h>
+#include <sys/types.h>
+#include <libpq-fe.h>
 
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"
@@ -48,195 +49,208 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/pbx.h"
 #include "callweaver/logger.h"
 #include "callweaver/utils.h"
+#include "callweaver/cli.h"
+#include "callweaver/options.h"
+#include "callweaver/app.h"
 
-#define DATE_FORMAT "%Y-%m-%d %T"
-
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
-
-#include <libpq-fe.h>
+static const char config_file[] = "cdr_pgsql_custom.conf";
 
 static const char desc[] = "Custom PostgreSQL CDR Backend";
-static const char name[] = "pgsql_custom";
+static const char name[] = "cdr_pgsql_custom";
 
-CW_MUTEX_DEFINE_STATIC(pgsql_lock);
-#define CDR_PGSQL_CONF "cdr_pgsql_custom.conf"
-static char conninfo[512];
-static char table[128];
-static char columns[1024];
-static char values[1024];
+cw_dynstr_t dbpath = CW_DYNSTR_INIT;
 
-static PGconn *conn = NULL;
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
-static int parse_config(void);
-static int pgsql_reconnect(void);
+static PGconn *db = NULL;
 
-static int parse_config(void)
+static char *conninfo, *table, *columns_str, *values_str;
+static args_t columns = CW_DYNARRAY_INIT;
+static args_t values = CW_DYNARRAY_INIT;
+cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
+
+static struct cw_channel *chan;
+
+
+#define I_INSERT	0
+#define I_BEGIN		1
+#define I_COMMIT	2
+#define I_ROLLBACK	3
+
+static struct {
+	const char *name;
+	const char *text;
+	size_t len;
+} cmd[] = {
+	[I_INSERT] = { "insert", NULL, 0 },
+	[I_BEGIN] = { "begin", "begin transaction;", sizeof("begin transaction;") },
+	[I_COMMIT] = { "commit", "commit transaction;", sizeof("commit transaction;") },
+	[I_ROLLBACK] = { "rollback", "rollback transaction;", sizeof("rollback transaction;") },
+};
+
+
+static void dbclose(void)
 {
-	struct cw_config *config;
-	char *s;
-
-	config = cw_config_load(CDR_PGSQL_CONF);
-
-	if (config) {
-
-		/* get the PostgreSQL DSN */
-		s = cw_variable_retrieve(config, "global", "dsn");
-		if (s == NULL) {
-			cw_log(CW_LOG_WARNING, "cdr_pgsql_custom: No DSN found, using 'dbname=callweaver user=callweaver'.\n");
-			strncpy(conninfo, "dbname=callweaver user=callweaver", sizeof(conninfo));
-		} else {
-			strncpy(conninfo, s, sizeof(conninfo));
-		}
-		
-		/* get the CDR table name */
-		s = cw_variable_retrieve(config, "global", "table");
-		if (s == NULL) {
-			cw_log(CW_LOG_WARNING, "No database table found, assuming 'cdr'.\n");
-			strncpy(table, "cdr", sizeof(table));
-		} else {
-			strncpy(table, s, sizeof(table));
-		}
-
-		/* get the CDR columns */
-                s = cw_variable_retrieve(config, "master", "columns");
-                if (s == NULL) {
-                        cw_log(CW_LOG_WARNING, "Column names not specified. Module not loaded.\n");
-			return -1;
-                } else {
-                        strncpy(columns, s, sizeof(columns));
-                }
-
-		/* get the CDR column values */
-                s = cw_variable_retrieve(config, "master", "values");
-                if (s == NULL) {
-                        cw_log(CW_LOG_WARNING, "Values not specified. Module not loaded.\n");
-			return -1;
-                } else {
-                        strncpy(values, s, sizeof(values));
-                }
-		
-		if (columns != NULL && values != NULL)
-			cw_log(CW_LOG_NOTICE, "Using column layout: %s.\n", columns);
-
-
-	} else {
-		cw_log(CW_LOG_WARNING, "Config file (%s) not found.\n", CDR_PGSQL_CONF);
+	if (db) {
+		PQfinish(db);
+		db = NULL;
 	}
-	cw_config_destroy(config);
-
-	return 1;
 }
 
-static int pgsql_reconnect(void)
+
+static int do_prepares(void)
 {
-	if (conn != NULL) {
-		/* we may already be connected */
-		if (PQstatus(conn) == CONNECTION_OK) {
-			return 1;
-		} else {
-			cw_log(CW_LOG_NOTICE, "Existing database connection broken. Trying to reset.\n");
+	PGresult *pgres;
+	int i, res;
 
-			/* try to reset the connection */
-			if (PQstatus(conn) != CONNECTION_BAD)
-				PQreset(conn);
-
-			/* check the connection status again */
-			if (PQstatus(conn) == CONNECTION_OK) {
-				cw_log(CW_LOG_NOTICE, "Existing database connection reset ok.\n");
-				return 1;
-			} else {
-				/* still no luck, tear down the connection and we'll make a new connection */
-				cw_log(CW_LOG_NOTICE, "Unable to reset existing database connection.\n");
-				PQfinish(conn);
-			}
+	for (i = 0; i < arraysize(cmd); i++) {
+		pgres = PQprepare(db, cmd[i].name, cmd[i].text, 0, NULL);
+		res = PQresultStatus(pgres);
+		PQclear(pgres);
+		if (res != PGRES_COMMAND_OK) {
+			cw_log(CW_LOG_ERROR, "prepare \"%6.6s...\" failed: %s\n", cmd[i].text, PQresultErrorMessage(pgres));
+			return -1;
 		}
 	}
 
-	conn = PQconnectdb(conninfo);
+	return 0;
+}
 
-	if (PQstatus(conn) == CONNECTION_OK) {
-		cw_log(CW_LOG_NOTICE, "Successfully connected to PostgreSQL database.\n");
-		return 1;
-	} else {
-		cw_log(CW_LOG_WARNING, "Couldn't establish DB connection. Check debug.\n");
-		cw_log(CW_LOG_ERROR, "Reason %s\n", PQerrorMessage(conn));
-	}		
 
+static int dbopen(int force)
+{
+	cw_dynstr_t sql_cmd = CW_DYNSTR_INIT;
+	PGresult *pgres;
+	int i, res;
+
+	if (!table)
+		return -1;
+
+	if (!force && db) {
+		/* we may already be connected */
+		if (PQstatus(db) == CONNECTION_OK)
+			goto ok;
+
+		if (PQstatus(db) != CONNECTION_BAD) {
+			PQreset(db);
+			if (PQstatus(db) == CONNECTION_OK)
+				goto ok;
+		}
+	}
+
+	dbclose();
+
+	/* is the database there? */
+	db = PQconnectdb(conninfo);
+	if (PQstatus(db) != CONNECTION_OK) {
+		cw_log(CW_LOG_ERROR, "Failed to connect to database: %s\n", PQerrorMessage(db));
+		goto err;
+	}
+
+	/* is the table there? */
+	cw_dynstr_printf(&sql_cmd, "SELECT COUNT(AcctId) FROM '");
+	i = strlen(table);
+	cw_dynstr_need(&sql_cmd, 2 * i + 1);
+	if (!sql_cmd.error) {
+		PQescapeStringConn(db, &sql_cmd.data[sql_cmd.used], table, i, NULL);
+		cw_dynstr_printf(&sql_cmd, "';");
+	}
+	if (sql_cmd.error)
+		goto err;
+
+	pgres = PQexec(db, sql_cmd.data);
+	res = PQresultStatus(pgres);
+	PQclear(pgres);
+	if (res != PGRES_COMMAND_OK) {
+		cw_log(CW_LOG_ERROR, "Unable to access table \"%s\": %s\n", table, PQresultErrorMessage(pgres));
+		goto err;
+	}
+
+	if (!cmd[I_INSERT].text || !do_prepares()) {
+ok:
+		return 0;
+	}
+
+err:
+	dbclose();
 	return -1;
 }
 
-static int pgsql_log(struct cw_cdr *batch)
+
+static int pgsql_log(struct cw_cdr *submission)
 {
-	cw_dynstr_t sql_tmp_cmd = CW_DYNSTR_INIT;
-	cw_dynstr_t cmd_ds = CW_DYNSTR_INIT;
-	struct cw_channel *chan;
-	PGresult *res;
-	struct cw_cdr *cdrset, *cdr;
-	int ret = -1;
+	struct cw_cdr *batch, *cdrset, *cdr;
+	PGresult *pgres;
+	int res = 0;
 
-	if ((chan = cw_channel_alloc(0, NULL))) {
-		cw_mutex_lock(&pgsql_lock);
+	pthread_mutex_lock(&lock);
 
-		while ((cdrset = batch)) {
-			batch = batch->batch_next;
+	if (!table)
+		goto done;
 
-			while ((cdr = cdrset)) {
-				if (!sql_tmp_cmd.used)
-					cw_dynstr_printf(&sql_tmp_cmd, "INSERT INTO %s (%s) VALUES (%s)", table, columns, values);
+restart:
+	if (dbopen(0))
+		goto done;
 
-				if (!sql_tmp_cmd.error) {
-					chan->cdr = cdr;
-					pbx_substitute_variables(chan, NULL, sql_tmp_cmd.data, &cmd_ds);
-
-					cw_dynstr_reset(&sql_tmp_cmd);
-
-					if (!cmd_ds.error) {
-						cdrset = cdrset->next;
-
-						cw_log(CW_LOG_DEBUG, "SQL command executed:  %s\n", cmd_ds.data);
-
-						/* check if database connection is still good */
-						if (!pgsql_reconnect()) {
-							cw_log(CW_LOG_ERROR, "Unable to reconnect to database server. Some calls will not be logged!\n");
-							goto out;
-						}
-
-						res = PQexec(conn, cmd_ds.data);
-
-						if (PQresultStatus(res) != PGRES_COMMAND_OK) {
-							cw_log(CW_LOG_ERROR, "Failed to insert call detail record into database!\n");
-							cw_log(CW_LOG_ERROR, "Reason: %s\n", PQresultErrorMessage(res));
-							PQclear(res);
-							goto out;
-						}
-
-						PQclear(res);
-
-						cw_dynstr_reset(&cmd_ds);
-						continue;
-					}
-				}
-
-				sleep(1);
-			}
-		}
-
-out:
-		cw_mutex_unlock(&pgsql_lock);
-
-		cw_dynstr_free(&cmd_ds);
-		cw_dynstr_free(&sql_tmp_cmd);
-		cw_channel_free(chan);
-		ret = 0;
+	pgres = PQexecPrepared(db, "begin", 0, NULL, NULL, NULL, 0);
+	res = PQresultStatus(pgres);
+	PQclear(pgres);
+	if (res != PGRES_COMMAND_OK) {
+		usleep(10);
+		goto restart;
 	}
 
-	return ret;
+	batch = submission;
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
+
+		while ((cdr = cdrset)) {
+			chan->cdr = cdr;
+
+			pbx_substitute_variables(chan, NULL, values_str, &evalbuf);
+
+			if (!evalbuf.error && !cw_separate_app_args(&values, evalbuf.data, ",", '\0', NULL)) {
+				cdrset = cdrset->next;
+
+				pgres = PQexecPrepared(db, "insert", values.used, (const char * const *)values.data, NULL, NULL, 0);
+				res = PQresultStatus(pgres);
+				PQclear(pgres);
+
+				cw_dynstr_reset(&evalbuf);
+
+				if (res == PGRES_COMMAND_OK)
+					continue;
+			}
+
+			pgres = PQexecPrepared(db, "rollback", 0, NULL, NULL, NULL, 0);
+			res = PQresultStatus(pgres);
+			PQclear(pgres);
+			if (res != PGRES_COMMAND_OK) {
+				cw_log(CW_LOG_ERROR, "rollback failed: %s\n", PQresultErrorMessage(pgres));
+				goto done;
+			}
+
+			usleep(10);
+			goto restart;
+		}
+	}
+
+	pgres = PQexecPrepared(db, "commit", 0, NULL, NULL, NULL, 0);
+	res = PQresultStatus(pgres);
+	PQclear(pgres);
+	if (res != PGRES_COMMAND_OK) {
+		pgres = PQexecPrepared(db, "rollback", 0, NULL, NULL, NULL, 0);
+		res = PQresultStatus(pgres);
+		PQclear(pgres);
+		if (res != PGRES_COMMAND_OK)
+			dbclose();
+		usleep(10);
+		goto restart;
+	}
+
+done:
+	pthread_mutex_unlock(&lock);
+	return res;
 }
 
 
@@ -247,21 +261,185 @@ static struct cw_cdrbe cdrbe = {
 };
 
 
+static void release(void)
+{
+	dbclose();
+
+	if (cmd[I_INSERT].text)
+		free((char *)cmd[I_INSERT].text);
+
+	if (values_str)
+		free(values_str);
+	cw_dynarray_free(&values);
+
+	if (columns_str)
+		free(columns_str);
+	cw_dynarray_free(&columns);
+
+	if (table)
+		free(table);
+
+	if (conninfo)
+		free(conninfo);
+
+	cw_dynstr_free(&evalbuf);
+	cw_dynstr_free(&dbpath);
+
+	if (chan)
+		cw_channel_free(chan);
+}
+
+
 static int unload_module(void)
-{ 
+{
 	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-static int load_module(void)
+
+static int reload_module(void)
 {
-	cw_cdrbe_register(&cdrbe);
+	struct cw_config *cfg;
+	char *tmp;
+	int res = -1;
 
-	parse_config();
-	
-	pgsql_reconnect();
+	pthread_mutex_lock(&lock);
 
-	return 0;
+	dbclose();
+
+	if (conninfo) {
+		free(conninfo);
+		conninfo = NULL;
+	}
+
+	if (values_str) {
+		free(values_str);
+		values_str = NULL;
+	}
+	cw_dynarray_reset(&values);
+
+	if (columns_str) {
+		free(columns_str);
+		columns_str = NULL;
+	}
+	cw_dynarray_reset(&columns);
+
+	if (table) {
+		free(table);
+		table = NULL;
+	}
+
+	if ((cfg = cw_config_load(config_file))) {
+		res = 0;
+
+		if ((tmp = cw_variable_retrieve(cfg, "global", "dsn")))
+			conninfo = strdup(tmp);
+		else {
+			cw_log(CW_LOG_WARNING, "No DSN found. Using \"dbname=callweaver user=callweaver\".\n");
+			conninfo = strdup("dbname=callweaver user=callweaver");
+		}
+
+		if (cw_variable_browse(cfg, "master")) {
+			/* Previous cdr_pgsql_custom had the table in "global" but cdr_sqlite3_custom
+			 * has it in "master". For the sake of compatibility with expectations we
+			 * look in both places here.
+			 */
+			if ((tmp = cw_variable_retrieve(cfg, "global", "table"))
+			|| (tmp = cw_variable_retrieve(cfg, "master", "table")))
+				table = strdup(tmp);
+			else {
+				cw_log(CW_LOG_WARNING, "Table name not specified. Assuming cdr.\n");
+				table = strdup("cdr");
+			}
+
+			if ((tmp = cw_variable_retrieve(cfg, "master", "columns"))) {
+				if (!(columns_str = strdup(tmp)) || cw_separate_app_args(&columns, columns_str, ",", '\0', NULL)) {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					res = -1;
+				}
+			} else {
+				cw_log(CW_LOG_ERROR, "Column names not specified.\n");
+				res = -1;
+			}
+
+			if ((tmp = cw_variable_retrieve(cfg, "master", "values"))) {
+				if (!(values_str = strdup(tmp))) {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					res = -1;
+				}
+			} else {
+				cw_log(CW_LOG_ERROR, "Values not specified.\n");
+				res = -1;
+			}
+		}
+
+		cw_config_destroy(cfg);
+
+		if (!res && !(res = dbopen(1))) {
+			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			int i, l;
+
+			res = -1;
+
+			cw_dynstr_printf(&ds, "INSERT INTO ");
+
+			l = strlen(table);
+			cw_dynstr_need(&ds, 2 * l + 1);
+			if (!ds.error) {
+				PQescapeStringConn(db, &ds.data[ds.used], table, l, NULL);
+				cw_dynstr_printf(&ds, " (");
+
+				for (i = 0; !ds.error && i < columns.used; i++) {
+					l = strlen(columns.data[i]);
+					cw_dynstr_need(&ds, 2 + 2 * l + 1);
+					if (!ds.error) {
+						if (i == 0)
+							cw_dynstr_printf(&ds, ", ");
+						PQescapeStringConn(db, &ds.data[ds.used], columns.data[i], l, NULL);
+					}
+				}
+
+				cw_dynstr_printf(&ds, ") VALUES (?");
+
+				for (i = 1; i < columns.used; i++)
+					cw_dynstr_printf(&ds, ", ?");
+
+				cw_dynstr_printf(&ds, ")");
+
+				if (!ds.error) {
+					cmd[I_INSERT].len = ds.used;
+					cmd[I_INSERT].text = cw_dynstr_steal(&ds);
+					res = do_prepares();
+				}
+			}
+		}
+	} else
+		cw_log(CW_LOG_WARNING, "Failed to load configuration file \"%s\"\n", config_file);
+
+	if (res && table) {
+		free(table);
+		table = NULL;
+	}
+
+	pthread_mutex_unlock(&lock);
+
+	return res;
 }
 
-MODULE_INFO(load_module, NULL, unload_module, NULL, desc)
+
+static int load_module(void)
+{
+	int res = -1;
+
+	cw_dynstr_printf(&dbpath, "%s/master.db", cw_config[CW_LOG_DIR]);
+
+	if (!dbpath.error && !reload_module() && (chan = cw_channel_alloc(0, NULL))) {
+		cw_cdrbe_register(&cdrbe);
+		res = 0;
+	}
+
+	return res;
+}
+
+
+MODULE_INFO(load_module, reload_module, unload_module, release, desc)

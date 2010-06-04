@@ -1,9 +1,9 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2007, Digium, Inc.
+ * Copyright (C) 2010, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com> and others.
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
  * See http://www.callweaver.org for more information about
  * the CallWeaver project. Please do not directly contact
@@ -18,23 +18,16 @@
 
 /*! \file
  *
- * \brief Custom SQLite3 CDR records.
+ * \brief Store CDR records in a SQLite database using a configurable field list.
  *
- * \author Adapted by Alejandro Rios <alejandro.rios@avatar.com.co> and
- *  Russell Bryant <russell@digium.com> from 
- *  cdr_mysql_custom by Edward Eastman <ed@dm3.co.uk>,
- *	and cdr_sqlite by Holger Schurig <hs4233@mail.mn-solutions.de>
- *	
+ * \author Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
- * \arg See also \ref cwCDR
- *
+ * See also
+ * \arg \ref Config_cdr
+ * \arg http://www.sqlite.org/
  *
  * \ingroup cdr_drivers
  */
-
-/*** MODULEINFO
-	<depend>sqlite3</depend>
- ***/
 
 #include "callweaver.h"
 
@@ -58,167 +51,194 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 #include "callweaver/cli.h"
 #include "callweaver/options.h"
-
-CW_MUTEX_DEFINE_STATIC(lock);
+#include "callweaver/app.h"
 
 static const char config_file[] = "cdr_sqlite3_custom.conf";
 
 static const char desc[] = "Customizable SQLite3 CDR Backend";
 static const char name[] = "cdr_sqlite3_custom";
+
+cw_dynstr_t dbpath = CW_DYNSTR_INIT;
+
+static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
 static sqlite3 *db = NULL;
 
-static char table[80];
-static char columns[1024];
-static char values[1024];
+static char *table, *columns_str, *values_str;
+static args_t columns = CW_DYNARRAY_INIT;
+static args_t values = CW_DYNARRAY_INIT;
+static cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
 
-static int load_config(int reload)
+static struct cw_channel *chan;
+
+
+#define I_INSERT	0
+#define I_BEGIN		1
+#define I_COMMIT	2
+#define I_ROLLBACK	3
+
+const char *cmd[] = {
+	[I_INSERT] = NULL,
+	[I_BEGIN] = "begin transaction",
+	[I_COMMIT] = "commit transaction",
+	[I_ROLLBACK] = "rollback transaction",
+};
+
+static sqlite3_stmt *sql[arraysize(cmd)];
+
+
+static void dbclose(void)
 {
-	struct cw_config *cfg;
-	const char *tmp;
+	int i;
 
-	if (!(cfg = cw_config_load(config_file))) {
-		if (reload)
-			cw_log(CW_LOG_WARNING, "%s: Failed to reload configuration file.\n", name);
-		else {
-			cw_log(CW_LOG_WARNING,
-					"%s: Failed to load configuration file. Module not activated.\n",
-					name);
+	for (i = 0; i < arraysize(sql); i++) {
+		if (sql[i]) {
+			sqlite3_finalize(sql[i]);
+			sql[i] = NULL;
 		}
-		return -1;
 	}
 
-	if (!reload)
-		cw_mutex_lock(&lock);
+	if (db) {
+		sqlite3_close(db);
+		db = NULL;
+	}
+}
 
-	if (!cw_variable_browse(cfg, "master")) {
-		/* nothing configured */
-		cw_config_destroy(cfg);
+
+static int dbopen(int force)
+{
+	static dev_t dev = 0;
+	static ino_t ino = 0;
+	struct stat st;
+	char *sql_cmd;
+	int i, res;
+
+	if (!table)
+		return -1;
+
+	if (!force && !(res = stat(dbpath.data, &st)) && st.st_dev == dev && st.st_ino == ino)
 		return 0;
-	}
-	
-	/* Mapping must have a table name */
-	tmp = cw_variable_retrieve(cfg, "master", "table");
-	if (!cw_strlen_zero(tmp))
-		cw_copy_string(table, tmp, sizeof(table));
-	else {
-		cw_log(CW_LOG_WARNING, "%s: Table name not specified.  Assuming cdr.\n", name);
-		strcpy(table, "cdr");
-	}
 
-	tmp = cw_variable_retrieve(cfg, "master", "columns");
-	if (!cw_strlen_zero(tmp))
-		cw_copy_string(columns, tmp, sizeof(columns));
-	else {
-		cw_log(CW_LOG_WARNING, "%s: Column names not specified. Module not loaded.\n",
-				name);
-		cw_config_destroy(cfg);
-		return -1;
+	dbclose();
+
+	/* is the database there? */
+	res = sqlite3_open(dbpath.data, &db);
+	if (!db) {
+		cw_log(CW_LOG_ERROR, "Out of memory!\n");
+		goto err;
+	}
+	if (res != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "%s\n", sqlite3_errmsg(db));
+		goto err;
 	}
 
-	tmp = cw_variable_retrieve(cfg, "master", "values");
-	if (!cw_strlen_zero(tmp))
-		cw_copy_string(values, tmp, sizeof(values));
-	else {
-		cw_log(CW_LOG_WARNING, "%s: Values not specified. Module not loaded.\n", name);
-		cw_config_destroy(cfg);
-		return -1;
+	/* is the table there? */
+	sql_cmd = sqlite3_mprintf("SELECT COUNT(AcctId) FROM %q;", table);
+	res = sqlite3_exec(db, sql_cmd, NULL, NULL, NULL);
+	sqlite3_free(sql_cmd);
+	if (res != SQLITE_OK) {
+		cw_log(CW_LOG_ERROR, "Unable to access table '%s'.\n", table);
+		goto err;
 	}
 
-	if (!reload)
-		cw_mutex_unlock(&lock);
-
-	cw_config_destroy(cfg);
+	for (i = 0; i < arraysize(sql); i++) {
+		if ((res = sqlite3_prepare_v2(db, cmd[i], -1, &sql[i], NULL)) != SQLITE_OK) {
+			cw_log(CW_LOG_ERROR, "Error: %s\n", sqlite3_errmsg(db));
+			goto err;
+		}
+	}
 
 	return 0;
+
+err:
+	dbclose();
+	return -1;
 }
 
-static void do_escape(cw_dynstr_t *dst, const cw_dynstr_t *src)
-{
-	const char *p = src->data;
 
-	while (*p) {
-		int n = strcspn(p, "\"\\");
-		cw_dynstr_printf(dst, "%.*s", n, p);
-		if (!p[n])
-			break;
-		cw_dynstr_printf(dst, "%c%c", p[n], p[n]);
-		p += n + 1;
+static int sqlite3_log(struct cw_cdr *submission)
+{
+	struct cw_cdr *batch, *cdrset, *cdr;
+	int i, res = 0;
+
+	pthread_mutex_lock(&lock);
+
+	if (!table)
+		goto done;
+
+restart:
+	if (dbopen(0))
+		goto done;
+
+	sqlite3_reset(sql[I_BEGIN]);
+	if ((res = sqlite3_step(sql[I_BEGIN])) == SQLITE_BUSY || res == SQLITE_LOCKED) {
+		usleep(10);
+		goto restart;
 	}
-}
 
-static int sqlite3_log(struct cw_cdr *batch)
-{
-	cw_dynstr_t cmd_ds = CW_DYNSTR_INIT;
-	cw_dynstr_t esc_ds = CW_DYNSTR_INIT;
-	struct cw_channel *chan;
-	struct cw_cdr *cdrset, *cdr;
-	char *sql_tmp_cmd;
-	char *zErr;
-	int count;
-	int res = 0;
+	if (res != SQLITE_DONE)
+		cw_log(CW_LOG_ERROR, "begin transaction failed: %s\n", sqlite3_errmsg(db));
 
-	if ((chan = cw_channel_alloc(0, NULL))) {
-		cw_mutex_lock(&lock);
+	batch = submission;
+	while ((cdrset = batch)) {
+		batch = batch->batch_next;
 
-		while ((cdrset = batch)) {
-			batch = batch->batch_next;
+		while ((cdr = cdrset)) {
+			chan->cdr = cdr;
 
-			while ((cdr = cdrset)) {
-				sql_tmp_cmd = sqlite3_mprintf("INSERT INTO %q (%q) VALUES (%s)", table, columns, values);
+			pbx_substitute_variables(chan, NULL, values_str, &evalbuf);
 
-				chan->cdr = cdr;
-				pbx_substitute_variables(chan, NULL, sql_tmp_cmd, &cmd_ds);
-				sqlite3_free(sql_tmp_cmd);
+			if (!evalbuf.error && !cw_separate_app_args(&values, evalbuf.data, ",", '\0', NULL)) {
+				cdrset = cdrset->next;
 
-				if (!cmd_ds.error) {
-					do_escape(&esc_ds, &cmd_ds);
+				sqlite3_reset(sql[I_INSERT]);
 
-					if (!!esc_ds.error) {
-						cdrset = cdrset->next;
+				for (i = 0; i < values.used; i++)
+					sqlite3_bind_text(sql[I_INSERT], i + 1, values.data[i], -1, SQLITE_STATIC);
 
-						for (count = 0; count < 5; count++) {
-							zErr = NULL;
-							res = sqlite3_exec(db, esc_ds.data, NULL, NULL, &zErr);
+				res = sqlite3_step(sql[I_INSERT]);
 
-							if (res != SQLITE_BUSY && res != SQLITE_LOCKED)
-								break;
+				cw_dynarray_reset(&values);
+				cw_dynstr_reset(&evalbuf);
 
-							if (zErr)
-								sqlite3_free(zErr);
-
-							usleep(200);
-						}
-
-						if (zErr) {
-							cw_log(CW_LOG_ERROR, "%s: %s. sentence: %s.\n", name, zErr, esc_ds.data);
-							sqlite3_free(zErr);
-						}
-
-						cw_dynstr_reset(&esc_ds);
-						cw_dynstr_reset(&cmd_ds);
-						continue;
-					}
-				}
-
-				sleep(1);
+				if (res == SQLITE_DONE)
+					continue;
 			}
+
+			sqlite3_reset(sql[I_ROLLBACK]);
+			while (sqlite3_step(sql[I_ROLLBACK]) == SQLITE_BUSY) {
+				usleep(10);
+				sqlite3_reset(sql[I_ROLLBACK]);
+			}
+
+			if (res != SQLITE_LOCKED) {
+				cw_log(CW_LOG_ERROR, "insert failed with error code %d\n", res);
+				goto done;
+			}
+
+			usleep(10);
+			goto restart;
 		}
-
-		cw_mutex_unlock(&lock);
-
-		cw_dynstr_free(&esc_ds);
-		cw_dynstr_free(&cmd_ds);
-		cw_channel_free(chan);
 	}
 
+	sqlite3_reset(sql[I_COMMIT]);
+	while ((res = sqlite3_step(sql[I_COMMIT])) == SQLITE_BUSY) {
+		usleep(10);
+		sqlite3_reset(sql[I_COMMIT]);
+	}
+
+	if (res != SQLITE_DONE) {
+		sqlite3_reset(sql[I_ROLLBACK]);
+		while (sqlite3_step(sql[I_ROLLBACK]) == SQLITE_BUSY) {
+			usleep(10);
+			sqlite3_reset(sql[I_ROLLBACK]);
+		}
+		goto restart;
+	}
+
+done:
+	pthread_mutex_unlock(&lock);
 	return res;
-}
-
-
-static void release(void)
-{
-	if (db)
-		sqlite3_close(db);
 }
 
 
@@ -228,66 +248,158 @@ static struct cw_cdrbe cdrbe = {
 	.handler = sqlite3_log,
 };
 
+
+static void release(void)
+{
+	dbclose();
+
+	if (cmd[I_INSERT])
+		free((char *)cmd[I_INSERT]);
+
+	if (values_str)
+		free(values_str);
+	cw_dynarray_free(&values);
+
+	if (columns_str)
+		free(columns_str);
+	cw_dynarray_free(&columns);
+
+	if (table)
+		free(table);
+
+	cw_dynstr_free(&evalbuf);
+	cw_dynstr_free(&dbpath);
+
+	if (chan)
+		cw_channel_free(chan);
+}
+
+
 static int unload_module(void)
 {
 	cw_cdrbe_unregister(&cdrbe);
 	return 0;
 }
 
-static int load_module(void)
-{
-	cw_dynstr_t fn = CW_DYNSTR_INIT;
-	char *zErr;
-	char *sql_cmd;
-	int res;
-
-	if (load_config(0))
-		return -1;
-
-	/* is the database there? */
-	cw_dynstr_printf(&fn, "%s/master.db", cw_config[CW_LOG_DIR]);
-	res = sqlite3_open(fn.data, &db);
-	if (!db)
-		cw_log(CW_LOG_ERROR, "%s: Could not open database %s.\n", name, fn.data);
-	cw_dynstr_free(&fn);
-	if (!db)
-		return -1;
-
-	/* is the table there? */
-	sql_cmd = sqlite3_mprintf("SELECT COUNT(AcctId) FROM %q;", table);
-	res = sqlite3_exec(db, sql_cmd, NULL, NULL, NULL);
-	sqlite3_free(sql_cmd);
-	if (res) {
-		sql_cmd = sqlite3_mprintf("CREATE TABLE %q (AcctId INTEGER PRIMARY KEY,%q)", table, columns);
-		res = sqlite3_exec(db, sql_cmd, NULL, NULL, &zErr);
-		sqlite3_free(sql_cmd);
-		if (zErr) {
-			cw_log(CW_LOG_WARNING, "%s: %s.\n", name, zErr);
-			sqlite3_free(zErr);
-			return 0;
-		}
-
-		if (res) {
-			cw_log(CW_LOG_ERROR, "%s: Unable to create table '%s': %s.\n", name, table, zErr);
-			sqlite3_free(zErr);
-			if (db)
-				sqlite3_close(db);
-			return -1;
-		}
-	}
-
-	cw_cdrbe_register(&cdrbe);
-
-	return 0;
-}
 
 static int reload_module(void)
 {
-	int res;
+	struct cw_config *cfg;
+	char *tmp;
+	int res = -1;
 
-	cw_mutex_lock(&lock);
-	res = load_config(1);
-	cw_mutex_unlock(&lock);
+	pthread_mutex_lock(&lock);
+
+	dbclose();
+
+	if (values_str) {
+		free(values_str);
+		values_str = NULL;
+	}
+
+	if (columns_str) {
+		free(columns_str);
+		columns_str = NULL;
+	}
+	cw_dynarray_reset(&columns);
+
+	if (table) {
+		free(table);
+		table = NULL;
+	}
+
+	if ((cfg = cw_config_load(config_file))) {
+		res = 0;
+
+		if (cw_variable_browse(cfg, "master")) {
+			/* Previous cdr_sqlite3_custom had the table in "master" but cdr_pgsql_custom
+			 * has it in "global". For the sake of compatibility with expectations we
+			 * look in both places here.
+			 */
+			if ((tmp = cw_variable_retrieve(cfg, "master", "table"))
+			|| (tmp = cw_variable_retrieve(cfg, "global", "table")))
+				table = strdup(tmp);
+			else {
+				cw_log(CW_LOG_WARNING, "Table name not specified. Assuming cdr.\n");
+				table = strdup("cdr");
+			}
+
+			if ((tmp = cw_variable_retrieve(cfg, "master", "columns"))) {
+				if (!(columns_str = strdup(tmp)) || cw_separate_app_args(&columns, columns_str, ",", '\0', NULL)) {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					res = -1;
+				}
+			} else {
+				cw_log(CW_LOG_ERROR, "Column names not specified.\n");
+				res = -1;
+			}
+
+			if ((tmp = cw_variable_retrieve(cfg, "master", "values"))) {
+				if (!(values_str = strdup(tmp))) {
+					cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					res = -1;
+				}
+			} else {
+				cw_log(CW_LOG_ERROR, "Values not specified.\n");
+				res = -1;
+			}
+		}
+
+		cw_config_destroy(cfg);
+
+		if (!res) {
+			cw_dynstr_t ds = CW_DYNSTR_INIT;
+			char *s;
+			int i;
+
+			s = sqlite3_mprintf("INSERT INTO %q (%q", table, columns.data[0]);
+			cw_dynstr_printf(&ds, "%s", s);
+			sqlite3_free(s);
+
+			for (i = 1; i < columns.used; i++) {
+				s = sqlite3_mprintf(", %q", columns.data[i]);
+				cw_dynstr_printf(&ds, "%s", s);
+				sqlite3_free(s);
+			}
+
+			cw_dynstr_printf(&ds, ") VALUES (?");
+
+			for (i = 1; i < columns.used; i++)
+				cw_dynstr_printf(&ds, ", ?");
+
+			cw_dynstr_printf(&ds, ")");
+
+			res = -1;
+			if (!ds.error) {
+				cmd[I_INSERT] = cw_dynstr_steal(&ds);
+
+				res = dbopen(1);
+			}
+		}
+	} else
+		cw_log(CW_LOG_WARNING, "Failed to load configuration file \"%s\"\n", config_file);
+
+	if (res && table) {
+		free(table);
+		table = NULL;
+	}
+
+	pthread_mutex_unlock(&lock);
+
+	return res;
+}
+
+
+static int load_module(void)
+{
+	int res = -1;
+
+	cw_dynstr_printf(&dbpath, "%s/master.db", cw_config[CW_LOG_DIR]);
+
+	if (!dbpath.error && !reload_module() && (chan = cw_channel_alloc(0, NULL))) {
+		cw_cdrbe_register(&cdrbe);
+		res = 0;
+	}
 
 	return res;
 }

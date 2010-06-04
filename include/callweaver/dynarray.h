@@ -93,7 +93,7 @@ typedef CW_DYNARRAY(void) cw_dynarray_generic_t;
 #define cw_dynarray_need(da_p, nmemb) ({ \
 	typeof(da_p) __ptr = (da_p); \
 	size_t __nmemb = __ptr->used + (nmemb); \
-	if (__nmemb > __ptr->size) { \
+	if (!__ptr->error && __nmemb > __ptr->size) { \
 		typeof(__ptr->data) __ndata[2] = { __ptr->data, NULL }; \
 		size_t __space = ((__nmemb * sizeof(__ptr->data[0])) + __ptr->chunk) & (~__ptr->chunk); \
 		/* Note: the special handling for size 0 is because the dynstr implementation \

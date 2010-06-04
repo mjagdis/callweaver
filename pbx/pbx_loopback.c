@@ -68,142 +68,203 @@ static const char tdesc[] = "Loopback Switch";
 */
 
 
-#define LOOPBACK_COMMON \
-	cw_dynstr_t ds = CW_DYNSTR_INIT; \
-	int res; \
-	char *newexten=(char *)exten, *newcontext=(char *)context; \
-	int newpriority=priority; \
-	char *newpattern=NULL; \
-	loopback_helper(&ds, exten, context, priority, data); \
-	if (!ds.error) { \
-		loopback_subst(&newexten, &newcontext, &newpriority, &newpattern, ds.data); \
-		cw_dynstr_free(&ds); \
-		cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", newexten, newcontext, newpriority); \
-		if (!strcasecmp(newcontext, context)) return -1; \
-	}
-
-
-static void loopback_helper(cw_dynstr_t *ds_p, const char *exten, const char *context, int priority, const char *data)
+static void loopback_parse(cw_dynstr_t *ds_p, const char *data, const char **newexten, const char **newcontext, int *newpriority, const char **newpattern)
 {
 	char tmp[80];
 	struct cw_registry reg;
 
 	cw_var_registry_init(&reg, 8);
-	snprintf(tmp, sizeof(tmp), "%d", priority);
-	cw_var_assign(&reg, "EXTEN", exten);
-	cw_var_assign(&reg, "CONTEXT", context);
+	snprintf(tmp, sizeof(tmp), "%d", *newpriority);
+	cw_var_assign(&reg, "EXTEN", *newexten);
+	cw_var_assign(&reg, "CONTEXT", *newcontext);
 	cw_var_assign(&reg, "PRIORITY", tmp);
 
 	pbx_substitute_variables(NULL, &reg, data, ds_p);
 
 	cw_registry_destroy(&reg);
+
+	if (!ds_p->error && ds_p->used) {
+		char *con = NULL, *pri = NULL;
+		int inquote, i, j;
+
+		/* [exten]@context[:priority][/extramatch] */
+		inquote = i = j = 0;
+		while (ds_p->data[i]) {
+			switch (ds_p->data[i]) {
+				case '"':
+					inquote = !inquote;
+					i++;
+					break;
+
+				case '@':
+					if (!inquote && !con) {
+						i++;
+						ds_p->data[j++] = '\0';
+						con = &ds_p->data[j];
+					}
+					break;
+				case ':':
+					if (!inquote && !pri) {
+						i++;
+						ds_p->data[j++] = '\0';
+						pri = &ds_p->data[j];
+					}
+					break;
+				case '/':
+					if (!inquote && !*newpattern) {
+						i++;
+						ds_p->data[j++] = '\0';
+						*newpattern = &ds_p->data[j];
+					}
+					break;
+
+				case '\\':
+					if (ds_p->data[i + 1] && strchr("\"\\", ds_p->data[i + 1]))
+						i++;
+					/* Fall through */
+				default:
+					ds_p->data[j++] = ds_p->data[i++];
+					break;
+			}
+		}
+		ds_p->data[j] = '\0';
+
+		if (ds_p->data[0])
+			*newexten = &ds_p->data[0];
+
+		if (con)
+			*newcontext = con;
+
+		if (pri)
+			*newpriority = atoi(pri);
+
+		cw_log(CW_LOG_DEBUG, "Parsed into %s @ %s priority %d\n", *newexten, *newcontext, *newpriority);
+	}
 }
 
-static void loopback_subst(char **newexten, char **newcontext, int *priority, char **newpattern, char *buf)
-{
-	char *con;
-	char *pri;
-	*newpattern = strchr(buf, '/');
-	if (*newpattern) {
-		*(*newpattern) = '\0';
-		(*newpattern)++;
-	}
-	con = strchr(buf, '@');
-	if (con) {
-		*con = '\0';
-		con++;
-		pri = strchr(con, ':');
-	} else
-		pri = strchr(buf, ':');
-	if (!cw_strlen_zero(buf))
-		*newexten = buf;
-	if (con && !cw_strlen_zero(con))
-		*newcontext = con;
-	if (pri && !cw_strlen_zero(pri))
-		sscanf(pri, "%d", priority);
-}
 
 static int loopback_exists(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	LOOPBACK_COMMON;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	const char *newcontext = context;
+	const char *newexten = exten;
+	const char *newpattern = NULL;
+	int newpriority = priority;
+	int res = -1;
 
-	res = cw_exists_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern)
-    {
-        switch (cw_extension_pattern_match(exten, newpattern))
-        {
-        case EXTENSION_MATCH_EXACT:
-        case EXTENSION_MATCH_STRETCHABLE:
-        case EXTENSION_MATCH_POSSIBLE:
-            break;
-        default:
-            res = 0;
-            break;
-        }
+	loopback_parse(&ds, data, &newexten, &newcontext, &newpriority, &newpattern);
+
+	if (strcasecmp(newcontext, context)) {
+		res = cw_exists_extension(chan, newcontext, newexten, newpriority, callerid);
+
+		if (newpattern) {
+			switch (cw_extension_pattern_match(exten, newpattern)) {
+				case EXTENSION_MATCH_EXACT:
+				case EXTENSION_MATCH_STRETCHABLE:
+				case EXTENSION_MATCH_POSSIBLE:
+					break;
+				default:
+					res = 0;
+					break;
+			}
+		}
 	}
-    return res;
+
+	cw_dynstr_free(&ds);
+
+	return res;
 }
 
 static int loopback_canmatch(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	LOOPBACK_COMMON;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	const char *newcontext = context;
+	const char *newexten = exten;
+	const char *newpattern = NULL;
+	int newpriority = priority;
+	int res = -1;
 
-	res = cw_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern)
-    {
-        switch (cw_extension_pattern_match(exten, newpattern))
-        {
-        case EXTENSION_MATCH_EXACT:
-        case EXTENSION_MATCH_STRETCHABLE:
-        case EXTENSION_MATCH_POSSIBLE:
-            break;
-        default:
-            res = 0;
-            break;
-        }
+	loopback_parse(&ds, data, &newexten, &newcontext, &newpriority, &newpattern);
+
+	if (strcasecmp(newcontext, context)) {
+		res = cw_canmatch_extension(chan, newcontext, newexten, newpriority, callerid);
+		if (newpattern) {
+			switch (cw_extension_pattern_match(exten, newpattern)) {
+				case EXTENSION_MATCH_EXACT:
+				case EXTENSION_MATCH_STRETCHABLE:
+				case EXTENSION_MATCH_POSSIBLE:
+					break;
+				default:
+					res = 0;
+					break;
+			}
+		}
 	}
+
+	cw_dynstr_free(&ds);
+
 	return res;
 }
 
 static int loopback_exec(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	LOOPBACK_COMMON;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	const char *newcontext = context;
+	const char *newexten = exten;
+	const char *newpattern = NULL;
+	int newpriority = priority;
+	int res = -1;
 
-	res = cw_exec_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern)
-    {
-        switch (cw_extension_pattern_match(exten, newpattern))
-        {
-        case EXTENSION_MATCH_EXACT:
-        case EXTENSION_MATCH_STRETCHABLE:
-        case EXTENSION_MATCH_POSSIBLE:
-            break;
-        default:
-            res = -1;
-            break;
-        }
+	loopback_parse(&ds, data, &newexten, &newcontext, &newpriority, &newpattern);
+
+	if (strcasecmp(newcontext, context)) {
+		res = cw_exec_extension(chan, newcontext, newexten, newpriority, callerid);
+		if (newpattern) {
+			switch (cw_extension_pattern_match(exten, newpattern)) {
+				case EXTENSION_MATCH_EXACT:
+				case EXTENSION_MATCH_STRETCHABLE:
+				case EXTENSION_MATCH_POSSIBLE:
+					break;
+				default:
+					res = -1;
+					break;
+			}
+		}
 	}
+
+	cw_dynstr_free(&ds);
+
 	return res;
 }
 
 static int loopback_matchmore(struct cw_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
-	LOOPBACK_COMMON;
+	cw_dynstr_t ds = CW_DYNSTR_INIT;
+	const char *newcontext = context;
+	const char *newexten = exten;
+	const char *newpattern = NULL;
+	int newpriority = priority;
+	int res = -1;
 
-	res = cw_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
-	if (newpattern)
-    {
-        switch (cw_extension_pattern_match(exten, newpattern))
-        {
-        case EXTENSION_MATCH_EXACT:
-        case EXTENSION_MATCH_STRETCHABLE:
-        case EXTENSION_MATCH_POSSIBLE:
-            break;
-        default:
-            res = 0;
-            break;
-        }
+	loopback_parse(&ds, data, &newexten, &newcontext, &newpriority, &newpattern);
+
+	if (strcasecmp(newcontext, context)) {
+		res = cw_matchmore_extension(chan, newcontext, newexten, newpriority, callerid);
+		if (newpattern) {
+			switch (cw_extension_pattern_match(exten, newpattern)) {
+				case EXTENSION_MATCH_EXACT:
+				case EXTENSION_MATCH_STRETCHABLE:
+				case EXTENSION_MATCH_POSSIBLE:
+					break;
+				default:
+					res = 0;
+					break;
+			}
+		}
 	}
+
+	cw_dynstr_free(&ds);
+
 	return res;
 }
 

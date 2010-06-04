@@ -1185,7 +1185,7 @@ static int handle_getvariablefull(struct cw_channel *chan, OGI *ogi, int argc, c
 
 			pbx_substitute_variables(chan2, NULL, argv[4], &ds);
 
-			if (!ds.error)
+			if (!ds.error && !cw_separate_app_args(NULL, ds.data, "", '\0', NULL))
 				fdprintf(ogi->fd, "200 result=1 (%s)\n", ds.data);
 			else
 				res = RESULT_FAILURE;

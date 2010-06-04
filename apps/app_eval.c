@@ -30,6 +30,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/app.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
@@ -77,7 +78,7 @@ static int eval_exec(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t
 			cw_dynstr_t ds = CW_DYNSTR_INIT;
 
 			pbx_substitute_variables(chan, NULL, argv[0], &ds);
-			if (!ds.error) {
+			if (!ds.error && !cw_separate_app_args(NULL, ds.data, "", '\0', NULL)) {
 				pbx_builtin_setvar_helper(chan, newvar, ds.data);
 				res = 0;
 			}

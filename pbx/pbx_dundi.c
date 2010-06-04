@@ -50,6 +50,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/app.h"
 #include "callweaver/file.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
@@ -569,9 +570,11 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 				cw_var_assign(&reg, "SECRET", cursecret);
 				cw_var_assign(&reg, "IPADDR", ipaddr);
 				pbx_substitute_variables(NULL, &reg, map->dest, &dr[anscnt].dest);
+				if (!dr[anscnt].dest.error && !cw_separate_app_args(NULL, dr[anscnt].dest.data, "", '\0', NULL))
+					anscnt++;
 				cw_registry_destroy(&reg);
-			}
-			anscnt++;
+			} else
+				anscnt++;
 		} else {
 			/* No answers...  Find the fewest number of digits from the
 			   number for which we have no answer. */

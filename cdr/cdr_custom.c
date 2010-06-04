@@ -33,6 +33,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/app.h"
 #include "callweaver/channel.h"
 #include "callweaver/cdr.h"
 #include "callweaver/module.h"
@@ -61,10 +62,12 @@ static const char desc[] = "Customizable Comma Separated Values CDR Backend";
 static pthread_mutex_t csv_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct cw_channel *chan;
-static const char *csvmaster_path;
-static char format[1024] = "";
+static char *csvmaster_path, *values_str;
+static args_t values = CW_DYNARRAY_INIT;
 
 static FILE *csvmaster_fd;
+
+static cw_dynstr_t evalbuf = CW_DYNSTR_INIT;
 
 
 static int csvmaster_open(void)
@@ -72,31 +75,38 @@ static int csvmaster_open(void)
 	static dev_t dev;
 	static ino_t ino;
 	struct stat st;
-	int d;
+	int d, res;
 
-	if (csvmaster_fd) {
-		if (!stat(csvmaster_path, &st) && st.st_dev == dev && st.st_ino == ino)
-			return 0;
+	res = -1;
 
-		fclose(csvmaster_fd);
+	if (csvmaster_path) {
+		res = 0;
+		if (csvmaster_fd) {
+			if (!stat(csvmaster_path, &st) && st.st_dev == dev && st.st_ino == ino)
+				goto out;
+
+			fclose(csvmaster_fd);
+		}
+
+		if ((d = open_cloexec(csvmaster_path, O_WRONLY|O_APPEND|O_CREAT, 0666)) >= 0
+		&& (csvmaster_fd = fdopen(d, "a")))
+			goto out;
+
+		cw_log(CW_LOG_ERROR, "%s: %s\n", csvmaster_path, strerror(errno));
+
+		if (d >= 0)
+			close(d);
+
+		res = -1;
 	}
 
-	if ((d = open_cloexec(csvmaster_path, O_WRONLY|O_APPEND|O_CREAT, 0666)) >= 0
-	&& (csvmaster_fd = fdopen(d, "a")))
-		return 0;
-
-	cw_log(CW_LOG_ERROR, "%s: %s\n", csvmaster_path, strerror(errno));
-
-	if (d >= 0)
-		close(d);
-
-	return -1;
+out:
+	return res;
 }
 
 
 static int custom_log(struct cw_cdr *batch)
 {
-	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	struct cw_cdr *cdrset, *cdr;
 
 	pthread_mutex_lock(&csv_lock);
@@ -106,15 +116,39 @@ static int custom_log(struct cw_cdr *batch)
 			batch = batch->batch_next;
 
 			while ((cdr = cdrset)) {
-				chan->cdr = cdr;
-				pbx_substitute_variables(chan, NULL, format, &ds);
+				int i;
 
-				if (!ds.error) {
+				chan->cdr = cdr;
+
+				pbx_substitute_variables(chan, NULL, values_str, &evalbuf);
+
+				if (!evalbuf.error && !cw_separate_app_args(&values, evalbuf.data, ",", '\0', NULL)) {
 					cdrset = cdrset->next;
-					fputs(ds.data, csvmaster_fd);
-					cw_dynstr_reset(&ds);
-				} else
-					sleep(1);
+
+					for (i = 0; i < values.used; i++) {
+						char *p;
+
+						fputs((i ? ",\"" : "\""), csvmaster_fd);
+
+						while ((p = strchr(values.data[i], '"'))) {
+							fwrite(values.data[i], sizeof(char), p - values.data[i] + 1, csvmaster_fd);
+							putc('"', csvmaster_fd);
+							values.data[i] = p + 1;
+						}
+						fputs(values.data[i], csvmaster_fd);
+
+						putc('"', csvmaster_fd);
+					}
+
+					putc('\n', csvmaster_fd);
+
+					cw_dynarray_reset(&values);
+					cw_dynstr_reset(&evalbuf);
+				} else {
+					cw_dynarray_free(&values);
+					cw_dynstr_free(&evalbuf);
+					usleep(10);
+				}
 			}
 		}
 
@@ -123,8 +157,6 @@ static int custom_log(struct cw_cdr *batch)
 	}
 
 	pthread_mutex_unlock(&csv_lock);
-
-	cw_dynstr_free(&ds);
 	return 0;
 }
 
@@ -144,23 +176,38 @@ static int load_config(int reload)
 
 	pthread_mutex_lock(&csv_lock);
 
-	format[0] = '\0';
+	if (values_str) {
+		free(values_str);
+		values_str = NULL;
+	}
+	cw_dynarray_reset(&values);
+
+	if (csvmaster_path) {
+		free(csvmaster_path);
+		csvmaster_path = NULL;
+	}
 
 	if ((cfg = cw_config_load("cdr_custom.conf"))) {
 		var = cw_variable_browse(cfg, "mappings");
 		while (var) {
 			if (!cw_strlen_zero(var->name) && !cw_strlen_zero(var->value)) {
-				if (strlen(var->value) > (sizeof(format) - 2))
-					cw_log(CW_LOG_WARNING, "Format string too long, will be truncated, at line %d\n", var->lineno);
-				strncpy(format, var->value, sizeof(format) - 2);
-				strcat(format,"\n");
-
-				if ((csvmaster_path = malloc(strlen(cw_config[CW_LOG_DIR]) + 1 + strlen(name) + 1 + strlen(var->value) + 1)))
+				if ((csvmaster_path = malloc(strlen(cw_config[CW_LOG_DIR]) + 1 + strlen(name) + 1 + strlen(var->name) + 1))) {
 					sprintf((char *)csvmaster_path, "%s/%s/%s", cw_config[CW_LOG_DIR], name, var->name);
+
+					if (!(values_str = strdup(var->value))) {
+						free(csvmaster_path);
+						csvmaster_path = NULL;
+						cw_log(CW_LOG_ERROR, "Out of memory!\n");
+					}
+				}
 			} else
 				cw_log(CW_LOG_NOTICE, "Mapping must have both filename and format at line %d\n", var->lineno);
-			if (var->next)
+
+			if (var->next) {
 				cw_log(CW_LOG_NOTICE, "Sorry, only one mapping is supported at this time, mapping '%s' will be ignored at line %d.\n", var->next->name, var->next->lineno); 
+				break;
+			}
+
 			var = var->next;
 		}
 		cw_config_destroy(cfg);
@@ -180,10 +227,17 @@ static int load_config(int reload)
 
 static void release_module(void)
 {
-	if (chan)
-		cw_channel_free(chan);
+	if (values_str)
+		free(values_str);
+	cw_dynarray_free(&values);
+
 	if (csvmaster_fd)
 		fclose(csvmaster_fd);
+
+	cw_dynstr_free(&evalbuf);
+
+	if (chan)
+		cw_channel_free(chan);
 }
 
 

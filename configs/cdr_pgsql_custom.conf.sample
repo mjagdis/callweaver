@@ -1,11 +1,25 @@
 ;
-; Mappings for custom config file
+; Mappings for custom CDR logging to a PostgreSQL database
 ;
-[master]
-columns	= calldate, clid, src, dst, dcontext, channel, dstchannel, lastapp, lastdata, duration, billsec, disposition, amaflags, accountcode, uniqueid, userfield
-values	= '${CDR(start)}', '${CDR(clid)}', '${CDR(src)}', '${CDR(dst)}', '${CDR(dcontext)}', '${CDR(channel)}', '${CDR(dstchannel)}', '${CDR(lastapp)}', '${CDR(lastdata)}', '${CDR(duration)}', '${CDR(billsec)}', '${CDR(disposition)}', '${CDR(amaflags)}', '${CDR(accountcode)}', '${CDR(uniqueid)}', '${CDR(userfield)}'
 
 [global]
-dsn=host=localhost dbname=callweaver user=callweaver password=password
-table=cdr               ;SQL table where CDRs will be inserted
 
+; The DSN to use to connect to the database
+dsn = host=localhost dbname=callweaver user=callweaver password=password
+
+
+[master]
+
+; The table CDRs are to be inserted in
+; Note: this table is not created automatically as with cdr_pgsql. It must
+; already exist.
+table = cdr
+
+; A list of the columns to be updated in the table
+columns	= calldate, clid, src, dst, dcontext, channel, dstchannel, lastapp, lastdata, duration, billsec, disposition, amaflags, accountcode, uniqueid, userfield
+
+; A list of the values to be used for the columns.
+; These MUST be in the same order as the columns. i.e. we are doing the
+; equivalent of:
+;     insert into <table> (<columns>...) values (<values>...)
+values	= "${CDR(start)}", "${CDR(clid)}", "${CDR(src)}", "${CDR(dst)}", "${CDR(dcontext)}", "${CDR(channel)}", "${CDR(dstchannel)}", "${CDR(lastapp)}", "${CDR(lastdata)}", "${CDR(duration)}", "${CDR(billsec)}", "${CDR(disposition)}", "${CDR(amaflags)}", "${CDR(accountcode)}", "${CDR(uniqueid)}", "${CDR(userfield)}"

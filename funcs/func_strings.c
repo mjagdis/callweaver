@@ -256,10 +256,14 @@ static int acf_strftime(struct cw_channel *chan, int argc, char **argv, cw_dynst
 
 static int function_eval(struct cw_channel *chan, int argc, char **argv, cw_dynstr_t *result)
 {
+	size_t mark;
+
 	if (argc != 1 || !argv[0][0])
 		return cw_function_syntax(eval_func_syntax);
 
+	mark = cw_dynstr_end(result);
 	pbx_substitute_variables(chan, NULL, argv[0], result);
+	cw_separate_app_args(NULL, &result->data[mark], "", '\0', NULL);
 	return 0;
 }
 
@@ -289,6 +293,7 @@ static int function_cut(struct cw_channel *chan, int argc, char **argv, cw_dynst
 		snprintf(ds, sizeof(ds), "%c", d);
 
 		pbx_substitute_variables(chan, NULL, tmp, &varvalue);
+		cw_separate_app_args(NULL, varvalue.data, "", '\0', NULL);
 
 		if (!varvalue.error) {
 			tmp2 = varvalue.data;

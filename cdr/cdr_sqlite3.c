@@ -37,10 +37,6 @@
  * \ingroup cdr_drivers
  */
 
-/*** MODULEINFO
-	<depend>sqlite</depend>
- ***/
-
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
@@ -53,6 +49,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <stdio.h>
 
 #include "callweaver/channel.h"
+#include "callweaver/dynstr.h"
 #include "callweaver/cdr.h"
 #include "callweaver/module.h"
 #include "callweaver/logger.h"
@@ -132,7 +129,7 @@ static const char sql_insert_cmd[] =
 	");";
 
 
-static char *dbpath;
+static cw_dynstr_t dbpath = CW_DYNSTR_INIT;
 
 static pthread_mutex_t sqlite3_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -174,19 +171,19 @@ static void dbclose(void)
 
 static int dbopen(int force)
 {
-	static dev_t dev;
-	static ino_t ino;
+	static dev_t dev = 0;
+	static ino_t ino = 0;
 	struct stat st;
 	char *zErr;
 	const char *tail;
 	int i, res;
 
-	if (!force && !(res = stat(dbpath, &st)) && st.st_dev == dev && st.st_ino == ino)
+	if (!force && !(res = stat(dbpath.data, &st)) && st.st_dev == dev && st.st_ino == ino)
 		return 0;
 
 	dbclose();
 
-	res = sqlite3_open(dbpath, &db);
+	res = sqlite3_open(dbpath.data, &db);
 	if (!db) {
 		cw_log(CW_LOG_ERROR, "Out of memory!\n");
 		goto err;
@@ -197,8 +194,8 @@ static int dbopen(int force)
 	}
 
 	/* is the table there? */
-	zErr = NULL;
 	if (sqlite3_exec(db, "SELECT COUNT(AcctId) FROM cdr;", NULL, NULL, NULL) != SQLITE_OK) {
+		zErr = NULL;
 		if (sqlite3_exec(db, sql_create_table, NULL, NULL, &zErr) != SQLITE_OK) {
 			cw_log(CW_LOG_ERROR, "cdr_sqlite: Unable to create table 'cdr': %s\n", zErr);
 			sqlite3_free(zErr);
@@ -336,6 +333,13 @@ static struct cw_cdrbe cdrbe = {
 };
 
 
+static void release(void)
+{
+	dbclose();
+	cw_dynstr_free(&dbpath);
+}
+
+
 static int unload_module(void)
 {
 	cw_cdrbe_unregister(&cdrbe);
@@ -349,13 +353,7 @@ static int reconfig_module(void)
 
 	pthread_mutex_lock(&sqlite3_lock);
 
-	if ((dbpath = malloc(strlen(cw_config[CW_LOG_DIR]) + sizeof("/cdr.db") - 1 + 1))) {
-		/* FIXME: this should be coming from a conf file */
-		sprintf(dbpath, "%s/cdr.db", cw_config[CW_LOG_DIR]);
-
-		if ((res = dbopen(1)))
-			dbclose();
-	}
+	res = dbopen(1);
 
 	pthread_mutex_unlock(&sqlite3_lock);
 
@@ -365,13 +363,18 @@ static int reconfig_module(void)
 
 static int load_module(void)
 {
-	if (!reconfig_module()) {
+	int res = -1;
+
+	/* FIXME: this should be coming from a conf file */
+	cw_dynstr_printf(&dbpath, "%s/cdr.db", cw_config[CW_LOG_DIR]);
+
+	if (!dbpath.error && !reconfig_module()) {
 		cw_cdrbe_register(&cdrbe);
-		return 0;
+		res = 0;
 	}
 
-	return -1;
+	return res;
 }
 
 
-MODULE_INFO(load_module, reconfig_module, unload_module, dbclose, desc)
+MODULE_INFO(load_module, reconfig_module, unload_module, release, desc)

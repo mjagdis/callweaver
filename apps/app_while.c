@@ -278,7 +278,7 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, int end)
 	if (!end && !while_pri) {
 		size = strlen(chan->context) + strlen(chan->exten) + 32;
 		goto_str = alloca(size);
-		snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority);
+		snprintf(goto_str, size, "\"%s\",\"%s\",%d", chan->context, chan->exten, chan->priority);
 		pbx_builtin_setvar_helper(chan, varname, goto_str);
 	} else if (end && while_pri) {
 		/* END of loop */
@@ -287,7 +287,7 @@ static int _while_exec(struct cw_channel *chan, int argc, char **argv, int end)
 		} else {
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
 			goto_str = alloca(size);
-			snprintf(goto_str, size, "%s,%s,%d", chan->context, chan->exten, chan->priority+1);
+			snprintf(goto_str, size, "\"%s\",\"%s\",%d", chan->context, chan->exten, chan->priority+1);
 			pbx_builtin_setvar_helper(chan, end_varname, goto_str);
 		}
 		cw_parseable_goto(chan, while_pri->value);

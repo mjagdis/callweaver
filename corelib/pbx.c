@@ -629,8 +629,10 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
                 if ((asw = pbx_findswitch(sw->name)))
                 {
                     /* Substitute variables now */
-                    if (sw->eval) 
+                    if (sw->eval) {
                         pbx_substitute_variables(chan, NULL, sw->data, data);
+                        cw_separate_app_args(NULL, data->data, "", '\0', NULL);
+                    }
 
 		    res = 0;
 		    if (!data->error) {
@@ -753,6 +755,7 @@ static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *va
 
 int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, cw_dynstr_t *result)
 {
+	args_t av = CW_DYNARRAY_INIT;
 	char *args;
 	size_t i;
 	int offset, length;
@@ -778,86 +781,80 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			}
 		}
 
-		srclen = i;
 		src[i] = '\0';
+
+		if (i)
+			i--;
 	}
+
+	while (i && isspace(src[i])) i--;
 
 	args = NULL;
-	i = srclen - 1;
-	if (src[i] == ')') {
-		if ((args = strchr(src, '(')))
-			*(args++) = src[i] = '\0';
-	}
-
-	/* If the name part starts with a quote we have to strip quotes and
-	 * de-escape it. Otherwise things like (for instance):
-	 *     Set(x="some name")
-	 *     Set("${x}"="...")
-	 *     ...(${"${x}"})
-	 * will break.
-	 */
-	if (src[0] == '"') {
-		char *p, *q;
-
-		p = &src[0];
-		q = &src[1];
-		do {
-			if (*q == '\\') q++;
-			*(p++) = *(q++);
-		} while (*q);
-		if (p > &src[0] && p[-1] == '"')
-			p[-1] = '\0';
-	}
-
-	/* If there are args it's a function. If there are no args we look for
-	 * a variable first and if that fails we look for a function.
-	 * If there are no args and neither a variable nor a function exists
-	 * this is NOT fatal - an unset variable evaluates to "".
-	 */
-	if (!args) {
-		/* Just a variable name. Fetch it and add it to the result.
-		 * Note that pbx_retrieve_variable itself handles slicing.
-		 */
-		if (pbx_retrieve_variable(chan, vars, src, result, offset, length))
-			res = -2;
-	}
-
-	/* Could be a function with args or, if the variable look up
-	 * failed, a function without even the ().
-	 * It's worth noting that using ${X} only invokes the function
-	 * "X" if there is no variable "X" either on the channel or
-	 * globally. Hence this is hugely unreliable and you should
-	 * always use ${X()} if you mean the function "X". Support
-	 * for the version without the parentheses only exists so
-	 * we can undo some of the function-like variable hacks
-	 * that have been done in the past.
-	 */
-	if (args || res) {
-		i = cw_dynstr_end(result);
-
-		if (!cw_function_exec_str(chan, cw_hash_string(src), src, args, result)) {
-#if 0
-			static int deprecated = 1;
-
-			if (unlikely(!args && deprecated)) {
-				cw_log(CW_LOG_WARNING, "%s is a function. Always use func() for functions with no args. Leaving the parentheses out is deprecated.\n", src);
-				deprecated = 0;
+	if (!cw_separate_app_args(&av, src, "\0", '(', &args)) {
+		if (args) {
+			if (src[i] == ')')
+				src[i] = '\0';
+			else {
+				cw_log(CW_LOG_ERROR, "Missing ')' at end of: %s(%s\n", src, args);
+				res = -1;
 			}
+		}
+
+		if (!res) {
+			src = av.data[0];
+
+			/* If there are args it's a function. If there are no args we look for
+			 * a variable first and if that fails we look for a function.
+			 * If there are no args and neither a variable nor a function exists
+			 * this is NOT fatal - an unset variable evaluates to "".
+			 */
+			if (!args) {
+				/* Just a variable name. Fetch it and add it to the result.
+				 * Note that pbx_retrieve_variable itself handles slicing.
+				 */
+				if (pbx_retrieve_variable(chan, vars, src, result, offset, length))
+					res = -2;
+			}
+
+			/* Could be a function with args or, if the variable look up
+			 * failed, a function without even the ().
+			 * It's worth noting that using ${X} only invokes the function
+			 * "X" if there is no variable "X" either on the channel or
+			 * globally. Hence this is hugely unreliable and you should
+			 * always use ${X()} if you mean the function "X". Support
+			 * for the version without the parentheses only exists so
+			 * we can undo some of the function-like variable hacks
+			 * that have been done in the past.
+			 */
+			if (args || res) {
+				i = cw_dynstr_end(result);
+
+				if (!cw_function_exec_str(chan, cw_hash_string(src), src, args, result)) {
+#if 0
+					static int deprecated = 1;
+
+					if (unlikely(!args && deprecated)) {
+						cw_log(CW_LOG_WARNING, "%s is a function. Always use func() for functions with no args. Leaving the parentheses out is deprecated.\n", src);
+						deprecated = 0;
+					}
 #endif
 
-			normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
+					normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
 
-			if (offset != 0)
-				memmove(&result->data[i], &result->data[i + offset], length);
+					if (offset != 0)
+						memmove(&result->data[i], &result->data[i + offset], length);
 
-			cw_dynstr_truncate(result, i + length);
-		} else if (args) {
-			/* If there are no args it's an unset variable so the previous result stands. */
-			res = -1;
-			if (errno == ENOENT)
-				cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
+					cw_dynstr_truncate(result, i + length);
+				} else if (args) {
+					/* If there are no args it's an unset variable so the previous result stands. */
+					res = -1;
+					if (errno == ENOENT)
+						cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
+				}
+			}
 		}
-	}
+	} else
+		result->error = 1;
 
 	return res;
 }
@@ -889,29 +886,25 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 		switch (start[len]) {
 			case '$':
 				if (start[len + 1] == '{' || start[len + 1] == '[') {
-					cw_dynstr_t *res = dst;
 					int skip;
 
 					if (len)
 						cw_dynstr_printf(dst, "%.*s", len, start);
 
-					if (inquote)
-						res = &rds;
-
 					if (start[len + 1] == '{') {
 						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', error);
 
-						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, res) == -1)
+						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, &rds) == -1)
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
 						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', error);
 
-						if (ds.error || (cw_expr(ds.data, res),res->error))
+						if (ds.error || (cw_expr(ds.data, &rds),rds.error))
 							dst->error = 1;
 					}
 
-					if (res != dst && !dst->error)
-						cw_copy_escape(dst, res->data);
+					if (!dst->error)
+						cw_copy_escape(dst, rds.data);
 
 					cw_dynstr_reset(&ds);
 					cw_dynstr_reset(&rds);
@@ -4973,7 +4966,7 @@ int cw_parseable_goto(struct cw_channel *chan, const char *goto_string)
 	int ret;
 
 	if (!goto_string || !(prio = cw_strdupa(goto_string))
-	|| cw_separate_app_args(&args, prio, ",") || args.used > 3)
+	|| cw_separate_app_args(&args, prio, ",", '\0', NULL) || args.used > 3)
 		return cw_function_syntax("Goto([[context, ]extension, ]priority)");
 
 	prio = args.data[args.used - 1];

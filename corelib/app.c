@@ -981,41 +981,45 @@ int cw_app_group_list_unlock(void)
 }
 
 
-int cw_separate_app_args(args_t *args, char *buf, const char *delim)
+int cw_separate_app_args(args_t *args, char *buf, const char *delim, char stop, char **tail)
 {
-	if (option_debug && option_verbose > 6)
-		cw_log(CW_LOG_DEBUG, "delim=\"%s\", args: %s\n", delim, buf);
+	int res;
 
-	cw_dynarray_reset(args);
-	args->used = 0;
+	if (option_debug && option_verbose > 6)
+		cw_log(CW_LOG_DEBUG, "stop=0x%02x '%c', delim=\"%s\", args: %s\n", stop, (isprint(stop) ? stop : '?'), delim, buf);
+
+	if (args) {
+		cw_dynarray_reset(args);
+		args->used = 0;
+	}
 
 	if (buf) {
-		char *p;
+		char *start, *next;
 		char c;
 
-		p = buf;
+		start = buf;
 		do {
-			char *next, *end;
+			char *end;
 			int inquote, tws;
 
-			if (cw_dynarray_need(args, 2))
-				break;
-
 			/* Skip leading white space */
-			args->data[args->used] = cw_skip_blanks(p);
-			next = end = args->data[args->used];
+			while (isblank(start[0]))
+				start++;
 
 			/* Find the end of this arg. Backslash removes any special
-			 * meaning from the next character. Otherwise quotes
-			 * enclose strings and parentheses (outside any quoted
-			 * string) must balance.
+			 * meaning from the next character and quotes enclose strings.
+			 * Note: the outer check for the first character being '\0' protects
+			 * us from attempting to modify a literal "" passed as the argument
+			 * string. This allows us to initialize dynamic strings to ""
+			 * which simplifies a lot of stuff higher up the stack!
 			 */
+			next = end = start;
 			inquote = tws = 0;
 			c = '\0';
 			if (*next) {
-				do {
-					if (*next == '\\') {
-						if (!*(++next)) break;
+				while (*next && (inquote || *next != stop)) {
+					if (*next == '\\' && strchr("\"\\", *(next + 1))) {
+						next++;
 						tws = -1;
 					} else if (*next == '"') {
 						inquote = !inquote;
@@ -1027,7 +1031,7 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 
 					*(end++) = *(next++);
 					tws++;
-				} while (*next);
+				}
 
 				/* Note whether we hit a delimiter or '\0' in case
 				 * we're about to overwrite it
@@ -1036,34 +1040,49 @@ int cw_separate_app_args(args_t *args, char *buf, const char *delim)
 
 				/* Terminate and backtrack trimming off trailing whitespace */
 				*end = '\0';
-				while (tws && isspace(end[-1]))
+				while (tws-- && isblank(end[-1]))
 					*(--end) = '\0';
 			}
 
 #if 0
-			if (argl) argl[args->used] = end - args->data[args->used];
+			if (argl)
+				argl[argl->used++] = end - start;
 #endif
-			args->used++;
+			if (args) {
+				if (cw_dynarray_need(args, args->used + 2))
+					break;
 
-			p = next + 1;
-		} while (c);
+				args->data[args->used++] = start;
+			}
+
+			start = next + 1;
+		} while (c && c != stop);
+
+		if (c && tail)
+			*tail = next + 1;
 	}
 
-	if (args->used == 1 && !args->data[0][0])
-		args->used--;
+	res = 0;
 
-	if (!cw_dynarray_need(args, 1)) {
-		args->data[args->used] = NULL;
+	if (args) {
+		if (args->used == 1 && !args->data[0][0])
+			args->used--;
 
-		if (option_debug && option_verbose > 5) {
-			size_t i;
-			cw_log(CW_LOG_DEBUG, "error = %d, argc: %lu\n", args->error, (unsigned long)args->used);
-			for (i = 0; i < args->used; i++)
-				cw_log(CW_LOG_DEBUG, "argv[%lu]: %s\n", (unsigned long)i, args->data[i]);
+		if (!cw_dynarray_need(args, 1)) {
+			args->data[args->used] = NULL;
+
+			if (option_debug && option_verbose > 5) {
+				size_t i;
+				cw_log(CW_LOG_DEBUG, "error = %d, argc: %lu\n", args->error, (unsigned long)args->used);
+				for (i = 0; i < args->used; i++)
+					cw_log(CW_LOG_DEBUG, "argv[%lu]: %s\n", (unsigned long)i, args->data[i]);
+			}
 		}
+
+		res = args->error;
 	}
 
-	return args->error;
+	return res;
 }
 
 

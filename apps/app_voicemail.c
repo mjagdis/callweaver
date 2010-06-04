@@ -1570,6 +1570,7 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
+	struct cw_channel *chan = NULL;
 	struct vm_zone *the_zone = NULL;
 	FILE *p=NULL;
 	int pfd;
@@ -1625,32 +1626,26 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 		/* Set date format for voicemail mail */
 		strftime(date, sizeof(date), emaildateformat, &tm);
 
-		if (*fromstring) {
-			struct cw_channel *chan;
-
-			if ((chan = cw_channel_alloc(0, NULL))) {
+		if (*fromstring || emailsubject || emailbody) {
+			if ((chan = cw_channel_alloc(0, NULL)))
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, fromstring, &ds);
-				fprintf(p, "From: %s <%s>\n", ds.data, who);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-			}
+		}
+
+		if (*fromstring && chan) {
+			pbx_substitute_variables(chan, NULL, fromstring, &ds);
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, "From: \"%s\" <%s>\n", ds.data, who);
+			cw_dynstr_reset(&ds);
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
-		if (emailsubject) {
-			struct cw_channel *chan;
-
-			if ((chan = cw_channel_alloc(0, NULL))) {
-				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, emailsubject, &ds);
-				fprintf(p, "Subject: %s\n", ds.data);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-			}
-		} else
-		if (*emailtitle) {
+		if (emailsubject && chan) {
+			pbx_substitute_variables(chan, NULL, emailsubject, &ds);
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, "Subject: %s\n", ds.data);
+			cw_dynstr_reset(&ds);
+		} else if (*emailtitle) {
 			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
 			fprintf(p,"\n") ;
 		} else if (cw_test_flag((&globalflags), VM_PBXSKIP))
@@ -1668,21 +1663,18 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			fprintf(p, "--%s\n", bound);
 		}
 		fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", charset);
-		if (emailbody) {
-			struct cw_channel *chan;
-
-			if ((chan = cw_channel_alloc(0, NULL))) {
-				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, emailbody, &ds);
-				fprintf(p, "%s\n", ds.data);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-			}
+		if (emailbody && chan) {
+			pbx_substitute_variables(chan, NULL, emailbody, &ds);
+			if (ds.used && ds.data[ds.used - 1] != '\n')
+				cw_dynstr_printf(&ds, "\n");
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, ds.data);
+			cw_dynstr_reset(&ds);
 		} else {
 			fprintf(p, "Dear %s:\n\n\tJust wanted to let you know you were just left a %s long message (number %d)\n"
 
 			"in mailbox %s from %s, on %s so you might\n"
-			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--CallWeaver\n\n", vmu->fullname, 
+			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--CallWeaver\n", vmu->fullname,
 			dur, msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
 		}
 		if (attach_user_voicemail) {
@@ -1701,6 +1693,10 @@ static int sendmail(const char *srcemail, struct cw_vm_user *vmu, int msgnum, co
 			base_encode(fname, p);
 			fprintf(p, "\n\n--%s--\n.\n", bound);
 		}
+
+		if (chan)
+			cw_channel_free(chan);
+
 		fclose(p);
 		cw_dynstr_printf(&ds, "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		if (!ds.error) {
@@ -1727,6 +1723,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	cw_dynstr_t ds = CW_DYNSTR_INIT;
 	time_t t;
 	struct tm tm;
+	struct cw_channel *chan = NULL;
 	struct vm_zone *the_zone = NULL;
 	pfd = mkstemp(tmp);
 
@@ -1770,46 +1767,39 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
 
-		if (*pagerfromstring) {
-			struct cw_channel *chan;
-
-			if ((chan = cw_channel_alloc(0, NULL))) {
+		if (*pagerfromstring || pagersubject || pagerbody)
+			if ((chan = cw_channel_alloc(0, NULL)))
 				prep_email_sub_vars(chan, vmu,msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, pagerfromstring, &ds);
-				fprintf(p, "From: %s <%s>\n", ds.data, who);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-			}
+
+		if (*pagerfromstring && chan) {
+			pbx_substitute_variables(chan, NULL, pagerfromstring, &ds);
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, "From: %s <%s>\n", ds.data, who);
+			cw_dynstr_reset(&ds);
 		} else
 			fprintf(p, "From: CallWeaver <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
-               if (pagersubject) {
-                       struct cw_channel *chan;
-
-		       if ((chan = cw_channel_alloc(0, NULL))) {
-				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, pagersubject, &ds);
-				fprintf(p, "Subject: %s\n\n", ds.data);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-                       }
+               if (pagersubject && chan) {
+			pbx_substitute_variables(chan, NULL, pagersubject, &ds);
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, "Subject: %s\n\n", ds.data);
+			cw_dynstr_reset(&ds);
                } else
                        fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-               if (pagerbody) {
-                       struct cw_channel *chan;
-
-		       if ((chan = cw_channel_alloc(0, NULL))) {
-				prep_email_sub_vars(chan, vmu, msgnum + 1, context, mailbox, cidnum, cidname, dur, date, &ds);
-				pbx_substitute_variables(chan, NULL, pagerbody, &ds);
-				fprintf(p, "%s\n", ds.data);
-				cw_dynstr_reset(&ds);
-				cw_channel_free(chan);
-                       }
+               if (pagerbody && chan) {
+			pbx_substitute_variables(chan, NULL, pagerbody, &ds);
+			cw_separate_app_args(NULL, ds.data, "", '\0', NULL);
+			fprintf(p, "%s\n", ds.data);
+			cw_dynstr_reset(&ds);
                } else {
                        fprintf(p, "New %s long msg in box %s\n"
                                        "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
                }
+
+	       if (chan)
+			cw_channel_free(chan);
+
 		fclose(p);
 		cw_dynstr_printf(&ds, "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		if (!ds.error) {

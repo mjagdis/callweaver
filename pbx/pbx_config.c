@@ -32,6 +32,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/app.h"
 #include "callweaver/pbx.h"
 #include "callweaver/config.h"
 #include "callweaver/options.h"
@@ -1089,6 +1090,7 @@ static int pbx_load_module(void)
 	char *end;
 	char *label;
 	int lastpri = -2;
+	int res = -1;
 
 	cfg = cw_config_load(config);
 	if (cfg) {
@@ -1106,10 +1108,9 @@ static int pbx_load_module(void)
 
 		for (v = cw_variable_browse(cfg, "globals"); v; v = v->next) {
 			pbx_substitute_variables(NULL, NULL, v->value, &ds);
-			if (!ds.error)
-				pbx_builtin_setvar_helper(NULL, v->name, ds.data);
-			else
-				return -1;
+			if (ds.error || cw_separate_app_args(NULL, ds.data, "", '\0', NULL))
+				goto err;
+			pbx_builtin_setvar_helper(NULL, v->name, ds.data);
 			cw_dynstr_reset(&ds);
 		}
 		cxt = cw_category_browse(cfg, NULL);
@@ -1134,7 +1135,7 @@ static int pbx_load_module(void)
 							if (!ext)
 								ext = (char *)"";
 							pbx_substitute_variables(NULL, NULL, ext, &ds);
-							if (!ds.error) {
+							if (!ds.error && !cw_separate_app_args(NULL, ds.data, "", '\0', NULL)) {
 								cidmatch = strchr(ds.data, '/');
 								if (cidmatch) {
 									*cidmatch = '\0';
@@ -1227,18 +1228,22 @@ static int pbx_load_module(void)
 						    cw_log(CW_LOG_ERROR,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						pbx_substitute_variables(NULL, NULL, v->value, &ds);
-						if (!ds.error && cw_context_add_include2(con, ds.data, registrar))
+						if (!ds.error && !cw_separate_app_args(NULL, ds.data, "", '\0', NULL)
+						&& cw_context_add_include2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					} else if(!strcasecmp(v->name, "ignorepat")) {
 						pbx_substitute_variables(NULL, NULL, v->value, &ds);
-						if (!ds.error && cw_context_add_ignorepat2(con, ds.data, registrar))
+						if (!ds.error && !cw_separate_app_args(NULL, ds.data, "", '\0', NULL)
+						&& cw_context_add_ignorepat2(con, ds.data, registrar))
 							cw_log(CW_LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
 						char *stringp;
 
-						if (!strcasecmp(v->name, "switch"))
+						if (!strcasecmp(v->name, "switch")) {
 							pbx_substitute_variables(NULL, NULL, v->value, &ds);
-						else
+							if (!ds.error && cw_separate_app_args(NULL, ds.data, "", '\0', NULL))
+								ds.error = 1;
+						} else
 							cw_dynstr_printf(&ds, "%s", v->value);
 
 						if (!ds.error) {
@@ -1260,7 +1265,6 @@ static int pbx_load_module(void)
 			cxt = cw_category_browse(cfg, cxt);
 		}
 
-		cw_dynstr_free(&ds);
 		cw_config_destroy(cfg);
 	}
 	cw_merge_contexts_and_delete(&local_contexts,registrar);
@@ -1270,7 +1274,12 @@ static int pbx_load_module(void)
 
 	pbx_set_autofallthrough(autofallthrough_config);
 
-	return 0;
+	res = 0;
+
+err:
+	cw_dynstr_free(&ds);
+
+	return res;
 }
 
 static int load_module(void)
