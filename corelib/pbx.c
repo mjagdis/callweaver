@@ -692,218 +692,53 @@ static void normalize_offset_length(int *offset, int *length, size_t avail)
 			 */
 			*offset = 0;
 		}
-	} else if (offset > avail)
-		offset = avail;
+	} else if (*offset > avail)
+		*offset = avail;
 
 	if (*length < 0 && (*length = avail - *offset + *length) < 0)
 		*length = 0;
+
+	if (*offset + *length > avail)
+		*length = avail - *offset;
 }
 
 
 /*! \brief  pbx_retrieve_variable: Support for CallWeaver built-in variables and
  *  functions in the dialplan
  */
-static int pbx_retrieve_variable(struct cw_channel *chan, struct cw_registry *vars, const char *varname, struct cw_dynstr *result, int offset, int length)
+static int pbx_retrieve_variable(struct cw_registry *vars, const char *varname, struct cw_dynstr *result, int offset, int length)
 {
-	struct cw_dynstr scratch = CW_DYNSTR_INIT;
-	struct cw_dynstr *dst;
 	struct cw_object *obj = NULL;
-	const char *res_str = NULL;
+	const char *str = NULL;
 	unsigned int hash = cw_hash_var_name(varname);
-	enum { t_unknown, t_strfixed, t_integer, t_strcons } res_type = t_unknown;
-	int res_int;
 
-	dst = (offset || length != INT_MAX ? &scratch : result);
-
-	if (chan) {
-		switch (hash) {
-			case CW_KEYWORD_EXTEN:
-				if (!strcmp(varname, "EXTEN"))
-					res_type = t_strfixed, res_str = c->exten;
-				break;
-			case CW_KEYWORD_CONTEXT:
-				if (!strcmp(varname, "CONTEXT"))
-					res_type = t_strfixed, res_str = c->context;
-				break;
-			case CW_KEYWORD_PRIORITY:
-				if (!strcmp(varname, "PRIORITY"))
-					res_type = t_integer, res_int = c->priority;
-				break;
-			case CW_KEYWORD_CHANNEL:
-				if (!strcmp(varname, "CHANNEL"))
-					res_type = t_strfixed, res_str = c->name;
-				break;
-			case CW_KEYWORD_UNIQUEID:
-				if (!strcmp(varname, "UNIQUEID"))
-					res_type = t_strfixed, res_str = c->uniqueid;
-				break;
-			case CW_KEYWORD_HANGUPCAUSE:
-				if (!strcmp(varname, "HANGUPCAUSE"))
-					res_type = t_integer, res_int = c->hangupcause;
-				break;
-			case CW_KEYWORD_ACCOUNTCODE:
-				if (!strcmp(varname, "ACCOUNTCODE"))
-					res_type = t_strfixed, res_str = c->accountcode;
-				break;
-			case CW_KEYWORD_LANGUAGE:
-				if (!strcmp(varname, "LANGUAGE"))
-					res_type = t_strfixed, res_str = c->language;
-				break;
-			case CW_KEYWORD_SYSTEMNAME:
-				if (!strcmp(varname, "SYSTEMNAME"))
-					res_type = t_strfixed, res_str = cw_config_CW_SYSTEM_NAME;
-				break;
-
-			case CW_KEYWORD_CALLERID:
-				if (!strcmp(varname, "CALLERID")) {
-					res_type = t_strcons;
-					if (c->cid.cid_num) {
-						if (c->cid.cid_name)
-							cw_dynstr_printf(dst, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
-						else
-							cw_dynstr_printf(dst, "%s", c->cid.cid_num);
-					} else if (c->cid.cid_name)
-						cw_dynstr_printf(dst, "%s", c->cid.cid_name);
-				}
-				break;
-			case CW_KEYWORD_CALLERIDNUM:
-				if (!strcmp(varname, "CALLERIDNUM"))
-					res_type = t_strfixed, res_str = c->cid.cid_num;
-				break;
-			case CW_KEYWORD_CALLERIDNAME:
-				if (!strcmp(varname, "CALLERIDNAME"))
-					res_type = t_strfixed, res_str = c->cid.cid_name;
-				break;
-			case CW_KEYWORD_CALLERANI:
-				if (!strcmp(varname, "CALLERANI"))
-					res_type = t_strfixed, res_str = c->cid.cid_ani;
-				break;
-			case CW_KEYWORD_CALLINGPRES:
-				if (!strcmp(varname, "CALLINGPRES"))
-					res_type = t_strfixed, res_str = chan->cid.cid_pres;
-				break;
-			case CW_KEYWORD_DNID:
-				if (!strcmp(varname, "DNID"))
-					res_type = t_strfixed, res_str = chan->cid.cid_dnid;
-				break;
-			case CW_KEYWORD_RDNIS:
-				if (!strcmp(varname, "RDNIS"))
-					res_type = t_strfixed, chan->cid.cid_rdnis;
-				break;
-			case CW_KEYWORD_CALLINGANI2:
-				if (!strcmp(varname, "CALLINGANI2"))
-					res_type = t_integer, res_int = chan->cid.cid_ani2;
-				break;
-			case CW_KEYWORD_CALLINGTON:
-				if (!strcmp(varname, "CALLINGTON"))
-					res_type = t_integer, res_int = chan->cid.cid_ton;
-				break;
-			case CW_KEYWORD_CALLINGTNS:
-				if (!strcmp(varname, "CALLINGTNS"))
-					res_type = t_integer, res_int = chan->cid.cid_tns;
-				break;
-
-			case CW_KEYWORD_HINT:
-				if (!strcmp(varname, "HINT"))
-					res_type = t_strcons, cw_get_hint(dst, NULL, chan, chan->context, chan->exten);
-				break;
-			case CW_KEYWORD_HINTNAME:
-				if (!strcmp(varname, "HINTNAME"))
-					res_type = t_strcons, cw_get_hint(NULL, dst, chan, chan->context, chan->exten);
-				break;
-		}
-	}
-
-	if (res_type == t_unknown && vars) {
-		if ((obj = cw_registry_find(&vars, 1, hash, varname))) {
+	if (vars) {
+		if ((obj = cw_registry_find(vars, 1, hash, varname))) {
 			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-			res_str = var->value;
-			res_type = t_strfixed;
+			str = var->value;
 		}
 	}
 
-	if (res_type == t_unknown) {
-		switch (hash) {
-			case CW_KEYWORD_EPOCH:
-				if (!strcmp(varname, "EPOCH"))
-					res_type = t_strcons, cw_dynstr_printf(dst, "%u", (unsigned int)time(NULL));
-				break;
-			case CW_KEYWORD_DATETIME:
-				if (!strcmp(varname, "DATETIME")) {
-					struct tm tm;
-					time_t now = time(NULL);
-
-					localtime_r(&now, &tm);
-					cw_dynstr_printf(dst, "%02d%02d%04d-%02d:%02d:%02d",
-						tm.tm_mday,
-						tm.tm_mon + 1,
-						tm.tm_year + 1900,
-						tm.tm_hour,
-						tm.tm_min,
-						tm.tm_sec
-					);
-					res_type = t_strcons;
-				}
-				break;
-			case CW_KEYWORD_TIMESTAMP:
-				if (!strcmp(varname, "TIMESTAMP")) {
-					struct tm tm;
-					time_t now = time(NULL);
-
-					localtime_r(&now, &tm);
-					/* e.g. 20031130-150612 */
-					cw_dynstr_printf(dst, "%04d%02d%02d-%02d%02d%02d",
-						tm.tm_year + 1900,
-						tm.tm_mon + 1,
-						tm.tm_mday,
-						tm.tm_hour,
-						tm.tm_min,
-						tm.tm_sec
-					);
-					res_type = t_strcons;
-				}
-				break;
-		}
-	}
-
-	if (res_type == t_unknown) {
+	if (!str) {
 		if ((obj = cw_registry_find(&var_registry, 1, hash, varname))) {
 			struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
-			res_str = var->value;
-			res_type = t_strfixed;
+			str = var->value;
 		}
 	}
 
-	switch (res_type) {
-		case t_strfixed: /* Fixed string */
-			if (str) {
-				normalize_offset_length(&offset, &length, strlen(str));
-				cw_dynstr_printf(result, "%.*s", length, &str[offset]);
-			} else
-				res_type = t_unknown;
-			break;
-		case t_integer: /* Integer */
-			cw_dynstr_printf(dst, "%d", res_int);
-			/* fall through */
-		case t_strcons: /* Constructed string (already written to dst) */
-			if (scratch.error)
-				result->error = 1;
-			if (scratch.used) {
-				normalize_offset_length(&offset, &length, scratch.used);
-				cw_dynstr_printf(result, "%.*s", length, &scratch.data[offset]);
-				cw_dynstr_reset(scratch);
-			}
-			break;
+	if (str) {
+		normalize_offset_length(&offset, &length, strlen(str));
+		cw_dynstr_printf(result, "%.*s", length, &str[offset]);
 	}
 
 	if (obj)
 		cw_object_put_obj(obj);
 
-	return (res_type == t_unknown);
+	return (!str);
 }
 
 
-int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result, size_t lparen, size_t rparen)
+int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result)
 {
 	char *args;
 	size_t i;
@@ -916,7 +751,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	while (i && isdigit(src[i])) i--;
 	if (i && src[i] == '-') i--;
 	if (src[i] == ':') {
-		offset = atoi(src[i + 1]);
+		offset = atoi(&src[i + 1]);
 
 		if (i) {
 			size_t j = i - 1;
@@ -925,7 +760,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			if (j && src[j] == '-') j--;
 			if (src[j] == ':') {
 				length = offset;
-				offset = atoi(src[j + 1]);
+				offset = atoi(&src[j + 1]);
 				i = j;
 			}
 		}
@@ -935,15 +770,17 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	}
 
 	args = NULL;
-	if (src[lparen] == '(' && src[rparen] == ')') {
-		args = &src[lparen + 1];
-		src[lparen] = '\0';
-		src[rparen] = '\0';
-	} else {
+	i = srclen - 1;
+	if (src[i] == ')') {
+		if ((args = strchr(src, '(')))
+			*(args++) = src[i] = '\0';
+	}
+
+	if (!args) {
 		/* Just a variable name. Fetch it and add it to the result.
 		 * Note that pbx_retrieve_variable itself handles slicing.
 		 */
-		res = pbx_retrieve_variable(chan, vars, src, result, offset, length);
+		res = pbx_retrieve_variable(vars, src, result, offset, length);
 	}
 
 	/* Could be a function with args or, if the variable look up
@@ -957,22 +794,25 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	 * that have been done in the past.
 	 */
 	if (args || res) {
-		static int deprecated = 1;
-
 		i = cw_dynstr_end(result);
 		res = cw_function_exec_str(chan, cw_hash_string(src), src, args, result);
 
-		if (unlikely(res && errno != ENOENT && deprecated)) {
-			cw_log(CW_LOG_WARNING, "Always use func() for functions with no args. Leaving the parentheses out is deprecated.\n");
-			deprecated = 0;
-		}
+		if (!res || errno != ENOENT) {
+			static int deprecated = 1;
 
-		normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
+			if (unlikely(!args && deprecated)) {
+				cw_log(CW_LOG_WARNING, "%s is a function. Always use func() for functions with no args. Leaving the parentheses out is deprecated.\n", src);
+				deprecated = 0;
+			}
 
-		if (offset != 0)
-			memmove(&res->data[i], &res->data[i + offset], length);
+			normalize_offset_length(&offset, &length, cw_dynstr_end(result) - i);
 
-		cw_dynstr_truncate(result, i + length);
+			if (offset != 0)
+				memmove(&result->data[i], &result->data[i + offset], length);
+
+			cw_dynstr_truncate(result, i + length);
+		} else if (args)
+			cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
 	}
 
 	return res;
@@ -991,7 +831,7 @@ static void cw_copy_escape(struct cw_dynstr *ds_p, const char *s)
 	}
 }
 
-static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst, char stop, size_t *lpos, size_t *rpos)
+static int expand_string(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst, char stop)
 {
 static __thread int depth = 0;
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
@@ -1006,14 +846,12 @@ cw_log(CW_LOG_NOTICE, "%d: src: have \"%s\", stop=0x%02x '%c', parse %s\n", dept
 	start = src;
 	len = 0;
 	inquote = 0;
-	*lpos = *rpos = 0;
 	while (start[len] && (start[len] != stop || inquote)) {
 		switch (start[len]) {
 			case '$':
 				if (start[len + 1] == '{' || start[len + 1] == '[') {
 					struct cw_dynstr *res = dst;
-					size_t lparen, rparen;
-					int skip, lparen, rparen;
+					int skip;
 
 					if (len)
 						cw_dynstr_printf(dst, "%.*s", len, start);
@@ -1024,22 +862,19 @@ cw_log(CW_LOG_NOTICE, "%d: src: have \"%s\", stop=0x%02x '%c', parse %s\n", dept
 					if (start[len + 1] == '{') {
 if (option_debug)
 cw_log(CW_LOG_NOTICE, "%d: exp: var %s\n", depth, &start[len + 2]);
-						lparen = rparen = 0;
-						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', &lparen, &rparen);
+						skip = expand_string(chan, vars, &start[len + 2], &ds, '}');
 if (option_debug)
 cw_log(CW_LOG_NOTICE, "%d: eval: var %s\n", depth, ds.data);
 
 						if (!ds.error)
-							pbx_retrieve_substr(chan, vars, ds.data, ds.used, res, lparen, rparen);
+							pbx_retrieve_substr(chan, vars, ds.data, ds.used, res);
 						else
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
-						/* FIXME: make cw_expr write into a dynstr */
-						char buf[4096];
 
 if (option_debug)
 cw_log(CW_LOG_NOTICE, "%d: exp: expr %s\n", depth, &start[len + 2]);
-						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', &lparen, &rparen);
+						skip = expand_string(chan, vars, &start[len + 2], &ds, ']');
 if (option_debug)
 cw_log(CW_LOG_NOTICE, "%d: eval: expr %s\n", depth, ds.data);
 
@@ -1063,18 +898,6 @@ cw_log(CW_LOG_NOTICE, "%d: eval: expr %s\n", depth, ds.data);
 if (option_debug)
 cw_log(CW_LOG_NOTICE, "%d: rem: %s\n", depth, start);
 				}
-				break;
-
-			case '(':
-				if (!inquote && !*lpos)
-					*lpos = (&start[len] - src);
-				len++;
-				break;
-
-			case ')':
-				if (!inquote)
-					*rpos = (&start[len] - src);
-				len++;
 				break;
 
 			case '"':
@@ -1105,12 +928,10 @@ depth--;
 }
 void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst)
 {
-	size_t lparen, rparen;
-
 	if (chan)
-		vars = chan->vars;
+		vars = &chan->vars;
 
-	expand_string(chan, vars, src, dst, '\0', &lparen, &rparen);
+	expand_string(chan, vars, src, dst, '\0');
 }
 
 
@@ -1161,6 +982,8 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
                 cw_msg_tuple("Uniqueid",    "%s", c->uniqueid)
             );
             res = cw_function_exec_str(c, e->apphash, e->app, data.data, NULL);
+            if (res && errno == ENOENT)
+                cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", e->app);
 	    break;
         default:
             cw_log(CW_LOG_WARNING, "Huh (%d)?\n", action);
@@ -4215,7 +4038,9 @@ static void *async_wait(void *data)
     {
         if (!cw_strlen_zero(as->app))
         {
-	    cw_function_exec_str(chan, cw_hash_string(as->app), as->app, as->appdata, NULL);
+            res = cw_function_exec_str(chan, cw_hash_string(as->app), as->app, as->appdata, NULL);
+            if (res && errno == ENOENT)
+                cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", as->app);
         }
         else
         {

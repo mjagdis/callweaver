@@ -1154,7 +1154,7 @@ static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 		*(args++) = *arge = '\0';
 		ret = !cw_function_exec_str(chan, cw_hash_string(argv[2]), argv[2], args, &ds);
 	} else {
-		ret = !pbx_retrieve_substr(chan, NULL, argv[2], strlen(argv[2]), &ds, 0, 0);
+		ret = !pbx_retrieve_substr(chan, NULL, argv[2], strlen(argv[2]), &ds);
 	}
 
 	if (ret && !ds.error)

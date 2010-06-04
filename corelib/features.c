@@ -1041,8 +1041,11 @@ static int feature_exec_app(struct cw_channel *chan, struct cw_channel *peer, st
 	args = alloca(res);
 	memcpy(args, feature->app_args, res);
 	res = cw_function_exec_str(work, cw_hash_string(feature->app), feature->app, args, NULL);
-	if (res < 0)
+	if (res < 0) {
+		if (errno == ENOENT)
+			cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", feature->app);
 		return res; 
+	}
 	
 	return FEATURE_RETURN_SUCCESS;
 }

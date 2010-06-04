@@ -98,17 +98,15 @@ int cw_function_syntax(const char *syntax)
  * \return a pointer to the function object or NULL if
  * not found
  */
-static struct cw_func* cw_find_function(unsigned int hash, const char *name) 
+static struct cw_func *cw_find_function(unsigned int hash, const char *name)
 {
 	struct cw_object *obj = cw_registry_find(&func_registry, 1, hash, name);
-
-	if (!obj)
-		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", name);
+	struct cw_func *func = NULL;
 
 	if (obj)
-		return container_of(obj, struct cw_func, obj);
+		func = container_of(obj, struct cw_func, obj);
 
-	return NULL;
+	return func;
 }
 
 

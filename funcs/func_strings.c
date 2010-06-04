@@ -127,7 +127,7 @@ static int function_fieldqty(struct cw_channel *chan, int argc, char **argv, str
 		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		int fieldcount = 0;
 
-		if (!pbx_retrieve_variable(chan, NULL, argv[0], strlen(argv[0]), &ds, 0, 0)) {
+		if (!pbx_retrieve_substr(chan, NULL, argv[0], strlen(argv[0]), &ds)) {
 			if (!ds.error) {
 				char *p = ds.data;
 

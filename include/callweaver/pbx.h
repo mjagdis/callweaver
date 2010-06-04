@@ -524,7 +524,7 @@ extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, co
 extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern CW_API_PUBLIC void pbx_builtin_clear_globals(void);
 
-extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, struct cw_dynstr *ds, struct cw_dynstr *res, size_t lparen, size_t rparen);
+extern CW_API_PUBLIC int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char *src, size_t srclen, struct cw_dynstr *result);
 
 extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars, const char *src, struct cw_dynstr *dst);
 

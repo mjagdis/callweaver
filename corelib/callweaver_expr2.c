@@ -1697,7 +1697,7 @@ yyreduce:
               else
 				  ((struct parse_io *)parseio)->val->u.s = (yyvsp[(1) - (1)].val)->u.s; 
 			  free((yyvsp[(1) - (1)].val));
-			}
+			;}
     break;
 
   case 3:
@@ -1705,12 +1705,12 @@ yyreduce:
     {/* nothing */ ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = CW_EXPR_string;
 			  ((struct parse_io *)parseio)->val->u.s = strdup(""); 
-			}
+			;}
     break;
 
   case 4:
 #line 187 "callweaver_expr2.y"
-    { (yyval.val)= (yyvsp[(1) - (1)].val);}
+    { (yyval.val)= (yyvsp[(1) - (1)].val);;}
     break;
 
   case 5:
@@ -1718,7 +1718,7 @@ yyreduce:
     { (yyval.val) = (yyvsp[(2) - (3)].val); 
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
 						   (yyloc).first_line=0; (yyloc).last_line=0;
-							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); }
+							DESTROY((yyvsp[(1) - (3)].val)); DESTROY((yyvsp[(3) - (3)].val)); ;}
     break;
 
   case 6:
@@ -1726,7 +1726,7 @@ yyreduce:
     { (yyval.val) = op_or ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						 (yyloc).first_line=0; (yyloc).last_line=0;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 7:
@@ -1734,7 +1734,7 @@ yyreduce:
     { (yyval.val) = op_and ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-                          (yyloc).first_line=0; (yyloc).last_line=0;}
+                          (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 8:
@@ -1742,7 +1742,7 @@ yyreduce:
     { (yyval.val) = op_eq ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
-						 (yyloc).first_line=0; (yyloc).last_line=0;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 9:
@@ -1750,7 +1750,7 @@ yyreduce:
     { (yyval.val) = op_gt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val));
 						DESTROY((yyvsp[(2) - (3)].val));	
                          (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column;
-						 (yyloc).first_line=0; (yyloc).last_line=0;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 10:
@@ -1758,7 +1758,7 @@ yyreduce:
     { (yyval.val) = op_lt ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                     (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						 (yyloc).first_line=0; (yyloc).last_line=0;}
+						 (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 11:
@@ -1766,7 +1766,7 @@ yyreduce:
     { (yyval.val) = op_ge ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 12:
@@ -1774,7 +1774,7 @@ yyreduce:
     { (yyval.val) = op_le ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 13:
@@ -1782,7 +1782,7 @@ yyreduce:
     { (yyval.val) = op_ne ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 14:
@@ -1790,7 +1790,7 @@ yyreduce:
     { (yyval.val) = op_plus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						   (yyloc).first_line=0; (yyloc).last_line=0;}
+						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 15:
@@ -1798,7 +1798,7 @@ yyreduce:
     { (yyval.val) = op_minus ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 16:
@@ -1806,7 +1806,7 @@ yyreduce:
     { (yyval.val) = op_negate ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 17:
@@ -1814,7 +1814,7 @@ yyreduce:
     { (yyval.val) = op_compl ((yyvsp[(2) - (2)].val)); 
 						DESTROY((yyvsp[(1) - (2)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (2)]).first_column; (yyloc).last_column = (yylsp[(2) - (2)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 18:
@@ -1822,7 +1822,7 @@ yyreduce:
     { (yyval.val) = op_times ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                       (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						   (yyloc).first_line=0; (yyloc).last_line=0;}
+						   (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 19:
@@ -1830,7 +1830,7 @@ yyreduce:
     { (yyval.val) = op_div ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 20:
@@ -1838,7 +1838,7 @@ yyreduce:
     { (yyval.val) = op_rem ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                      (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-						  (yyloc).first_line=0; (yyloc).last_line=0;}
+						  (yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 21:
@@ -1846,7 +1846,7 @@ yyreduce:
     { (yyval.val) = op_colon ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 22:
@@ -1854,7 +1854,7 @@ yyreduce:
     { (yyval.val) = op_eqtilde ((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)); 
 						DESTROY((yyvsp[(2) - (3)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (3)]).first_column; (yyloc).last_column = (yylsp[(3) - (3)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
   case 23:
@@ -1863,7 +1863,7 @@ yyreduce:
 						DESTROY((yyvsp[(2) - (5)].val));	
 						DESTROY((yyvsp[(4) - (5)].val));	
 	                        (yyloc).first_column = (yylsp[(1) - (5)]).first_column; (yyloc).last_column = (yylsp[(3) - (5)]).last_column; 
-							(yyloc).first_line=0; (yyloc).last_line=0;}
+							(yyloc).first_line=0; (yyloc).last_line=0;;}
     break;
 
 
@@ -2258,8 +2258,8 @@ void cw_log(int level, const char *file, int line, const char *function, const c
 
 
 int main(int argc,char **argv) {
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	char s[4096];
-	char out[4096];
 	FILE *infile;
 	
 	if( !argv[1] )
@@ -2280,16 +2280,17 @@ int main(int argc,char **argv) {
 			if( s[strlen(s)-1] == '\n' )
 				s[strlen(s)-1] = 0;
 			
-			ret = cw_expr(s, out, sizeof(out));
+			ret = cw_expr(s, &ds);
 			printf("Expression: %s    Result: [%d] '%s'\n",
-				   s, ret, out);
+				   s, ret, ds.data);
+			cw_dynstr_reset(&ds);
 		}
 		fclose(infile);
 	}
 	else
 	{
-		if (cw_expr(argv[1], s, sizeof(s)))
-			printf("=====%s======\n",s);
+		if (cw_expr(argv[1], &ds))
+			printf("=====%s======\n", ds.data);
 		else
 			printf("No result\n");
 	}

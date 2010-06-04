@@ -21,7 +21,7 @@
  *
  * \author Tilghman Lesher <app_exec__v001 at the-tilghman.com>
  */
-#include <stdio.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -76,8 +76,11 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 				*endargs = '\0';
 			pbx_substitute_variables(chan, (chan ? &chan->vars : NULL), s, &ds);
 		}
-		if (appname)
+		if (appname) {
 			res = cw_function_exec_str(chan, cw_hash_string(appname), appname, ds.data, NULL);
+			if (res && errno == ENOENT)
+				cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", appname);
+		}
 
 		cw_dynstr_free(&ds);
 	}

@@ -1,4 +1,4 @@
-/* comments and license {{{
+/* comments and license
  * vim:ts=4:sw=4:smartindent:cindent:autoindent:foldmethod=marker
  *
  * CallWeaver -- an open source telephony toolkit.
@@ -17,9 +17,9 @@
  * the gnu general public license version 2. See the license file
  * at the top of the source tree.
  *
- * }}} */
+ *  */
 
-/* includes and so on {{{ */
+/* includes and so on  */
 /*! \roy
  *
  * \brief functions for reading global configuration data
@@ -36,20 +36,10 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/channel.h"
 #include "callweaver/pbx.h"
 #include "callweaver/utils.h"
-/* }}} */
+/*  */
 
-/* globals {{{ */
-static void *config_function;
-static const char config_func_name[] = "CONFIG";
-static const char config_func_synopsis[] = "Read configuration values set in callweaver.conf";
-static const char config_func_syntax[] = "CONFIG(name)";
-static const char config_func_desc[] = "This function will read configuration values set in callweaver.conf.\n"
-			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
-			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
-			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n";
-/* }}} */
 
-/* function_config_read() {{{ */
+/* function_config_read()  */
 static int function_config_rw(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
 	static const struct {
@@ -97,32 +87,80 @@ static int function_config_rw(struct cw_channel *chan, int argc, char **argv, st
 	cw_log(CW_LOG_ERROR, "This function currently cannot be used to change the CallWeaver config. Modify callweaver.conf manually and restart.\n");
 	return -1;
 }
-/* function_config_read() }}} */
+/* function_config_read()  */
 
-/* globals {{{ */
+
+static int function_config_systemname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	static int deprecated = 1;
+	char *av[] = { (char *)"systemname", NULL };
+
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (deprecated) {
+		cw_log(CW_LOG_WARNING, "SYSTEMNAME is deprecated. Use CONFIG(systemname) instead.\n");
+		deprecated = 0;
+	}
+
+	return function_config_rw(chan, arraysize(av) - 1, av, result);
+}
+
+
+static struct cw_func func_list[] =
+{
+	{
+		.name = "CONFIG",
+		.handler = function_config_rw,
+		.synopsis = "Read configuration values set in callweaver.conf",
+		.syntax = "CONFIG(name)",
+		.description = "This function will read configuration values set in callweaver.conf.\n"
+			"Possible values include cwctlpermissions, cwctlowner, cwctlgroup,\n"
+			"cwctl, cwdb, cwetcdir, cwconfigdir, cwspooldir, cwvarlibdir,\n"
+			"cwvardir, cwdbdir, cwlogdir, cwogidir, cwsoundsdir, and cwrundir\n",
+	},
+
+	/* DEPRECATED */
+	{
+		.name = "SYSTEMNAME",
+		.handler = function_config_systemname,
+		.synopsis = "Return the system name set in callweaver.conf",
+		.syntax = "SYSTEMNAME()",
+		.description = "Return the system name set in callweaver.conf.\n",
+	},
+};
+
+
+/* globals  */
 static const char tdesc[] = "CONFIG function";
-/* globals }}} */
+/* globals  */
 
-/* unload_module() {{{ */
+
 static int unload_module(void)
 {
-        return cw_unregister_function(config_function);
-}
-/* }}} */
+	int i, res = 0;
 
-/* load_module() {{{ */
+	for (i = 0;  i < arraysize(func_list);  i++)
+		cw_function_unregister(&func_list[i]);
+
+	return res;
+}
+
 static int load_module(void)
 {
-        config_function = cw_register_function(config_func_name, function_config_rw, config_func_synopsis, config_func_syntax, config_func_desc);
+	int i;
+
+	for (i = 0;  i < arraysize(func_list);  i++)
+		cw_function_register(&func_list[i]);
+
 	return 0;
 }
-/* }}} */
 
 
 MODULE_INFO(load_module, NULL, unload_module, NULL, tdesc)
 
 
-/* tail {{{
+/* tail
 
 local variables:
 mode: c
@@ -130,4 +168,4 @@ c-file-style: "linux"
 indent-tabs-mode: nil
 end:
 
-function_config_read() }}} */
+function_config_read()  */

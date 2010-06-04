@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2007, Eris Associates Ltd., UK
+ * Copyright (C) 2007, 2010, Eris Associates Ltd., UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "callweaver.h"
 
@@ -42,10 +43,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/app.h"
 #include "callweaver/musiconhold.h"
-
-#ifndef VAR_BUF_SIZE
-#    define VAR_BUF_SIZE 4096
-#endif
 
 
 static const char tdesc[] = "Core functions";
@@ -83,6 +80,181 @@ static void wait_for_hangup(struct cw_channel *chan, char *s)
 		while (cw_waitfor(chan, -1) >= 0 && (f = cw_read(chan)))
 			cw_fr_free(f);
 	}
+}
+
+
+static int pbx_builtin_exten(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->exten);
+	return 0;
+}
+
+
+static int pbx_builtin_context(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->context);
+	return 0;
+}
+
+
+static int pbx_builtin_priority(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%d", chan->priority);
+	return 0;
+}
+
+
+static int pbx_builtin_channel(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->name);
+	return 0;
+}
+
+
+static int pbx_builtin_uniqueid(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->uniqueid);
+	return 0;
+}
+
+
+static int pbx_builtin_hangupcause(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%d", chan->hangupcause);
+	return 0;
+}
+
+
+static int pbx_builtin_accountcode(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->accountcode);
+	return 0;
+}
+
+
+static int pbx_builtin_language(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_dynstr_printf(result, "%s", chan->language);
+	return 0;
+}
+
+
+static int pbx_builtin_hint(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan) {
+		cw_get_hint(result, NULL, chan, chan->context, chan->exten);
+		cw_get_hint(NULL, result, chan, chan->context, chan->exten);
+	}
+	return 0;
+}
+
+
+static int pbx_builtin_hintname(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result && chan)
+		cw_get_hint(NULL, result, chan, chan->context, chan->exten);
+	return 0;
+}
+
+
+static int pbx_builtin_epoch(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result)
+		cw_dynstr_printf(result, "%u", (unsigned int)time(NULL));
+	return 0;
+}
+
+
+static int pbx_builtin_datetime(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	struct tm tm;
+	time_t now = time(NULL);
+
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result) {
+		localtime_r(&now, &tm);
+		cw_dynstr_printf(result, "%02d%02d%04d-%02d:%02d:%02d",
+			tm.tm_mday,
+			tm.tm_mon + 1,
+			tm.tm_year + 1900,
+			tm.tm_hour,
+			tm.tm_min,
+			tm.tm_sec
+		);
+	}
+
+	return 0;
+}
+
+
+static int pbx_builtin_timestamp(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	struct tm tm;
+	time_t now = time(NULL);
+
+	CW_UNUSED(chan);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	if (result) {
+		localtime_r(&now, &tm);
+		/* e.g. 20031130-150612 */
+		cw_dynstr_printf(result, "%04d%02d%02d-%02d%02d%02d",
+			tm.tm_year + 1900,
+			tm.tm_mon + 1,
+			tm.tm_mday,
+			tm.tm_hour,
+			tm.tm_min,
+			tm.tm_sec
+		);
+	}
+
+	return 0;
 }
 
 
@@ -275,6 +447,7 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
     char tmp[1024];
     struct cw_timing timing;
     char *s, *args, *p;
+    int res;
 
     CW_UNUSED(result);
 
@@ -296,10 +469,12 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
 	    if ((args = strchr(s, '(')) && (p = strrchr(s, ')'))) {
 		*(args++) = '\0';
 		*p = '\0';
-		return cw_function_exec_str(chan, cw_hash_string(s), s, args, NULL);
+		res = cw_function_exec_str(chan, cw_hash_string(s), s, args, NULL);
 	    } else {
-		return cw_function_exec(chan, cw_hash_string(s), s, argc - 4, argv + 5, NULL);
+		res = cw_function_exec(chan, cw_hash_string(s), s, argc - 4, argv + 5, NULL);
 	    }
+	    if (res && errno == ENOENT)
+		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", s);
     }
 
     return 0;
@@ -561,6 +736,8 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, st
 			int l;
 			*(value++) = '\0';
 			if ((args = strchr(argv[0], '(')) && (p = strrchr(args, ')'))) {
+				int res;
+
 				/* In the old world order funcs were made to behave like variables
 				 * for the sake of Set(FUNC(args)=value). In the new world order
 				 * all funcs that set values use FUNC(args, value) however the
@@ -577,7 +754,9 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, st
 				l = strlen(value) + 1;
 				*(p++) = ',';
 				memmove(p, value, l);
-				cw_function_exec_str(chan, cw_hash_string(argv[0]), argv[0], args, NULL);
+				res = cw_function_exec_str(chan, cw_hash_string(argv[0]), argv[0], args, NULL);
+				if (res && errno == ENOENT)
+					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", argv[0]);
 			} else {
 				pbx_builtin_setvar_helper(chan, argv[0], value);
 			}
@@ -777,11 +956,104 @@ static int pbx_builtin_sayphonetic(struct cw_channel *chan, int argc, char **arg
 }
 
 
-static struct cw_func func_list[] = 
+static struct cw_func func_list[] =
 {
 	/* These applications are built into the PBX core and do not
 	   need separate modules */
-	
+	{
+		.name = "EXTEN",
+		.handler = pbx_builtin_exten,
+		.synopsis = "Return the current dialplan extension",
+		.syntax = "EXTEN()",
+		.description = "Return the number current dialplan extension.\n",
+	},
+	{
+		.name = "CONTEXT",
+		.handler = pbx_builtin_context,
+		.synopsis = "Return the current dialplan context",
+		.syntax = "CONTEXT()",
+		.description = "Return the number current dialplan context.\n",
+	},
+	{
+		.name = "PRIORITY",
+		.handler = pbx_builtin_priority,
+		.synopsis = "Return the current dialplan priority",
+		.syntax = "PRIORITY()",
+		.description = "Return the number current dialplan priority.\n",
+	},
+	{
+		.name = "CHANNEL",
+		.handler = pbx_builtin_channel,
+		.synopsis = "Return the name of the channel",
+		.syntax = "CHANNEL()",
+		.description = "Return the name of the channel.\n",
+	},
+	{
+		.name = "UNIQUEID",
+		.handler = pbx_builtin_uniqueid,
+		.synopsis = "Return a unique ID for the channel",
+		.syntax = "UNIQUEID()",
+		.description = "Return a unique ID for the channel.\n",
+	},
+	{
+		.name = "HANGUPCAUSE",
+		.handler = pbx_builtin_hangupcause,
+		.synopsis = "Return the hangup cause for the channel",
+		.syntax = "HANGUPCAUSE()",
+		.description = "Return the hangup cause for the channel.\n",
+	},
+	{
+		.name = "ACCOUNTCODE",
+		.handler = pbx_builtin_accountcode,
+		.synopsis = "Return the account code of the channel",
+		.syntax = "ACCOUNTCODE()",
+		.description = "Return the account code of the channel.\n",
+	},
+	{
+		.name = "LANGUAGE",
+		.handler = pbx_builtin_language,
+		.synopsis = "Return the language of the channel",
+		.syntax = "LANGUAGE()",
+		.description = "Return the language of the channel.\n",
+	},
+
+	{
+		.name = "HINT",
+		.handler = pbx_builtin_hint,
+		.synopsis = "Return the hint for the channel",
+		.syntax = "HINT()",
+		.description = "Return the hint for the channel.\n",
+	},
+	{
+		.name = "HINTNAME",
+		.handler = pbx_builtin_hintname,
+		.synopsis = "Return the hint name for the channel",
+		.syntax = "HINTNAME()",
+		.description = "Return the hint name for the channel.\n",
+	},
+
+	{
+		.name = "EPOCH",
+		.handler = pbx_builtin_epoch,
+		.synopsis = "Return the number of seconds since the system's epoch",
+		.syntax = "EPOCH()",
+		.description = "Return the number of seconds since the system's epoch.\n",
+	},
+	{
+		.name = "DATETIME",
+		.handler = pbx_builtin_datetime,
+		.synopsis = "Return the current date and time.",
+		.syntax = "DATETIME()",
+		.description = "Return the current date and time..\n",
+	},
+	{
+		.name = "TIMESTAMP",
+		.handler = pbx_builtin_timestamp,
+		.synopsis = "Return the current date and time.",
+		.syntax = "DATETIME()",
+		.description = "Return the current date and time..\n",
+	},
+
 	{
 		.name = "AbsoluteTimeout",
 		.handler = pbx_builtin_atimeout,
