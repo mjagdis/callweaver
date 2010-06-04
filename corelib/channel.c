@@ -1334,8 +1334,9 @@ void cw_channel_free(struct cw_channel *chan)
 
 	if (chan->reg_entry) {
 		cw_registry_del(&channel_registry, chan->reg_entry);
-		cw_registry_del(&device_registry, chan->dev_reg_entry);
-		chan->reg_entry = NULL;
+		if (chan->dev_reg_entry)
+			cw_registry_del(&device_registry, chan->dev_reg_entry);
+		chan->reg_entry = chan->dev_reg_entry = NULL;
 	}
 
 	if (chan->pbx)
