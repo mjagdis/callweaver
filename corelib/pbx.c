@@ -789,17 +789,23 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			*(args++) = src[i] = '\0';
 	}
 
+	/* If there are args it's a function. If there are no args we look for
+	 * a variable first and if that fails we look for a function.
+	 * If there are no args and neither a variable nor a function exists
+	 * this is NOT fatal - an unset variable evaluates to "".
+	 */
 	if (!args) {
 		/* Just a variable name. Fetch it and add it to the result.
 		 * Note that pbx_retrieve_variable itself handles slicing.
 		 */
-		res = pbx_retrieve_variable(chan, vars, src, result, offset, length);
+		if (pbx_retrieve_variable(chan, vars, src, result, offset, length))
+			res = -2;
 	}
 
 	/* Could be a function with args or, if the variable look up
 	 * failed, a function without even the ().
 	 * It's worth noting that using ${X} only invokes the function
-	 * "X" is there is no variable "X" either on the channel or
+	 * "X" if there is no variable "X" either on the channel or
 	 * globally. Hence this is hugely unreliable and you should
 	 * always use ${X()} if you mean the function "X". Support
 	 * for the version without the parentheses only exists so
@@ -808,9 +814,8 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 	 */
 	if (args || res) {
 		i = cw_dynstr_end(result);
-		res = cw_function_exec_str(chan, cw_hash_string(src), src, args, result);
 
-		if (!res) {
+		if (!cw_function_exec_str(chan, cw_hash_string(src), src, args, result)) {
 #if 0
 			static int deprecated = 1;
 
@@ -826,9 +831,12 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 				memmove(&result->data[i], &result->data[i + offset], length);
 
 			cw_dynstr_truncate(result, i + length);
-			res = result->error;
-		} else if (args && errno == ENOENT)
-			cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
+		} else if (args) {
+			/* If there are no args it's an unset variable so the previous result stands. */
+			res = -1;
+			if (errno == ENOENT)
+				cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", src);
+		}
 	}
 
 	return res;
@@ -873,7 +881,7 @@ static int expand_string(struct cw_channel *chan, struct cw_registry *vars, cons
 					if (start[len + 1] == '{') {
 						skip = expand_string(chan, vars, &start[len + 2], &ds, '}', error);
 
-						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, res))
+						if (ds.error || pbx_retrieve_substr(chan, vars, ds.data, ds.used, res) == -1)
 							dst->error = 1;
 					} else { /* start[len + 1] == '[' */
 						skip = expand_string(chan, vars, &start[len + 2], &ds, ']', error);
