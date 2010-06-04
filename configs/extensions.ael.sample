@@ -6,13 +6,13 @@ proc std-exten-ael( ext , dev ) {
         Dial({ "${dev}/${ext}" },20);
         switch(${DIALSTATUS}) {
         case BUSY:
-                Voicemail(b${ext});
+                Voicemail("b${ext}");
                 break;
         default:
-                Voicemail(u${ext});
+                Voicemail("u${ext}");
         };
         catch a {
-                VoiceMailMain(${ext});
+                VoiceMailMain("${ext}");
                 return;
         };
 };
@@ -51,7 +51,7 @@ instructions:
 		Playback(demo-echodone);
 		goto s,instructions;
 	};
-	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
+	_1234 => &std-exten-ael("${EXTEN}", "IAX2");
 	# => {
 		Playback(demo-thanks);
 		Hangup();
