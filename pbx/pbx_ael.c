@@ -50,11 +50,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "ael/ael_structs.h"
 
-static struct cw_dynstr expr_output = CW_DYNSTR_INIT;
 
-/* these functions are in ../cw_expr2.fl */
-
-	
 #ifdef __CW_DEBUG_MALLOC
 static void FREE(void *ptr)
 {
@@ -101,9 +97,6 @@ int check_app_args(struct pval *appcall, struct pval *arglist, struct argapp *ap
 void check_pval(struct pval *item, struct argapp *apps, int in_globals);
 void check_pval_item(struct pval *item, struct argapp *apps, int in_globals);
 void check_switch_expr(struct pval *item, struct argapp *apps);
-extern CW_API_PUBLIC void cw_expr_register_extra_error_info(char *errmsg);
-extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
-extern CW_API_PUBLIC int  cw_expr(struct cw_channel *chan, char *expr, struct cw_dynstr *result);
 struct pval *find_proc(char *name);
 struct pval *find_context(char *name);
 struct ael_priority *new_prio(void);
@@ -2007,10 +2000,7 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 #endif
 	struct pval *proc_def;
 	struct pval *app_def;
-	
-	char errmsg[4096];
-	char *strp;
-	
+
 	switch (item->type) {
 	case PV_WORD:
 		/* fields: item->u1.str == string associated with this (word).
@@ -2203,10 +2193,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 		*/
 		/* the RHS of a vardec is encapsulated in a $[] expr. Is it legal? */
 		if( !in_globals ) { /* don't check stuff inside the globals context; no wrapping in $[ ] there... */
-			snprintf(errmsg,sizeof(errmsg), "file %s, line %d, columns %d-%d, variable declaration expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.val);
-			cw_expr_register_extra_error_info(errmsg);
-			cw_expr(NULL, item->u2.val, &expr_output);
-			cw_expr_clear_extra_error_info();
 			if ( strpbrk(item->u2.val,"~!-+<>=*/&^") && !strstr(item->u2.val,"${") ) {
 				cw_log(CW_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 						item->filename, item->startline, item->endline, item->u2.val);
@@ -2244,18 +2230,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 
 				   item->u4.for_statements == a struct pval list of statements in the for ()
 		*/
-		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, for test expr '%s':", config, item->startline, item->startcol, item->endcol, item->u2.for_test);
-		cw_expr_register_extra_error_info(errmsg);
-
-		strp = strchr(item->u1.for_init, '=');
-		if (strp) {
-			cw_expr(NULL, strp+1, &expr_output);
-		}
-		cw_expr(NULL, item->u2.for_test, &expr_output);
-		strp = strchr(item->u3.for_inc, '=');
-		if (strp) {
-			cw_expr(NULL, strp+1, &expr_output);
-		}
 		if ( strpbrk(item->u2.for_test,"~!-+<>=*/&^") && !strstr(item->u2.for_test,"${") ) {
 			cw_log(CW_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u2.for_test);
@@ -2269,7 +2243,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 		check_expr2_input(item,item->u2.for_test);
 		check_expr2_input(item,item->u3.for_inc);
 		
-		cw_expr_clear_extra_error_info();
 		check_pval(item->u4.for_statements, apps,in_globals);
 		break;
 			
@@ -2278,10 +2251,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 
 				   item->u2.statements == a struct pval list of statements in the while ()
 		*/
-		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, while expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		cw_expr_register_extra_error_info(errmsg);
-		cw_expr(NULL, item->u1.str, &expr_output);
-		cw_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			cw_log(CW_LOG_WARNING,"Warning: file %s, line %d-%d: expression %s has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2313,10 +2282,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
-		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, random expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		cw_expr_register_extra_error_info(errmsg);
-		cw_expr(NULL, item->u1.str, &expr_output);
-		cw_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			cw_log(CW_LOG_WARNING,"Warning: file %s, line %d-%d: random expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2356,10 +2321,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 				   item->u3.else_statements == a struct pval list of statements in the else
 											   (could be zero)
 		*/
-		snprintf(errmsg,sizeof(errmsg),"file %s, line %d, columns %d-%d, if expr '%s':", config, item->startline, item->startcol, item->endcol, item->u1.str);
-		cw_expr_register_extra_error_info(errmsg);
-		cw_expr(NULL, item->u1.str, &expr_output);
-		cw_expr_clear_extra_error_info();
 		if ( strpbrk(item->u1.str,"~!-+<>=*/&^") && !strstr(item->u1.str,"${") ) {
 			cw_log(CW_LOG_WARNING,"Warning: file %s, line %d-%d: expression '%s' has operators, but no variables. Interesting...\n",
 					item->filename, item->startline, item->endline, item->u1.str);
@@ -2410,8 +2371,6 @@ void check_pval_item(struct pval *item, struct argapp *apps, int in_globals)
 	default:
 		break;
 	}
-
-	cw_dynstr_reset(&expr_output);
 }
 
 void check_pval(struct pval *item, struct argapp *apps, int in_globals)

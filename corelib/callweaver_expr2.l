@@ -255,26 +255,6 @@ int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 }
 
 
-char extra_error_message[4095];
-int extra_error_message_supplied = 0;
-extern CW_API_PUBLIC void cw_expr_register_extra_error_info(const char *message);
-extern CW_API_PUBLIC void cw_expr_clear_extra_error_info(void);
-
-
-void cw_expr_register_extra_error_info(const char *message)
-{
-	extra_error_message_supplied = 1;
-	strcpy(extra_error_message, message);
-}
-
-
-void cw_expr_clear_extra_error_info(void)
-{
-	extra_error_message_supplied = 0;
-	extra_error_message[0] = 0;
-}
-
-
 int cw_yyerror(const char *s,  yyltype *loc, struct parse_io *parseio)
 {
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
@@ -283,17 +263,13 @@ int cw_yyerror(const char *s,  yyltype *loc, struct parse_io *parseio)
 
 	CW_UNUSED(loc);
 
-	n = (extra_error_message_supplied ? strlen(extra_error_message) + 1 : 0)
-		+ strlen(s)
-		+ (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
+	n = strlen(s) + (size_t)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 
 	if (!cw_dynstr_need(&ds, n + 1)) {
 		memset(ds.data, ' ', n);
 		ds.data[n] = '\0';
 
-		cw_log(CW_LOG_WARNING, "%s%s%s: %s\n  %s^ here\n",
-			(extra_error_message_supplied ? extra_error_message : ""),
-			(extra_error_message_supplied ? " " : ""),
+		cw_log(CW_LOG_WARNING, "%s: %s\n  %s^ here\n",
 			s, parseio->string, ds.data);
 	}
 

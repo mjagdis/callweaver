@@ -64,8 +64,6 @@ CW_DYNARRAY_DECL(struct val *, vals)
 
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
-extern char extra_error_message[4095];
-extern int extra_error_message_supplied;
 
 
 static struct {
@@ -557,7 +555,7 @@ static int to_number(struct val *vp, int silent)
 				break;
 		}
 
-		if (!res && !silent && !extra_error_message_supplied)
+		if (!res && !silent)
 			cw_log(CW_LOG_WARNING, "non-numeric argument: %s\n", vp->u.s);
 	}
 
