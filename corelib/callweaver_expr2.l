@@ -203,7 +203,7 @@ nan|NAN|NaN	{
 		return TOKEN;
 	}
 
-(\'[^']*\'|\"(\\\"|[^\"])*\"|\\.|[^'"\\ |&=~><!+\-*/%?:(),]+)+	{
+(\'[^']*\'|\"(\\\"|[^"])*\"|\\.|[^'"\\ \t|&=~><!+\-*/%?:(),]+)+	{
 		/* A string is a repeated sequence of '...', "...", \x or anything
 		 * not an operator. Having figured out what it consists of we use
 		 * cw_split_args to dequote it so there are no special characters
