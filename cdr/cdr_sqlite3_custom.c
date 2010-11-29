@@ -155,7 +155,7 @@ err:
 }
 
 
-static int sqlite3_log(struct cw_cdr *submission)
+static int sql3_log(struct cw_cdr *submission)
 {
 	struct cw_cdr *batch, *cdrset, *cdr;
 	int i, res = 0;
@@ -244,7 +244,7 @@ done:
 static struct cw_cdrbe cdrbe = {
 	.name = name,
 	.description = desc,
-	.handler = sqlite3_log,
+	.handler = sql3_log,
 };
 
 
