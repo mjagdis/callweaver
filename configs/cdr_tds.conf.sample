@@ -7,3 +7,5 @@
 ;user=mangUsr
 ;password=
 ;charset=BIG5
+
+;! vim: syntax=cw-generic

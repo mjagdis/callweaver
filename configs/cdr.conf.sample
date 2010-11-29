@@ -15,3 +15,5 @@
 
 ; End CDR before h extension
 ;endbeforehexten=yes
+
+;! vim: syntax=cw-generic

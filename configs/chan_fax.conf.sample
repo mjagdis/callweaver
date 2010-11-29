@@ -56,3 +56,5 @@
 ; (default "roundrobin")
 ;ring-strategy = first-free
 ;ring-strategy = roundrobin
+
+;! vim: syntax=cw-generic

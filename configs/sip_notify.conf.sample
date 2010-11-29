@@ -20,3 +20,5 @@ Content-Length=0
 [reboot-snom]
 Event=reboot
 Content-Length=0
+
+;! vim: syntax=cw-generic

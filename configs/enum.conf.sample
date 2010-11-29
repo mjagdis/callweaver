@@ -20,3 +20,5 @@ search = e164.arpa
 ; drive a H323 URI will map. Default is "H323".
 ;
 h323driver = H323
+
+;! vim: syntax=cw-generic

@@ -69,3 +69,5 @@
 ;directory=@cwdatadir@/moh
 ;application=/usr/bin/mpg123 -q -s --mono -r 8000 -b 2048 -f 4096
 ;format=slin
+
+;! vim: syntax=cw-generic

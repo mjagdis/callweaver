@@ -137,3 +137,5 @@
 ;force_inbound_caller_id = No
 ;overlap_sending = Yes
 ;overlap_receiving = No
+
+;! vim: syntax=cw-generic

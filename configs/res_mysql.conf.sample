@@ -13,3 +13,5 @@
 ;dbpass = mypass
 ;dbport = 3306
 ;dbsock = /tmp/mysql.sock
+
+;! vim: syntax=cw-generic

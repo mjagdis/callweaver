@@ -62,3 +62,5 @@
 ; Set the "source" for requesting authorization
 ;
 ;source=foo
+
+;! vim: syntax=cw-generic

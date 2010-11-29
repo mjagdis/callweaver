@@ -13,8 +13,4 @@ pre-connect = yes
 ;password = mypass
 ;pre-connect = yes
 
-
-
-
-
-
+;! vim: syntax=cw-generic

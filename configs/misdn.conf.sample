@@ -403,3 +403,5 @@ ports=5
 context=Extern2
 callerid=15
 msns=102,144,101,104
+
+;! vim: syntax=cw-generic

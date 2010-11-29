@@ -56,8 +56,4 @@ noload = chan_misdn.so
 ; Jabber wont work without config
 noload = res_jabber.so
 
-;
-; Module names listed in "global" section will have symbols globally
-; exported to modules loaded after them.
-;
-[global]
+;! vim: syntax=cw-generic

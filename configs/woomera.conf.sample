@@ -23,3 +23,5 @@ context=polycom
 ; WOOMERA/[PROTOCOL:]<address>[*profile]
 ; WOOMERA/H323:123@1.2.3.4
 ; WOOMERA/H323:333@1.2.3.5*someprofile
+
+;! vim: syntax=cw-generic

@@ -90,3 +90,5 @@ group=1		; group=1,2,3,9-12
 ;msn=50780023
 ;device = /dev/ttyI3
 ;device = /dev/ttyI4
+
+;! vim: syntax=cw-generic

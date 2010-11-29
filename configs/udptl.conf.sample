@@ -23,3 +23,5 @@ UDPTLFECentries = 2
 ; The span over which parity is calculated for FEC in a UDPTL packet
 ;
 UDPTLFECspan = 3
+
+;! vim: syntax=cw-generic

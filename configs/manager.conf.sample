@@ -54,3 +54,5 @@ listen = 127.0.0.1:5038
 ; Authorization for various classes 
 ;read = system,call,log,verbose,command,agent,user
 ;write = system,call,log,verbose,command,agent,user
+
+;! vim: syntax=cw-generic

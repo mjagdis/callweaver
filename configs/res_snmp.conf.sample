@@ -8,3 +8,5 @@
 ;subagent = yes
 ; SNMP must be explicitly enabled to be active
 ;enabled = yes
+
+;! vim: syntax=cw-generic

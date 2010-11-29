@@ -2648,6 +2648,7 @@ AC_OUTPUT([Makefile
 		 ogi/fastogi-test
                  formats/Makefile
 		 system/Makefile
+		 vim/Makefile
 ])
 
 dnl #                 channels/sofia/Makefile

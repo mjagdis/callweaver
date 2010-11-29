@@ -19,3 +19,5 @@
 ;port=3306
 ;sock=/tmp/mysql.sock
 ;userfield=1
+
+;! vim: syntax=cw-generic

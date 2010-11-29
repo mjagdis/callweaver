@@ -28,3 +28,5 @@ base = ou=Addressbooks,o=sampledomain
 filter = (&(objectClass=person)(|(telephoneNumber=%s)(mobile=%s)(fax=%s)))
 attribute = displayName
 convert = UTF-8, ISO-8859-1
+
+;! vim: syntax=cw-generic

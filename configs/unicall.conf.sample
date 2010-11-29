@@ -174,3 +174,5 @@ channel = 48-62
 channel = 63-77
 ;skip time slot 16
 channel = 79-93
+
+;! vim: syntax=cw-generic

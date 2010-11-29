@@ -108,3 +108,4 @@
 [general]
 dsn = host=localhost dbname=callweaver user=callweaver password=qwerty
 
+;! vim: syntax=cw-generic

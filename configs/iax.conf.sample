@@ -340,3 +340,4 @@ host=216.207.245.47
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
 
+;! vim: syntax=cw-generic

@@ -728,3 +728,4 @@ immediate=no
 ;context=default
 ;channel = 1 
 
+;! vim: syntax=cw-chan-dahdi

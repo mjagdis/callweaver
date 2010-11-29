@@ -21,8 +21,9 @@ cwkeydir = @cwkeydir@
 systemname = mycallweaverbox
 enableunsafeunload = no
 
-; Changing the following lines may compromise your security.
 [files]
+; Changing the following may compromise your security.
+;
 ; cwsocket is the name of the local control socket. Callweaver
 ; listens for manager and remote console connections on it.
 ; IMPORTANT: connections on this socket are preauthenticated
@@ -42,3 +43,5 @@ enableunsafeunload = no
 ;cwctlpermissions = 660
 ;
 ;cwdb = @cwdbfile@
+
+;! vim: syntax=cw-callweaver

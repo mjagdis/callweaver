@@ -78,3 +78,5 @@ persistentagents=yes
 ;
 ;agent = 1001,4321,Mark Spencer
 ;agent = 1002,4321,Will Meadows
+
+;! vim: syntax=cw-generic

@@ -210,3 +210,5 @@ persistentmembers = yes
 [queue-1]
 eventwhencalled=yes
 strategy=fewestcalls
+
+;! vim: syntax=cw-generic

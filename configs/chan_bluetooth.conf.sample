@@ -31,3 +31,5 @@ interface = 0
 ;type        = AG
 ;channel     = 13
 ;autoconnect = yes
+
+;! vim: syntax=cw-generic

@@ -130,7 +130,7 @@ uninstall-sgml-docs:
 SUBDIRS =   utils libltdl libs
 SUBDIRS +=  stdtime include corelib . pbx funcs
 SUBDIRS +=  cdr apps codecs formats channels ogi res configs
-SUBDIRS +=  system
+SUBDIRS +=  system vim
 
 ############################
 # INSTALLATION DIRECTORIES #

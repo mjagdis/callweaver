@@ -1,2 +1,4 @@
 [config]
 cache_time = 60
+
+;! vim: syntax=cw-generic

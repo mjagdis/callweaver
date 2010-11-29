@@ -1,0 +1,107 @@
+*callweaver.txt*  CallWeaver configuration file support
+
+
+               CallWeaver support   by Mike Jagdis~
+
+
+CallWeaver configuration file support for Vim                     *CallWeaver*
+
+1. Syntax Highlighting                                             |cw-syntax|
+2. Folding                                                        |cw-folding|
+3. Syntax Definitions                                              |cw-syndef|
+    1.1. Generic Configuration Files                                 |cw-conf|
+    1.2. callweaver.conf                                       |cw-callweaver|
+    1.3. extensions.conf                                       |cw-extensions|
+    1.4. sip.conf                                                     |cw-sip|
+4. Common Options                                                 |cw-options|
+
+
+==============================================================================
+1. Syntax Highlighting ~
+                                                                   *cw-syntax*
+
+CallWeaver configuration files are auto-detected if they have a path name that
+matches "*/callweaver/*.conf*" and the appropriate syntax highlighting
+applied based on their name. For other files, or included files with
+non-standard names, you can apply syntax highlighting by setting "syntax" to
+one of the values below either by hand or using a |modeline|.
+
+
+==============================================================================
+2. Folding ~
+                                                                  *cw-folding*
+
+By default |folding| is on when using CallWeaver syntax. Each section (a block
+of text starting with [...] and ending just before the next [...]) is grouped
+into a single fold, which may be opened and closed using the standard vim
+commands (e.g. za).
+
+Since folds start at a "[...]" section heading comments related to that
+section should come AFTER the heading. If they preceed the heading they will
+be part of the preceeding fold with one exception. Comment lines that
+immediately preceed a section heading and start with ";!" will be placed
+outside both the preceeding and following folds. This enables you to place
+high-level comments in your configs which will be visible at all times
+regardless of folding. See the sample config files for examples.
+
+See |cw-options| below if you would prefer not to use folding.
+
+
+==============================================================================
+3. Syntax Definitions ~
+                                                                   *cw-syndef*
+
+
+3.1. Generic Configuration Files                                     *cw-conf*
+--------------------------------
+
+The cw-conf syntax is used for all configuration files for which a more
+specific syntax is not available. It provides basic highlighting and |folding|
+but limited syntax checking.
+
+
+3.2. callweaver.conf
+--------------------
+                                                               *cw-callweaver*
+
+The cw-callweaver syntax extends the generic syntax to provide highlighting
+and extended checking of the master callweaver.conf file.
+
+
+3.3. extensions.conf
+--------------------
+                                                               *cw-extensions*
+
+The cw-extensions syntax extends the generic syntax to provide highlighting
+and extended checking of dialplan logic as used in extensions.conf.
+
+
+3.4. sip.conf
+-------------
+                                                                      *cw-sip*
+
+The cw-sip syntax extends the generic syntax to provide highlighting and
+extended checking of the SIP configuration as used in sip.conf.
+
+
+==============================================================================
+4. Common Options ~
+                                                                  *cw-options*
+Syntax folding is on by default but can be turned off by:
+
+    :let g:cw_no_syntax_folding = 1
+
+before the syntax file gets loaded (e.g. in ~/.vimrc)
+
+Historically CallWeaver has treated all kinds of sequences of characters as
+strings. If you are rigorous about enclosing strings in quotes (and you
+SHOULD be if you want to avoid parsing problems) you may want to add:
+
+    :let g:cw_no_bare_strings = 1
+
+This will limit the sort of things that are recognised outside of quotes and
+will treat such things as identifiers rather than strings.
+
+==============================================================================
+vim: textwidth=78 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab
+vim: filetype=help

@@ -73,3 +73,5 @@
 ;transfer	= no
 ;dtmfmode	= inband
 ;line = aaln/2			; now lets save this config to line2 aka aaln/2
+
+;! vim: syntax=cw-generic

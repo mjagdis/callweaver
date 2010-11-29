@@ -6,3 +6,5 @@ alignment = center
 greeting = Welcome to the
 greeting = CallWeaver
 greeting = Open Source PBX
+
+;! vim: syntax=cw-generic

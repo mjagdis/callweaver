@@ -60,4 +60,4 @@ echocancelold=yes;use facility selector 6 instead of correct 8 (necessary for ol
 devices=2        ;number of concurrent calls (b-channels) on this controller
                  ;(2 makes sense for single BRI, 30/23 for PRI/T1)
 
-
+;! vim: syntax=cw-generic

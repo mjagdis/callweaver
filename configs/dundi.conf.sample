@@ -236,4 +236,5 @@ autokill=yes
 ;outkey=foo
 
 ;[*]
-;
+
+;! vim: syntax=cw-generic

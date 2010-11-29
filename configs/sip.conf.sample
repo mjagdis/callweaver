@@ -498,3 +498,4 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Normally you do NOT need to set this parameter
 ;setvar=CUSTID=5678		; Channel variable to be set for all calls from this device
 
+;! vim: syntax=cw-sip

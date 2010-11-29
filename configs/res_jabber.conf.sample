@@ -7,3 +7,4 @@
 ;resource = master_thread
 ;media_ip = 127.0.0.1
 
+;! vim: syntax=cw-generic

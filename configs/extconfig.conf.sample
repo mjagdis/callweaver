@@ -49,3 +49,4 @@
 ;queues = odbc,callweaver
 ;queue_members = odbc,callweaver
 
+;! vim: syntax=cw-generic

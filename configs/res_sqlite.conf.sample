@@ -17,3 +17,5 @@ dbfile = callweaver
 
 [cli]
 dbfile = callweaver
+
+;! vim: syntax=cw-generic
