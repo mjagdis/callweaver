@@ -218,7 +218,7 @@ icd_status icd_distributor__clear(icd_distributor *that) {
 
     assert(that != NULL);
 
-    if (that->state == ICD_CALLER_STATE_CLEARED) {
+    if (that->state == ICD_DISTRIBUTOR_STATE_CLEARED) {
         return ICD_SUCCESS;
     }
 

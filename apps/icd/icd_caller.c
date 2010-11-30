@@ -200,7 +200,11 @@ icd_caller_group *create_icd_caller_group(char *name, icd_caller * owner)
 
 void destroy_icd_caller_group(icd_caller_group ** group)
 {
-    ICD_STD_FREE((&group));
+    /* Destroy the group if from the heap */
+    if ((*group)->allocated) {
+        ICD_STD_FREE(*group);
+        *group = NULL;
+    }
 }
 
 icd_status icd_caller__rem_group_pointer(icd_caller * caller, icd_caller_group * group)

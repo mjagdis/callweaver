@@ -1109,14 +1109,14 @@ static void *woomera_thread_run(void *obj)
 			}
 		}
 
-		if ((res = woomera_dequeue_event(&profile->event_queue, &wmsg) ||
+		if ((res = woomera_dequeue_event(&profile->event_queue, &wmsg)) ||
 			 (res = woomera_message_parse(woomera_socket,
 										  &wmsg,
 										  /* if we are not stingy with threads we can block forever */
 										  globals.more_threads ? 0 : 100,
 										  profile,
 										  NULL
-										  )))) {
+										  ))) {
 			if (res < 0) {
 				cw_log(CW_LOG_ERROR, "{%s} HELP! I lost my connection to woomera!\n", profile->name);
 #if 1

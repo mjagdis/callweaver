@@ -2523,7 +2523,7 @@ static enum cw_bridge_result iax2_bridge(struct cw_channel *c0, struct cw_channe
 
 	lock_both(callno0, callno1);
 	/* Put them in native bridge mode */
-	if (!flags & (CW_BRIDGE_DTMF_CHANNEL_0 | CW_BRIDGE_DTMF_CHANNEL_1)) {
+	if (!(flags & (CW_BRIDGE_DTMF_CHANNEL_0 | CW_BRIDGE_DTMF_CHANNEL_1))) {
 		iaxs[callno0]->bridgecallno = callno1;
 		iaxs[callno1]->bridgecallno = callno0;
 	}
