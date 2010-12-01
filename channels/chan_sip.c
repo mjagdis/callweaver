@@ -7863,6 +7863,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             /* we have what we hope is a temporary network error,
              * probably DNS.  We need to reschedule a registration try */
             sip_destroy(p);
+            p->obj.release(&p->obj);
             r->regattempts++;
             if (r->timeout > -1)
             {
@@ -11773,6 +11774,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
         {
             /* Maybe they're not registered, etc. */
             sip_destroy(p);
+            p->obj.release(&p->obj);
             cw_dynstr_printf(ds_p, "Could not create address for '%s'\n", argv[i]);
             continue;
         }
@@ -15035,6 +15037,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     {
         /* Maybe they're not registered, etc. */
         sip_destroy(p);
+        p->obj.release(&p->obj);
         return 0;
     }
 
@@ -15442,6 +15445,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     if (!p->options)
     {
 	sip_destroy(p);
+        p->obj.release(&p->obj);
 	cw_log(CW_LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
 	*cause = CW_CAUSE_SWITCH_CONGESTION;
         return NULL;
@@ -15474,6 +15478,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     {
         *cause = CW_CAUSE_UNREGISTERED;
         sip_destroy(p);
+        p->obj.release(&p->obj);
         return NULL;
     }
     if (cw_strlen_zero(p->peername) && ext)
@@ -15503,7 +15508,13 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     cw_mutex_lock(&p->lock);
     tmpc = sip_new(p, CW_STATE_DOWN, host);    /* Place the call */
     if (!tmpc)
+    {
         sip_destroy(p);
+        /* We don't need to call the destructor explicitly here because we had
+         * added the dialogue to the registry already so sip_destroy will have
+         * done a final "put" when removing the dialogue from the registry.
+         */
+    }
     cw_mutex_unlock(&p->lock);
     cw_channel_unlock(tmpc);
     pthread_kill(monitor_thread, SIGURG);
