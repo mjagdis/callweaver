@@ -34,7 +34,7 @@
  * define OBJECT_TRACING below and the initialization of the object
  * to be traced to used cw_object_init[_obj]_traced(...) instead of
  * cw_object_init[_obj](...).
- * Do NOT attempt to use this the trace manager messages as the trace
+ * Do NOT attempt to use this to trace manager messages as the trace
  * is logged and the creates manager messages which would then be
  * traced so generating recursive, traced log messages ad inifinitum.
  */
