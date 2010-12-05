@@ -168,7 +168,6 @@
 			__ptr->size = __space / sizeof(*__ptr->data); \
 			__ptr->data = __ndata[0]; \
 		} else { \
-			cw_dynarray_free(__ptr); \
 			__ptr->error = 1; \
 			cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
 		} \
