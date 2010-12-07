@@ -1419,7 +1419,7 @@ static int peerbyaddr_object_match(struct cw_object *obj, const void *pattern)
 	const struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
 	const struct sockaddr_in *sin = pattern;
 
-	return !(!inaddrcmp(&peer->addr, sin)
+	return (!inaddrcmp(&peer->addr, sin)
 		|| (cw_test_flag(peer, SIP_INSECURE_PORT)
 			&& (peer->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
 }
