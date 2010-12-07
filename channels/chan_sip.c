@@ -1131,7 +1131,7 @@ static int sip_indicate(struct cw_channel *ast, int condition);
 static int sip_transfer(struct cw_channel *ast, const char *dest);
 static int sip_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 static int sip_senddigit(struct cw_channel *ast, char digit);
-static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
+static void clear_realm_authentication(struct sip_auth **authlist);                           /* Clear realm authentication list */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
@@ -2812,8 +2812,6 @@ static void sip_peer_release(struct cw_object *obj)
 		cw_object_put(peer->dialogue);
 	}
 
-	register_peer_exten(peer, 0);
-
 	if (cw_test_flag(peer, SIP_SELFDESTRUCT))
 		apeerobjs--;
 	else if (cw_test_flag(peer, SIP_REALTIME))
@@ -2821,15 +2819,12 @@ static void sip_peer_release(struct cw_object *obj)
 	else
 		speerobjs--;
 
-	if (peer->chanvars) {
+	if (peer->chanvars)
 		cw_variables_destroy(peer->chanvars);
-		peer->chanvars = NULL;
-	}
 
 	cw_free_ha(peer->ha);
 
-	clear_realm_authentication(peer->auth);
-	peer->auth = (struct sip_auth *) NULL;
+	clear_realm_authentication(&peer->auth);
 	free(peer);
 }
 
@@ -8222,31 +8217,30 @@ static int expire_register(void *data)
 {
     struct sip_peer *peer = data;
 
-    if (!peer)		/* Hmmm. We have no peer. Weird. */
-	return 0;
+    peer->expire = -1;
 
     memset(&peer->addr, 0, sizeof(peer->addr));
 
+    register_peer_exten(peer, 0);
     destroy_association(peer);
-    
+    cw_device_state_changed("SIP/%s", peer->name);
+
     cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
 	3,
 	cw_msg_tuple("Peer",       "SIP/%s", peer->name),
 	cw_msg_tuple("PeerStatus", "%s",     "Unregistered"),
 	cw_msg_tuple("Cause",      "%s",     "Expired")
     );
-    register_peer_exten(peer, 0);
-    peer->expire = -1;
-    cw_device_state_changed("SIP/%s", peer->name);
+
     if (cw_test_flag(peer, SIP_SELFDESTRUCT) || cw_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR))
     {
         if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
             cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
             cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 	}
-        cw_object_put(peer);
     }
 
+    cw_object_put(peer);
     return 0;
 }
 
@@ -8295,9 +8289,7 @@ static void reg_source_db(struct sip_peer *peer)
                     peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
             }
 
-            if (peer->expire > -1)
-                cw_sched_del(sched, peer->expire);
-            peer->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+            peer->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, cw_object_dup(peer));
             register_peer_exten(peer, 1);
         }
     }
@@ -8452,25 +8444,9 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     {
         /* Unregister this peer */
         /* This means remove all registrations and return OK */
-        memset(&p->addr, 0, sizeof(p->addr));
-        if (p->expire > -1)
-            cw_sched_del(sched, p->expire);
-        p->expire = -1;
+        if (p->expire != -1 && !cw_sched_del(sched, p->expire))
+            expire_register(p);
 
-        destroy_association(p);
-        
-        register_peer_exten(p, 0);
-        p->fullcontact[0] = '\0';
-        p->useragent[0] = '\0';
-        p->sipoptions = 0;
-
-        if (option_verbose > 3)
-            cw_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
-            cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-                2,
-                cw_msg_tuple("Peer",       "SIP/%s", p->name),
-                cw_msg_tuple("PeerStatus", "%s",     "Unregistered")
-            );
         return PARSE_REGISTER_UPDATE;
     }
     cw_copy_string(p->fullcontact, c, sizeof(p->fullcontact));
@@ -9066,14 +9042,13 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 
     cw_copy_string(p->exten, name, sizeof(p->exten));
     build_contact(p);
-    peer = find_peer(name, NULL, 1);
 
-    if (!(peer && cw_apply_ha(peer->ha, sin)))
+    if ((peer = find_peer(name, NULL, 1)) && !cw_apply_ha(peer->ha, sin))
     {
-        if (peer)
-            cw_object_put(peer);
+        cw_object_put(peer);
 	peer = NULL;
     }
+
     if (peer)
     {
         if (!cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC))
@@ -15798,32 +15773,23 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
     return authlist;
 }
 
-/*! \brief  clear_realm_authentication: Clear realm authentication list (at reload) */
-static int clear_realm_authentication(struct sip_auth *authlist)
+/*! \brief  clear_realm_authentication: Clear realm authentication list */
+static void clear_realm_authentication(struct sip_auth **authlist)
 {
-    struct sip_auth *a = authlist;
-    struct sip_auth *b;
+    struct sip_auth *a;
 
-    while (a)
-    {
-        b = a;
-        a = a->next;
-        free(b);
+    while ((a = *authlist)) {
+        *authlist = (*authlist)->next;
+	free(a);
     }
-    return 1;
 }
 
 /*! \brief  find_realm_authentication: Find authentication for a specific realm */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm)
 {
-    struct sip_auth *a = authlist;     /* First entry in auth list */
+    struct sip_auth *a;
 
-    while (a)
-    {
-        if (!strcasecmp(a->realm, realm))
-            break;
-        a = a->next;
-    }
+    for (a = authlist; a && strcasecmp(a->realm, realm); a = a->next);
     return a;
 }
 
@@ -15975,11 +15941,9 @@ static struct sip_peer *temp_peer(const char *name)
 {
     struct sip_peer *peer;
 
-    peer = malloc(sizeof(struct sip_peer));
-    if (!peer)
+    if (!(peer = calloc(1, sizeof(*peer))))
         return NULL;
 
-    memset(peer, 0, sizeof(struct sip_peer));
     apeerobjs++;
 
     cw_object_init(peer, NULL, 1);
@@ -17805,9 +17769,8 @@ static void sip_destroyall_registry(void)
 /*! \brief  sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
-    clear_realm_authentication(authl);
+    clear_realm_authentication(&authl);
     clear_sip_domains();
-    authl = NULL;
 
     sip_destroyall_registry();
     regl_last = &regl;
@@ -18122,7 +18085,7 @@ static void release_module(void)
 
 	sip_destroyall_registry();
 
-	clear_realm_authentication(authl);
+	clear_realm_authentication(&authl);
 	clear_sip_domains();
 	close(sipsock);
 	cw_io_context_destroy(io);
