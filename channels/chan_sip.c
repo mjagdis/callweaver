@@ -8236,7 +8236,8 @@ static int expire_register(void *data)
     {
         if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
             cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
-            cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+            if (peer->reg_entry_byaddr)
+                cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 	}
     }
 
@@ -8487,7 +8488,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     memcpy(&oldsin, &p->addr, sizeof(oldsin));
     if (!sip_is_nat_needed(pvt) )
     {
-        /* XXX This could block for a long time XXX */
+        /* FIXME: This could block for a long time */
         if ((hp = cw_gethostbyname(n, &ahp)) == NULL)
         {
             cw_log(CW_LOG_WARNING, "Invalid host '%s'\n", n);
@@ -8499,8 +8500,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     }
     else
     {
-        /* Don't trust the contact field.  Just use what they came to us
-           with */
+        /* Don't trust the contact field.  Just use what they came to us with */
         memcpy(&p->addr, &pvt->recv, sizeof(p->addr));
     }
 
@@ -8509,18 +8509,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     else
         p->username[0] = '\0';
 
-    if (p->expire > -1) {
-        cw_sched_del(sched, p->expire);
-	p->expire = -1;
-    }
-    if ((expiry < 1) || (expiry > max_expiry))
-        expiry = max_expiry;
-    if (!cw_test_flag(p, SIP_REALTIME))
-        p->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
-    else
-        p->expire = -1;
-    pvt->expiry = expiry;
-
     /* If we are qualifying the RTT estimate starts at the default until we know better.
      * N.B. Yes, we could use whatever we had previously but dynamic peers are likely
      * to move elsewhere on the network. That's the point of dynamic peers!
@@ -8528,23 +8516,6 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (p->maxms)
         p->timer_t1 = rfc_timer_t1;
 
-    snprintf(data, sizeof(data), "%s:%hu:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-    if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
-        cw_db_put("SIP/Registry", p->name, data);
-    cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-        2,
-        cw_msg_tuple("Peer",       "SIP/%s", p->name),
-        cw_msg_tuple("PeerStatus", "%s",     "Registered")
-    );
-    if (inaddrcmp(&p->addr, &oldsin))
-    {
-        if (p->pokeexpire == -1)
-            p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
-        if (option_verbose > 3)
-            cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %hu expires %d\n", p->name, cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
-        register_peer_exten(p, 1);
-    }
-    
     /* Save SIP options profile */
     p->sipoptions = pvt->sipoptions;
 
@@ -8554,10 +8525,49 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     {
         cw_copy_string(p->useragent, useragent, sizeof(p->useragent));
         if (option_verbose > 4)
-        {
-            cw_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
-        }
+            cw_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);
     }
+
+    snprintf(data, sizeof(data), "%s:%hu:%d:%s:%s", cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
+    if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
+        cw_db_put("SIP/Registry", p->name, data);
+
+    cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+        2,
+        cw_msg_tuple("Peer",       "SIP/%s", p->name),
+        cw_msg_tuple("PeerStatus", "%s",     "Registered")
+    );
+
+    if (inaddrcmp(&p->addr, &oldsin))
+    {
+        if (p->reg_entry_byaddr)
+            cw_registry_del(&peerbyaddr_registry, p->reg_entry_byaddr);
+        p->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&p->addr), &p->obj);
+
+        if (p->pokeexpire == -1)
+            p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
+
+        if (option_verbose > 3)
+            cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %hu expires %d\n", p->name, cw_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+
+    }
+
+    register_peer_exten(p, 1);
+
+    if (expiry < 1 || expiry > max_expiry)
+        expiry = max_expiry;
+
+    pvt->expiry = expiry;
+
+    if (p->expire != -1 && !cw_sched_del(sched, p->expire))
+    {
+        p->expire = -1;
+        cw_object_put(p);
+    }
+
+    if (p->expire == -1 && !cw_test_flag(p, SIP_REALTIME))
+        p->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, cw_object_dup(p));
+
     return PARSE_REGISTER_UPDATE;
 }
 
@@ -9093,7 +9103,6 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
         if (peer)
         {
             peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
-            peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
             sip_cancel_destroy(p);
             switch (parse_register_contact(p, peer, req))
             {
@@ -10436,7 +10445,8 @@ static int sip_prune_realtime_peer(struct cw_object *obj, void *data)
 	if (!args->name || !regexec(&args->regexbuf, peer->name, 0, NULL, 0)) {
 		if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS)) {
 			cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
-			cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+			if (peer->reg_entry_byaddr)
+				cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 			args->pruned++;
 		}
 	}
@@ -10553,7 +10563,8 @@ static int sip_prune_realtime(struct cw_dynstr *ds_p, int argc, char *argv[])
 				else {
 					cw_dynstr_printf(ds_p, "Peer '%s' pruned.\n", args.name);
 					cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
-					cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
+					if (peer->reg_entry_byaddr)
+						cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 				}
 				cw_object_put(peer);
 			} else
@@ -16014,13 +16025,14 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
 {
     struct sip_peer *peer = NULL;
     struct cw_ha *oldha = NULL;
-    int obproxyfound=0;
-    int format=0;        /* Ama flags */
-    time_t regseconds;
     char *varname = NULL, *varval = NULL;
     struct cw_variable *tmpvar = NULL;
-    struct cw_flags peerflags = {(0)};
-    struct cw_flags mask = {(0)};
+    struct cw_flags peerflags = { 0 };
+    struct cw_flags mask = { 0 };
+    time_t regseconds;
+    int obproxyfound = 0;
+    int format = 0;        /* Ama flags */
+    unsigned char addr_defined = 0;
 
     if (!(peer = calloc(1, sizeof(struct sip_peer)))) {
         cw_log(CW_LOG_WARNING, "Can't allocate SIP peer memory\n");
@@ -16039,11 +16051,13 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     peer->pokeexpire = -1;
 
     peer->lastmsgssent = -1;
+
     if (name)
         cw_copy_string(peer->name, name, sizeof(peer->name));
-    peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-    peer->addr.sin_family = AF_INET;
+
     peer->defaddr.sin_family = AF_INET;
+    peer->addr.sin_family = AF_INET;
+    peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 
     /* If we have channel variables, remove them (reload) */
     if (peer->chanvars)
@@ -16051,33 +16065,24 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         cw_variables_destroy(peer->chanvars);
         peer->chanvars = NULL;
     }
+
     strcpy(peer->context, default_context);
     strcpy(peer->subscribecontext, default_subscribecontext);
     strcpy(peer->vmexten, global_vmexten);
     strcpy(peer->language, default_language);
     strcpy(peer->musicclass, global_musicclass);
     cw_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
-    peer->secret[0] = '\0';
-    peer->md5secret[0] = '\0';
-    peer->cid_num[0] = '\0';
-    peer->cid_name[0] = '\0';
-    peer->fromdomain[0] = '\0';
-    peer->fromuser[0] = '\0';
-    peer->regexten[0] = '\0';
-    peer->mailbox[0] = '\0';
-    peer->callgroup = 0;
-    peer->pickupgroup = 0;
     peer->rtpkeepalive = global_rtpkeepalive;
     peer->maxms = default_qualify;
     peer->prefs = prefs;
     oldha = peer->ha;
     peer->ha = NULL;
-    peer->addr.sin_family = AF_INET;
     cw_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
     peer->capability = global_capability;
     peer->timer_t2 = rfc_timer_t2;
     peer->rtptimeout = global_rtptimeout;
     peer->rtpholdtimeout = global_rtpholdtimeout;
+
     while (v)
     {
         if (handle_common_options(&peerflags, &mask, v))
@@ -16093,7 +16098,8 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         }
         else if (realtime && !strcasecmp(v->name, "ipaddr") && !cw_strlen_zero(v->value))
         {
-            inet_aton(v->value, &(peer->addr.sin_addr));
+            inet_aton(v->value, &peer->addr.sin_addr);
+            addr_defined = 1;
         }
         else if (realtime && !strcasecmp(v->name, "name"))
             cw_copy_string(peer->name, v->value, sizeof(peer->name));
@@ -16132,13 +16138,14 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
             {
                 if (!strcasecmp(v->name, "outboundproxy") || obproxyfound)
                 {
-                    cw_log(CW_LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
+                    cw_log(CW_LOG_WARNING, "You can't have a dynamic outbound proxy at line %d.\n", v->lineno);
                 }
                 else
                 {
                     /* They'll register with us */
                     cw_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
-                    memset(&peer->addr.sin_addr, 0, 4);
+                    memset(&peer->addr.sin_addr, 0, sizeof(peer->addr.sin_addr));
+                    addr_defined = 0;
                     if (peer->addr.sin_port)
                     {
                         /* If we've already got a port, make it the default rather than absolute */
@@ -16150,10 +16157,11 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
             else
             {
                 /* Non-dynamic.  Make sure we become that way if we're not */
-                if (peer->expire > -1)
-                    cw_sched_del(sched, peer->expire);
-                peer->expire = -1;
                 cw_clear_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);    
+                if (peer->expire != -1 && !cw_sched_del(sched, peer->expire)) {
+                    cw_object_put(peer);
+                    peer->expire = -1;
+                }
                 if (!strcasecmp(v->name, "outboundproxy")) {
                     cw_copy_string(peer->proxyhost, v->value, sizeof(peer->proxyhost));
                     obproxyfound=1;
@@ -16336,7 +16344,8 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     cw_free_ha(oldha);
 
     peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
-    peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
+    if (addr_defined)
+        peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
 
     return peer;
 }
@@ -17731,12 +17740,15 @@ static int flush_peers_one(struct cw_object *obj, void *data)
 	cw_set_flag(peer, SIP_ALREADYGONE);
 
 	cw_registry_del(&peerbyname_registry, peer->reg_entry_byname);
-	cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 	peer->reg_entry_byname = NULL;
+	if (peer->reg_entry_byaddr)
+		cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 	peer->reg_entry_byaddr = NULL;
 
-	if (peer->pokeexpire > -1 && !cw_sched_del(sched, peer->pokeexpire))
+	if (peer->pokeexpire != -1 && !cw_sched_del(sched, peer->pokeexpire)) {
 		cw_object_put(peer);
+		peer->pokeexpire = -1;
+	}
 
 	return 0;
 }

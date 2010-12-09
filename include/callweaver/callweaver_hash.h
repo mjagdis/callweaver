@@ -62,6 +62,7 @@
 #ifndef _CW_HASH_H
 #define _CW_HASH_H
 
+#include <arpa/inet.h>
 #include <netinet/in.h>
 
 
@@ -89,7 +90,7 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *str
 }
 
 
-/*! \brief Returns the hash value of a sockaddr_in
+/*! \brief Returns the hash value of the address part of a sockaddr_in
  *
  * \param string  the sockaddr_in to hash
  *
@@ -97,11 +98,27 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *str
  */
 static inline __attribute__ ((pure)) unsigned int cw_hash_addr(const struct sockaddr_in *sain)
 {
-	unsigned int hash;
+	unsigned int hash = 0;
 
-	hash = 0;
 	if (sain)
-		hash = sain->sin_addr.s_addr + (sain->sin_port << 16);
+		hash = ntohl(sain->sin_addr.s_addr);
+
+	return hash;
+}
+
+
+/*! \brief Returns the hash value of a sockaddr_in
+ *
+ * \param string  the sockaddr_in to hash
+ *
+ * \return hash_value
+ */
+static inline __attribute__ ((pure)) unsigned int cw_hash_addr_and_port(const struct sockaddr_in *sain)
+{
+	unsigned int hash = 0;
+
+	if (sain)
+		hash = cw_hash_addr(sain) + (sain->sin_port << 16);
 
 	return hash;
 }
