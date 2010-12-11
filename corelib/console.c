@@ -637,6 +637,7 @@ static void console_handler(char *s)
 		if (*s) {
 			HIST_ENTRY *last_he;
     
+			history_set_pos(history_length);
 			last_he = previous_history();
 			if (!last_he || strcmp(last_he->line, s) != 0)
 				add_history(s);
