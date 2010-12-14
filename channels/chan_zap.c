@@ -4399,15 +4399,12 @@ struct cw_frame  *dahdi_read(struct cw_channel *cw)
 	
 	curindex = dahdi_get_index(cw, p, 0);
 	
-	/* Hang up if we don't really exist */
-	if (curindex < 0)	{
-		cw_log(CW_LOG_WARNING, "We dont exist?\n");
+	if (curindex < 0 || (p->radio && p->inalarm)) {
+		if (curindex < 0)
+			cw_log(CW_LOG_WARNING, "We dont exist?\n");
 		cw_mutex_unlock(&p->lock);
 		return NULL;
 	}
-	
-	if (p->radio  &&  p->inalarm)
-		return NULL;
 
 	p->subs[curindex].f.ts += p->subs[curindex].f.duration;
 	p->subs[curindex].f.seq_no++;
