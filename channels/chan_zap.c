@@ -8191,11 +8191,12 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->call == e->ring.call) {
 							cw_log(CW_LOG_WARNING, "Duplicate setup requested on channel %d/%d already in use on span %d\n", 
 								PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
+							cw_mutex_unlock(&pri->pvts[chanpos]->lock);
 							break;
 						} else {
 							/* This is where we handle initial glare */
 							cw_log(CW_LOG_DEBUG, "Ring requested on channel %d/%d already in use or previously requested on span %d.  Attempting to renegotiating channel.\n", 
-							PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
+								PRI_SPAN(e->ring.channel), PRI_CHANNEL(e->ring.channel), pri->span);
 							cw_mutex_unlock(&pri->pvts[chanpos]->lock);
 							chanpos = -1;
 						}
