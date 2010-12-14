@@ -1238,9 +1238,6 @@ static int conf_del(struct dahdi_pvt *p, struct dahdi_subchannel *c, int i)
 		/* Don't delete if we don't think it's conferenced at all (implied) */
 		) return 0;
 	memset(&zi, 0, sizeof(zi));
-	zi.chan = 0;
-	zi.confno = 0;
-	zi.confmode = 0;
 	if (ioctl(c->dfd, DAHDI_SETCONF, &zi)) {
 		cw_log(CW_LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->dfd, c->curconf.confmode, c->curconf.confno);
 		return -1;
@@ -1296,11 +1293,12 @@ static int isslavenative(struct dahdi_pvt *p, struct dahdi_pvt **out)
 
 static int reset_conf(struct dahdi_pvt *p)
 {
-	struct dahdi_confinfo zi;
-	memset(&zi, 0, sizeof(zi));
 	p->confno = -1;
 	memset(&p->subs[SUB_REAL].curconf, 0, sizeof(p->subs[SUB_REAL].curconf));
 	if (p->subs[SUB_REAL].dfd > -1) {
+		struct dahdi_confinfo zi;
+
+		memset(&zi, 0, sizeof(zi));
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCONF, &zi))
 			cw_log(CW_LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
 	}
@@ -1606,8 +1604,7 @@ static int save_conference(struct dahdi_pvt *p)
 		p->saveconf.confmode = 0;
 		return -1;
 	}
-	c.chan = 0;
-	c.confno = 0;
+	memset(&c, 0, sizeof(c));
 	c.confmode = DAHDI_CONF_NORMAL;
 	res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETCONF, &c);
 	if (res) {
@@ -2639,6 +2636,7 @@ static int dahdi_hangup(struct cw_channel *cw)
 		case SIG_FXOGS:
 		case SIG_FXOLS:
 		case SIG_FXOKS:
+			memset(&par, 0, sizeof(par));
 			res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &par);
 			if (!res) {
 #if 0
@@ -4417,6 +4415,7 @@ struct cw_frame  *dahdi_read(struct cw_channel *cw)
 	{
 		struct dahdi_params ps;
 
+		memset(&ps, 0, sizeof(ps));
 		ps.channo = p->channel;
 		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
 			cw_mutex_unlock(&p->lock);
@@ -5027,6 +5026,7 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 	tmp = cw_channel_alloc(0, "%s", buf);
 	if (tmp) {
 		tmp->tech = &dahdi_tech;
+		memset(&ps, 0, sizeof(ps));
 		ps.channo = i->channel;
 		res = ioctl(i->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps);
 		if (res) {
@@ -7107,9 +7107,10 @@ static inline int available(struct dahdi_pvt *p, int channelmatch, int groupmatc
 			if (!p->sig || (p->sig == SIG_FXSLS))
 				return 1;
 			/* Check hook state */
-			if (p->subs[SUB_REAL].dfd > -1)
+			if (p->subs[SUB_REAL].dfd > -1) {
+				memset(&par, 0, sizeof(par));
 				res = ioctl(p->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &par);
-			else {
+			} else {
 				/* Assume not off hook on CVRS */
 				res = 0;
 				par.rxisoffhook = 0;
@@ -7510,6 +7511,7 @@ static int pri_find_principle(struct dahdi_pri *pri, int channel)
 
 	if (!explicit) {
 		spanfd = pri_active_dchan_fd(pri);
+		memset(&param, 0, sizeof(param));
 		if (ioctl(spanfd, DAHDI_GET_PARAMS, &param))
 			return -1;
 		span = pris[param.spanno - 1].prilogicalspan;
@@ -8869,6 +8871,7 @@ static int start_pri(struct dahdi_pri *pri)
 			cw_log(CW_LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
+		memset(&p, 0, sizeof(p));
 		res = ioctl(pri->fds[i], DAHDI_GET_PARAMS, &p);
 		if (res) {
 			dahdi_close(pri->fds[i]);
@@ -9432,9 +9435,8 @@ static int dahdi_show_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 			}
 				
 #endif
-			memset(&ci, 0, sizeof(ci));
-			ps.channo = tmp->channel;
 			if (tmp->subs[SUB_REAL].dfd > -1) {
+				memset(&ci, 0, sizeof(ci));
 				if (!ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GETCONF, &ci)) {
 					cw_dynstr_printf(ds_p, "Actual Confinfo: Num/%d, Mode/0x%04x\n", ci.confno, ci.confmode);
 				}
@@ -9443,6 +9445,8 @@ static int dahdi_show_channel(struct cw_dynstr *ds_p, int argc, char **argv)
 					cw_dynstr_printf(ds_p, "Actual Confmute: %s\n", x ? "Yes" : "No");
 				}
 #endif
+				memset(&ps, 0, sizeof(ps));
+				ps.channo = tmp->channel;
 				if (ioctl(tmp->subs[SUB_REAL].dfd, DAHDI_GET_PARAMS, &ps) < 0) {
 					cw_log(CW_LOG_WARNING, "Failed to get parameters on channel %d\n", tmp->channel);
 				} else {
