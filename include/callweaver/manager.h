@@ -101,7 +101,7 @@ struct mansession {
 	cw_address_t addr;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
-	char name[0];
+	char *name;
 };
 
 

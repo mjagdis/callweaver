@@ -114,61 +114,48 @@ err:
 }
 
 
-int cw_address_print(char *buf, ssize_t buflen, const cw_address_t *addr)
+void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr)
 {
-	char *p = buf;
-	int n;
-
 	switch (addr->sa.sa_family) {
 		case AF_INET: {
-			if (buflen)
-				memcpy(p, "ipv4:", (buflen > sizeof("ipv4:") - 1 ? sizeof("ipv4:") - 1 : buflen));
-			p += sizeof("ipv4:") - 1;
-			buflen -= sizeof("ipv4:") - 1;
-			if (buflen >= INET_ADDRSTRLEN && inet_ntop(addr->sa.sa_family, &addr->sin.sin_addr, p, buflen)) {
-				n = strlen(p);
-				p += n;
-				buflen -= n;
-			} else {
-				p += INET_ADDRSTRLEN - 1;
-				buflen -= INET_ADDRSTRLEN - 1;
+			cw_dynstr_need(ds_p, sizeof("ipv4:") + INET_ADDRSTRLEN);
+			cw_dynstr_printf(ds_p, "ipv4:");
+			/* If the need failed above then we're already in error */
+			if (!ds_p->error) {
+				inet_ntop(addr->sa.sa_family, &addr->sin.sin_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
+				ds_p->used += strlen(&ds_p->data[ds_p->used]);
 			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), ":%hu", ntohs(addr->sin.sin_port)) + 1;
+			if (addr->sin.sin_port)
+				cw_dynstr_printf(ds_p, ":%hu", ntohs(addr->sin.sin_port));
 			break;
 		}
 
 		case AF_INET6: {
-			if (buflen)
-				memcpy(p, "ipv6:[", (buflen > sizeof("ipv6:[") - 1 ? sizeof("ipv6:[") - 1 : buflen));
-			p += sizeof("ipv6:[") - 1;
-			buflen -= sizeof("ipv6:[") - 1;
-			if (buflen >= INET6_ADDRSTRLEN && inet_ntop(addr->sa.sa_family, &addr->sin6.sin6_addr, p, buflen)) {
-				n = strlen(p);
-				p += n;
-				buflen -= n;
-			} else {
-				p += INET6_ADDRSTRLEN - 1;
-				buflen -= INET6_ADDRSTRLEN - 1;
+			cw_dynstr_need(ds_p, sizeof("ipv6:[") + INET6_ADDRSTRLEN);
+			cw_dynstr_printf(ds_p, "ipv6:[");
+			/* If the need failed above then we're already in error */
+			if (!ds_p->error) {
+				inet_ntop(addr->sa.sa_family, &addr->sin6.sin6_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
+				ds_p->used += strlen(&ds_p->data[ds_p->used]);
 			}
-			p += snprintf(p, (buflen > 0 ? buflen : 0), "]:%hu", ntohs(addr->sin6.sin6_port)) + 1;
+			if (addr->sin6.sin6_port)
+				cw_dynstr_printf(ds_p, "]:%hu", ntohs(addr->sin6.sin6_port));
 			break;
 		}
 
 		case AF_LOCAL: {
-			p += snprintf(p, buflen, "local:%s", addr->sun.sun_path) + 1;
+			cw_dynstr_printf(ds_p, "local:%s", addr->sun.sun_path);
 			break;
 		}
 
 		case AF_PATHNAME:
-			p += snprintf(p, buflen, "file:%s", addr->sun.sun_path) + 1;
+			cw_dynstr_printf(ds_p, "file:%s", addr->sun.sun_path);
 			break;
 
 		case AF_INTERNAL:
-			p += snprintf(p, buflen, "internal:%s", addr->sun.sun_path) + 1;
+			cw_dynstr_printf(ds_p, "internal:%s", addr->sun.sun_path);
 			break;
 	}
-
-	return p - buf;
 }
 
 
@@ -355,10 +342,10 @@ int cw_connection_bind(struct cw_connection *conn, const cw_address_t *addr)
 
 int cw_connection_listen(struct cw_connection *conn)
 {
-	char buf[1024];
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	int res = -1;
 
-	cw_address_print(buf, sizeof(buf), &conn->addr);
-	buf[sizeof(buf) - 1] = '\0';
+	cw_address_print(&ds, &conn->addr);
 
 	if (!listen(conn->sock, 1024)) {
 		conn->state = LISTENING;
@@ -366,16 +353,19 @@ int cw_connection_listen(struct cw_connection *conn)
 		if ((conn->reg_entry = cw_registry_add(&cw_connection_registry, 0, &conn->obj))) {
 			if (!cw_pthread_create(&conn->tid, &global_attr_default, service_thread, cw_object_dup(conn))) {
 				if (option_verbose)
-					cw_verbose("CallWeaver listening on '%s'\n", buf);
-				return 0;
+					cw_verbose("CallWeaver listening on '%s'\n", ds.data);
+				res = 0;
+				goto out;
 			}
 
-			cw_log(CW_LOG_ERROR, "Failed to start accept thread for %s: %s\n", buf, strerror(errno));
+			cw_log(CW_LOG_ERROR, "Failed to start accept thread for %s: %s\n", ds.data, strerror(errno));
 			cw_registry_del(&cw_connection_registry, conn->reg_entry);
 			cw_object_put(conn);
 		}
 	} else
-		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", buf, strerror(errno));
+		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", ds.data, strerror(errno));
 
-	return -1;
+out:
+	cw_dynstr_free(&ds);
+	return res;
 }

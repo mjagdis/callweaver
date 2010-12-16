@@ -27,6 +27,7 @@
 
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
+#include "callweaver/dynstr.h"
 
 
 typedef union {
@@ -67,7 +68,7 @@ struct cw_connection {
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
 extern CW_API_PUBLIC int cw_address_parse(cw_address_t *addr, const char *spec);
-extern CW_API_PUBLIC int cw_address_print(char *buf, ssize_t buflen, const cw_address_t *addr);
+extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr);
 
 extern CW_API_PUBLIC struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, struct cw_object *pvt_obj, int domain);
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);

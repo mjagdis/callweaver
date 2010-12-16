@@ -459,19 +459,17 @@ struct listener_print_args {
 	struct cw_dynstr *ds_p;
 };
 
-#define MANLISTEN_FORMAT "%-10s %s\n"
+#define MANLISTEN_FORMAT "%-10s "
 
 static int listener_print(struct cw_object *obj, void *data)
 {
-	char buf[1024];
 	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
 	struct listener_print_args *args = data;
 
 	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING)) {
-		cw_address_print(buf, sizeof(buf), &conn->addr);
-		buf[sizeof(buf) - 1] = '\0';
-
-		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state], buf);
+		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state]);
+		cw_address_print(args->ds_p, &conn->addr);
+		cw_dynstr_printf(args->ds_p, "\n");
 	}
 
 	return 0;
@@ -486,7 +484,7 @@ static int handle_show_listener(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 
-	cw_dynstr_printf(ds_p, MANLISTEN_FORMAT MANLISTEN_FORMAT,
+	cw_dynstr_printf(ds_p, MANLISTEN_FORMAT "%s\n" MANLISTEN_FORMAT "%s\n",
 		"State", "Address",
 		"-----", "-------");
 
@@ -586,6 +584,7 @@ static void mansession_release(struct cw_object *obj)
 	pthread_cond_destroy(&sess->ack);
 	pthread_cond_destroy(&sess->activity);
 	free(sess->q);
+	free(sess->name);
 	cw_object_destroy(sess);
 	free(sess);
 }
@@ -1743,29 +1742,21 @@ static void *manager_session(void *data)
 
 struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
-	char buf[1];
-	struct mansession *sess;
-	int namelen;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	struct mansession *sess = NULL;
 
-	namelen = (addr ? cw_address_print(buf, sizeof(buf), addr) + 1 : 1);
+	cw_address_print(&ds, addr);
+	if (ds.error)
+		goto out;
 
-	if ((sess = calloc(1, sizeof(struct mansession) + namelen)) == NULL) {
-		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
+	if (!(sess = calloc(1, sizeof(struct mansession))))
+		goto out_of_memory;
 
-	if (!(sess->q = malloc(queuesize * sizeof(*sess->q)))) {
-		free(sess);
-		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		return NULL;
-	}
+	if (!(sess->q = malloc(queuesize * sizeof(*sess->q))))
+		goto out_of_memory;
 	sess->q_size = queuesize;
 
-	if (addr)
-		cw_address_print(sess->name, namelen, addr);
-	else
-		sess->name[0] = '\0';
-
+	sess->name = cw_dynstr_steal(&ds);
 	sess->addr = *addr;
 
 	sess->fd = fd;
@@ -1778,19 +1769,27 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 		sess->pvt_obj = cw_object_dup_obj(pvt_obj);
 
 	cw_object_init(sess, NULL, 2);
+	sess->obj.release = mansession_release;
 	pthread_mutex_init(&sess->lock, NULL);
 	pthread_cond_init(&sess->activity, NULL);
 	pthread_cond_init(&sess->ack, NULL);
-	sess->obj.release = mansession_release;
 
 	if (cw_pthread_create(&sess->writer_tid, &global_attr_detached, manager_session, sess)) {
 		cw_log(CW_LOG_ERROR, "Thread creation failed: %s\n", strerror(errno));
 		cw_object_put(sess);
 		cw_object_put(sess);
-		return NULL;
+		sess = NULL;
 	}
 
+out:
+	cw_dynstr_free(&ds);
 	return sess;
+
+out_of_memory:
+	if (sess)
+		free(sess);
+	cw_log(CW_LOG_ERROR, "Out of memory\n");
+	goto out;
 }
 
 
