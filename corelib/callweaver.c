@@ -137,6 +137,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/time.h"
 #include "callweaver/features.h"
 #include "callweaver/curl.h"
+#include "callweaver/blacklist.h"
 
 #include "callweaver/crypto.h"
 
@@ -1171,7 +1172,8 @@ static void boot(void)
 	srand((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 	srandom((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
-	if (cw_loader_cli_init()
+	if (cw_blacklist_init()
+	|| cw_loader_cli_init()
 	|| load_modules(1)
 	|| cw_channels_init()
 	|| cw_cdr_engine_init()

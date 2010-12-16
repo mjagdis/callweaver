@@ -87,6 +87,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/stun.h"
 #include "callweaver/keywords.h"
 #include "callweaver/indications.h"
+#include "callweaver/blacklist.h"
 
 #ifdef OSP_SUPPORT
 #include "callweaver/astosp.h"
@@ -14514,22 +14515,26 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 /*! \brief  handle_request_register: Handle incoming REGISTER request */
 static int handle_request_register(struct sip_pvt *p, struct sip_request *req, int debug, int ignore, struct sockaddr_in *sin)
 {
-    int res = 0;
     char iabuf[INET_ADDRSTRLEN];
+    int res;
 
     /* Use this as the basis */
     if (debug)
         cw_verbose("Using latest REGISTER request as basis request\n");
+
     copy_request(&p->initreq, req);
     check_via(p, req);
+
     if ((res = register_verify(p, sin, req, req->data + req->uriresp, ignore)) < 0)
-        cw_log(CW_LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
-    if (res < 1)
     {
-        /* Destroy the session, but keep us around for just a bit in case they don't
-           get our 200 OK */
+        cw_log(CW_LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1 ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain")));
+    }
+
+    if (res < 1) {
+        /* Destroy the session, but keep us around for just a bit in case they don't get our 200 OK */
         sip_scheddestroy(p, -1);
     }
+
     return res;
 }
 
@@ -14711,7 +14716,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
             sip_destroy(p);
         break;
     }
-    return res;
+
+    return (ignore ? 0 : res);
 }
 
 
@@ -14817,53 +14823,56 @@ static int handle_message(void *data)
 				retrans_stop(dialogue, req->seqno, FLAG_RESPONSE, SIP_UNKNOWN, 1);
 		} else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
-			/* FIXME: If the message contains something purporting to be our tag
-			 * at this point we should ignore it rather than create the call.
-			 * I think...
-			 */
-			if (sip_methods[req->method].can_create == 1) {
-				if (req->taglen < sizeof(dialogue->theirtag) - 1) {
-					if ((dialogue = sip_alloc(req->data + req->callid, &req->sa, 1, req->method))) {
-						memcpy(dialogue->theirtag, req->data + req->tag, (dialogue->theirtag_len = req->taglen));
-						dialogue->theirtag[req->taglen] = '\0';
-						dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
 
-						cw_object_dup(dialogue);
-						cw_mutex_lock(&dialogue->lock);
+			if (!cw_blacklist_check(&req->sa)) {
+				/* FIXME: If the message contains something purporting to be our tag
+				 * at this point we should ignore it rather than create the call.
+				 * I think...
+				 */
+				if (sip_methods[req->method].can_create == 1) {
+					if (req->taglen < sizeof(dialogue->theirtag) - 1) {
+						if ((dialogue = sip_alloc(req->data + req->callid, &req->sa, 1, req->method))) {
+							memcpy(dialogue->theirtag, req->data + req->tag, (dialogue->theirtag_len = req->taglen));
+							dialogue->theirtag[req->taglen] = '\0';
+							dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
+
+							cw_object_dup(dialogue);
+							cw_mutex_lock(&dialogue->lock);
+						} else {
+							if (option_debug > 3)
+								cw_log(CW_LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+							transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
+						}
 					} else {
-						if (option_debug > 3)
-							cw_log(CW_LOG_DEBUG, "Failed allocating SIP dialog, sending 500 Server internal error and giving up\n");
+						cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %lu, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, (unsigned long)sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
 						transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
 					}
 				} else {
-					cw_log(CW_LOG_ERROR, "%s sent a tag longer than we can handle (%d > %lu, tag = \"%.*s\"\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), req->taglen, (unsigned long)sizeof(dialogue->theirtag), req->taglen, req->data + req->tag);
-					transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, "500 Server internal error");
+					const char *response = NULL;
+
+					if (sip_methods[req->method].can_create == 2) {
+						/* In theory, can create dialog. We don't support it */
+						switch (req->method) {
+							case SIP_UNKNOWN:
+							case SIP_PRACK:
+								response = "501 Method not implemented";
+								break;
+							case SIP_REFER:
+								response = "603 Declined (no dialog)";
+								break;
+							case SIP_NOTIFY:
+								response = "489 Bad event";
+								break;
+							default:
+								response = "481 Call leg/transaction does not exist";
+								break;
+						}
+					} else if (req->method != SIP_ACK)
+						response = "481 Call leg/transaction does not exist";
+
+					if (response)
+						transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, response);
 				}
-			} else {
-				const char *response = NULL;
-
-				if (sip_methods[req->method].can_create == 2) {
-					/* In theory, can create dialog. We don't support it */
-					switch (req->method) {
-						case SIP_UNKNOWN:
-						case SIP_PRACK:
-							response = "501 Method not implemented";
-							break;
-						case SIP_REFER:
-							response = "603 Declined (no dialog)";
-							break;
-						case SIP_NOTIFY:
-							response = "489 Bad event";
-							break;
-						default:
-							response = "481 Call leg/transaction does not exist";
-							break;
-					}
-				} else if (req->method != SIP_ACK)
-					response = "481 Call leg/transaction does not exist";
-
-				if (response)
-					transmit_response_using_temp(req->data + req->callid, &req->sa, 1, req->method, req, response);
 			}
 		} else if (!dialogue && req->method != SIP_ACK) {
 			/* We found the call ID but the tags didn't match. Maybe there's a
@@ -14877,10 +14886,8 @@ static int handle_message(void *data)
 		if (dialogue) {
 			memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
 
-			if (handle_request(dialogue, req, &req->sa, &nounlock) == -1) {
-				/* Request failed */
-				cw_log(CW_LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", dialogue->callid[0] ? dialogue->callid : "<no callid>");
-			}
+			if (handle_request(dialogue, req, &req->sa, &nounlock) < 0)
+				cw_blacklist_add(&req->sa);
 		}
 	}
 
