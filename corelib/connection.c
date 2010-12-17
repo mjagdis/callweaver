@@ -71,10 +71,13 @@ int cw_address_parse(cw_address_t *addr, const char *spec)
 
 	/* A file path is always absolute */
 	if (spec[0] == '/') {
-		addr->sun.sun_family = AF_LOCAL;
-		strncpy(addr->sun.sun_path, spec, sizeof(addr->sun.sun_path));
-		unlink(spec);
-		ret = 0;
+		int l = strlen(spec);
+		if (l + 1 < sizeof(addr->sun.sun_path)) {
+			addr->sun.sun_family = AF_LOCAL;
+			memcpy(addr->sun.sun_path, spec, l + 1);
+			unlink(spec);
+			ret = 0;
+		}
 
 	/* An IPv6 address may be bare, in which case it contains at least two colons, or it
 	 * may be enclosed in square brackets with an optional ":<portno>" suffix.
