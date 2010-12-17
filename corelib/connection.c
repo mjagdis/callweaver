@@ -58,47 +58,67 @@ static const socklen_t salen[] = {
 
 int cw_address_parse(cw_address_t *addr, const char *spec)
 {
-	char *port;
+	char *p;
 	int portno;
 	int ret = -1;
 
+	/* DEPRECATED:
+	 * Historically we supported an "ipv6:" prefix on IPv6 addresses. It isn't
+	 * really necessary.
+	 */
+	if (!strncmp(spec, "ipv6:", sizeof("ipv6:") - 1))
+		spec += sizeof("ipv6:") - 1;
+
+	/* A file path is always absolute */
 	if (spec[0] == '/') {
 		addr->sun.sun_family = AF_LOCAL;
 		strncpy(addr->sun.sun_path, spec, sizeof(addr->sun.sun_path));
 		unlink(spec);
 		ret = 0;
-	} else if (!strncmp(spec, "ipv6:[", sizeof("ipv6:[") - 1)) {
+
+	/* An IPv6 address may be bare, in which case it contains at least two colons, or it
+	 * may be enclosed in square brackets with an optional ":<portno>" suffix.
+	 */
+	} else if (spec[0] == '[' || ((p = strchr(spec, ':')) && strchr(p + 1, ':'))) {
 		memset(addr, 0, sizeof(*addr));
 		addr->sin6.sin6_family = AF_INET6;
 		memset(&addr->sin6.sin6_addr, 0, sizeof(addr->sin6.sin6_addr));
 		addr->sin6.sin6_port = 0;
 
-		if ((port = strrchr(spec, ']')) && port[1] == ':') {
-			if (sscanf(port + 2, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 2, spec);
-				goto err;
+		/* You can only have a portno if the IPv6 address is enclosed in [...] otherwise
+		 * there's no way to tell where the IPv6 address ends and the port suffix starts.
+		 */
+		if (spec[0] == '[' && (p = strrchr(spec, ']'))) {
+			if (p[1] == ':') {
+				if (sscanf(p + 2, "%d", &portno) != 1) {
+					cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", p + 2, spec);
+					goto err;
+				}
+				addr->sin6.sin6_port = htons(portno);
 			}
-			addr->sin6.sin6_port = htons(portno);
-			*port = '\0';
+			spec++;
+			*p = '\0';
 		}
 
-		if (inet_pton(AF_INET6, spec + sizeof("ipv6:[") - 1, &addr->sin6.sin6_addr) <= 0) {
-			cw_log(CW_LOG_ERROR, "Invalid IPv6 address '%s' specified\n", spec + sizeof("ipv6:[") - 1);
+		if (inet_pton(AF_INET6, spec, &addr->sin6.sin6_addr) <= 0) {
+			cw_log(CW_LOG_ERROR, "Invalid IPv6 address '%s' specified\n", spec);
 			goto err;
 		}
 		ret = 0;
+
+	/* Consider anything else to be an IPv4 address. */
 	} else {
 		addr->sin.sin_family = AF_INET;
 		memset(&addr->sin.sin_addr, 0, sizeof(addr->sin.sin_addr));
 		addr->sin.sin_port = 0;
 
-		if ((port = strrchr(spec, ':'))) {
-			if (sscanf(port + 1, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", port + 1, spec);
+		if ((p = strrchr(spec, ':'))) {
+			if (sscanf(p + 1, "%d", &portno) != 1) {
+				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", p + 1, spec);
 				goto err;
 			}
 			addr->sin.sin_port = htons(portno);
-			*port = '\0';
+			*p = '\0';
 		}
 
 		if (!inet_aton(spec, &addr->sin.sin_addr)) {
