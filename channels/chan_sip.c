@@ -16900,7 +16900,7 @@ static int reload_config(void)
 
     if (sipsock < 0)
     {
-        sipsock = socket(AF_INET, SOCK_DGRAM, 0);
+        sipsock = socket_cloexec(AF_INET, SOCK_DGRAM, 0);
         if (sipsock < 0)
         {
             cw_log(CW_LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));

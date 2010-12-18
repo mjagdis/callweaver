@@ -4261,7 +4261,7 @@ static int reload_config(void)
 	if (cw_io_isactive(&mgcpsock_read_id))
 		cw_io_remove(io, &mgcpsock_read_id);
 
-	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
+	mgcpsock = socket_cloexec(AF_INET, SOCK_DGRAM, 0);
 	if (mgcpsock < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to create MGCP socket: %s\n", strerror(errno));
 	} else {

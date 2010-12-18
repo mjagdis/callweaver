@@ -274,24 +274,24 @@ int cw_str2tos(const char *value, int *tos)
 /* iface is the interface (e.g. eth0); address is the return value */
 int cw_lookup_iface(char *iface, struct in_addr *address) 
 {
-	int mysock, res = 0;
+	int mysock, res = -1;
 	struct my_ifreq ifreq;
 
-	memset(&ifreq, 0, sizeof(ifreq));
-	cw_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
+	if ((mysock = socket_cloexec(PF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
+		memset(&ifreq, 0, sizeof(ifreq));
+		cw_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
+		res = ioctl(mysock, SIOCGIFADDR, &ifreq);
+		close(mysock);
+	}
 
-	mysock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-	res = ioctl(mysock, SIOCGIFADDR, &ifreq);
-
-	close(mysock);
 	if (res < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
 		memcpy((char *)address, (char *)&__ourip, sizeof(__ourip));
-		return -1;
 	} else {
 		memcpy((char *)address, (char *)&ifreq.ifru_addr.sin_addr, sizeof(ifreq.ifru_addr.sin_addr));
-		return 0;
 	}
+
+	return res;
 }
 
 int cw_ouraddrfor(struct in_addr *them, struct in_addr *us)
@@ -300,7 +300,7 @@ int cw_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	struct sockaddr_in sin;
 	socklen_t slen;
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
+	s = socket_cloexec(PF_INET, SOCK_DGRAM, 0);
 	if (s < 0) {
 		cw_log(CW_LOG_WARNING, "Cannot create socket\n");
 		return -1;

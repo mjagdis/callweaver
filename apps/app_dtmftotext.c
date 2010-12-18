@@ -405,7 +405,7 @@ static int festival_exec(struct cw_channel *chan, char *vdata)
 	cw_log(CW_LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
 	/* Connect to local festival server */
 	
-    fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    fd = socket_cloexec(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (fd < 0)
     {
 		cw_log(CW_LOG_WARNING,"festival_client: can't get socket\n");

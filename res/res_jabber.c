@@ -1634,7 +1634,7 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
 	CW_UNUSED(ip);
 	CW_UNUSED(client);
 
-	if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+	if ((sock = socket_cloexec(AF_INET, SOCK_DGRAM, 0)) >= 0) {
 		sockaddr->sin_family = AF_INET;
 		sockaddr->sin_addr.s_addr = INADDR_ANY;
 		sockaddr->sin_port = htons(port);
@@ -1656,7 +1656,7 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
   int sock;
 
   memset(&hp, 0, sizeof(hp));
-  if ((sock = socket(AF_INET, SOCK_DGRAM, 0))) {
+  if ((sock = socket_cloexec(AF_INET, SOCK_DGRAM, 0)) >= 0) {
   gethostbyname_r(ip, &hp, buf, sizeof(buf), &result, &err);
   if (result) {
   sockaddr->sin_family = hp.h_addrtype;
@@ -1689,7 +1689,7 @@ static int create_udp_socket(const char *ip, int port, struct sockaddr_in *socka
   addr = &servAddr;
   }
 	
-  if ((sd = socket(AF_INET, SOCK_DGRAM, 0))) {
+  if ((sd = socket_cloexec(AF_INET, SOCK_DGRAM, 0)) >= 0) {
   if ((hp = cw_gethostbyname(ip, &ahp))) {
   addr->sin_family = hp->h_addrtype;
   memcpy((char *) &addr->sin_addr.s_addr, hp->h_addr_list[0], hp->h_length);

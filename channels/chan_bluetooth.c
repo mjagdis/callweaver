@@ -1634,7 +1634,7 @@ rfcomm_listen(bdaddr_t * bdaddr, int channel)
   struct sockaddr_rc loc_addr;
   int on = 1;
 
-  if ((sock = socket(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
+  if ((sock = socket_cloexec(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
     cw_log(CW_LOG_ERROR, "Can't create socket: %s (errno: %d)\n", strerror(errno), errno);
     return -1;
   }
@@ -1685,7 +1685,7 @@ sco_listen(bdaddr_t * bdaddr)
 
   memset(&loc_addr, 0, sizeof(loc_addr));
 
-  if ((sock = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
+  if ((sock = socket_cloexec(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
     cw_log(CW_LOG_ERROR, "Can't create SCO socket: %s (errno: %d)\n", strerror(errno), errno);
     return -1;
   }
@@ -1725,7 +1725,7 @@ rfcomm_connect(bdaddr_t * src, bdaddr_t * dst, int channel, int nbio)
   struct sockaddr_rc addr;
   int s;
 
-  if ((s = socket(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
+  if ((s = socket_cloexec(PF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)) < 0) {
     return -1;
   }
 
@@ -1775,7 +1775,7 @@ sco_connect(blt_dev_t * dev)
     return -1;
   }
 
-  if ((s = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
+  if ((s = socket_cloexec(PF_BLUETOOTH, SOCK_SEQPACKET, BTPROTO_SCO)) < 0) {
     cw_log(CW_LOG_ERROR, "Can't create SCO socket(): %s\n", strerror(errno));
     return -1;
   }
@@ -2010,7 +2010,7 @@ handle_incoming(int fd, blt_role_t role)
 
   cw_mutex_lock(&iface_lock);
 
-  fd = accept(fd, (struct sockaddr*)&addr, &len);
+  fd = accept_cloexec(fd, (struct sockaddr*)&addr, &len);
 
   dev = iface_head;
   while (dev) {
@@ -2061,7 +2061,7 @@ handle_incoming_sco(int master)
 
   cw_log(CW_LOG_DEBUG, "Incoming SCO socket\n");
 
-  fd = accept(master, (struct sockaddr*)&addr, &len);
+  fd = accept_cloexec(master, (struct sockaddr*)&addr, &len);
 
   if (fcntl(fd, F_SETFL, O_RDWR|O_NONBLOCK) != 0) {
     cw_log(CW_LOG_ERROR, "Can't set SCO socket to NBIO\n");
@@ -2321,7 +2321,7 @@ do_monitor(void * data)
   dev = iface_head;
   while (dev) {
 
-    if (socketpair(PF_UNIX, SOCK_STREAM, 0, dev->sco_pipe) != 0) {
+    if (socketpair_cloexec(PF_UNIX, SOCK_STREAM, 0, dev->sco_pipe) != 0) {
       cw_log(CW_LOG_ERROR, "Failed to create socket pair: %s (errno %d)\n", strerror(errno), errno);
       cw_mutex_unlock(&iface_lock);
       return NULL;

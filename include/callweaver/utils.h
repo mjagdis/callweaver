@@ -222,6 +222,26 @@ extern CW_API_PUBLIC int open_cloexec_compat(const char *pathname, int flags, mo
 #endif
 
 
+/*! Open a socket and set the close-on-exec flag
+ *
+ * If SOCK_CLOEXEC exists we assume it is supported by the kernel.
+ * However we cannot guarantee that someone hasn't been silly
+ * and installed an old kernel under a new glibc.
+ */
+#ifdef SOCK_CLOEXEC
+#  define socket_cloexec(domain, type, protocol)	socket((domain), (type) | SOCK_CLOEXEC, (protocol))
+#  define socketpair_cloexec(domain, type, protocol, sv)	socketpair((domain), (type) | SOCK_CLOEXEC, (protocol), (sv))
+#else
+extern CW_API_PUBLIC int socket_cloexec(int domain, int type, int protocol);
+extern CW_API_PUBLIC int socketpair_cloexec(int domain, int type, int protocol, int sv[2]);
+#endif
+#if defined(SOCK_CLOEXEC) && defined(HAVE_ACCEPT4)
+#  define accept_cloexec(sockfd, addr, addrlen)	accept4((sockfd), (addr), (addrlen), SOCK_CLOEXEC)
+#else
+extern CW_API_PUBLIC int accept_cloexec(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+#endif
+
+
 struct cw_hostent {
 	struct hostent hp;
 	char buf[1024];

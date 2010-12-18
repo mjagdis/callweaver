@@ -410,12 +410,12 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sain)
 static void reset_global_eid(void)
 {
 #if defined(SIOCGIFHWADDR)
-	int x,s;
 	char eid_str[20];
 	struct ifreq ifr;
+	int x, s;
 
-	s = socket(AF_INET, SOCK_STREAM, 0);
-	if (s > 0) {
+	s = socket_cloexec(AF_INET, SOCK_STREAM, 0);
+	if (s >= 0) {
 		x = 0;
 		for(x=0;x<10;x++) {
 			memset(&ifr, 0, sizeof(ifr));
@@ -426,7 +426,7 @@ static void reset_global_eid(void)
 				close(s);
 				return;
 			}
-        }
+		}
 		close(s);
 	}
 #else
@@ -4865,7 +4865,7 @@ static int reload_module(void)
 
 	set_config("dundi.conf", &sain);
 
-	if ((netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
+	if ((netsocket = socket_cloexec(AF_INET, SOCK_DGRAM, IPPROTO_IP)) >= 0) {
 		if (!bind(netsocket, (struct sockaddr *)&sain, sizeof(sain))) {
 			if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos)))
 				cw_log(CW_LOG_WARNING, "Unable to set TOS to %d\n", tos);

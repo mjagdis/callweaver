@@ -97,9 +97,41 @@ int cw_write_all(int fd, const char *data, int len)
 
 
 #ifndef O_CLOEXEC
-int open_cloexec_compat(const char *pathname, int flags, mode_t mode)
+int open_cloexec(const char *pathname, int flags, mode_t mode)
 {
 	int fd = open(pathname, flags, mode);
+	if (fd >= 0)
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+	return fd;
+}
+#endif
+
+
+#ifndef SOCK_CLOEXEC
+int socket_cloexec(int domain, int type, int protocol)
+{
+	int fd = socket(domain, type, protocol);
+	if (fd >= 0)
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+	return fd;
+}
+
+int socketpair_cloexec(int domain, int type, int protocol, int sv[2])
+{
+	int res;
+
+	if (!(res = socketpair(domain, type, protocol, sv))) {
+		fcntl(sv[0], F_SETFD, fcntl(sv[0], F_GETFD, 0) | FD_CLOEXEC);
+		fcntl(sv[1], F_SETFD, fcntl(sv[1], F_GETFD, 0) | FD_CLOEXEC);
+	}
+	return fd;
+}
+#endif
+
+#if !defined(SOCK_CLOEXEC) || !defined(HAVE_ACCEPT4)
+int accept_cloexec(int sockfd, struct sockaddr *addr, socklen_t *addrlen)
+{
+	int fd = accept(sockfd, addr, addrlen);
 	if (fd >= 0)
 		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
 	return fd;

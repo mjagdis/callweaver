@@ -201,7 +201,7 @@ static int connect_callweaver(void)
 		fprintf(stderr, "Can't find host '%s'\n", host);
 		return -1;
 	}
-	sock = socket(AF_INET, SOCK_STREAM, 0);
+	sock = socket_cloexec(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		fprintf(stderr, "Failed to create socket: %s\n", strerror(errno));
 		return -1;

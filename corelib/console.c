@@ -700,7 +700,7 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 		addr.sa.sa_family = AF_INTERNAL;
 		cw_copy_string(addr.sun.sun_path, "console", sizeof(addr.sun.sun_path));
 
-		if (!socketpair(AF_LOCAL, SOCK_STREAM, 0, sv)
+		if (!socketpair_cloexec(AF_LOCAL, SOCK_STREAM, 0, sv)
 		&& (sess = manager_session_start(manager_session_ami, sv[0], &addr, NULL, events, EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
@@ -722,7 +722,7 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 		while (s < 0 && !last) {
 			last = (timelimit == 0 || time(NULL) - start > timelimit);
 
-			if ((s = socket(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+			if ((s = socket_cloexec(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
 				e = errno;
 				if (last)
 					fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
@@ -734,8 +734,6 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 				if (last)
 					fprintf(stderr, "Unable to connect to \"%s\": %s\n", spec, strerror(e));
 				errno = e;
-			} else {
-				fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
 			}
 
 			if (!last) {

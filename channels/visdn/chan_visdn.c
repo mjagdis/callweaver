@@ -4879,7 +4879,7 @@ static int load_module()
 
 	visdn_reload_config();
 
-	visdn.netlink_socket = socket(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	visdn.netlink_socket = socket_cloexec(PF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if(visdn.netlink_socket < 0) {
 		cw_log(CW_LOG_ERROR, "Unable to open netlink socket: %s\n",
 			strerror(errno));
@@ -4910,7 +4910,7 @@ static int load_module()
 	}
 
 	int fd;
-	fd = socket(PF_LAPD, SOCK_SEQPACKET, 0);
+	fd = socket_cloexec(PF_LAPD, SOCK_SEQPACKET, 0);
 	if (fd < 0) {
 		cw_log(CW_LOG_ERROR, "socket: %s\n", strerror(errno));
 		goto err_socket_lapd;

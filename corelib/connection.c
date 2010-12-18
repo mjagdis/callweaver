@@ -319,7 +319,7 @@ struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, s
 	int sock;
 	const int arg = 1;
 
-	if ((sock = socket(domain, SOCK_STREAM, 0)) >= 0) {
+	if ((sock = socket_cloexec(domain, SOCK_STREAM, 0)) >= 0) {
 		if ((conn = malloc(sizeof(*conn)))) {
 			cw_object_init(conn, NULL, 1);
 			conn->obj.release = cw_connection_release;
@@ -332,7 +332,6 @@ struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, s
 			conn->tech = tech;
 			conn->pvt_obj = pvt_obj;
 
-			fcntl(sock, F_SETFD, fcntl(sock, F_GETFD, 0) | FD_CLOEXEC);
 			setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 			goto out;
 		}

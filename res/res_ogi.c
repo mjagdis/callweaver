@@ -167,7 +167,7 @@ static int launch_netscript(char *ogiurl, char *argv[], int *fds, int *efd, int 
 		cw_log(CW_LOG_WARNING, "Unable to locate host '%s'\n", host);
 		return -1;
 	}
-	s = socket(AF_INET, SOCK_STREAM, 0);
+	s = socket_cloexec(AF_INET, SOCK_STREAM, 0);
 	if (s < 0) {
 		cw_log(CW_LOG_WARNING, "Unable to create socket: %s\n", strerror(errno));
 		return -1;

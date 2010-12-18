@@ -128,7 +128,7 @@ struct cw_netsock *cw_netsock_bindaddr(struct cw_netsock_list *list, cw_io_conte
 	struct cw_netsock *ns;
 	
 	/* Make a UDP socket */
-	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+	netsocket = socket_cloexec(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 	
 	if (netsocket < 0) {
 		cw_log(CW_LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));

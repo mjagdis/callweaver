@@ -1202,7 +1202,7 @@ static int reload_config(void) {
 
   if (GLOB(descriptor) < 0) {
 
-	GLOB(descriptor) = socket(AF_INET, SOCK_STREAM, 0);
+	GLOB(descriptor) = socket_cloexec(AF_INET, SOCK_STREAM, 0);
 
 	on = 1;
 	if (setsockopt(GLOB(descriptor), SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)

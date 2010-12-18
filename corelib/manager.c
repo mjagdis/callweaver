@@ -2087,11 +2087,9 @@ static int manager_listener_read(struct cw_connection *conn)
 	int ret = 0;
 
 	salen = sizeof(addr);
-	fd = accept(conn->sock, &addr.sa, &salen);
+	fd = accept_cloexec(conn->sock, &addr.sa, &salen);
 
 	if (fd >= 0) {
-		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
-
 		if (addr.sa.sa_family == AF_LOCAL) {
 			/* Local sockets don't return a path in their sockaddr (there isn't
 			 * one really). However, if the remote is local so is the address

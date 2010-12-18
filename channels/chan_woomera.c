@@ -1302,7 +1302,7 @@ static int create_udp_socket(char *ip, int port, struct sockaddr_in *sockaddr, i
 		addr = &servAddr;
 	}
 	
-	if ((sd = socket(AF_INET, SOCK_DGRAM, 0))) {
+	if ((sd = socket_cloexec(AF_INET, SOCK_DGRAM, 0))) {
 		if ((hp = cw_gethostbyname(ip, &ahp))) {
 			addr->sin_family = hp->h_addrtype;
 			memcpy((char *) &addr->sin_addr.s_addr, hp->h_addr_list[0], hp->h_length);
@@ -1341,7 +1341,7 @@ static int connect_woomera(int *new_socket, woomera_profile *profile, int flags)
 		remoteAddr.sin_port = htons(profile->woomera_port);
 		do {
 			/* create socket */
-			*new_socket = socket(AF_INET, SOCK_STREAM, 0);
+			*new_socket = socket_cloexec(AF_INET, SOCK_STREAM, 0);
 			if (*new_socket < 0) {
 				cw_log(CW_LOG_ERROR, "cannot open socket to %s/%d\n", profile->woomera_host, profile->woomera_port);
 				res = 0;

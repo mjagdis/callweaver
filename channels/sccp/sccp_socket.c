@@ -153,7 +153,7 @@ static void sccp_accept_connection(void) {
 	char iabuf[INET_ADDRSTRLEN];
 	int on = 1;
 
-	if ((new_socket = accept(GLOB(descriptor), (struct sockaddr *)&incoming, &length)) < 0) {
+	if ((new_socket = accept_cloexec(GLOB(descriptor), (struct sockaddr *)&incoming, &length)) < 0) {
 		cw_log(CW_LOG_ERROR, "Error accepting new socket %s\n", strerror(errno));
 		return;
 	}

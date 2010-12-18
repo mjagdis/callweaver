@@ -7350,7 +7350,7 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 	int sd;
 	int res;
 	
-	sd = socket(AF_INET, SOCK_DGRAM, 0);
+	sd = socket_cloexec(AF_INET, SOCK_DGRAM, 0);
 	if (sd < 0) {
 		cw_log(CW_LOG_ERROR, "Socket: %s\n", strerror(errno));
 		return -1;

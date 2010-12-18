@@ -409,7 +409,7 @@ int visdn_intf_open(struct visdn_intf *intf, struct visdn_ic *ic)
 	intf->q931_intf->dlc_autorelease_time = ic->dlc_autorelease_time;
 	intf->q931_intf->enable_bumping = ic->call_bumping;
 
-	intf->mgmt_fd = socket(PF_LAPD, SOCK_SEQPACKET, LAPD_SAPI_MGMT);
+	intf->mgmt_fd = socket_cloexec(PF_LAPD, SOCK_SEQPACKET, LAPD_SAPI_MGMT);
 	if (intf->mgmt_fd < 0) {
 		cw_log(CW_LOG_WARNING,
 			"Cannot open management socket: %s\n",
