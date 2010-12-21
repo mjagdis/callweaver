@@ -373,12 +373,13 @@ static int blacklist_add(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(ds_p);
 
 	if (argc >= 3 && argc <= 5) {
-		cw_address_t addr;
+		cw_sockaddr_t *addr = CW_SOCKADDR_NET;
+		socklen_t addrlen;
 		unsigned int duration = 0;
 		unsigned int remember = 0;
 
 		/* FIXME: we should do hostname look ups and block all the addresses it resolves to. */
-		if (!cw_address_parse(&addr, argv[2]) && addr.sa.sa_family == AF_INET) {
+		if (!cw_address_parse(argv[2], addr, &addrlen) && addr->sa.sa_family == AF_INET) {
 			const char *a3, *a4;
 
 			a3 = a4 = "";
@@ -396,7 +397,7 @@ static int blacklist_add(struct cw_dynstr *ds_p, int argc, char *argv[])
 			}
 
 			if (!*a3 && !*a4)
-				blacklist_modify(&addr.sin, BLACKLIST_STATIC, duration, remember);
+				blacklist_modify(&addr->sin, BLACKLIST_STATIC, duration, remember);
 			res = RESULT_SUCCESS;
 		}
 	}
@@ -418,11 +419,12 @@ static int blacklist_remove(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(ds_p);
 
 	if (argc != 3) {
-		cw_address_t addr;
+		cw_sockaddr_t *addr = CW_SOCKADDR_NET;
+		socklen_t addrlen;
 
 		/* FIXME: we should do hostname look ups and remove all the addresses it resolves to. */
-		if (!cw_address_parse(&addr, argv[2]) && addr.sa.sa_family == AF_INET) {
-			blacklist_modify(&addr.sin, BLACKLIST_DELETE, 0, 0);
+		if (!cw_address_parse(argv[2], addr, &addrlen) && addr->sa.sa_family == AF_INET) {
+			blacklist_modify(&addr->sin, BLACKLIST_DELETE, 0, 0);
 			res = RESULT_SUCCESS;
 		}
 	}

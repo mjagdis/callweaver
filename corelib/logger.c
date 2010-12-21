@@ -212,13 +212,12 @@ out_error:
 
 static struct logchannel *make_logchannel(char *channel, char *components)
 {
-	cw_address_t addr;
 	struct logchannel *chan;
 	const char *facility;
 #ifndef SOLARIS
 	CODE *cptr;
 #endif
-	int logmask;
+	int domain, logmask;
 
 	if (cw_strlen_zero(channel))
 		return NULL;
@@ -297,7 +296,7 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 		}
 
 		chan->filename = strdup(channel);
-		addr.sa.sa_family = AF_INTERNAL;
+		domain = AF_INTERNAL;
 
 		openlog("callweaver", LOG_PID, chan->facility);
 	} else {
@@ -312,14 +311,19 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 		if (!ds.error)
 			chan->filename = cw_dynstr_steal(&ds);
 		cw_dynstr_free(&ds);
-		addr.sa.sa_family = AF_PATHNAME;
+		domain = AF_PATHNAME;
 	}
 
 	if (chan->filename) {
-		cw_copy_string(addr.sun.sun_path, chan->filename, sizeof(addr.sun.sun_path));
+		int l = strlen(chan->filename) + 1;
+		socklen_t addrlen = CW_SOCKADDR_UN_SIZE(l);
+		cw_sockaddr_t *addr = alloca(l);
+
+		addr->sun.sun_family = domain;
+		memcpy(addr->sun.sun_path, chan->filename, l);
 		logmask = manager_str_to_eventmask(components);
 
-		if ((chan->sess = manager_session_start(logger_manager_session, -1, &addr, NULL, logmask, 0, logmask)))
+		if ((chan->sess = manager_session_start(logger_manager_session, -1, addr, addrlen, NULL, logmask, 0, logmask)))
 			return chan;
 
 		/* Can't log here, since we're called with a lock */

@@ -688,8 +688,8 @@ static void console_handler(char *s)
 
 static int console_connect(const char *spec, int events, time_t timelimit)
 {
-	cw_address_t addr;
-	socklen_t salen;
+	cw_sockaddr_t *addr;
+	socklen_t addrlen;
 	int s = -1;
 	int e;
 
@@ -697,37 +697,38 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 		int sv[2];
 		struct mansession *sess;
 
-		addr.sa.sa_family = AF_INTERNAL;
-		cw_copy_string(addr.sun.sun_path, "console", sizeof(addr.sun.sun_path));
+		addrlen = CW_SOCKADDR_UN_SIZE(sizeof("console"));
+		addr = alloca(addrlen);
+		addr->sun.sun_family = AF_INTERNAL;
+		memcpy(addr->sun.sun_path, "console", sizeof("console"));
 
 		if (!socketpair_cloexec(AF_LOCAL, SOCK_STREAM, 0, sv)
-		&& (sess = manager_session_start(manager_session_ami, sv[0], &addr, NULL, events, EVENT_FLAG_COMMAND, events))) {
+		&& (sess = manager_session_start(manager_session_ami, sv[0], addr, addrlen, NULL, events, EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
 		}
-	} else if (strlen(spec) > sizeof(addr.sun.sun_path) - 1) {
-		fprintf(stderr, "Path too long: \"%s\"\n", spec);
-		errno = EINVAL;
 	} else {
 		const int reconnects_per_second = 20;
 		time_t start;
-		int last = 0;
+		int l, last = 0;
 
-		addr.sa.sa_family = AF_LOCAL;
-		cw_copy_string(addr.sun.sun_path, spec, sizeof(addr.sun.sun_path));
-		salen = sizeof(addr.sun);
+		l = strlen(spec) + 1;
+		addrlen = CW_SOCKADDR_UN_SIZE(l);
+		addr = alloca(addrlen);
+		addr->sun.sun_family = AF_LOCAL;
+		memcpy(addr->sun.sun_path, spec, l);
 
 		time(&start);
 
 		while (s < 0 && !last) {
 			last = (timelimit == 0 || time(NULL) - start > timelimit);
 
-			if ((s = socket_cloexec(addr.sa.sa_family, SOCK_STREAM, 0)) < 0) {
+			if ((s = socket_cloexec(addr->sa.sa_family, SOCK_STREAM, 0)) < 0) {
 				e = errno;
 				if (last)
 					fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
 				errno = e;
-			} else if (connect(s, &addr.sa, salen)) {
+			} else if (connect(s, &addr->sa, addrlen)) {
 				e = errno;
 				close(s);
 				s = -1;

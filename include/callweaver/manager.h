@@ -98,10 +98,10 @@ struct mansession {
 	struct cw_manager_message **q;
 	pthread_t reader_tid;
 	pthread_t writer_tid;
-	cw_address_t addr;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
 	char *name;
+	cw_sockaddr_t addr;
 };
 
 
@@ -176,7 +176,7 @@ extern CW_API_PUBLIC int cw_manager_send(struct mansession *sess, const struct m
 
 extern CW_API_PUBLIC struct cw_manager_message *cw_manager_response(const char *resp, const char *msgstr);
 
-extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
+extern CW_API_PUBLIC struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_sockaddr_t *addr, socklen_t addrlen, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events);
 extern CW_API_PUBLIC void manager_session_shutdown(struct mansession *sess);
 extern CW_API_PUBLIC void manager_session_end(struct mansession *sess);
 

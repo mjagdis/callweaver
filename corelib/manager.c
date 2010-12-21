@@ -1740,7 +1740,7 @@ static void *manager_session(void *data)
 }
 
 
-struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_address_t *addr, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_sockaddr_t *addr, socklen_t addrlen, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct mansession *sess = NULL;
@@ -1749,7 +1749,7 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	if (ds.error)
 		goto out;
 
-	if (!(sess = calloc(1, sizeof(struct mansession))))
+	if (!(sess = calloc(1, sizeof(*sess) - sizeof(sess->addr) + addrlen)))
 		goto out_of_memory;
 
 	if (!(sess->q = malloc(queuesize * sizeof(*sess->q))))
@@ -1757,7 +1757,7 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	sess->q_size = queuesize;
 
 	sess->name = cw_dynstr_steal(&ds);
-	sess->addr = *addr;
+	memcpy(&sess->addr, addr, addrlen);
 
 	sess->fd = fd;
 	sess->readperm = readperm;
@@ -2079,28 +2079,31 @@ static struct manager_action manager_actions[] = {
 
 static int manager_listener_read(struct cw_connection *conn)
 {
-	cw_address_t addr;
+	cw_sockaddr_t *addr;
 	struct manager_listener_pvt *pvt = container_of(conn->pvt_obj, struct manager_listener_pvt, obj);
 	struct mansession *sess;
-	socklen_t salen;
+	socklen_t addrlen;
 	int fd;
 	int ret = 0;
 
-	salen = sizeof(addr);
-	fd = accept_cloexec(conn->sock, &addr.sa, &salen);
+	addrlen = conn->addrlen;
+	addr = alloca(conn->addrlen);
+
+	fd = accept_cloexec(conn->sock, &addr->sa, &addrlen);
 
 	if (fd >= 0) {
-		if (addr.sa.sa_family == AF_LOCAL) {
+		if (addr->sa.sa_family == AF_LOCAL) {
 			/* Local sockets don't return a path in their sockaddr (there isn't
 			 * one really). However, if the remote is local so is the address
 			 * we were listening on and the listening path is in the listener's
 			 * name. We'll use that as a meaningful connection source for the
 			 * sake of the connection list command.
 			 */
-			strcpy(addr.sun.sun_path, conn->addr.sun.sun_path);
+			strcpy(addr->sun.sun_path, conn->addr.sun.sun_path);
+			addrlen = SUN_LEN(&addr->sun);
 		}
 
-		if ((sess = manager_session_start(pvt->handler, fd, &addr, conn->pvt_obj, pvt->readperm, pvt->writeperm, pvt->send_events)))
+		if ((sess = manager_session_start(pvt->handler, fd, addr, addrlen, conn->pvt_obj, pvt->readperm, pvt->writeperm, pvt->send_events)))
 			cw_object_put(sess);
 
 		goto out;
@@ -2126,11 +2129,12 @@ static void listener_pvt_free(struct cw_object *obj)
 
 static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
 {
-	cw_address_t addr;
-	struct cw_connection *listener;
 	struct manager_listener_pvt *pvt;
 	const char *banner = NULL;
+	cw_sockaddr_t *addr;
+	socklen_t addrlen;
 	int banner_len = 0;
+	int err;
 
 	if (spec[0] == '"') {
 		int i;
@@ -2148,37 +2152,46 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 			spec++;
 	}
 
-	if (!(pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
-		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		return;
+	addrlen = 0;
+
+	/* A file path is always absolute */
+	if (spec[0] == '/') {
+		int l = strlen(spec);
+		addrlen = sizeof(addr->sun) - sizeof(addr->sun.sun_path) + l + 1;
+		addr = alloca(addrlen);
+		addr->sun.sun_family = AF_LOCAL;
+		memcpy(addr->sun.sun_path, spec, l + 1);
+		unlink(spec);
+	} else {
+		addr = alloca(sizeof(*addr));
+		cw_address_parse(spec, addr, &addrlen);
 	}
 
-	cw_object_init(pvt, NULL, 1);
-	pvt->obj.release = listener_pvt_free;
-	pvt->handler = handler;
-	pvt->readperm = readperm;
-	pvt->writeperm = writeperm;
-	pvt->send_events = send_events;
-	memcpy(pvt->banner, banner, banner_len);
-	pvt->banner[banner_len] = '\0';
+	if (addrlen) {
+		if ((pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
+			cw_object_init(pvt, NULL, 1);
+			pvt->obj.release = listener_pvt_free;
+			pvt->handler = handler;
+			pvt->readperm = readperm;
+			pvt->writeperm = writeperm;
+			pvt->send_events = send_events;
+			memcpy(pvt->banner, banner, banner_len);
+			pvt->banner[banner_len] = '\0';
 
-	if (!cw_address_parse(&addr, spec)) {
-		if ((listener = cw_connection_new(&tech_ami, &pvt->obj, addr.sa.sa_family))) {
-			if (!cw_connection_bind(listener, &addr)) {
+			if (!(err = cw_connection_listen(SOCK_STREAM, addr, addrlen, &tech_ami, &pvt->obj))) {
 				/* Local listener sockets that are not pre-authenticated are public */
-				if (addr.sa.sa_family == AF_LOCAL && !writeperm)
-					chmod(listener->addr.sun.sun_path, 0666);
+				if (addr->sa.sa_family == AF_LOCAL && !writeperm)
+					chmod(addr->sun.sun_path, 0666);
 
-				cw_connection_listen(listener);
-			} else
-				cw_log(CW_LOG_ERROR, "Unable to bind to '%s': %s\n", spec, strerror(errno));
-
-			cw_object_put(listener);
-			return;
-		}
+				if (option_verbose)
+					cw_verbose("CallWeaver listening on '%s'\n", spec);
+			} else {
+				cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", spec, strerror(err));
+				cw_object_put(pvt);
+			}
+		} else
+			cw_log(CW_LOG_ERROR, "Out of memory\n");
 	}
-
-	cw_object_put(pvt);
 }
 
 

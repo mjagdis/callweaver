@@ -56,34 +56,17 @@ static const socklen_t salen[] = {
 };
 
 
-int cw_address_parse(cw_address_t *addr, const char *spec)
+int cw_address_parse(const char *spec, cw_sockaddr_t *addr, socklen_t *addrlen)
 {
 	char *p;
 	int portno;
 	int ret = -1;
 
-	/* DEPRECATED:
-	 * Historically we supported an "ipv6:" prefix on IPv6 addresses. It isn't
-	 * really necessary.
-	 */
-	if (!strncmp(spec, "ipv6:", sizeof("ipv6:") - 1))
-		spec += sizeof("ipv6:") - 1;
-
-	/* A file path is always absolute */
-	if (spec[0] == '/') {
-		int l = strlen(spec);
-		if (l + 1 < sizeof(addr->sun.sun_path)) {
-			addr->sun.sun_family = AF_LOCAL;
-			memcpy(addr->sun.sun_path, spec, l + 1);
-			unlink(spec);
-			ret = 0;
-		}
-
 	/* An IPv6 address may be bare, in which case it contains at least two colons, or it
 	 * may be enclosed in square brackets with an optional ":<portno>" suffix.
 	 */
-	} else if (spec[0] == '[' || ((p = strchr(spec, ':')) && strchr(p + 1, ':'))) {
-		memset(addr, 0, sizeof(*addr));
+	if (spec[0] == '[' || ((p = strchr(spec, ':')) && strchr(p + 1, ':'))) {
+		memset(addr, 0, sizeof(addr->sin6));
 		addr->sin6.sin6_family = AF_INET6;
 		memset(&addr->sin6.sin6_addr, 0, sizeof(addr->sin6.sin6_addr));
 		addr->sin6.sin6_port = 0;
@@ -132,17 +115,18 @@ int cw_address_parse(cw_address_t *addr, const char *spec)
 		ret = 0;
 	}
 
+	*addrlen = salen[addr->sa.sa_family];
+
 err:
 	return ret;
 }
 
 
-void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr)
+void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr)
 {
 	switch (addr->sa.sa_family) {
 		case AF_INET: {
-			cw_dynstr_need(ds_p, sizeof("ipv4:") + INET_ADDRSTRLEN);
-			cw_dynstr_printf(ds_p, "ipv4:");
+			cw_dynstr_need(ds_p, INET_ADDRSTRLEN);
 			/* If the need failed above then we're already in error */
 			if (!ds_p->error) {
 				inet_ntop(addr->sa.sa_family, &addr->sin.sin_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
@@ -154,8 +138,9 @@ void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr)
 		}
 
 		case AF_INET6: {
-			cw_dynstr_need(ds_p, sizeof("ipv6:[") + INET6_ADDRSTRLEN);
-			cw_dynstr_printf(ds_p, "ipv6:[");
+			if (addr->sin6.sin6_port)
+				cw_dynstr_printf(ds_p, "[");
+			cw_dynstr_need(ds_p, INET6_ADDRSTRLEN);
 			/* If the need failed above then we're already in error */
 			if (!ds_p->error) {
 				inet_ntop(addr->sa.sa_family, &addr->sin6.sin6_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
@@ -166,10 +151,9 @@ void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr)
 			break;
 		}
 
-		case AF_LOCAL: {
+		case AF_LOCAL:
 			cw_dynstr_printf(ds_p, "local:%s", addr->sun.sun_path);
 			break;
-		}
 
 		case AF_PATHNAME:
 			cw_dynstr_printf(ds_p, "file:%s", addr->sun.sun_path);
@@ -182,7 +166,7 @@ void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr)
 }
 
 
-static int addrcmp(const cw_address_t *a, const cw_address_t *b)
+static int addrcmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b)
 {
 	int ret;
 
@@ -313,81 +297,54 @@ void cw_connection_close(struct cw_connection *conn)
 }
 
 
-struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, struct cw_object *pvt_obj, int domain)
+int cw_connection_listen(int type, cw_sockaddr_t *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj)
 {
 	struct cw_connection *conn = NULL;
 	int sock;
 	const int arg = 1;
+	int res = 0;
 
-	if ((sock = socket_cloexec(domain, SOCK_STREAM, 0)) >= 0) {
-		if ((conn = malloc(sizeof(*conn)))) {
-			cw_object_init(conn, NULL, 1);
-			conn->obj.release = cw_connection_release;
-			conn->reg_entry = NULL;
-			conn->state = INIT;
-			conn->salen = 0;
-			conn->addr.sa.sa_family = domain;
-			conn->tid = CW_PTHREADT_NULL;
-			conn->sock = sock;
-			conn->tech = tech;
-			conn->pvt_obj = pvt_obj;
+	if ((sock = socket_cloexec(addr->sa.sa_family, type, 0)) < 0)
+		goto out_err;
 
-			setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
-			goto out;
-		}
+	if (bind(sock, &addr->sa, addrlen) || listen(sock, 1024))
+		goto out_close;
 
-		close(sock);
-		cw_log(CW_LOG_ERROR, "Out of memory\n");
-		goto out;
-	}
+	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));
 
-	cw_log(CW_LOG_ERROR, "Unable to create socket: %s\n", strerror(errno));
+	if (!(conn = malloc(sizeof(*conn) - sizeof (conn->addr) + addrlen)))
+		goto out_close;
 
-out:
-	return conn;
-}
+	cw_object_init(conn, NULL, 1);
+	conn->obj.release = cw_connection_release;
+	conn->state = LISTENING;
+	conn->sock = sock;
+	conn->tech = tech;
+	conn->pvt_obj = pvt_obj;
+
+	conn->addrlen = addrlen;
+	memcpy(&conn->addr, addr, addrlen);
+
+	conn->reg_entry = NULL;
+	conn->tid = CW_PTHREADT_NULL;
 
 
-int cw_connection_bind(struct cw_connection *conn, const cw_address_t *addr)
-{
-	if (addr->sa.sa_family < arraysize(salen)) {
-		if (!bind(conn->sock, &addr->sa, salen[addr->sa.sa_family])) {
-			memcpy(&conn->addr.sa, &addr->sa, salen[addr->sa.sa_family]);
-			return 0;
-		}
-	} else
-		errno = EINVAL;
+	if (!(conn->reg_entry = cw_registry_add(&cw_connection_registry, 0, &conn->obj)))
+		goto out_free;
 
-	return -1;
-}
+	/* Hand off our reference to conn now */
+	if (!(errno = cw_pthread_create(&conn->tid, &global_attr_default, service_thread, conn)))
+		goto out_ok;
 
+	cw_registry_del(&cw_connection_registry, conn->reg_entry);
+	cw_object_put(conn);
 
-int cw_connection_listen(struct cw_connection *conn)
-{
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
-	int res = -1;
-
-	cw_address_print(&ds, &conn->addr);
-
-	if (!listen(conn->sock, 1024)) {
-		conn->state = LISTENING;
-
-		if ((conn->reg_entry = cw_registry_add(&cw_connection_registry, 0, &conn->obj))) {
-			if (!cw_pthread_create(&conn->tid, &global_attr_default, service_thread, cw_object_dup(conn))) {
-				if (option_verbose)
-					cw_verbose("CallWeaver listening on '%s'\n", ds.data);
-				res = 0;
-				goto out;
-			}
-
-			cw_log(CW_LOG_ERROR, "Failed to start accept thread for %s: %s\n", ds.data, strerror(errno));
-			cw_registry_del(&cw_connection_registry, conn->reg_entry);
-			cw_object_put(conn);
-		}
-	} else
-		cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", ds.data, strerror(errno));
-
-out:
-	cw_dynstr_free(&ds);
+out_free:
+	free(conn);
+out_close:
+	close(sock);
+out_err:
+	res = errno;
+out_ok:
 	return res;
 }

@@ -35,7 +35,22 @@ typedef union {
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	struct sockaddr_un sun;
-} cw_address_t;
+} cw_sockaddr_t;
+
+typedef union {
+	struct sockaddr sa;
+	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
+} cw_sockaddr_net_t;
+
+#define CW_SOCKADDR_NET              alloca(sizeof(cw_sockaddr_net_t))
+#define CW_SOCKADDR_UN_SIZE(pathlen) ((size_t)(((cw_sockaddr_t *)0)->sun.sun_path + (pathlen)))
+#define CW_SOCKADDR_UN(pathlen)      alloca(CW_SOCKADDR_UN_SIZE(pathlen))
+
+#ifndef SUN_LEN
+#  include <string.h>
+#  define SUN_LEN(ptr) ((size_t)(((struct sockaddr_un *) 0)->sun_path) + strlen ((ptr)->sun_path))
+#endif
 
 
 enum cw_connection_state {
@@ -60,20 +75,20 @@ struct cw_connection {
 	pthread_t tid;
 	const struct cw_connection_tech *tech;
 	struct cw_object *pvt_obj;
-	socklen_t salen;
-	cw_address_t addr;
+	socklen_t addrlen;
+	/* This must be last */
+	cw_sockaddr_t addr;
 };
 
 
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
-extern CW_API_PUBLIC int cw_address_parse(cw_address_t *addr, const char *spec);
-extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const cw_address_t *addr);
+extern CW_API_PUBLIC int cw_address_parse(const char *spec, cw_sockaddr_t *addr, socklen_t *addrlen);
+extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr);
 
-extern CW_API_PUBLIC struct cw_connection *cw_connection_new(const struct cw_connection_tech *tech, struct cw_object *pvt_obj, int domain);
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
-extern CW_API_PUBLIC int cw_connection_bind(struct cw_connection *conn, const cw_address_t *addr);
-extern CW_API_PUBLIC int cw_connection_listen(struct cw_connection *conn);
+
+extern CW_API_PUBLIC int cw_connection_listen(int type, cw_sockaddr_t *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
 
 extern CW_API_PUBLIC struct cw_registry cw_connection_registry;
 
