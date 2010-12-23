@@ -28,6 +28,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
+#include "callweaver/callweaver_hash.h"
 #include "callweaver/connection.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
@@ -166,19 +167,50 @@ void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr)
 }
 
 
-static int addrcmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b)
+unsigned int cw_address_hash(const cw_sockaddr_t *addr, int withport)
+{
+	unsigned int hash;
+
+	hash = cw_hash_mem(0, &addr->sa.sa_family, sizeof(addr->sa.sa_family));
+
+	switch (addr->sa.sa_family) {
+		case AF_INET:
+			hash = cw_hash_mem(hash, &addr->sin.sin_addr, sizeof(addr->sin.sin_addr));
+			if (withport)
+				hash = cw_hash_mem(hash, &addr->sin.sin_port, sizeof(addr->sin.sin_port));
+			break;
+		case AF_INET6:
+			hash = cw_hash_mem(hash, &addr->sin6.sin6_addr, sizeof(addr->sin6.sin6_addr));
+			if (withport)
+				hash = cw_hash_mem(hash, &addr->sin6.sin6_port, sizeof(addr->sin6.sin6_port));
+			break;
+		case AF_LOCAL:
+#if AF_LOCAL != AF_UNIX
+		case AF_UNIX:
+#endif
+		case AF_PATHNAME:
+		case AF_INTERNAL:
+			hash = cw_hash_string(hash, addr->sun.sun_path);
+			break;
+	}
+
+	return hash;
+}
+
+
+int cw_address_cmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b, int withport)
 {
 	int ret;
 
 	if (!(ret = a->sa.sa_family - b->sa.sa_family)) {
 		switch (a->sa.sa_family) {
 			case AF_INET:
-				if (!(ret = memcmp(&a->sin.sin_addr, &b->sin.sin_addr, sizeof(a->sin.sin_addr))))
+				if (!(ret = memcmp(&a->sin.sin_addr, &b->sin.sin_addr, sizeof(a->sin.sin_addr))) && withport)
 					ret = memcmp(&a->sin.sin_port, &b->sin.sin_port, sizeof(a->sin.sin_port));
 				break;
 
 			case AF_INET6:
-				if (!(ret = memcmp(&a->sin6.sin6_addr, &b->sin6.sin6_addr, sizeof(a->sin6.sin6_addr))))
+				if (!(ret = memcmp(&a->sin6.sin6_addr, &b->sin6.sin6_addr, sizeof(a->sin6.sin6_addr))) && withport)
 					ret = memcmp(&a->sin6.sin6_port, &b->sin6.sin6_port, sizeof(a->sin6.sin6_port));
 				break;
 
@@ -204,13 +236,13 @@ static int cw_connection_qsort_by_addr(const void *a, const void *b)
 	const struct cw_connection *conn_a = container_of(*objp_a, struct cw_connection, obj);
 	const struct cw_connection *conn_b = container_of(*objp_b, struct cw_connection, obj);
 
-	return addrcmp(&conn_a->addr, &conn_b->addr);
+	return cw_address_cmp(&conn_a->addr, &conn_b->addr, 1);
 }
 
 static int cw_connection_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
-	return addrcmp(&conn->addr, pattern);
+	return cw_address_cmp(&conn->addr, pattern, 1);
 }
 
 struct cw_registry cw_connection_registry = {
@@ -329,7 +361,7 @@ int cw_connection_listen(int type, cw_sockaddr_t *addr, socklen_t addrlen, const
 	conn->tid = CW_PTHREADT_NULL;
 
 
-	if (!(conn->reg_entry = cw_registry_add(&cw_connection_registry, 0, &conn->obj)))
+	if (!(conn->reg_entry = cw_registry_add(&cw_connection_registry, cw_address_hash(addr, 1), &conn->obj)))
 		goto out_free;
 
 	/* Hand off our reference to conn now */

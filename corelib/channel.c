@@ -701,7 +701,7 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 				vsnprintf((char *)chan->name, sizeof(chan->name), fmt, ap);
 				va_end(ap);
 
-				chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(chan->name), &chan->obj);
+				chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(0, chan->name), &chan->obj);
 				if ((p = strrchr(chan->name, '-'))) {
 					const char *q;
 					unsigned int hash;
@@ -881,7 +881,7 @@ struct cw_channel *__cw_get_by_name_locked(struct cw_registry *registry, const c
 	 * Why 3ms? Because older Linux systems will busy wait delays up to
 	 * 2ms rather than rescheduling.
 	 */
-	while (tries-- && (obj = cw_registry_find(registry, 1, cw_hash_string(name), name))) {
+	while (tries-- && (obj = cw_registry_find(registry, 1, cw_hash_string(0, name), name))) {
 		struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 #ifdef DEBUG_MUTEX
 		if (!cw_mutex_trylock_debug(&chan->lock, 1, file, lineno, func, chan->name)) {
@@ -2789,7 +2789,7 @@ void cw_change_name(struct cw_channel *chan, const char *fmt, ...)
 	vsnprintf((char *)chan->name, sizeof(chan->name), fmt, ap);
 	va_end(ap);
 	if (is_registered)
-		chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(chan->name), &chan->obj);
+		chan->reg_entry = cw_registry_add(&channel_registry, cw_hash_string(0, chan->name), &chan->obj);
 
 	cw_channel_unlock(chan);
 

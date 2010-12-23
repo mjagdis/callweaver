@@ -143,7 +143,7 @@ static int unload_module(const char *name, int hangup)
 
 	pthread_mutex_lock(&modlock);
 
-	if ((obj = cw_registry_find(&module_registry, 1, cw_hash_string(name), name))) {
+	if ((obj = cw_registry_find(&module_registry, 1, cw_hash_string(0, name), name))) {
 		struct cw_module *mod = container_of(obj, struct cw_module, obj);
 
 		if (option_verbose)
@@ -319,7 +319,7 @@ static int module_load(const char *filename)
 	}
 
 	oldmod = NULL;
-	hash = cw_hash_string(mod->name);
+	hash = cw_hash_string(0, mod->name);
 
 	if ((oldobj = cw_registry_find(&module_registry, 1, hash, mod->name)))
 		oldmod = container_of(oldobj, struct cw_module, obj);
@@ -407,7 +407,7 @@ static int load_module(const char *filename, lt_ptr data)
 	) {
 		args->found++;
 
-		if ((args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(bname), bname)))) {
+		if ((args->reload_ok || !(obj = cw_registry_find(&module_registry, 1, cw_hash_string(0, bname), bname)))) {
 			int baselen = strlen(bname);
 			struct cw_variable *v;
 

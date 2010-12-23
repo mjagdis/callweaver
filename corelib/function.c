@@ -292,7 +292,7 @@ static int handle_show_function(struct cw_dynstr *ds_p, int argc, char *argv[])
 	if (argc < 3)
         return RESULT_SHOWUSAGE;
 
-	if (!(acf = cw_find_function(cw_hash_string(argv[2]), argv[2]))) {
+	if (!(acf = cw_find_function(cw_hash_string(0, argv[2]), argv[2]))) {
 		cw_dynstr_printf(ds_p, "No function by that name registered.\n");
 		return RESULT_FAILURE;
 	}

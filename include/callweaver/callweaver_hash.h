@@ -59,8 +59,8 @@
  * \brief API to use string hashes for keywords in place of strcmp()
  */
 
-#ifndef _CW_HASH_H
-#define _CW_HASH_H
+#ifndef _CALLWEAVER_HASH_H
+#define _CALLWEAVER_HASH_H
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -72,19 +72,36 @@
 /*! \brief Returns the hash value of the null terminated C string 'string' using the
  * SDBM hash algorithm.
  *
+ * \param hash    initial hash value
  * \param string  the string to hash
  *
  * \return hash value
  */
-static inline __attribute__ ((pure)) unsigned int cw_hash_string(const char *string)
+static inline __attribute__ ((pure)) unsigned int cw_hash_string(unsigned int hash, const char *string)
 {
-	unsigned int hash;
-
-	hash = 0;
 	if (string) {
 		while (*string)
 			hash = cw_hash_add(hash, *(string++));
 	}
+
+	return hash;
+}
+
+
+/*! \brief Returns the hash value of a fixed size memory region.
+ *
+ * \param hash   initial hash value
+ * \param data   the start of the memory region
+ * \param length the length of the memory region
+ *
+ * \return hash value
+ */
+static inline __attribute__ ((pure)) unsigned int cw_hash_mem(unsigned int hash, const void *data, size_t length)
+{
+	const char *p = data;
+
+	while (length--)
+		hash = cw_hash_add(hash, *(p++));
 
 	return hash;
 }
@@ -107,22 +124,4 @@ static inline __attribute__ ((pure)) unsigned int cw_hash_addr(const struct sock
 }
 
 
-/*! \brief Returns the hash value of a sockaddr_in
- *
- * \param string  the sockaddr_in to hash
- *
- * \return hash_value
- */
-static inline __attribute__ ((pure)) unsigned int cw_hash_addr_and_port(const struct sockaddr_in *sain)
-{
-	unsigned int hash = 0;
-
-	if (sain)
-		hash = cw_hash_addr(sain) + (sain->sin_port << 16);
-
-	return hash;
-}
-
-#endif
-
-// END OF FILE
+#endif /* _CALLWEAVER_HASH_H */

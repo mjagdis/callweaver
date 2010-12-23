@@ -472,7 +472,7 @@ struct cw_context *cw_context_find(const char *name)
 	if (name) {
 		pthread_rwlock_rdlock(&conlock);
 
-		hash = cw_hash_string(name);
+		hash = cw_hash_string(0, name);
 		for (tmp = contexts; tmp; tmp = tmp->next)
 			if (hash == tmp->hash && !strcmp(name, tmp->name))
 				break;
@@ -536,7 +536,7 @@ static struct cw_exten *pbx_find_extension(struct cw_channel *chan, struct cw_co
         if (!strcasecmp(incstack[x], context))
             return NULL;
     }
-    hash = cw_hash_string(context);
+    hash = cw_hash_string(0, context);
     if (bypass)
         tmp = bypass;
     else
@@ -830,7 +830,7 @@ int pbx_retrieve_substr(struct cw_channel *chan, struct cw_registry *vars, char 
 			if (args || res) {
 				i = result->used;
 
-				if (!cw_function_exec_str(chan, cw_hash_string(src), src, args, result)) {
+				if (!cw_function_exec_str(chan, cw_hash_string(0, src), src, args, result)) {
 #if 0
 					static int deprecated = 1;
 
@@ -2129,7 +2129,7 @@ int pbx_set_autofallthrough(int newval)
 int cw_context_remove_include(const char *context, const char *include, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -2199,7 +2199,7 @@ int cw_context_remove_include2(struct cw_context *con, const char *include, cons
 int cw_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -2269,7 +2269,7 @@ int cw_context_remove_switch2(struct cw_context *con, const char *sw, const char
 int cw_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -2871,7 +2871,7 @@ static struct cw_clicmd pbx_cli[] = {
 struct cw_context *cw_context_create(struct cw_context **extcontexts, const char *name, const char *registrar)
 {
     struct cw_context *tmp, **local_contexts;
-    unsigned int hash = cw_hash_string(name);
+    unsigned int hash = cw_hash_string(0, name);
     int length;
     
     length = sizeof(struct cw_context);
@@ -2946,7 +2946,7 @@ CW_LIST_HEAD(store_hints, store_hint);
 int cw_context_add_include(const char *context, const char *include, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -3434,7 +3434,7 @@ int cw_context_add_include2(struct cw_context *con,
 int cw_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
     
     if (cw_lock_contexts())
@@ -3541,7 +3541,7 @@ int cw_context_add_switch2(struct cw_context *con, const char *value,
 int cw_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -3610,7 +3610,7 @@ int cw_context_remove_ignorepat2(struct cw_context *con, const char *ignorepat, 
 int cw_context_add_ignorepat(const char *con, const char *value, const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(con);
+    unsigned int hash = cw_hash_string(0, con);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -3705,7 +3705,7 @@ int cw_add_extension(const char *context, int replace, const char *extension, in
     const char *application, void *data, void (*datafree)(void *), const char *registrar)
 {
     struct cw_context *c;
-    unsigned int hash = cw_hash_string(context);
+    unsigned int hash = cw_hash_string(0, context);
     int ret = -1;
 
     if (cw_lock_contexts())
@@ -3931,7 +3931,7 @@ int cw_add_extension2(struct cw_context *con,
     int res;
     int length;
     char *p;
-    unsigned int hash = cw_hash_string(extension);
+    unsigned int hash = cw_hash_string(0, extension);
 
     length = sizeof(struct cw_exten);
     length += strlen(extension) + 1;
@@ -3972,7 +3972,7 @@ int cw_add_extension2(struct cw_context *con,
         }
         tmp->app = p;
         strcpy(tmp->app, application);
-	tmp->apphash = cw_hash_string(application);
+	tmp->apphash = cw_hash_string(0, application);
         tmp->parent = con;
         tmp->data = data;
         tmp->datafree = datafree;
@@ -4206,7 +4206,7 @@ static void *async_wait(void *data)
     {
         if (!cw_strlen_zero(as->app))
         {
-            res = cw_function_exec_str(chan, cw_hash_string(as->app), as->app, as->appdata, NULL);
+            res = cw_function_exec_str(chan, cw_hash_string(0, as->app), as->app, as->appdata, NULL);
             if (res && errno == ENOENT)
                 cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", as->app);
         }
@@ -4445,7 +4445,7 @@ static void *cw_pbx_run_app(void *data)
 {
     struct app_tmp *tmp = data;
 
-    cw_function_exec_str(tmp->chan, cw_hash_string(tmp->app), tmp->app, tmp->data, NULL);
+    cw_function_exec_str(tmp->chan, cw_hash_string(0, tmp->app), tmp->app, tmp->data, NULL);
 
     cw_hangup(tmp->chan);
     cw_object_put(tmp->chan);

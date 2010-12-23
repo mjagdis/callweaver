@@ -494,9 +494,9 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
 	    if ((args = strchr(s, '(')) && (p = strrchr(s, ')'))) {
 		*(args++) = '\0';
 		*p = '\0';
-		res = cw_function_exec_str(chan, cw_hash_string(s), s, args, NULL);
+		res = cw_function_exec_str(chan, cw_hash_string(0, s), s, args, NULL);
 	    } else {
-		res = cw_function_exec(chan, cw_hash_string(s), s, argc - 4, argv + 5, NULL);
+		res = cw_function_exec(chan, cw_hash_string(0, s), s, argc - 4, argv + 5, NULL);
 	    }
 	    if (res && errno == ENOENT)
 		cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", s);
@@ -590,7 +590,7 @@ static int pbx_builtin_background(struct cw_channel *chan, int argc, char **argv
         lang = argv[2];
     case 2:
         options = argv[1];
-        hash = cw_hash_string(options);
+        hash = cw_hash_string(0, options);
     case 1:
         filename = argv[0];
         break;
@@ -780,7 +780,7 @@ static int pbx_builtin_setvar(struct cw_channel *chan, int argc, char **argv, st
 				l = strlen(value) + 1;
 				*(p++) = ',';
 				memmove(p, value, l);
-				res = cw_function_exec_str(chan, cw_hash_string(argv[0]), argv[0], args, NULL);
+				res = cw_function_exec_str(chan, cw_hash_string(0, argv[0]), argv[0], args, NULL);
 				if (res && errno == ENOENT)
 					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", argv[0]);
 			} else {

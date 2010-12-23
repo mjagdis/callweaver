@@ -400,7 +400,7 @@ expr:	TOKEN '(' args ')'	{
 
 						funcname = string_rep($1, buf);
 
-						if (!(res = (cw_function_exec(p->chan, cw_hash_string(funcname), funcname, argc, argv, &result) || result.error)))
+						if (!(res = (cw_function_exec(p->chan, cw_hash_string(0, funcname), funcname, argc, argv, &result) || result.error)))
 							$$ = cw_expr_make_str(CW_EXPR_arbitrary_string, result.data, result.used);
 
 						cw_dynstr_free(&result);

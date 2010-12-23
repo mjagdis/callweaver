@@ -83,8 +83,12 @@ struct cw_connection {
 
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
+
 extern CW_API_PUBLIC int cw_address_parse(const char *spec, cw_sockaddr_t *addr, socklen_t *addrlen);
 extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr);
+
+extern CW_API_PUBLIC unsigned int cw_address_hash(const cw_sockaddr_t *addr, int withport);
+extern CW_API_PUBLIC int cw_address_cmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b, int withport);
 
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
 

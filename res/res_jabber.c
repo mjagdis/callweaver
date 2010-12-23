@@ -848,7 +848,7 @@ static int parse_jabber_command_profile(struct jabber_profile *profile, struct j
 			data = (char *)"";
 		}
 		
-		res = cw_function_exec_str(chan, cw_hash_string(appname), appname, data, NULL);
+		res = cw_function_exec_str(chan, cw_hash_string(0, appname), appname, data, NULL);
 		if ((node = jabber_message_node_printf(profile->master,
 											   "Event",
 											   "EVENT ENDAPP\n"

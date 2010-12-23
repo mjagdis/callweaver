@@ -677,7 +677,7 @@ static int SQLiteSwitch_exec(struct cw_channel *chan, const char *context, const
 		res = -1;
 		if (!app_data.error)
 			res = cw_function_exec_str(chan,
-				cw_hash_string(cache->app_name[priority]),
+				cw_hash_string(0, cache->app_name[priority]),
 				cache->app_name[priority], app_data.data, NULL);
 
 		cw_dynstr_free(&app_data);

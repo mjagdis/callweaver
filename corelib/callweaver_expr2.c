@@ -257,8 +257,6 @@ CW_DYNARRAY_DECL(struct val *, vals)
 
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
-extern char extra_error_message[4095];
-extern int extra_error_message_supplied;
 
 
 static struct {
@@ -422,14 +420,14 @@ static const char *string_rep(struct val *, char buf[MAX_NUMBER_LEN]);
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 218 "callweaver_expr2.y"
+#line 216 "callweaver_expr2.y"
 {
 	struct val *val;
 	struct cw_dynvals *args;
 	int tok;
 }
 /* Line 187 of yacc.c.  */
-#line 433 "callweaver_expr2.c"
+#line 431 "callweaver_expr2.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -451,7 +449,7 @@ typedef struct YYLTYPE
 
 
 /* Copy the second part of user declarations.  */
-#line 225 "callweaver_expr2.y"
+#line 223 "callweaver_expr2.y"
 
 extern int cw_yylex(YYSTYPE *, YYLTYPE *, yyscan_t);
 extern int cw_yyerror(const char *, YYLTYPE *, struct parse_io *);
@@ -459,7 +457,7 @@ extern int cw_yyerror(const char *, YYLTYPE *, struct parse_io *);
 
 
 /* Line 216 of yacc.c.  */
-#line 463 "callweaver_expr2.c"
+#line 461 "callweaver_expr2.c"
 
 #ifdef short
 # undef short
@@ -779,15 +777,15 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,   272,   272,   278,   286,   290,   293,   297,   301,   305,
-     309,   316,   317,   318,   319,   320,   321,   322,   323,   324,
-     325,   326,   327,   328,   329,   330,   331,   332,   333,   334,
-     335,   336,   337,   338,   339,   340,   341,   342,   343,   344,
-     345,   346,   347,   348,   352,   353,   354,   355,   356,   357,
-     358,   359,   360,   361,   362,   366,   369,   426,   429,   432,
-     435,   438,   441,   445,   446,   448,   448,   464,   464,   480,
-     481,   482,   483,   484,   485,   487,   488,   489,   490,   491,
-     493,   496,   498,   499,   501,   506,   501
+       0,   270,   270,   276,   284,   288,   291,   295,   299,   303,
+     307,   314,   315,   316,   317,   318,   319,   320,   321,   322,
+     323,   324,   325,   326,   327,   328,   329,   330,   331,   332,
+     333,   334,   335,   336,   337,   338,   339,   340,   341,   342,
+     343,   344,   345,   346,   350,   351,   352,   353,   354,   355,
+     356,   357,   358,   359,   360,   364,   367,   424,   427,   430,
+     433,   436,   439,   443,   444,   446,   446,   462,   462,   478,
+     479,   480,   481,   482,   483,   485,   486,   487,   488,   489,
+     491,   494,   496,   497,   499,   504,   499
 };
 #endif
 
@@ -1533,24 +1531,24 @@ yydestruct (yymsg, yytype, yyvaluep, yylocationp)
   switch (yytype)
     {
       case 69: /* "TOKEN" */
-#line 267 "callweaver_expr2.y"
+#line 265 "callweaver_expr2.y"
 	{ free((yyvaluep->val)); };
-#line 1539 "callweaver_expr2.c"
+#line 1537 "callweaver_expr2.c"
 	break;
       case 72: /* "args" */
-#line 268 "callweaver_expr2.y"
+#line 266 "callweaver_expr2.y"
 	{ args_free((yyvaluep->args)); };
-#line 1544 "callweaver_expr2.c"
+#line 1542 "callweaver_expr2.c"
 	break;
       case 73: /* "args1" */
-#line 268 "callweaver_expr2.y"
+#line 266 "callweaver_expr2.y"
 	{ args_free((yyvaluep->args)); };
-#line 1549 "callweaver_expr2.c"
+#line 1547 "callweaver_expr2.c"
 	break;
       case 77: /* "expr" */
-#line 267 "callweaver_expr2.y"
+#line 265 "callweaver_expr2.y"
 	{ free((yyvaluep->val)); };
-#line 1554 "callweaver_expr2.c"
+#line 1552 "callweaver_expr2.c"
 	break;
 
       default:
@@ -1873,7 +1871,7 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 272 "callweaver_expr2.y"
+#line 270 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 
@@ -1883,7 +1881,7 @@ yyreduce:
     break;
 
   case 3:
-#line 278 "callweaver_expr2.y"
+#line 276 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 
@@ -1893,7 +1891,7 @@ yyreduce:
     break;
 
   case 4:
-#line 286 "callweaver_expr2.y"
+#line 284 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_new()))
 				YYABORT;
@@ -1901,7 +1899,7 @@ yyreduce:
     break;
 
   case 6:
-#line 293 "callweaver_expr2.y"
+#line 291 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_push_val(args_new(), (yyvsp[(1) - (1)].val))))
 				YYABORT;
@@ -1909,7 +1907,7 @@ yyreduce:
     break;
 
   case 7:
-#line 297 "callweaver_expr2.y"
+#line 295 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_push_val((yyvsp[(1) - (3)].args), (yyvsp[(3) - (3)].val))))
 				YYABORT;
@@ -1917,7 +1915,7 @@ yyreduce:
     break;
 
   case 8:
-#line 301 "callweaver_expr2.y"
+#line 299 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_push_null((yyvsp[(1) - (2)].args))))
 				YYABORT;
@@ -1925,7 +1923,7 @@ yyreduce:
     break;
 
   case 9:
-#line 305 "callweaver_expr2.y"
+#line 303 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_push_val(args_push_null(args_new()), (yyvsp[(2) - (2)].val))))
 				YYABORT;
@@ -1933,7 +1931,7 @@ yyreduce:
     break;
 
   case 10:
-#line 309 "callweaver_expr2.y"
+#line 307 "callweaver_expr2.y"
     {
 			if (!((yyval.args) = args_push_null(args_new())))
 				YYABORT;
@@ -1941,7 +1939,7 @@ yyreduce:
     break;
 
   case 56:
-#line 369 "callweaver_expr2.y"
+#line 367 "callweaver_expr2.y"
     {
 			struct cw_dynstr ds = CW_DYNSTR_INIT;
 			struct cw_dynstr result = CW_DYNSTR_INIT;
@@ -1978,7 +1976,7 @@ yyreduce:
 
 						funcname = string_rep((yyvsp[(1) - (4)].val), buf);
 
-						if (!(res = (cw_function_exec(p->chan, cw_hash_string(funcname), funcname, argc, argv, &result) || result.error)))
+						if (!(res = (cw_function_exec(p->chan, cw_hash_string(0, funcname), funcname, argc, argv, &result) || result.error)))
 							(yyval.val) = cw_expr_make_str(CW_EXPR_arbitrary_string, result.data, result.used);
 
 						cw_dynstr_free(&result);
@@ -2002,59 +2000,59 @@ yyreduce:
     break;
 
   case 57:
-#line 426 "callweaver_expr2.y"
+#line 424 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = op_math_f(math_f_func[(yyvsp[(1) - (4)].tok) - TOK_ACOSH], (yyvsp[(3) - (4)].val)))) YYABORT;
 		;}
     break;
 
   case 58:
-#line 429 "callweaver_expr2.y"
+#line 427 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = cw_expr_make_str(CW_EXPR_string, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].s, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].l))) YYABORT;
 		;}
     break;
 
   case 59:
-#line 432 "callweaver_expr2.y"
+#line 430 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = op_math_ff(math_ff_func[(yyvsp[(1) - (6)].tok) - TOK_ATAN2], (yyvsp[(3) - (6)].val), (yyvsp[(5) - (6)].val)))) YYABORT;
 		;}
     break;
 
   case 60:
-#line 435 "callweaver_expr2.y"
+#line 433 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = cw_expr_make_str(CW_EXPR_string, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].s, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].l))) YYABORT;
 		;}
     break;
 
   case 61:
-#line 438 "callweaver_expr2.y"
+#line 436 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = op_math_fff(math_fff_func[(yyvsp[(1) - (8)].tok) - TOK_FMA], (yyvsp[(3) - (8)].val), (yyvsp[(5) - (8)].val), (yyvsp[(7) - (8)].val)))) YYABORT;
 		;}
     break;
 
   case 62:
-#line 441 "callweaver_expr2.y"
+#line 439 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = cw_expr_make_str(CW_EXPR_string, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].s, math_name[(yyvsp[(1) - (1)].tok) - TOK_ACOSH].l))) YYABORT;
 		;}
     break;
 
   case 63:
-#line 445 "callweaver_expr2.y"
+#line 443 "callweaver_expr2.y"
     { if (!((yyval.val) = (yyvsp[(1) - (1)].val))) YYABORT; ;}
     break;
 
   case 64:
-#line 446 "callweaver_expr2.y"
+#line 444 "callweaver_expr2.y"
     { if (!((yyval.val) = (yyvsp[(2) - (3)].val))) YYABORT; ;}
     break;
 
   case 65:
-#line 448 "callweaver_expr2.y"
+#line 446 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			if (is_zero_or_null((yyvsp[(1) - (2)].val)))
@@ -2063,7 +2061,7 @@ yyreduce:
     break;
 
   case 66:
-#line 453 "callweaver_expr2.y"
+#line 451 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			(yyval.val) = (yyvsp[(4) - (4)].val);
@@ -2077,7 +2075,7 @@ yyreduce:
     break;
 
   case 67:
-#line 464 "callweaver_expr2.y"
+#line 462 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			if (!is_zero_or_null((yyvsp[(1) - (2)].val)))
@@ -2086,7 +2084,7 @@ yyreduce:
     break;
 
   case 68:
-#line 469 "callweaver_expr2.y"
+#line 467 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			(yyval.val) = (yyvsp[(4) - (4)].val);
@@ -2100,84 +2098,84 @@ yyreduce:
     break;
 
   case 69:
-#line 480 "callweaver_expr2.y"
+#line 478 "callweaver_expr2.y"
     { if (!((yyval.val) = op_eq((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 70:
-#line 481 "callweaver_expr2.y"
+#line 479 "callweaver_expr2.y"
     { if (!((yyval.val) = op_gt((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 71:
-#line 482 "callweaver_expr2.y"
+#line 480 "callweaver_expr2.y"
     { if (!((yyval.val) = op_lt((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 72:
-#line 483 "callweaver_expr2.y"
+#line 481 "callweaver_expr2.y"
     { if (!((yyval.val) = op_ge((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 73:
-#line 484 "callweaver_expr2.y"
+#line 482 "callweaver_expr2.y"
     { if (!((yyval.val) = op_le((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 74:
-#line 485 "callweaver_expr2.y"
+#line 483 "callweaver_expr2.y"
     { if (!((yyval.val) = op_ne((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 75:
-#line 487 "callweaver_expr2.y"
+#line 485 "callweaver_expr2.y"
     { if (!((yyval.val) = op_plus((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 76:
-#line 488 "callweaver_expr2.y"
+#line 486 "callweaver_expr2.y"
     { if (!((yyval.val) = op_minus((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 77:
-#line 489 "callweaver_expr2.y"
+#line 487 "callweaver_expr2.y"
     { if (!((yyval.val) = op_times((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 78:
-#line 490 "callweaver_expr2.y"
+#line 488 "callweaver_expr2.y"
     { if (!((yyval.val) = op_div((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 79:
-#line 491 "callweaver_expr2.y"
+#line 489 "callweaver_expr2.y"
     { if (!((yyval.val) = op_rem((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 80:
-#line 493 "callweaver_expr2.y"
+#line 491 "callweaver_expr2.y"
     {
 			if (!((yyval.val) = op_negate((yyvsp[(2) - (2)].val)))) YYABORT;
 		;}
     break;
 
   case 81:
-#line 496 "callweaver_expr2.y"
+#line 494 "callweaver_expr2.y"
     { if (!((yyval.val) = op_compl((yyvsp[(2) - (2)].val)))) YYABORT; ;}
     break;
 
   case 82:
-#line 498 "callweaver_expr2.y"
+#line 496 "callweaver_expr2.y"
     { if (!((yyval.val) = op_colon((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 83:
-#line 499 "callweaver_expr2.y"
+#line 497 "callweaver_expr2.y"
     { if (!((yyval.val) = op_eqtilde((yyvsp[(1) - (3)].val), (yyvsp[(3) - (3)].val)))) YYABORT; ;}
     break;
 
   case 84:
-#line 501 "callweaver_expr2.y"
+#line 499 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			if (is_zero_or_null((yyvsp[(1) - (2)].val)))
@@ -2186,7 +2184,7 @@ yyreduce:
     break;
 
   case 85:
-#line 506 "callweaver_expr2.y"
+#line 504 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			if (is_zero_or_null((yyvsp[(1) - (5)].val)))
@@ -2197,7 +2195,7 @@ yyreduce:
     break;
 
   case 86:
-#line 513 "callweaver_expr2.y"
+#line 511 "callweaver_expr2.y"
     {
 			struct parse_io *p = parseio;
 			(yyval.val) = (yyvsp[(7) - (7)].val);
@@ -2213,7 +2211,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 2217 "callweaver_expr2.c"
+#line 2215 "callweaver_expr2.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -2433,7 +2431,7 @@ yyreturn:
 }
 
 
-#line 526 "callweaver_expr2.y"
+#line 524 "callweaver_expr2.y"
 
 
 
@@ -2468,7 +2466,7 @@ static int to_number(struct val *vp, int silent)
 				break;
 		}
 
-		if (!res && !silent && !extra_error_message_supplied)
+		if (!res && !silent)
 			cw_log(CW_LOG_WARNING, "non-numeric argument: %s\n", vp->u.s);
 	}
 

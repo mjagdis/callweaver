@@ -85,7 +85,7 @@ static int execif_exec(struct cw_channel *chan, int argc, char **argv, struct cw
 	LOCAL_USER_ADD(u);
 
 	if (cw_true(argv[0])) {
-		res = cw_function_exec(chan, cw_hash_string(argv[1]), argv[1], argc - 2, argv + 2, NULL);
+		res = cw_function_exec(chan, cw_hash_string(0, argv[1]), argv[1], argc - 2, argv + 2, NULL);
 		if (res && errno == ENOENT)
 			cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", argv[1]);
 	}

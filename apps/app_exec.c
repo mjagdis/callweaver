@@ -79,7 +79,7 @@ static int exec_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 
 			res = -1;
 			if (!ds.error) {
-				res = cw_function_exec_str(chan, cw_hash_string(appname), appname, ds.data, NULL);
+				res = cw_function_exec_str(chan, cw_hash_string(0, appname), appname, ds.data, NULL);
 				if (res && errno == ENOENT)
 					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", appname);
 			}

@@ -505,7 +505,7 @@ chan_exec(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		}
 
 		data = strdup(data ? data : "");
-		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(appname), appname, data, NULL) ? JS_FALSE : JS_TRUE );
+		*rval = BOOLEAN_TO_JSVAL ( cw_function_exec_str(jc->chan, cw_hash_string(0, appname), appname, data, NULL) ? JS_FALSE : JS_TRUE );
 		free(data);
 
 		return JS_TRUE;
@@ -560,7 +560,7 @@ chan_execfunc(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval
 			
 		}
 
-		if (!cw_function_exec_str(jc->chan, cw_hash_string(fname), fname, args, &ds))
+		if (!cw_function_exec_str(jc->chan, cw_hash_string(0, fname), fname, args, &ds))
 			*rval = STRING_TO_JSVAL ( JS_NewStringCopyZ(cx, ds.data) );
 
 		free(fname);

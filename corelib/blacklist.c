@@ -48,7 +48,8 @@ struct cw_blacklist_entry {
 	time_t start;
 	unsigned int duration;
 	int expire;
-	struct sockaddr_in sa;
+	/* This must be last */
+	cw_sockaddr_t addr;
 };
 
 
@@ -78,23 +79,19 @@ static int blacklist_qsort_compare_by_addr(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
 	const struct cw_object * const *objp_b = b;
-	const struct cw_blacklist_entry *ble_a = container_of(*objp_a, struct cw_blacklist_entry, obj);
-	const struct cw_blacklist_entry *ble_b = container_of(*objp_b, struct cw_blacklist_entry, obj);
-	int ret;
+	const struct cw_blacklist_entry *entry_a = container_of(*objp_a, struct cw_blacklist_entry, obj);
+	const struct cw_blacklist_entry *entry_b = container_of(*objp_b, struct cw_blacklist_entry, obj);
 
-	ret = ntohl(ble_a->sa.sin_addr.s_addr) - ntohl(ble_b->sa.sin_addr.s_addr);
-	if (!ret)
-		ret = ntohs(ble_a->sa.sin_port) - ntohs(ble_b->sa.sin_port);
-	return ret;
+	return cw_address_cmp(&entry_a->addr, &entry_b->addr, 0);
 }
 
 
 static int blacklist_object_match(struct cw_object *obj, const void *pattern)
 {
-	const struct cw_blacklist_entry *ble = container_of(obj, struct cw_blacklist_entry, obj);
-	const struct sockaddr_in *sin = pattern;
+	const struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
+	const cw_sockaddr_t *addr = pattern;
 
-	return (ble->sa.sin_addr.s_addr == sin->sin_addr.s_addr);
+	return !cw_address_cmp(&entry->addr, addr, 0);
 }
 
 
@@ -119,19 +116,23 @@ static void blacklist_entry_release(struct cw_object *obj)
 
 static int blacklist_entry_remove(void *data)
 {
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cw_blacklist_entry *entry = data;
-	char iabuf[INET_ADDRSTRLEN];
 
 	entry->expire = -1;
 
-	cw_inet_ntoa(iabuf, sizeof(iabuf), entry->sa.sin_addr);
+	cw_address_print(&ds, &entry->addr);
 
-	cw_log(CW_LOG_NOTICE, "Blacklist of %s removed\n", iabuf);
-	cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
-		2,
-		cw_msg_tuple("Address", "%s", iabuf),
-		cw_msg_tuple("State",   "%s", "Removed")
-	);
+	if (!ds.error) {
+		cw_log(CW_LOG_NOTICE, "Blacklist of %s removed\n", ds.data);
+		cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+			2,
+			cw_msg_tuple("Address", "%s", ds.data),
+			cw_msg_tuple("State",   "%s", "Removed")
+		);
+	}
+
+	cw_dynstr_free(&ds);
 
 	cw_registry_del(&blacklist_registry, entry->reg_entry);
 	cw_object_put(entry);
@@ -141,17 +142,16 @@ static int blacklist_entry_remove(void *data)
 
 enum blacklist_mode { BLACKLIST_DYNAMIC, BLACKLIST_STATIC, BLACKLIST_DELETE };
 
-static void blacklist_modify(struct sockaddr_in *sa, enum blacklist_mode mode, unsigned int duration, unsigned int remember)
+static void blacklist_modify(cw_sockaddr_t *addr, socklen_t addrlen, enum blacklist_mode mode, unsigned int duration, unsigned int remember)
 {
 	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-	char iabuf[INET_ADDRSTRLEN];
 	struct cw_object *obj;
         struct cw_blacklist_entry *entry = NULL;
-	unsigned int hash = cw_hash_addr(sa);
+	unsigned int hash = cw_address_hash(addr, 0);
 
 	pthread_mutex_lock(&lock);
 
-        if ((obj = cw_registry_find(&blacklist_registry, 1, hash, sa))) {
+        if ((obj = cw_registry_find(&blacklist_registry, 1, hash, addr))) {
 		entry = container_of(obj, struct cw_blacklist_entry, obj);
 
 		/* If the cw_sched_del succeeds we own the deleted job's reference
@@ -174,15 +174,15 @@ static void blacklist_modify(struct sockaddr_in *sa, enum blacklist_mode mode, u
 			entry = NULL;
 		}
 	}
-	
-	if (!entry && (entry = malloc(sizeof(*entry)))) {
+
+	if (!entry && (entry = malloc(sizeof(*entry) - sizeof(entry->addr) + addrlen))) {
 		cw_object_init(entry, NULL, 2);
 		entry->obj.release = blacklist_entry_release;
 
 		entry->duration = duration;
 		entry->start = time(NULL);
 		entry->expire = -1;
-		entry->sa = *sa;
+		memcpy(&entry->addr, addr, addrlen);
 
 		entry->reg_entry = cw_registry_add(&blacklist_registry, hash, &entry->obj);
 	}
@@ -202,26 +202,31 @@ static void blacklist_modify(struct sockaddr_in *sa, enum blacklist_mode mode, u
 	pthread_mutex_unlock(&lock);
 
 	if (entry && mode != BLACKLIST_DELETE) {
-		cw_inet_ntoa(iabuf, sizeof(iabuf), sa->sin_addr);
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-		if (entry->duration) {
-			cw_log(CW_LOG_WARNING, "Blacklisting %s for %us\n", iabuf, entry->duration);
-			cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
-				3,
-				cw_msg_tuple("Address",  "%s", iabuf),
-				cw_msg_tuple("State",    "%s", "Blocked"),
-				cw_msg_tuple("Duration", "%d", entry->duration)
-			);
-		} else {
-			cw_log(CW_LOG_WARNING, "Blacklisting %s permanently\n", iabuf);
-			cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
-				3,
-				cw_msg_tuple("Address",  "%s", iabuf),
-				cw_msg_tuple("State",    "%s", "Blocked"),
-				cw_msg_tuple("Duration", "permanent")
-			);
+		cw_address_print(&ds, addr);
+
+		if (!ds.error) {
+			if (entry->duration) {
+				cw_log(CW_LOG_WARNING, "Blacklisting %s for %us\n", ds.data, entry->duration);
+				cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+					3,
+					cw_msg_tuple("Address",  "%s", ds.data),
+					cw_msg_tuple("State",    "%s", "Blocked"),
+					cw_msg_tuple("Duration", "%d", entry->duration)
+				);
+			} else {
+				cw_log(CW_LOG_WARNING, "Blacklisting %s permanently\n", ds.data);
+				cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+					3,
+					cw_msg_tuple("Address",  "%s", ds.data),
+					cw_msg_tuple("State",    "%s", "Blocked"),
+					cw_msg_tuple("Duration", "permanent")
+				);
+			}
 		}
 
+		cw_dynstr_free(&ds);
 		cw_object_put(entry);
 	}
 }
@@ -230,12 +235,12 @@ static void blacklist_modify(struct sockaddr_in *sa, enum blacklist_mode mode, u
 /* Public API {{{1 */
 
 
-int cw_blacklist_check(struct sockaddr_in *sa)
+int cw_blacklist_check(cw_sockaddr_t *addr)
 {
 	struct cw_object *obj;
 	int blocked = 0;
 
-        if ((obj = cw_registry_find(&blacklist_registry, 1, cw_hash_addr(sa), sa))) {
+        if ((obj = cw_registry_find(&blacklist_registry, 1, cw_address_hash(addr, 0), addr))) {
 		struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
 
 		blocked = (!entry->duration || time(NULL) - entry->start < entry->duration);
@@ -246,9 +251,9 @@ int cw_blacklist_check(struct sockaddr_in *sa)
 }
 
 
-void cw_blacklist_add(struct sockaddr_in *sa)
+void cw_blacklist_add(cw_sockaddr_t *addr, socklen_t addrlen)
 {
-	blacklist_modify(sa, BLACKLIST_DYNAMIC, blacklist_min_duration, blacklist_remember);
+	blacklist_modify(addr, addrlen, BLACKLIST_DYNAMIC, blacklist_min_duration, blacklist_remember);
 }
 
 
@@ -336,12 +341,14 @@ static int complete_blacklist_entries_one(struct cw_object *obj, void *data)
 {
 	struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
 	struct complete_blacklist_entries_args *args = data;
-	char iabuf[INET_ADDRSTRLEN];
+	size_t mark = args->ds_p->used;
 
-	cw_inet_ntoa(iabuf, sizeof(iabuf), entry->sa.sin_addr);
+	cw_address_print(args->ds_p, &entry->addr);
 
-	if (!args->pattern || !strncmp(iabuf, args->pattern, args->pattern_len))
-		cw_dynstr_printf(args->ds_p, "%s\n", iabuf);
+	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len))
+		cw_dynstr_printf(args->ds_p, "\n");
+	else
+		cw_dynstr_truncate(args->ds_p, mark);
 
 	return 0;
 }
@@ -379,26 +386,33 @@ static int blacklist_add(struct cw_dynstr *ds_p, int argc, char *argv[])
 		unsigned int remember = 0;
 
 		/* FIXME: we should do hostname look ups and block all the addresses it resolves to. */
-		if (!cw_address_parse(argv[2], addr, &addrlen) && addr->sa.sa_family == AF_INET) {
-			const char *a3, *a4;
+		if (!cw_address_parse(argv[2], addr, &addrlen)) {
+			if ((addr->sa.sa_family == AF_INET && addr->sin.sin_port == 0)
+			|| (addr->sa.sa_family == AF_INET6 && addr->sin6.sin6_port == 0)) {
+				const char *a3, *a4;
 
-			a3 = a4 = "";
+				a3 = a4 = "";
 
-			if (argc > 3) {
-				a3 = cw_interval_parse(&duration, argv[3]);
-				if (*a3)
-					cw_dynstr_printf(ds_p, "duration not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a3);
+				if (argc > 3) {
+					a3 = cw_interval_parse(&duration, argv[3]);
+					if (*a3)
+						cw_dynstr_printf(ds_p, "duration not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a3);
+				}
+
+				if (argc > 4) {
+					a4 = cw_interval_parse(&remember, argv[4]);
+					if (*a4)
+						cw_dynstr_printf(ds_p, "remember not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a4);
+				}
+
+				if (!*a3 && !*a4)
+					blacklist_modify(addr, addrlen, BLACKLIST_STATIC, duration, remember);
+
+				res = RESULT_SUCCESS;
+			} else {
+				cw_dynstr_printf(ds_p, "Individual ports may not be blacklisted\n");
+				res = RESULT_SUCCESS;
 			}
-
-			if (argc > 4) {
-				a4 = cw_interval_parse(&remember, argv[4]);
-				if (*a4)
-					cw_dynstr_printf(ds_p, "remember not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a4);
-			}
-
-			if (!*a3 && !*a4)
-				blacklist_modify(&addr->sin, BLACKLIST_STATIC, duration, remember);
-			res = RESULT_SUCCESS;
 		}
 	}
 
@@ -423,8 +437,8 @@ static int blacklist_remove(struct cw_dynstr *ds_p, int argc, char *argv[])
 		socklen_t addrlen;
 
 		/* FIXME: we should do hostname look ups and remove all the addresses it resolves to. */
-		if (!cw_address_parse(argv[2], addr, &addrlen) && addr->sa.sa_family == AF_INET) {
-			blacklist_modify(&addr->sin, BLACKLIST_DELETE, 0, 0);
+		if (!cw_address_parse(argv[2], addr, &addrlen)) {
+			blacklist_modify(addr, addrlen, BLACKLIST_DELETE, 0, 0);
 			res = RESULT_SUCCESS;
 		}
 	}
@@ -450,12 +464,15 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 {
 	struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
 	struct blacklist_show_args *args = data;
-	char buf[INET_ADDRSTRLEN];
+	size_t mark = args->ds_p->used;
 
-	cw_inet_ntoa(buf, sizeof(buf), entry->sa.sin_addr);
+	cw_address_print(args->ds_p, &entry->addr);
 
-	if (!args->pattern || !strncmp(buf, args->pattern, args->pattern_len)) {
-		cw_dynstr_printf(args->ds_p, "%-41s ", buf);
+	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len)) {
+		int d = 41 - (args->ds_p->used - mark);
+
+		if (d > 0)
+			cw_dynstr_printf(args->ds_p, "%*.*s ", d, d, "                                         ");
 
 		if (entry->duration) {
 			unsigned long interval;
@@ -480,11 +497,13 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 			);
 		}
 
-		if (entry->expire != -1)
+		if (entry->expire != -1) {
 			cw_interval_print(args->ds_p, cw_sched_when(sched, entry->expire));
-		else
+			cw_dynstr_printf(args->ds_p, "\n");
+		} else
 			cw_dynstr_printf(args->ds_p, "never\n");
-	}
+	} else
+		cw_dynstr_truncate(args->ds_p, mark);
 
 	return 0;
 }

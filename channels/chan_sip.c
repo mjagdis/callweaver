@@ -2936,7 +2936,7 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
     struct sip_peer *p = NULL;
 
     if (peer)
-        obj = cw_registry_find(&peerbyname_registry, 1, cw_hash_string(peer), peer);
+        obj = cw_registry_find(&peerbyname_registry, 1, cw_hash_string(0, peer), peer);
     else
         obj = cw_registry_find(&peerbyaddr_registry, 1, cw_hash_addr(sin), sin);
 
@@ -3010,7 +3010,7 @@ static struct sip_user *realtime_user(const char *username)
     {
         cw_set_flag(&user->flags_page2, SIP_PAGE2_RTCACHEFRIENDS);
         suserobjs++;
-        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(user->name), &user->obj);
+        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(0, user->name), &user->obj);
     }
     else
     {
@@ -3033,7 +3033,7 @@ static struct sip_user *find_user(const char *name, int realtime)
 	struct cw_object *obj;
 	struct sip_user *user = NULL;
 
-	if ((obj = cw_registry_find(&userbyname_registry, 1, cw_hash_string(name), name)))
+	if ((obj = cw_registry_find(&userbyname_registry, 1, cw_hash_string(0, name), name)))
 		user = container_of(obj, struct sip_user, obj);
 	else if (realtime)
 		user = realtime_user(name);
@@ -9103,7 +9103,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
         peer = temp_peer(name);
         if (peer)
         {
-            peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
+            peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(0, peer->name), &peer->obj);
             sip_cancel_destroy(p);
             switch (parse_register_contact(p, peer, req))
             {
@@ -14824,7 +14824,7 @@ static int handle_message(void *data)
 		} else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 
-			if (!cw_blacklist_check(&req->sa)) {
+			if (!cw_blacklist_check((cw_sockaddr_t *)&req->sa)) {
 				/* FIXME: If the message contains something purporting to be our tag
 				 * at this point we should ignore it rather than create the call.
 				 * I think...
@@ -14887,7 +14887,7 @@ static int handle_message(void *data)
 			memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
 
 			if (handle_request(dialogue, req, &req->sa, &nounlock) < 0)
-				cw_blacklist_add(&req->sa);
+				cw_blacklist_add((cw_sockaddr_t *)&req->sa, sizeof(req->sa));
 		}
 	}
 
@@ -16350,7 +16350,7 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
 
     cw_free_ha(oldha);
 
-    peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(peer->name), &peer->obj);
+    peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(0, peer->name), &peer->obj);
     if (addr_defined)
         peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
 
@@ -16862,7 +16862,7 @@ static int reload_config(void)
                 if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend"))
                 {
                     if ((user = build_user(cat, cw_variable_browse(cfg, cat), 0))) {
-                        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(user->name), &user->obj);
+                        user->reg_entry_byname = cw_registry_add(&userbyname_registry, cw_hash_string(0, user->name), &user->obj);
                         cw_object_put(user);
                     }
                 }

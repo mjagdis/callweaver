@@ -222,7 +222,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 					cw_msg_tuple("AppData",     "%s\r\n", appdata.data),
 					cw_msg_tuple("Uniqueid",    "%s\r\n", chan->uniqueid)
 				);
-				res = cw_function_exec_str(chan, cw_hash_string(v_app->value), v_app->value, appdata.data, NULL);
+				res = cw_function_exec_str(chan, cw_hash_string(0, v_app->value), v_app->value, appdata.data, NULL);
 				if (res && errno == ENOENT)
 					cw_log(CW_LOG_ERROR, "No such function \"%s\"\n", v_app->value);
 			}

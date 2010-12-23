@@ -1085,7 +1085,7 @@ static int handle_exec(struct cw_channel *chan, OGI *ogi, int argc, char **argv)
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 
-	res = cw_function_exec_str(chan, cw_hash_string(argv[1]), argv[1], argv[2], NULL);
+	res = cw_function_exec_str(chan, cw_hash_string(0, argv[1]), argv[1], argv[2], NULL);
 
 	fdprintf(ogi->fd, "200 result=%d\n", res);
 
@@ -1155,7 +1155,7 @@ static int handle_getvariable(struct cw_channel *chan, OGI *ogi, int argc, char 
 	/* check if we want to execute a function */
 	if ((args = strchr(argv[2], '(')) && (arge = strrchr(argv[2], ')'))) {
 		*(args++) = *arge = '\0';
-		ret = !cw_function_exec_str(chan, cw_hash_string(argv[2]), argv[2], args, &ds);
+		ret = !cw_function_exec_str(chan, cw_hash_string(0, argv[2]), argv[2], args, &ds);
 	} else {
 		ret = !pbx_retrieve_substr(chan, NULL, argv[2], strlen(argv[2]), &ds);
 	}

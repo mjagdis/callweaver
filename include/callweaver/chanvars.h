@@ -45,7 +45,7 @@ extern CW_API_PUBLIC int cw_var_registry_init(struct cw_registry *reg, int estsi
 
 static inline __attribute__ ((pure)) unsigned int cw_hash_var_name(const char *name)
 {
-	return cw_hash_string(name[0] == '_' ? (name[1] == '_' ? &name[2] : &name[1]) : name);
+	return cw_hash_string(0, name[0] == '_' ? (name[1] == '_' ? &name[2] : &name[1]) : name);
 }
 
 
