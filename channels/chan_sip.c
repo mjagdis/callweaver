@@ -648,6 +648,8 @@ struct sip_request {
 	struct sip_data_line    *sdp_lines;
 
 	struct sockaddr_in sa;
+
+	/* sipsock_read() only clears request packets down to here */
 	unsigned int header[SIP_MAX_HEADERS];
 	unsigned int header_val[SIP_MAX_HEADERS];
 	unsigned int line[SIP_MAX_LINES];
@@ -14911,6 +14913,7 @@ static int handle_message(void *data)
 static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignore)
 {
 	static struct sip_request *req = NULL;
+	static int oom = 0;
 	char iabuf[INET_ADDRSTRLEN];
 	struct sockaddr_in sa_to;
 	struct parse_request_state pstate;
@@ -14921,13 +14924,16 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	CW_UNUSED(events);
 	CW_UNUSED(ignore);
 
-	if (req)
-		memset(req, 0, sizeof(*req));
-	else if (!(req = calloc(1, sizeof(*req)))) {
-		cw_log(CW_LOG_WARNING, "Out of memory!\n");
-		usleep(1);
+	if (!req && !(req = malloc(sizeof(*req)))) {
+		if (!oom) {
+			cw_log(CW_LOG_WARNING, "Out of memory!\n");
+			oom = 1;
+		}
+		usleep(1000);
 		return 1;
 	}
+	oom = 0;
+	memset(req, 0, offsetof(typeof(*req), header));
 
 	sa_from_len = sizeof(req->sa);
 	sa_to_len = sizeof(sa_to);
