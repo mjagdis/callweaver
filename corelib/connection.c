@@ -35,6 +35,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/utils.h"
 
 
+#ifndef AI_IDN
+#  define AI_IDN 0
+#endif
+
+
 const char *cw_connection_state_name[] = {
 	[INIT]       = "INIT",
 	[LISTENING]  = "LISTENING",
@@ -45,183 +50,189 @@ const char *cw_connection_state_name[] = {
 };
 
 
-static const socklen_t salen[] = {
-	[AF_LOCAL] = sizeof(struct sockaddr_un),
-	[AF_INTERNAL] = sizeof(struct sockaddr_un),
-	[AF_INET] = sizeof(struct sockaddr_in),
-	[AF_INET6] = sizeof(struct sockaddr_in6),
-	[AF_PATHNAME] = sizeof(struct sockaddr_un),
-#if AF_LOCAL != AF_UNIX
-	[AF_UNIX] = sizeof(struct sockaddr_un),
-#endif
-};
-
-
-int cw_address_parse(const char *spec, cw_sockaddr_t *addr, socklen_t *addrlen)
+int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res)
 {
+	char *node = strdupa(spec);
+	const char *service = "0";
 	char *p;
-	int portno;
-	int ret = -1;
 
-	/* An IPv6 address may be bare, in which case it contains at least two colons, or it
-	 * may be enclosed in square brackets with an optional ":<portno>" suffix.
+	/* A service name / port number follows the last ':' in the spec
+	 * _only_ if the character before the ':' is ']' or something
+	 * other than a hexdigit or ':' is in the string of characters
+	 * before it.
+	 * i.e. we support:
+	 *     fqdn:port
+	 *     fqdn
+	 *     a.b.c.d:port
+	 *     a.b.c.d
+	 *     [aaaa:bbbb::cccc]:port
+	 *     aaaa:bbbb::cccc
+	 *     [aaaa:bbbb::c.d.e.f]:port
+	 *     aaaa:bbbb::c.d.e.f
 	 */
-	if (spec[0] == '[' || ((p = strchr(spec, ':')) && strchr(p + 1, ':'))) {
-		memset(addr, 0, sizeof(addr->sin6));
-		addr->sin6.sin6_family = AF_INET6;
-		memset(&addr->sin6.sin6_addr, 0, sizeof(addr->sin6.sin6_addr));
-		addr->sin6.sin6_port = 0;
-
-		/* You can only have a portno if the IPv6 address is enclosed in [...] otherwise
-		 * there's no way to tell where the IPv6 address ends and the port suffix starts.
-		 */
-		if (spec[0] == '[' && (p = strrchr(spec, ']'))) {
-			if (p[1] == ':') {
-				if (sscanf(p + 2, "%d", &portno) != 1) {
-					cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", p + 2, spec);
-					goto err;
+	if ((p = strrchr(node, ':'))) {
+		if (p == node) {
+			*p = '\0';
+			service = &p[1];
+			node = NULL;
+		} else if (p[-1] == ']' && node[0] == '[') {
+			p[-1] = '\0';
+			service = &p[1];
+			node++;
+		} else {
+			char *q;
+			int colons = 0;
+			for (q = node; q != p; q++) {
+				if (!isxdigit(*q) && *q != ':' && (*q != '.' || colons < 2)) {
+					*p = '\0';
+					service = &p[1];
+					break;
 				}
-				addr->sin6.sin6_port = htons(portno);
+				if (*q == ':')
+					colons++;
 			}
-			spec++;
-			*p = '\0';
 		}
-
-		if (inet_pton(AF_INET6, spec, &addr->sin6.sin6_addr) <= 0) {
-			cw_log(CW_LOG_ERROR, "Invalid IPv6 address '%s' specified\n", spec);
-			goto err;
-		}
-		ret = 0;
-
-	/* Consider anything else to be an IPv4 address. */
-	} else {
-		addr->sin.sin_family = AF_INET;
-		memset(&addr->sin.sin_addr, 0, sizeof(addr->sin.sin_addr));
-		addr->sin.sin_port = 0;
-
-		if ((p = strrchr(spec, ':'))) {
-			if (sscanf(p + 1, "%d", &portno) != 1) {
-				cw_log(CW_LOG_ERROR, "Invalid port number '%s' in '%s'\n", p + 1, spec);
-				goto err;
-			}
-			addr->sin.sin_port = htons(portno);
-			*p = '\0';
-		}
-
-		if (!inet_aton(spec, &addr->sin.sin_addr)) {
-			cw_log(CW_LOG_ERROR, "Invalid IPv4 address '%s' specified\n", spec);
-			goto err;
-		}
-
-		ret = 0;
 	}
 
-	*addrlen = salen[addr->sa.sa_family];
-
-err:
-	return ret;
+	return getaddrinfo(node, service, hints, res);
 }
 
 
-void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr)
+void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const char *portfmt)
 {
-	switch (addr->sa.sa_family) {
+	switch (addr->sa_family) {
 		case AF_INET: {
+			struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+
 			cw_dynstr_need(ds_p, INET_ADDRSTRLEN);
 			/* If the need failed above then we're already in error */
 			if (!ds_p->error) {
-				inet_ntop(addr->sa.sa_family, &addr->sin.sin_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
+				inet_ntop(sin->sin_family, &sin->sin_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
 				ds_p->used += strlen(&ds_p->data[ds_p->used]);
 			}
-			if (addr->sin.sin_port)
-				cw_dynstr_printf(ds_p, ":%hu", ntohs(addr->sin.sin_port));
+			if (portfmt && sin->sin_port)
+				cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin_port));
 			break;
 		}
 
 		case AF_INET6: {
-			if (addr->sin6.sin6_port)
+			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)addr;
+
+			if (sin->sin6_port && portfmt && portfmt[0] == ':')
 				cw_dynstr_printf(ds_p, "[");
 			cw_dynstr_need(ds_p, INET6_ADDRSTRLEN);
 			/* If the need failed above then we're already in error */
 			if (!ds_p->error) {
-				inet_ntop(addr->sa.sa_family, &addr->sin6.sin6_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
+				inet_ntop(sin->sin6_family, &sin->sin6_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
 				ds_p->used += strlen(&ds_p->data[ds_p->used]);
 			}
-			if (addr->sin6.sin6_port)
-				cw_dynstr_printf(ds_p, "]:%hu", ntohs(addr->sin6.sin6_port));
+			if (sin->sin6_port && portfmt) {
+				if (portfmt[0] == ':')
+					cw_dynstr_printf(ds_p, "]");
+				cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin6_port));
+			}
 			break;
 		}
 
 		case AF_LOCAL:
-			cw_dynstr_printf(ds_p, "local:%s", addr->sun.sun_path);
-			break;
-
 		case AF_PATHNAME:
-			cw_dynstr_printf(ds_p, "file:%s", addr->sun.sun_path);
-			break;
+		case AF_INTERNAL: {
+			struct sockaddr_un *sun = (struct sockaddr_un *)addr;
+			const char *domain;
 
-		case AF_INTERNAL:
-			cw_dynstr_printf(ds_p, "internal:%s", addr->sun.sun_path);
+			switch (addr->sa_family) {
+				case AF_LOCAL:
+					domain = "local";
+					break;
+				case AF_PATHNAME:
+					domain = "file";
+					break;
+				case AF_INTERNAL:
+				default:
+					domain = "internal";
+					break;
+			}
+
+			cw_dynstr_printf(ds_p, "%s:%s", domain, sun->sun_path);
 			break;
+		}
 	}
 }
 
 
-unsigned int cw_address_hash(const cw_sockaddr_t *addr, int withport)
+unsigned int cw_address_hash(const struct sockaddr *addr, int withport)
 {
 	unsigned int hash;
 
-	hash = cw_hash_mem(0, &addr->sa.sa_family, sizeof(addr->sa.sa_family));
+	hash = cw_hash_mem(0, &addr->sa_family, sizeof(addr->sa_family));
 
-	switch (addr->sa.sa_family) {
-		case AF_INET:
-			hash = cw_hash_mem(hash, &addr->sin.sin_addr, sizeof(addr->sin.sin_addr));
+	switch (addr->sa_family) {
+		case AF_INET: {
+			struct sockaddr_in *sin = (struct sockaddr_in *)addr;
+
+			hash = cw_hash_mem(hash, &sin->sin_addr, sizeof(sin->sin_addr));
 			if (withport)
-				hash = cw_hash_mem(hash, &addr->sin.sin_port, sizeof(addr->sin.sin_port));
+				hash = cw_hash_mem(hash, &sin->sin_port, sizeof(sin->sin_port));
 			break;
-		case AF_INET6:
-			hash = cw_hash_mem(hash, &addr->sin6.sin6_addr, sizeof(addr->sin6.sin6_addr));
+		}
+		case AF_INET6: {
+			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)addr;
+
+			hash = cw_hash_mem(hash, &sin->sin6_addr, sizeof(sin->sin6_addr));
 			if (withport)
-				hash = cw_hash_mem(hash, &addr->sin6.sin6_port, sizeof(addr->sin6.sin6_port));
+				hash = cw_hash_mem(hash, &sin->sin6_port, sizeof(sin->sin6_port));
 			break;
+		}
 		case AF_LOCAL:
 #if AF_LOCAL != AF_UNIX
 		case AF_UNIX:
 #endif
 		case AF_PATHNAME:
-		case AF_INTERNAL:
-			hash = cw_hash_string(hash, addr->sun.sun_path);
+		case AF_INTERNAL: {
+			struct sockaddr_un *sun = (struct sockaddr_un *)addr;
+
+			hash = cw_hash_string(hash, sun->sun_path);
 			break;
+		}
 	}
 
 	return hash;
 }
 
 
-int cw_address_cmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b, int withport)
+int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withport)
 {
 	int ret;
 
-	if (!(ret = a->sa.sa_family - b->sa.sa_family)) {
-		switch (a->sa.sa_family) {
-			case AF_INET:
-				if (!(ret = memcmp(&a->sin.sin_addr, &b->sin.sin_addr, sizeof(a->sin.sin_addr))) && withport)
-					ret = memcmp(&a->sin.sin_port, &b->sin.sin_port, sizeof(a->sin.sin_port));
+	if (!(ret = a->sa_family - b->sa_family)) {
+		switch (a->sa_family) {
+			case AF_INET: {
+				struct sockaddr_in *sa = (struct sockaddr_in *)a;
+				struct sockaddr_in *sb = (struct sockaddr_in *)b;
+				if (!(ret = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(sa->sin_addr))) && withport)
+					ret = memcmp(&sa->sin_port, &sb->sin_port, sizeof(sa->sin_port));
 				break;
+			}
 
-			case AF_INET6:
-				if (!(ret = memcmp(&a->sin6.sin6_addr, &b->sin6.sin6_addr, sizeof(a->sin6.sin6_addr))) && withport)
-					ret = memcmp(&a->sin6.sin6_port, &b->sin6.sin6_port, sizeof(a->sin6.sin6_port));
+			case AF_INET6: {
+				struct sockaddr_in6 *sa = (struct sockaddr_in6 *)a;
+				struct sockaddr_in6 *sb = (struct sockaddr_in6 *)b;
+				if (!(ret = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(sa->sin6_addr))) && withport)
+					ret = memcmp(&sa->sin6_port, &sb->sin6_port, sizeof(sa->sin6_port));
 				break;
+			}
 
 			case AF_LOCAL:
 #if AF_LOCAL != AF_UNIX
 			case AF_UNIX:
 #endif
 			case AF_PATHNAME:
-			case AF_INTERNAL:
-				ret = strcmp(a->sun.sun_path, b->sun.sun_path);
+			case AF_INTERNAL: {
+				struct sockaddr_un *sa = (struct sockaddr_un *)a;
+				struct sockaddr_un *sb = (struct sockaddr_un *)b;
+				ret = strcmp(sa->sun_path, sb->sun_path);
 				break;
+			}
 		}
 	}
 
@@ -319,8 +330,8 @@ void cw_connection_close(struct cw_connection *conn)
 		close(conn->sock);
 		conn->sock = -1;
 
-		if ((conn->state == INIT || conn->state == LISTENING) && conn->addr.sa.sa_family == AF_LOCAL)
-			unlink(conn->addr.sun.sun_path);
+		if ((conn->state == INIT || conn->state == LISTENING) && conn->addr.sa_family == AF_LOCAL)
+			unlink(((struct sockaddr_un *)&conn->addr)->sun_path);
 	}
 
 	conn->state = CLOSED;
@@ -329,17 +340,17 @@ void cw_connection_close(struct cw_connection *conn)
 }
 
 
-int cw_connection_listen(int type, cw_sockaddr_t *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj)
+int cw_connection_listen(int type, struct sockaddr *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj)
 {
 	struct cw_connection *conn = NULL;
 	int sock;
 	const int arg = 1;
 	int res = 0;
 
-	if ((sock = socket_cloexec(addr->sa.sa_family, type, 0)) < 0)
+	if ((sock = socket_cloexec(addr->sa_family, type, 0)) < 0)
 		goto out_err;
 
-	if (bind(sock, &addr->sa, addrlen) || listen(sock, 1024))
+	if (bind(sock, addr, addrlen) || listen(sock, 1024))
 		goto out_close;
 
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg));

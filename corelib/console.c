@@ -688,7 +688,7 @@ static void console_handler(char *s)
 
 static int console_connect(const char *spec, int events, time_t timelimit)
 {
-	cw_sockaddr_t *addr;
+	struct sockaddr_un *addr;
 	socklen_t addrlen;
 	int s = -1;
 	int e;
@@ -699,11 +699,11 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 
 		addrlen = CW_SOCKADDR_UN_SIZE(sizeof("console"));
 		addr = alloca(addrlen);
-		addr->sun.sun_family = AF_INTERNAL;
-		memcpy(addr->sun.sun_path, "console", sizeof("console"));
+		addr->sun_family = AF_INTERNAL;
+		memcpy(addr->sun_path, "console", sizeof("console"));
 
 		if (!socketpair_cloexec(AF_LOCAL, SOCK_STREAM, 0, sv)
-		&& (sess = manager_session_start(manager_session_ami, sv[0], addr, addrlen, NULL, events, EVENT_FLAG_COMMAND, events))) {
+		&& (sess = manager_session_start(manager_session_ami, sv[0], (struct sockaddr *)addr, addrlen, NULL, events, EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
 		}
@@ -715,20 +715,20 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 		l = strlen(spec) + 1;
 		addrlen = CW_SOCKADDR_UN_SIZE(l);
 		addr = alloca(addrlen);
-		addr->sun.sun_family = AF_LOCAL;
-		memcpy(addr->sun.sun_path, spec, l);
+		addr->sun_family = AF_LOCAL;
+		memcpy(addr->sun_path, spec, l);
 
 		time(&start);
 
 		while (s < 0 && !last) {
 			last = (timelimit == 0 || time(NULL) - start > timelimit);
 
-			if ((s = socket_cloexec(addr->sa.sa_family, SOCK_STREAM, 0)) < 0) {
+			if ((s = socket_cloexec(addr->sun_family, SOCK_STREAM, 0)) < 0) {
 				e = errno;
 				if (last)
 					fprintf(stderr, "Unable to create socket: %s\n", strerror(errno));
 				errno = e;
-			} else if (connect(s, &addr->sa, addrlen)) {
+			} else if (connect(s, addr, addrlen)) {
 				e = errno;
 				close(s);
 				s = -1;

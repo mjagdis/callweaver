@@ -14826,7 +14826,7 @@ static int handle_message(void *data)
 		} else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 
-			if (!cw_blacklist_check((cw_sockaddr_t *)&req->sa)) {
+			if (!cw_blacklist_check((const struct sockaddr *)&req->sa)) {
 				/* FIXME: If the message contains something purporting to be our tag
 				 * at this point we should ignore it rather than create the call.
 				 * I think...
@@ -14889,7 +14889,7 @@ static int handle_message(void *data)
 			memcpy(&dialogue->recv, &req->sa, sizeof(dialogue->recv));
 
 			if (handle_request(dialogue, req, &req->sa, &nounlock) < 0)
-				cw_blacklist_add((cw_sockaddr_t *)&req->sa, sizeof(req->sa));
+				cw_blacklist_add((const struct sockaddr *)&req->sa, sizeof(req->sa));
 		}
 	}
 

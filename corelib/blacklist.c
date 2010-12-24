@@ -49,7 +49,7 @@ struct cw_blacklist_entry {
 	unsigned int duration;
 	int expire;
 	/* This must be last */
-	cw_sockaddr_t addr;
+	struct sockaddr addr;
 };
 
 
@@ -72,6 +72,13 @@ static unsigned int blacklist_remember = 24 * 60 * 60;
 static struct sched_context *sched;
 
 
+static const struct addrinfo blacklist_addrinfo_hints = {
+	.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG | AI_IDN,
+	.ai_family = AF_UNSPEC,
+	.ai_socktype = SOCK_DGRAM,
+};
+
+
 /* Registry {{{1 */
 
 
@@ -89,7 +96,7 @@ static int blacklist_qsort_compare_by_addr(const void *a, const void *b)
 static int blacklist_object_match(struct cw_object *obj, const void *pattern)
 {
 	const struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
-	const cw_sockaddr_t *addr = pattern;
+	const struct sockaddr *addr = pattern;
 
 	return !cw_address_cmp(&entry->addr, addr, 0);
 }
@@ -121,7 +128,7 @@ static int blacklist_entry_remove(void *data)
 
 	entry->expire = -1;
 
-	cw_address_print(&ds, &entry->addr);
+	cw_address_print(&ds, &entry->addr, NULL);
 
 	if (!ds.error) {
 		cw_log(CW_LOG_NOTICE, "Blacklist of %s removed\n", ds.data);
@@ -142,7 +149,7 @@ static int blacklist_entry_remove(void *data)
 
 enum blacklist_mode { BLACKLIST_DYNAMIC, BLACKLIST_STATIC, BLACKLIST_DELETE };
 
-static void blacklist_modify(cw_sockaddr_t *addr, socklen_t addrlen, enum blacklist_mode mode, unsigned int duration, unsigned int remember)
+static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enum blacklist_mode mode, unsigned int duration, unsigned int remember)
 {
 	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 	struct cw_object *obj;
@@ -183,6 +190,8 @@ static void blacklist_modify(cw_sockaddr_t *addr, socklen_t addrlen, enum blackl
 		entry->start = time(NULL);
 		entry->expire = -1;
 		memcpy(&entry->addr, addr, addrlen);
+		switch (entry->addr.sa_family) {
+		}
 
 		entry->reg_entry = cw_registry_add(&blacklist_registry, hash, &entry->obj);
 	}
@@ -204,7 +213,7 @@ static void blacklist_modify(cw_sockaddr_t *addr, socklen_t addrlen, enum blackl
 	if (entry && mode != BLACKLIST_DELETE) {
 		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-		cw_address_print(&ds, addr);
+		cw_address_print(&ds, addr, NULL);
 
 		if (!ds.error) {
 			if (entry->duration) {
@@ -235,7 +244,7 @@ static void blacklist_modify(cw_sockaddr_t *addr, socklen_t addrlen, enum blackl
 /* Public API {{{1 */
 
 
-int cw_blacklist_check(cw_sockaddr_t *addr)
+int cw_blacklist_check(const struct sockaddr *addr)
 {
 	struct cw_object *obj;
 	int blocked = 0;
@@ -251,7 +260,7 @@ int cw_blacklist_check(cw_sockaddr_t *addr)
 }
 
 
-void cw_blacklist_add(cw_sockaddr_t *addr, socklen_t addrlen)
+void cw_blacklist_add(const struct sockaddr *addr, socklen_t addrlen)
 {
 	blacklist_modify(addr, addrlen, BLACKLIST_DYNAMIC, blacklist_min_duration, blacklist_remember);
 }
@@ -343,7 +352,7 @@ static int complete_blacklist_entries_one(struct cw_object *obj, void *data)
 	struct complete_blacklist_entries_args *args = data;
 	size_t mark = args->ds_p->used;
 
-	cw_address_print(args->ds_p, &entry->addr);
+	cw_address_print(args->ds_p, &entry->addr, NULL);
 
 	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len))
 		cw_dynstr_printf(args->ds_p, "\n");
@@ -380,39 +389,38 @@ static int blacklist_add(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(ds_p);
 
 	if (argc >= 3 && argc <= 5) {
-		cw_sockaddr_t *addr = CW_SOCKADDR_NET;
-		socklen_t addrlen;
+		const char *a3, *a4;
 		unsigned int duration = 0;
 		unsigned int remember = 0;
 
-		/* FIXME: we should do hostname look ups and block all the addresses it resolves to. */
-		if (!cw_address_parse(argv[2], addr, &addrlen)) {
-			if ((addr->sa.sa_family == AF_INET && addr->sin.sin_port == 0)
-			|| (addr->sa.sa_family == AF_INET6 && addr->sin6.sin6_port == 0)) {
-				const char *a3, *a4;
+		a3 = a4 = "";
 
-				a3 = a4 = "";
+		if (argc > 3) {
+			a3 = cw_interval_parse(&duration, argv[3]);
+			if (*a3)
+				cw_dynstr_printf(ds_p, "duration not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a3);
+		}
 
-				if (argc > 3) {
-					a3 = cw_interval_parse(&duration, argv[3]);
-					if (*a3)
-						cw_dynstr_printf(ds_p, "duration not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a3);
-				}
+		if (argc > 4) {
+			a4 = cw_interval_parse(&remember, argv[4]);
+			if (*a4)
+				cw_dynstr_printf(ds_p, "remember not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a4);
+		}
 
-				if (argc > 4) {
-					a4 = cw_interval_parse(&remember, argv[4]);
-					if (*a4)
-						cw_dynstr_printf(ds_p, "remember not parsable at %s. Intervals should be [[[<n>d]<n>h]<n>m]<n>s\n", a4);
-				}
+		if (!*a3 && !*a4) {
+			struct addrinfo *addrs;
+			int err;
 
-				if (!*a3 && !*a4)
-					blacklist_modify(addr, addrlen, BLACKLIST_STATIC, duration, remember);
+			if (!(err = getaddrinfo(argv[2], NULL, &blacklist_addrinfo_hints, &addrs))) {
+				struct addrinfo *addr;
 
+				for (addr = addrs; addr; addr = addr->ai_next)
+					blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_STATIC, duration, remember);
+
+				freeaddrinfo(addrs);
 				res = RESULT_SUCCESS;
-			} else {
-				cw_dynstr_printf(ds_p, "Individual ports may not be blacklisted\n");
-				res = RESULT_SUCCESS;
-			}
+			} else
+				cw_dynstr_printf(ds_p, "%s\n", gai_strerror(err));
 		}
 	}
 
@@ -433,14 +441,19 @@ static int blacklist_remove(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(ds_p);
 
 	if (argc != 3) {
-		cw_sockaddr_t *addr = CW_SOCKADDR_NET;
-		socklen_t addrlen;
+		struct addrinfo *addrs;
+		int err;
 
-		/* FIXME: we should do hostname look ups and remove all the addresses it resolves to. */
-		if (!cw_address_parse(argv[2], addr, &addrlen)) {
-			blacklist_modify(addr, addrlen, BLACKLIST_DELETE, 0, 0);
+		if (!(err = getaddrinfo(argv[2], NULL, &blacklist_addrinfo_hints, &addrs))) {
+			struct addrinfo *addr;
+
+			for (addr = addrs; addr; addr = addr->ai_next)
+				blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_DELETE, 0, 0);
+
+			freeaddrinfo(addrs);
 			res = RESULT_SUCCESS;
-		}
+		} else
+			cw_dynstr_printf(ds_p, "%s\n", gai_strerror(err));
 	}
 
 	return res;
@@ -466,7 +479,7 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 	struct blacklist_show_args *args = data;
 	size_t mark = args->ds_p->used;
 
-	cw_address_print(args->ds_p, &entry->addr);
+	cw_address_print(args->ds_p, &entry->addr, NULL);
 
 	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len)) {
 		int d = 41 - (args->ds_p->used - mark);

@@ -30,22 +30,7 @@
 #include "callweaver/dynstr.h"
 
 
-typedef union {
-	struct sockaddr sa;
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-	struct sockaddr_un sun;
-} cw_sockaddr_t;
-
-typedef union {
-	struct sockaddr sa;
-	struct sockaddr_in sin;
-	struct sockaddr_in6 sin6;
-} cw_sockaddr_net_t;
-
-#define CW_SOCKADDR_NET              alloca(sizeof(cw_sockaddr_net_t))
-#define CW_SOCKADDR_UN_SIZE(pathlen) ((size_t)(((cw_sockaddr_t *)0)->sun.sun_path + (pathlen)))
-#define CW_SOCKADDR_UN(pathlen)      alloca(CW_SOCKADDR_UN_SIZE(pathlen))
+#define CW_SOCKADDR_UN_SIZE(pathlen) ((size_t)(((struct sockaddr_un *)0)->sun_path + (pathlen)))
 
 #ifndef SUN_LEN
 #  include <string.h>
@@ -77,22 +62,24 @@ struct cw_connection {
 	struct cw_object *pvt_obj;
 	socklen_t addrlen;
 	/* This must be last */
-	cw_sockaddr_t addr;
+	struct sockaddr addr;
 };
 
 
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
 
-extern CW_API_PUBLIC int cw_address_parse(const char *spec, cw_sockaddr_t *addr, socklen_t *addrlen);
-extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const cw_sockaddr_t *addr);
+/* As getaddrinfo(3) but takes a combined host & service rather than separate strings */
+extern CW_API_PUBLIC int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res);
 
-extern CW_API_PUBLIC unsigned int cw_address_hash(const cw_sockaddr_t *addr, int withport);
-extern CW_API_PUBLIC int cw_address_cmp(const cw_sockaddr_t *a, const cw_sockaddr_t *b, int withport);
+extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const char *portfmt);
+
+extern CW_API_PUBLIC unsigned int cw_address_hash(const struct sockaddr *addr, int withport);
+extern CW_API_PUBLIC int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withport);
 
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
 
-extern CW_API_PUBLIC int cw_connection_listen(int type, cw_sockaddr_t *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
+extern CW_API_PUBLIC int cw_connection_listen(int type, struct sockaddr *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
 
 extern CW_API_PUBLIC struct cw_registry cw_connection_registry;
 

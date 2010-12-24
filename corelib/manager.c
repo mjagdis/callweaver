@@ -468,7 +468,7 @@ static int listener_print(struct cw_object *obj, void *data)
 
 	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING)) {
 		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state]);
-		cw_address_print(args->ds_p, &conn->addr);
+		cw_address_print(args->ds_p, &conn->addr, ":%hu");
 		cw_dynstr_printf(args->ds_p, "\n");
 	}
 
@@ -657,7 +657,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 					ret = 0;
 
 					if (ha) {
-						if (sess->addr.sa.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr.sin)) {
+						if (sess->addr.sa_family != AF_INET || !cw_apply_ha(ha, (struct sockaddr_in *)&sess->addr)) {
 							cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
 							ret = -1;
 						}
@@ -1740,12 +1740,12 @@ static void *manager_session(void *data)
 }
 
 
-struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const cw_sockaddr_t *addr, socklen_t addrlen, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
+struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const struct sockaddr *addr, socklen_t addrlen, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct mansession *sess = NULL;
 
-	cw_address_print(&ds, addr);
+	cw_address_print(&ds, addr, ":%hu");
 	if (ds.error)
 		goto out;
 
@@ -2079,7 +2079,7 @@ static struct manager_action manager_actions[] = {
 
 static int manager_listener_read(struct cw_connection *conn)
 {
-	cw_sockaddr_t *addr;
+	struct sockaddr *addr;
 	struct manager_listener_pvt *pvt = container_of(conn->pvt_obj, struct manager_listener_pvt, obj);
 	struct mansession *sess;
 	socklen_t addrlen;
@@ -2089,18 +2089,20 @@ static int manager_listener_read(struct cw_connection *conn)
 	addrlen = conn->addrlen;
 	addr = alloca(conn->addrlen);
 
-	fd = accept_cloexec(conn->sock, &addr->sa, &addrlen);
+	fd = accept_cloexec(conn->sock, addr, &addrlen);
 
 	if (fd >= 0) {
-		if (addr->sa.sa_family == AF_LOCAL) {
+		if (addr->sa_family == AF_LOCAL) {
 			/* Local sockets don't return a path in their sockaddr (there isn't
 			 * one really). However, if the remote is local so is the address
 			 * we were listening on and the listening path is in the listener's
 			 * name. We'll use that as a meaningful connection source for the
 			 * sake of the connection list command.
 			 */
-			strcpy(addr->sun.sun_path, conn->addr.sun.sun_path);
-			addrlen = SUN_LEN(&addr->sun);
+			struct sockaddr_un *sun = (struct sockaddr_un *)addr;
+			struct sockaddr_un *conn_sun = (struct sockaddr_un *)&conn->addr;
+			strcpy(sun->sun_path, conn_sun->sun_path);
+			addrlen = SUN_LEN(sun);
 		}
 
 		if ((sess = manager_session_start(pvt->handler, fd, addr, addrlen, conn->pvt_obj, pvt->readperm, pvt->writeperm, pvt->send_events)))
@@ -2129,10 +2131,11 @@ static void listener_pvt_free(struct cw_object *obj)
 
 static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
 {
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct manager_listener_pvt *pvt;
 	const char *banner = NULL;
-	cw_sockaddr_t *addr;
-	socklen_t addrlen;
+	struct addrinfo *addrs, *addr;
+	struct sockaddr_un *sun = NULL;
 	int banner_len = 0;
 	int err;
 
@@ -2152,46 +2155,66 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 			spec++;
 	}
 
-	addrlen = 0;
-
 	/* A file path is always absolute */
 	if (spec[0] == '/') {
 		int l = strlen(spec);
-		addrlen = sizeof(addr->sun) - sizeof(addr->sun.sun_path) + l + 1;
-		addr = alloca(addrlen);
-		addr->sun.sun_family = AF_LOCAL;
-		memcpy(addr->sun.sun_path, spec, l + 1);
+		addrs = alloca(sizeof(*addrs));
+		addrs->ai_next = NULL;
+		addrs->ai_addrlen = sizeof(*sun) - sizeof(sun->sun_path) + l + 1;
+		sun = alloca(addrs->ai_addrlen);
+		addrs->ai_addr = (struct sockaddr *)sun;
+		sun->sun_family = AF_LOCAL;
+		memcpy(sun->sun_path, spec, l + 1);
 		unlink(spec);
+		err = 0;
 	} else {
-		addr = alloca(sizeof(*addr));
-		cw_address_parse(spec, addr, &addrlen);
+		static const struct addrinfo hints = {
+			.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG | AI_PASSIVE | AI_IDN,
+			.ai_family = AF_UNSPEC,
+			.ai_socktype = SOCK_STREAM,
+			.ai_protocol = 0,
+		};
+		int err;
+
+		if ((err = cw_getaddrinfo(spec, &hints, &addrs)))
+			cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
 	}
 
-	if (addrlen) {
-		if ((pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
-			cw_object_init(pvt, NULL, 1);
-			pvt->obj.release = listener_pvt_free;
-			pvt->handler = handler;
-			pvt->readperm = readperm;
-			pvt->writeperm = writeperm;
-			pvt->send_events = send_events;
-			memcpy(pvt->banner, banner, banner_len);
-			pvt->banner[banner_len] = '\0';
+	if (!err) {
+		for (addr = addrs; addr; addr = addr->ai_next) {
+			cw_dynstr_reset(&ds);
+			cw_address_print(&ds, addr->ai_addr, ":%hu");
 
-			if (!(err = cw_connection_listen(SOCK_STREAM, addr, addrlen, &tech_ami, &pvt->obj))) {
-				/* Local listener sockets that are not pre-authenticated are public */
-				if (addr->sa.sa_family == AF_LOCAL && !writeperm)
-					chmod(addr->sun.sun_path, 0666);
+			if (!ds.error && (pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
+				cw_object_init(pvt, NULL, 1);
+				pvt->obj.release = listener_pvt_free;
+				pvt->handler = handler;
+				pvt->readperm = readperm;
+				pvt->writeperm = writeperm;
+				pvt->send_events = send_events;
+				memcpy(pvt->banner, banner, banner_len);
+				pvt->banner[banner_len] = '\0';
 
-				if (option_verbose)
-					cw_verbose("CallWeaver listening on '%s'\n", spec);
-			} else {
-				cw_log(CW_LOG_ERROR, "Unable to listen on '%s': %s\n", spec, strerror(err));
-				cw_object_put(pvt);
-			}
-		} else
-			cw_log(CW_LOG_ERROR, "Out of memory\n");
+				if (!(err = cw_connection_listen(SOCK_STREAM, addr->ai_addr, addr->ai_addrlen, &tech_ami, &pvt->obj))) {
+					/* Local listener sockets that are not pre-authenticated are public */
+					if (addr->ai_addr->sa_family == AF_LOCAL && !writeperm)
+						chmod(((struct sockaddr_un *)addr->ai_addr)->sun_path, 0666);
+
+					if (option_verbose)
+						cw_verbose("CallWeaver listening on %s (%s)\n", ds.data, spec);
+				} else {
+					cw_log(CW_LOG_ERROR, "Unable to listen on %s (%s): %s\n", ds.data, spec, strerror(err));
+					cw_object_put(pvt);
+				}
+			} else
+				cw_log(CW_LOG_ERROR, "Out of memory\n");
+		}
 	}
+
+	if (!sun)
+		freeaddrinfo(addrs);
+
+	cw_dynstr_free(&ds);
 }
 
 

@@ -156,7 +156,7 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 				}
 			}
 		} else {
-			if (sess->addr.sa.sa_family == AF_PATHNAME) {
+			if (sess->addr.sa_family == AF_PATHNAME) {
 				/* Strip off the numeric level prefix */
 				p = iov[1].iov_base;
 				while (iov[1].iov_len && isdigit(*p))
@@ -171,18 +171,19 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 			while (j > 0) {
 				n = strcspn(p, "\r\n");
 
-				if (sess->addr.sa.sa_family == AF_PATHNAME) {
-					if (sess->fd >= 0 || (sess->fd = open_cloexec(sess->name + sizeof("file:") - 1, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
+				if (sess->addr.sa_family == AF_PATHNAME) {
+					const char *path = ((struct sockaddr_un *)&sess->addr)->sun_path;
+					if (sess->fd >= 0 || (sess->fd = open_cloexec(path, O_CREAT|O_WRONLY|O_APPEND|O_NOCTTY, 0644)) >= 0) {
 						iov[11].iov_base = p;
 						iov[11].iov_len = n;
 
 						if (cw_writev_all(sess->fd, iov, arraysize(iov)) < 0) {
-							cw_log(CW_LOG_ERROR, "Write to '%s' failed: %s", sess->name + sizeof("file:") - 1, strerror(errno));
+							cw_log(CW_LOG_ERROR, "Write to '%s' failed: %s", path, strerror(errno));
 							res = -1;
 							goto out_error;
 						}
 					} else {
-						cw_log(CW_LOG_ERROR, "Can't write to '%s': %s", sess->name + sizeof("file:") - 1, strerror(errno));
+						cw_log(CW_LOG_ERROR, "Can't write to '%s': %s", path, strerror(errno));
 						res = -1;
 						goto out_error;
 					}
@@ -317,13 +318,13 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 	if (chan->filename) {
 		int l = strlen(chan->filename) + 1;
 		socklen_t addrlen = CW_SOCKADDR_UN_SIZE(l);
-		cw_sockaddr_t *addr = alloca(l);
+		struct sockaddr_un *addr = alloca(l);
 
-		addr->sun.sun_family = domain;
-		memcpy(addr->sun.sun_path, chan->filename, l);
+		addr->sun_family = domain;
+		memcpy(addr->sun_path, chan->filename, l);
 		logmask = manager_str_to_eventmask(components);
 
-		if ((chan->sess = manager_session_start(logger_manager_session, -1, addr, addrlen, NULL, logmask, 0, logmask)))
+		if ((chan->sess = manager_session_start(logger_manager_session, -1, (struct sockaddr *)addr, addrlen, NULL, logmask, 0, logmask)))
 			return chan;
 
 		/* Can't log here, since we're called with a lock */

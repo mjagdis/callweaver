@@ -2002,12 +2002,12 @@ static int load_module(void)
 	cw_pthread_create(&tid, &global_attr_rr_detached, jabber_thread, &global_profile);
 	if (globals.event_master) {
 		socklen_t addrlen = CW_SOCKADDR_UN_SIZE(sizeof("res_jabber"));
-		cw_sockaddr_t *addr = CW_SOCKADDR_UN(addrlen);
+		struct sockaddr_un *addr = alloca(addrlen);
 
-		addr->sun.sun_family = AF_INTERNAL;
-		memcpy(addr->sun.sun_path, "res_jabber", sizeof("res_jabber"));
+		addr->sun_family = AF_INTERNAL;
+		memcpy(addr->sun_path, "res_jabber", sizeof("res_jabber"));
 
-		jabber_hook = manager_session_start(jabber_manager_session, -1, addr, addrlen, NULL, -1, 0, -1);
+		jabber_hook = manager_session_start(jabber_manager_session, -1, (struct sockaddr *)addr, addrlen, NULL, -1, 0, -1);
 	}
 	app = cw_register_function(name, res_jabber_exec, synopsis, syntax, desc);
 	return 0;
