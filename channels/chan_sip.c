@@ -10741,10 +10741,8 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
                 if (peer->sipoptions & sip_options[x].id)
                     cw_dynstr_printf(ds_p, "%s ", sip_options[x].text);
             }
+            cw_dynstr_printf(ds_p, "\n");
         }
-        else
-            cw_dynstr_printf(ds_p, "(none)");
-        cw_dynstr_printf(ds_p, "\n");
 
         if (peer->chanvars)
         {
