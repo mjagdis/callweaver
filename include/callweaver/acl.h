@@ -29,6 +29,7 @@ extern "C" {
 #endif
 
 #include <netinet/in.h>
+#include "callweaver/dynstr.h"
 #include "callweaver/io.h"
 
 #define CW_SENSE_DENY                  0
@@ -39,13 +40,13 @@ extern "C" {
 struct cw_ha;
 
 extern CW_API_PUBLIC void cw_free_ha(struct cw_ha *ha);
-extern CW_API_PUBLIC struct cw_ha *cw_append_ha(const char *sense, const char *stuff, struct cw_ha *path);
-extern CW_API_PUBLIC int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin);
+extern CW_API_PUBLIC struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *path);
+extern CW_API_PUBLIC int cw_apply_ha(struct cw_ha *ha, struct sockaddr *addr);
+extern CW_API_PUBLIC void cw_print_ha(struct cw_dynstr *ds_p, struct cw_ha *ha);
 extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
 #define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)
 extern CW_API_PUBLIC int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern CW_API_PUBLIC int cw_lookup_iface(char *iface, struct in_addr *address);
-extern CW_API_PUBLIC struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original);
 extern CW_API_PUBLIC int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 extern CW_API_PUBLIC int cw_str2tos(const char *value, int *tos);
 

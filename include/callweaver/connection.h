@@ -69,13 +69,15 @@ struct cw_connection {
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
 
-/* As getaddrinfo(3) but takes a combined host & service rather than separate strings */
-extern CW_API_PUBLIC int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res);
+/* As getaddrinfo(3) but takes a combined host & service rather than separate
+ * strings with an optional masklen (as /n or /a.b.c.d) after the host part.
+ */
+extern CW_API_PUBLIC int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res, int *masklen);
 
-extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const char *portfmt);
+extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, int masklen, const char *portfmt);
 
 extern CW_API_PUBLIC unsigned int cw_address_hash(const struct sockaddr *addr, int withport);
-extern CW_API_PUBLIC int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withport);
+extern CW_API_PUBLIC int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int masklen, int withport);
 
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
 

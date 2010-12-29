@@ -61,6 +61,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/acl.h"
+#include "callweaver/connection.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
 #include "callweaver/options.h"
@@ -70,10 +71,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 struct cw_ha {
 	/* Host access rule */
-	struct in_addr netaddr;
-	struct in_addr netmask;
 	int sense;
+	int masklen;
 	struct cw_ha *next;
+	/* This must be last */
+	struct sockaddr addr;
 };
 
 /* Default IP - if not otherwise set, don't breathe garbage */
@@ -84,142 +86,114 @@ struct my_ifreq {
 	struct sockaddr_in ifru_addr;
 };
 
-/* Free HA structure */
+
 void cw_free_ha(struct cw_ha *ha)
 {
 	struct cw_ha *hal;
-	while(ha) {
-		hal = ha;
+
+	while ((hal = ha)) {
 		ha = ha->next;
 		free(hal);
 	}
 }
 
-/* Copy HA structure */
-static void cw_copy_ha(struct cw_ha *from, struct cw_ha *to)
+
+struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *path)
 {
-	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
-	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
-	to->sense = from->sense;
-}
+	static const struct addrinfo hints = {
+		.ai_flags = AI_V4MAPPED | AI_PASSIVE | AI_IDN,
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = SOCK_STREAM,
+		.ai_protocol = 0,
+	};
+	struct addrinfo *addrs;
+	int err, masklen;
 
-/* Create duplicate of ha structure */
-static struct cw_ha *cw_duplicate_ha(struct cw_ha *original)
-{
-	struct cw_ha *new_ha = malloc(sizeof(struct cw_ha));
-	/* Copy from original to new object */
-	cw_copy_ha(original, new_ha); 
+	if (!(err = cw_getaddrinfo(spec, &hints, &addrs, &masklen))) {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+		struct cw_ha **prev;
+		struct addrinfo *addr;
 
-	return new_ha;
-}
+		prev = &path;
+		while (*prev)
+			prev = &(*prev)->next;
 
-/* Create duplicate HA link list */
-/*  Used in chan_sip2 templates */
-struct cw_ha *cw_duplicate_ha_list(struct cw_ha *original)
-{
-	struct cw_ha *start=original;
-	struct cw_ha *ret = NULL;
-	struct cw_ha *ha,*prev=NULL;
+		for (addr = addrs; addr; addr = addr->ai_next) {
+			struct cw_ha *ha;
 
-	while (start) {
-		ha = cw_duplicate_ha(start);  /* Create copy of this object */
-		if (prev)
-			prev->next = ha;		/* Link previous to this object */
+			if ((ha = malloc(sizeof(*ha) - sizeof(ha->addr) + addr->ai_addrlen))) {
+				ha->sense = (sense[0] == 'p' || sense[0] == 'P' ? CW_SENSE_ALLOW : CW_SENSE_DENY);
+				ha->masklen = masklen;
+				ha->next = NULL;
+				memcpy(&ha->addr, addr->ai_addr, addr->ai_addrlen);
+				*prev = ha;
 
-		if (!ret) 
-			ret = ha;		/* Save starting point */
-
-		start = start->next;		/* Go to next object */
-		prev = ha;			/* Save pointer to this object */
-	}
-	return ret;    			/* Return start of list */
-}
-
-struct cw_ha *cw_append_ha(const char *sense, const char *stuff, struct cw_ha *path)
-{
-	char tmp[256];
-	struct cw_ha *ha = malloc(sizeof(struct cw_ha));
-	const char *nm = "255.255.255.255";
-	char *p;
-	struct cw_ha *prev = NULL;
-	struct cw_ha *ret;
-	int x, z;
-	unsigned int y;
-
-	ret = path;
-	while (path) {
-		prev = path;
-		path = path->next;
-	}
-	if (ha) {
-		cw_copy_string(tmp, stuff, sizeof(tmp));
-		p = strchr(tmp, '/');
-		if (!p) {
-			nm = "255.255.255.255";
-		} else {
-			*p = '\0';
-			nm = p + 1;
-		}
-		if (!strchr(nm, '.')) {
-			if ((sscanf(nm, "%d", &x) == 1) && (x >= 0) && (x <= 32)) {
-				y = 0;
-				for (z=0;z<x;z++) {
-					y >>= 1;
-					y |= 0x80000000;
+				if (option_debug) {
+					cw_dynstr_reset(&ds);
+					cw_address_print(&ds, addr->ai_addr, masklen, ":%hu");
+					cw_log(CW_LOG_DEBUG, "%s (%s) appended to acl\n", ds.data, spec);
 				}
-				ha->netmask.s_addr = htonl(y);
 			}
-		} else if (!inet_aton(nm, &ha->netmask)) {
-			cw_log(CW_LOG_WARNING, "%s is not a valid netmask\n", nm);
-			free(ha);
-			return ret;
 		}
-		if (!inet_aton(tmp, &ha->netaddr)) {
-			cw_log(CW_LOG_WARNING, "%s is not a valid IP\n", tmp);
-			free(ha);
-			return ret;
-		}
-		ha->netaddr.s_addr &= ha->netmask.s_addr;
-		if (!strncasecmp(sense, "p", 1)) {
-			ha->sense = CW_SENSE_ALLOW;
-		} else {
-			ha->sense = CW_SENSE_DENY;
-		}
-		ha->next = NULL;
-		if (prev) {
-			prev->next = ha;
-		} else {
-			ret = ha;
-		}
-	}
-	cw_log(CW_LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
-	return ret;
+
+		freeaddrinfo(addrs);
+	} else
+		cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
+
+	return path;
 }
 
-int cw_apply_ha(struct cw_ha *ha, struct sockaddr_in *sin)
-{
-	/* Start optimistic */
-	int res = CW_SENSE_ALLOW;
-	while (ha) {
-		char iabuf[INET_ADDRSTRLEN];
-		char iabuf2[INET_ADDRSTRLEN];
 
-		/* For each rule, if this address and the netmask = the net address
-		   apply the current rule */
-		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
+int cw_apply_ha(struct cw_ha *ha, struct sockaddr *addr)
+{
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	int debug = (option_debug > 5);
+	int res = CW_SENSE_ALLOW;
+
+	if (debug) {
+		cw_address_print(&ds, addr, -1, ":%hu");
+		cw_dynstr_printf(&ds, " with ");
+	}
+
+	while (ha) {
+		/* For each rule, if this address and the netmask = the net address apply the current rule */
+		if (!cw_address_cmp(addr, &ha->addr, ha->masklen, 1))
 			res = ha->sense;
-		/* DEBUG */
-                if (option_debug > 5)
-		cw_log(CW_LOG_DEBUG,
-			"##### Testing %s with %s. Result %d\n",
-			cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
-			cw_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr),
-			res
-		);
+
+		if (debug) {
+			size_t mark = ds.used;
+
+			cw_address_print(&ds, &ha->addr, ha->masklen, ":%hu");
+
+			cw_log(CW_LOG_DEBUG, "##### Testing %s. Result %d\n", ds.data, res);
+
+			cw_dynstr_truncate(&ds, mark);
+		}
+
 		ha = ha->next;
 	}
+
+	cw_dynstr_free(&ds);
 	return res;
 }
+
+
+void cw_print_ha(struct cw_dynstr *ds_p, struct cw_ha *ha)
+{
+	int first = 1;
+
+	while (ha) {
+		cw_dynstr_tprintf(ds_p, 2,
+			cw_fmtval("%s", (!first ? ", " : "")),
+			cw_fmtval("%s ", (ha->sense == CW_SENSE_ALLOW ? "permit" : "deny"))
+		);
+		cw_address_print(ds_p, &ha->addr, ha->masklen, ":%hu");
+
+		first = 0;
+		ha = ha->next;
+	}
+}
+
 
 int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service)
 {

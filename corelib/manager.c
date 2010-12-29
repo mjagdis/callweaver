@@ -468,7 +468,7 @@ static int listener_print(struct cw_object *obj, void *data)
 
 	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING)) {
 		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state]);
-		cw_address_print(args->ds_p, &conn->addr, ":%hu");
+		cw_address_print(args->ds_p, &conn->addr, -1, ":%hu");
 		cw_dynstr_printf(args->ds_p, "\n");
 	}
 
@@ -657,7 +657,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 					ret = 0;
 
 					if (ha) {
-						if (sess->addr.sa_family != AF_INET || !cw_apply_ha(ha, (struct sockaddr_in *)&sess->addr)) {
+						if (sess->addr.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr)) {
 							cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
 							ret = -1;
 						}
@@ -1745,7 +1745,7 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct mansession *sess = NULL;
 
-	cw_address_print(&ds, addr, ":%hu");
+	cw_address_print(&ds, addr, -1, ":%hu");
 	if (ds.error)
 		goto out;
 
@@ -2176,14 +2176,14 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 		};
 		int err;
 
-		if ((err = cw_getaddrinfo(spec, &hints, &addrs)))
+		if ((err = cw_getaddrinfo(spec, &hints, &addrs, NULL)))
 			cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
 	}
 
 	if (!err) {
 		for (addr = addrs; addr; addr = addr->ai_next) {
 			cw_dynstr_reset(&ds);
-			cw_address_print(&ds, addr->ai_addr, ":%hu");
+			cw_address_print(&ds, addr->ai_addr, -1, ":%hu");
 
 			if (!ds.error && (pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
 				cw_object_init(pvt, NULL, 1);

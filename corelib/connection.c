@@ -50,7 +50,7 @@ const char *cw_connection_state_name[] = {
 };
 
 
-int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res)
+int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res, int *masklen)
 {
 	char *node = strdupa(spec);
 	const char *service = "0";
@@ -94,11 +94,35 @@ int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrin
 		}
 	}
 
-	return getaddrinfo(node, service, hints, res);
+	if (masklen) {
+		*masklen = -1;
+		if ((p = strrchr(node, '/'))) {
+			if (!strchr(p + 1, '.')) {
+				char *q;
+
+				*masklen = strtoul(p + 1, &q, 10);
+				if (*q == '\0')
+					*p = '\0';
+			} else {
+				struct in_addr m;
+
+				if (inet_aton(p + 1, &m)) {
+					*p = '\0';
+					*masklen = 0;
+					while (m.s_addr) {
+						m.s_addr &= m.s_addr - 1;
+						(*masklen)++;
+					}
+				}
+			}
+		}
+	}
+
+	return getaddrinfo((node[0] ? node : NULL), service, hints, res);
 }
 
 
-void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const char *portfmt)
+void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, int masklen, const char *portfmt)
 {
 	switch (addr->sa_family) {
 		case AF_INET: {
@@ -109,9 +133,13 @@ void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const
 			if (!ds_p->error) {
 				inet_ntop(sin->sin_family, &sin->sin_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
 				ds_p->used += strlen(&ds_p->data[ds_p->used]);
+
+				if (masklen >= 0 && masklen < sizeof(sin->sin_addr) * 8)
+					cw_dynstr_printf(ds_p, "/%d", masklen);
+
+				if (portfmt && sin->sin_port)
+					cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin_port));
 			}
-			if (portfmt && sin->sin_port)
-				cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin_port));
 			break;
 		}
 
@@ -125,11 +153,15 @@ void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, const
 			if (!ds_p->error) {
 				inet_ntop(sin->sin6_family, &sin->sin6_addr, &ds_p->data[ds_p->used], ds_p->size - ds_p->used);
 				ds_p->used += strlen(&ds_p->data[ds_p->used]);
-			}
-			if (sin->sin6_port && portfmt) {
-				if (portfmt[0] == ':')
-					cw_dynstr_printf(ds_p, "]");
-				cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin6_port));
+
+				if (masklen >= 0 && masklen < sizeof(sin->sin6_addr) * 8)
+					cw_dynstr_printf(ds_p, "/%d", masklen);
+
+				if (sin->sin6_port && portfmt) {
+					if (portfmt[0] == ':')
+						cw_dynstr_printf(ds_p, "]");
+					cw_dynstr_printf(ds_p, portfmt, ntohs(sin->sin6_port));
+				}
 			}
 			break;
 		}
@@ -200,7 +232,21 @@ unsigned int cw_address_hash(const struct sockaddr *addr, int withport)
 }
 
 
-int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withport)
+static int memcmpbits(const void *a, const void *b, size_t nbits)
+{
+	unsigned int filled = nbits / 8;
+	int ret;
+
+	if (unlikely(!(ret = memcmp(a, b, filled)))) {
+		unsigned char m = 0xff << (8 - (nbits % 8));
+		ret = (int)(((const unsigned char *)a)[filled] & m) - (int)(((const unsigned char *)b)[filled] & m);
+	}
+
+	return ret;
+}
+
+
+int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int masklen, int withport)
 {
 	int ret;
 
@@ -209,7 +255,7 @@ int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withp
 			case AF_INET: {
 				struct sockaddr_in *sa = (struct sockaddr_in *)a;
 				struct sockaddr_in *sb = (struct sockaddr_in *)b;
-				if (!(ret = memcmp(&sa->sin_addr, &sb->sin_addr, sizeof(sa->sin_addr))) && withport)
+				if (!(ret = memcmpbits(&sa->sin_addr, &sb->sin_addr, (masklen < 0 || masklen >= sizeof(sa->sin_addr) * 8 ? sizeof(sa->sin_addr) * 8 : masklen))) && withport && sa->sin_port && sb->sin_port)
 					ret = memcmp(&sa->sin_port, &sb->sin_port, sizeof(sa->sin_port));
 				break;
 			}
@@ -217,7 +263,7 @@ int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int withp
 			case AF_INET6: {
 				struct sockaddr_in6 *sa = (struct sockaddr_in6 *)a;
 				struct sockaddr_in6 *sb = (struct sockaddr_in6 *)b;
-				if (!(ret = memcmp(&sa->sin6_addr, &sb->sin6_addr, sizeof(sa->sin6_addr))) && withport)
+				if (!(ret = memcmpbits(&sa->sin6_addr, &sb->sin6_addr, (masklen < 0 || masklen >= sizeof(sa->sin6_addr) * 8 ? sizeof(sa->sin6_addr) * 8 : masklen))) && withport && sa->sin6_port && sb->sin6_port)
 					ret = memcmp(&sa->sin6_port, &sb->sin6_port, sizeof(sa->sin6_port));
 				break;
 			}
@@ -247,13 +293,13 @@ static int cw_connection_qsort_by_addr(const void *a, const void *b)
 	const struct cw_connection *conn_a = container_of(*objp_a, struct cw_connection, obj);
 	const struct cw_connection *conn_b = container_of(*objp_b, struct cw_connection, obj);
 
-	return cw_address_cmp(&conn_a->addr, &conn_b->addr, 1);
+	return cw_address_cmp(&conn_a->addr, &conn_b->addr, -1, 1);
 }
 
 static int cw_connection_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
-	return cw_address_cmp(&conn->addr, pattern, 1);
+	return cw_address_cmp(&conn->addr, pattern, -1, 1);
 }
 
 struct cw_registry cw_connection_registry = {

@@ -1801,7 +1801,7 @@ static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct si
     struct sockaddr_in theirs;
     theirs.sin_addr = *them;
 
-    if ((localaddr && cw_apply_ha(localaddr, &theirs))
+    if ((localaddr && cw_apply_ha(localaddr, (struct sockaddr *)&theirs))
         &&
         (rfc3489_active || externip.sin_addr.s_addr))
     {
@@ -9056,7 +9056,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     cw_copy_string(p->exten, name, sizeof(p->exten));
     build_contact(p);
 
-    if ((peer = find_peer(name, NULL, 1)) && !cw_apply_ha(peer->ha, sin))
+    if ((peer = find_peer(name, NULL, 1)) && !cw_apply_ha(peer->ha, (struct sockaddr *)sin))
     {
         cw_object_put(peer);
 	peer = NULL;
@@ -9772,7 +9772,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
 
     /* Find user based on user name in the from header */
 
-    if (user && cw_apply_ha(user->ha, sin))
+    if (user && cw_apply_ha(user->ha, (struct sockaddr *)sin))
     {
         cw_copy_flags(p, user, SIP_FLAGS_TO_COPY);
         /* copy channel vars */
@@ -10344,6 +10344,7 @@ static int sip_show_peers(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 
 struct manager_sip_show_peers_args {
+	struct cw_dynstr ds;
 	struct mansession *sess;
 	const struct message *req;
 	int total;
@@ -10356,7 +10357,7 @@ static int manager_sip_show_peers_one(struct cw_object *obj, void *data)
 	struct manager_sip_show_peers_args *args = data;
 	struct cw_manager_message *msg = NULL;
 
-	cw_manager_msg(&msg, 11,
+	cw_manager_msg(&msg, 10,
 		cw_msg_tuple("Event",          "%s",   "PeerEntry"),
 		cw_msg_tuple("ChannelType",    "%s",   "SIP"),
 		cw_msg_tuple("ObjectName",     "%s",   peer->name),
@@ -10365,10 +10366,15 @@ static int manager_sip_show_peers_one(struct cw_object *obj, void *data)
 		cw_msg_tuple("IPport",         "%d",   ntohs(peer->addr.sin_port)),
 		cw_msg_tuple("Dynamic",        "%s",   (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "yes" : "no")),
 		cw_msg_tuple("Natsupport",     "%s",   ((cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no")),
-		cw_msg_tuple("ACL",            "%s",   (peer->ha ? "yes" : "no")),
 		cw_msg_tuple("Status",         "%s",   peer_status(peer)),
 		cw_msg_tuple("RTT",            "%dms", peer->timer_t1)
 	);
+
+	if (msg) {
+		cw_print_ha(&args->ds, peer->ha);
+		cw_manager_msg(&msg, 1, cw_msg_tuple("ACL", "%s", args->ds.data));
+		cw_dynstr_reset(&args->ds);
+	}
 
 	args->total++;
 
@@ -10381,6 +10387,7 @@ static int manager_sip_show_peers_one(struct cw_object *obj, void *data)
 static struct cw_manager_message *manager_sip_show_peers(struct mansession *sess, const struct message *req)
 {
 	struct manager_sip_show_peers_args args = {
+		.ds = CW_DYNSTR_INIT,
 		.sess = sess,
 		.req = req,
 		.total = 0,
@@ -10394,6 +10401,8 @@ static struct cw_manager_message *manager_sip_show_peers(struct mansession *sess
 			cw_msg_tuple("Event", "%s", "PeerListComplete"),
 			cw_msg_tuple("ListItems", "%d", args.total)
 		);
+
+		cw_dynstr_free(&args.ds);
 	}
 
 	return msg;
@@ -10673,7 +10682,7 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
     peer = find_peer(argv[3], NULL, load_realtime);
     if (peer)
     {
-        cw_dynstr_tprintf(ds_p, 42,
+        cw_dynstr_tprintf(ds_p, 41,
             cw_fmtval("\n\n"),
             cw_fmtval("  * Name           : %s\n", peer->name),
             cw_fmtval("  Secret           : %s\n", (cw_strlen_zero(peer->secret) ? "<Not set>" : "<Set>")),
@@ -10697,7 +10706,6 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
             cw_fmtval("  Expire           : %ld\n", cw_sched_when(sched, peer->expire)),
             cw_fmtval("  Insecure         : %s\n", insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
             cw_fmtval("  Nat              : %s\n", nat2str(cw_test_flag(peer, SIP_NAT))),
-            cw_fmtval("  ACL              : %s\n", (peer->ha?"Yes":"No")),
             cw_fmtval("  CanReinvite      : %c\n", (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
             cw_fmtval("  PromiscRedir     : %c\n", (cw_test_flag(peer, SIP_PROMISCREDIR) ? 'Y' : 'N')),
             cw_fmtval("  User=Phone       : %c\n", (cw_test_flag(peer, SIP_USEREQPHONE) ? 'Y' : 'N')),
@@ -10719,6 +10727,9 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 	);
 
         cw_getformatname_multiple(ds_p, peer->capability);
+
+        cw_dynstr_printf(ds_p, "\n  ACL              : ");
+        cw_print_ha(ds_p, peer->ha);
 
         cw_dynstr_printf(ds_p, "\n  Codec Order      : (");
         print_codec_to_cli(ds_p, &peer->prefs);
@@ -10768,7 +10779,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 	char cbuf[256];
 	char iabuf1[INET_ADDRSTRLEN];
 	char iabuf2[INET_ADDRSTRLEN];
-	struct cw_dynstr codec_buf = CW_DYNSTR_INIT;
+	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct sip_peer *peer;
 	struct sip_auth *auth;
 	struct cw_codec_pref *pref;
@@ -10782,7 +10793,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 	if (!cw_strlen_zero(peer_s)) {
 		if ((peer = find_peer(peer_s, NULL, 0))) {
 			if ((msg = cw_manager_response("Success", NULL))) {
-				cw_manager_msg(&msg, 38,
+				cw_manager_msg(&msg, 37,
 					cw_msg_tuple("Channeltype",       "%s",    "SIP"),
 					cw_msg_tuple("ObjectName",        "%s",    peer->name),
 					cw_msg_tuple("ChanObjectType",    "%s",    "peer"),
@@ -10805,7 +10816,6 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 					cw_msg_tuple("RegExpire",         "%ld"  , cw_sched_when(sched, peer->expire)),
 					cw_msg_tuple("SIP-AuthInsecure",  "%s",    insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
 					cw_msg_tuple("SIP-NatSupport",    "%s",    nat2str(cw_test_flag(peer, SIP_NAT))),
-					cw_msg_tuple("ACL",               "%c",    (peer->ha ? 'Y' : 'N')),
 					cw_msg_tuple("SIP-CanReinvite",   "%c",    (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
 					cw_msg_tuple("SIP-PromiscRedir",  "%c",    (cw_test_flag(peer, SIP_PROMISCREDIR) ? 'Y' : 'N')),
 					cw_msg_tuple("SIP-UserPhone",     "%c",    (cw_test_flag(peer, SIP_USEREQPHONE) ? 'Y' : 'N')),
@@ -10824,9 +10834,15 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 				);
 
 				if (msg) {
-					cw_getformatname_multiple(&codec_buf, peer->capability);
-					cw_manager_msg(&msg, 1, cw_msg_tuple("Codecs", "%s", codec_buf.data));
-					cw_dynstr_reset(&codec_buf);
+					cw_print_ha(&ds, peer->ha);
+					cw_manager_msg(&msg, 1, cw_msg_tuple("ACL", "%s", ds.data));
+					cw_dynstr_reset(&ds);
+				}
+
+				if (msg) {
+					cw_getformatname_multiple(&ds, peer->capability);
+					cw_manager_msg(&msg, 1, cw_msg_tuple("Codecs", "%s", ds.data));
+					cw_dynstr_reset(&ds);
 				}
 
 				if (msg) {
@@ -10834,13 +10850,13 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 					for (x = 0;  x < 32;  x++) {
 						if (!(codec = cw_codec_pref_index(pref, x)))
 							break;
-						cw_dynstr_printf(&codec_buf, ",%s", cw_getformatname(codec));
+						cw_dynstr_printf(&ds, ",%s", cw_getformatname(codec));
 					}
 
-					cw_manager_msg(&msg, 1, cw_msg_tuple("CodecOrder", "%s", codec_buf.data));
+					cw_manager_msg(&msg, 1, cw_msg_tuple("CodecOrder", "%s", ds.data));
 				}
 
-				cw_dynstr_free(&codec_buf);
+				cw_dynstr_free(&ds);
 
 				if (msg) {
 					for (auth = peer->auth; msg && auth; auth = auth->next) {
@@ -10884,7 +10900,7 @@ static int sip_show_user(struct cw_dynstr *ds_p, int argc, char *argv[])
     user = find_user(argv[3], load_realtime);
     if (user)
     {
-        cw_dynstr_tprintf(ds_p, 15,
+        cw_dynstr_tprintf(ds_p, 13,
             cw_fmtval("\n\n"),
             cw_fmtval("  * Name       : %s\n", user->name),
             cw_fmtval("  Secret       : %s\n", cw_strlen_zero(user->secret)?"<Not set>":"<Set>"),
@@ -10897,11 +10913,13 @@ static int sip_show_user(struct cw_dynstr *ds_p, int argc, char *argv[])
             cw_fmtval("  Call limit   : %d\n", user->call_limit),
             cw_fmtval("  Callgroup    : %s\n", cw_print_group(callgroup, sizeof(callgroup), user->callgroup)),
             cw_fmtval("  Pickupgroup  : %s\n", cw_print_group(pickupgroup, sizeof(pickupgroup), user->pickupgroup)),
-            cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>")),
-            cw_fmtval("  ACL          : %s\n", (user->ha?"Yes":"No")),
-            cw_fmtval("  Codec Order  : (")
+            cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"))
 	);
 
+        cw_dynstr_printf(ds_p, "  ACL          : ");
+        cw_print_ha(ds_p, user->ha);
+
+        cw_dynstr_printf(ds_p, "\n  Codec Order  : (");
         pref = &user->prefs;
         for (x = 0;  x < 32;  x++)
         {
@@ -10912,8 +10930,6 @@ static int sip_show_user(struct cw_dynstr *ds_p, int argc, char *argv[])
             if (x < 31 && cw_codec_pref_index(pref,x+1))
                 cw_dynstr_printf(ds_p, ",");
         }
-        if (!x)
-            cw_dynstr_printf(ds_p, "none");
         cw_dynstr_printf(ds_p, ")\n");
 
         if (user->chanvars)

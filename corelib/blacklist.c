@@ -89,7 +89,7 @@ static int blacklist_qsort_compare_by_addr(const void *a, const void *b)
 	const struct cw_blacklist_entry *entry_a = container_of(*objp_a, struct cw_blacklist_entry, obj);
 	const struct cw_blacklist_entry *entry_b = container_of(*objp_b, struct cw_blacklist_entry, obj);
 
-	return cw_address_cmp(&entry_a->addr, &entry_b->addr, 0);
+	return cw_address_cmp(&entry_a->addr, &entry_b->addr, -1, 0);
 }
 
 
@@ -98,7 +98,7 @@ static int blacklist_object_match(struct cw_object *obj, const void *pattern)
 	const struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
 	const struct sockaddr *addr = pattern;
 
-	return !cw_address_cmp(&entry->addr, addr, 0);
+	return !cw_address_cmp(&entry->addr, addr, -1, 0);
 }
 
 
@@ -128,7 +128,7 @@ static int blacklist_entry_remove(void *data)
 
 	entry->expire = -1;
 
-	cw_address_print(&ds, &entry->addr, NULL);
+	cw_address_print(&ds, &entry->addr, -1, NULL);
 
 	if (!ds.error) {
 		cw_log(CW_LOG_NOTICE, "Blacklist of %s removed\n", ds.data);
@@ -213,7 +213,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 	if (entry && mode != BLACKLIST_DELETE) {
 		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-		cw_address_print(&ds, addr, NULL);
+		cw_address_print(&ds, addr, -1, NULL);
 
 		if (!ds.error) {
 			if (entry->duration) {
@@ -352,7 +352,7 @@ static int complete_blacklist_entries_one(struct cw_object *obj, void *data)
 	struct complete_blacklist_entries_args *args = data;
 	size_t mark = args->ds_p->used;
 
-	cw_address_print(args->ds_p, &entry->addr, NULL);
+	cw_address_print(args->ds_p, &entry->addr, -1, NULL);
 
 	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len))
 		cw_dynstr_printf(args->ds_p, "\n");
@@ -479,7 +479,7 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 	struct blacklist_show_args *args = data;
 	size_t mark = args->ds_p->used;
 
-	cw_address_print(args->ds_p, &entry->addr, NULL);
+	cw_address_print(args->ds_p, &entry->addr, -1, NULL);
 
 	if (!args->pattern || !strncmp(&args->ds_p->data[mark], args->pattern, args->pattern_len)) {
 		int d = 41 - (args->ds_p->used - mark);
