@@ -310,7 +310,7 @@ struct iax2_user {
 	char cid_num[CW_MAX_EXTENSION];
 	char cid_name[CW_MAX_EXTENSION];
 	struct cw_codec_pref prefs;
-	struct cw_ha *ha;
+	struct cw_acl *acl;
 	struct iax2_context *contexts;
 	struct iax2_user *next;
 	struct cw_variable *vars;
@@ -360,7 +360,7 @@ struct iax2_peer {
 	int historicms;					/*!< How long recent average responses took */
 	int smoothing;					/*!< Sample over how many units to determine historic ms */
 	
-	struct cw_ha *ha;
+	struct cw_acl *acl;
 	struct iax2_peer *next;
 };
 
@@ -1560,7 +1560,7 @@ static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 			cw_fmtval("  Dynamic      : %s\n", cw_test_flag(peer, IAX_DYNAMIC) ? "Yes":"No"),
 			cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>")),
 			cw_fmtval("  Expire       : %d\n", peer->expire),
-			cw_fmtval("  ACL          : %s\n", (peer->ha?"Yes":"No")),
+			cw_fmtval("  ACL          : %s\n", (peer->acl?"Yes":"No")),
 			cw_fmtval("  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port)),
 			cw_fmtval("  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port)),
 			cw_fmtval("  Username     : %s\n", peer->username),
@@ -3529,7 +3529,7 @@ static int iax2_show_users(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 		cw_dynstr_printf(ds_p, FORMAT2, user->name, auth, user->authmethods,
 				user->contexts ? user->contexts->context : gcontext,
-				user->ha ? "Yes" : "No", pstr);
+				user->acl ? "Yes" : "No", pstr);
 
 	}
 	cw_mutex_unlock(&userl.lock);
@@ -4099,7 +4099,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	while(user) {
 		if ((cw_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
-			&& cw_apply_ha(user->ha, (struct sockaddr *)sin) 	/* Access is permitted from this IP */
+			&& cw_acl_check(user->acl, (struct sockaddr *)sin) 	/* Access is permitted from this IP */
 			&& (cw_strlen_zero(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
 			if (!cw_strlen_zero(iaxs[callno]->username)) {
@@ -4108,7 +4108,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				break;
 			} else if (cw_strlen_zero(user->secret) && cw_strlen_zero(user->inkeys)) {
 				/* No required authentication */
-				if (user->ha) {
+				if (user->acl) {
 					/* There was host authentication and we passed, bonus! */
 					if (bestscore < 4) {
 						bestscore = 4;
@@ -4122,7 +4122,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 					}
 				}
 			} else {
-				if (user->ha) {
+				if (user->acl) {
 					/* Authentication, but host access too, eh, it's something.. */
 					if (bestscore < 2) {
 						bestscore = 2;
@@ -4430,7 +4430,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		return -1;
 	}
 
-	if (!cw_apply_ha(p->ha, (struct sockaddr *)sin)) {
+	if (!cw_acl_check(p->acl, (struct sockaddr *)sin)) {
 		if (authdebug)
 			cw_log(CW_LOG_NOTICE, "Host %s denied access to register peer '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 		if (cw_test_flag(p, IAX_TEMPONLY))
@@ -7461,7 +7461,6 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 {
 	struct iax2_peer *peer;
 	struct iax2_peer *prev;
-	struct cw_ha *oldha = NULL;
 	int maskfound=0;
 	int found=0;
 	prev = NULL;
@@ -7479,8 +7478,8 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 		peer = NULL;	
 	if (peer) {
 		found++;
-		oldha = peer->ha;
-		peer->ha = NULL;
+		cw_acl_free(peer->acl);
+		peer->acl = NULL;
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
 		if (prev) {
 			prev->next = peer->next;
@@ -7570,9 +7569,11 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 				async_get_ip(peer, &peer->defaddr, strdup(v->value), NULL);
 			} else if (!strcasecmp(v->name, "sourceaddress")) {
 				peer_set_srcaddr(peer, v->value);
-			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
-				peer->ha = cw_append_ha(v->name, v->value, peer->ha);
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+				int err;
+
+				if ((err = cw_acl_add(&peer->acl, v->name, v->value)))
+					cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
@@ -7636,8 +7637,6 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
 	}
-	if (oldha)
-		cw_free_ha(oldha);
 	return peer;
 }
 
@@ -7646,7 +7645,6 @@ static struct iax2_user *build_user(const char *name, struct cw_variable *v, int
 {
 	struct iax2_user *prev, *user;
 	struct iax2_context *con, *conl = NULL;
-	struct cw_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
 	int oldcurauthreq = 0;
@@ -7669,9 +7667,9 @@ static struct iax2_user *build_user(const char *name, struct cw_variable *v, int
 	
 	if (user) {
 		oldcurauthreq = user->curauthreq;
-		oldha = user->ha;
+		cw_acl_free(user->acl);
+		user->acl = NULL;
 		oldcon = user->contexts;
-		user->ha = NULL;
 		user->contexts = NULL;
 		/* Already in the list, remove it and it will be added back (or FREE'd) */
 		if (prev) {
@@ -7707,9 +7705,11 @@ static struct iax2_user *build_user(const char *name, struct cw_variable *v, int
 						user->contexts = con;
 					conl = con;
 				}
-			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
-				user->ha = cw_append_ha(v->name, v->value, user->ha);
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+				int err;
+
+				if ((err = cw_acl_add(&user->acl, v->name, v->value)))
+					cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 			} else if (!strcasecmp(v->name, "setvar")) {
 				varname = cw_strdupa(v->value);
 				if (varname && (varval = strchr(varname,'='))) {
@@ -7792,8 +7792,6 @@ static struct iax2_user *build_user(const char *name, struct cw_variable *v, int
 		}
 		cw_clear_flag(user, IAX_DELME);
 	}
-	if (oldha)
-		cw_free_ha(oldha);
 	if (oldcon)
 		free_context(oldcon);
 	return user;
@@ -7848,7 +7846,7 @@ static void delete_users(void)
 
 static void destroy_user(struct iax2_user *user)
 {
-	cw_free_ha(user->ha);
+	cw_acl_free(user->acl);
 	free_context(user->contexts);
 	if(user->vars) {
 		cw_variables_destroy(user->vars);
@@ -7879,7 +7877,7 @@ static void prune_users(void)
 static void destroy_peer(struct iax2_peer *peer)
 {
 	int x;
-	cw_free_ha(peer->ha);
+	cw_acl_free(peer->acl);
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		cw_mutex_lock(&iaxsl[x]);
 		if (iaxs[x] && (iaxs[x]->peerpoke == peer)) {

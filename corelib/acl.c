@@ -69,11 +69,11 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/lock.h"
 #include "callweaver/srv.h"
 
-struct cw_ha {
+struct cw_acl {
 	/* Host access rule */
 	int sense;
 	int masklen;
-	struct cw_ha *next;
+	struct cw_acl *next;
 	/* This must be last */
 	struct sockaddr addr;
 };
@@ -87,18 +87,18 @@ struct my_ifreq {
 };
 
 
-void cw_free_ha(struct cw_ha *ha)
+void cw_acl_free(struct cw_acl *acl)
 {
-	struct cw_ha *hal;
+	struct cw_acl *ace;
 
-	while ((hal = ha)) {
-		ha = ha->next;
-		free(hal);
+	while ((ace = acl)) {
+		acl = ace->next;
+		free(ace);
 	}
 }
 
 
-struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *path)
+int cw_acl_add(struct cw_acl **acl_p, const char *sense, const char *spec)
 {
 	static const struct addrinfo hints = {
 		.ai_flags = AI_V4MAPPED | AI_PASSIVE | AI_IDN,
@@ -111,22 +111,17 @@ struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *pa
 
 	if (!(err = cw_getaddrinfo(spec, &hints, &addrs, &masklen))) {
 		struct cw_dynstr ds = CW_DYNSTR_INIT;
-		struct cw_ha **prev;
 		struct addrinfo *addr;
 
-		prev = &path;
-		while (*prev)
-			prev = &(*prev)->next;
-
 		for (addr = addrs; addr; addr = addr->ai_next) {
-			struct cw_ha *ha;
+			struct cw_acl *ace;
 
-			if ((ha = malloc(sizeof(*ha) - sizeof(ha->addr) + addr->ai_addrlen))) {
-				ha->sense = (sense[0] == 'p' || sense[0] == 'P' ? CW_SENSE_ALLOW : CW_SENSE_DENY);
-				ha->masklen = masklen;
-				ha->next = NULL;
-				memcpy(&ha->addr, addr->ai_addr, addr->ai_addrlen);
-				*prev = ha;
+			if ((ace = malloc(sizeof(*ace) - sizeof(ace->addr) + addr->ai_addrlen))) {
+				ace->sense = (sense[0] == 'p' || sense[0] == 'P');
+				ace->masklen = masklen;
+				ace->next = *acl_p;
+				memcpy(&ace->addr, addr->ai_addr, addr->ai_addrlen);
+				*acl_p = ace;
 
 				if (option_debug) {
 					cw_dynstr_reset(&ds);
@@ -137,60 +132,54 @@ struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *pa
 		}
 
 		freeaddrinfo(addrs);
-	} else
-		cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
+	}
 
-	return path;
+	return err;
 }
 
 
-int cw_apply_ha(struct cw_ha *ha, struct sockaddr *addr)
+int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
-	int debug = (option_debug > 5);
-	int res = CW_SENSE_ALLOW;
+	int res = -1;
 
-	if (debug) {
-		cw_address_print(&ds, addr, -1, ":%hu");
-		cw_dynstr_printf(&ds, " with ");
-	}
+	while (acl) {
+		if (!cw_address_cmp(addr, &acl->addr, acl->masklen, 1)) {
+			if (option_debug > 5) {
+				struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-	while (ha) {
-		/* For each rule, if this address and the netmask = the net address apply the current rule */
-		if (!cw_address_cmp(addr, &ha->addr, ha->masklen, 1))
-			res = ha->sense;
+				cw_address_print(&ds, addr, -1, ":%hu");
+				cw_dynstr_printf(&ds, " matches ");
+				cw_address_print(&ds, &acl->addr, acl->masklen, ":%hu");
 
-		if (debug) {
-			size_t mark = ds.used;
+				cw_log(CW_LOG_DEBUG, "%s => %s\n", ds.data, (acl->sense ? "permit" : "deny"));
 
-			cw_address_print(&ds, &ha->addr, ha->masklen, ":%hu");
+				cw_dynstr_free(&ds);
+			}
 
-			cw_log(CW_LOG_DEBUG, "##### Testing %s. Result %d\n", ds.data, res);
-
-			cw_dynstr_truncate(&ds, mark);
+			res = acl->sense;
+			break;
 		}
 
-		ha = ha->next;
+		acl = acl->next;
 	}
 
-	cw_dynstr_free(&ds);
 	return res;
 }
 
 
-void cw_print_ha(struct cw_dynstr *ds_p, struct cw_ha *ha)
+void cw_acl_print(struct cw_dynstr *ds_p, struct cw_acl *acl)
 {
 	int first = 1;
 
-	while (ha) {
+	while (acl) {
 		cw_dynstr_tprintf(ds_p, 2,
 			cw_fmtval("%s", (!first ? ", " : "")),
-			cw_fmtval("%s ", (ha->sense == CW_SENSE_ALLOW ? "permit" : "deny"))
+			cw_fmtval("%s ", (acl->sense ? "permit" : "deny"))
 		);
-		cw_address_print(ds_p, &ha->addr, ha->masklen, ":%hu");
+		cw_address_print(ds_p, &acl->addr, acl->masklen, ":%hu");
 
 		first = 0;
-		ha = ha->next;
+		acl = acl->next;
 	}
 }
 

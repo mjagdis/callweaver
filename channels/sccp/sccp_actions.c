@@ -30,14 +30,6 @@
 #endif
 
 
-struct cw_ha {
-        /* Host access rule */
-        struct in_addr netaddr;
-        struct in_addr netmask;
-        int sense;
-        struct cw_ha *next;
-};
-
 void sccp_handle_alarm(sccp_session_t * s, sccp_moo_t * r)
 {
 	CW_UNUSED(s);
@@ -69,7 +61,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 		r->msg.RegisterMessage.protocolVer);
 
 	/* ip address range check */
-	if (GLOB(ha) && !cw_apply_ha(GLOB(ha), (struct sockaddr *)&s->sin)) {
+	if (GLOB(ha) && !cw_acl_check(GLOB(ha), (struct sockaddr *)&s->sin)) {
 		REQ(r1, RegisterRejectMessage);
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Rejecting device: Ip address denied\n", r->msg.RegisterMessage.sId.deviceName);
 		cw_copy_string(r1->msg.RegisterRejectMessage.text, "Device ip not authorized", sizeof(r1->msg.RegisterRejectMessage.text));
@@ -84,7 +76,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 		cw_copy_string(r1->msg.RegisterRejectMessage.text, "Unknown Device", sizeof(r1->msg.RegisterRejectMessage.text));
 		sccp_session_send(s, r1);
 		return;
-	} else if (d->ha && !cw_apply_ha(d->ha, (struct sockaddr *)&s->sin)) {
+	} else if (d->ha && !cw_acl_check(d->ha, (struct sockaddr *)&s->sin)) {
 		i = 1;
 		permithost = d->permithost;
 		while (i && permithost) {
@@ -112,7 +104,7 @@ void sccp_handle_register(sccp_session_t * s, sccp_moo_t * r) {
 	cw_mutex_lock(&d->lock);
 
 	/* test the localnet to understand if the device is behind NAT */
-	if (GLOB(localaddr) && cw_apply_ha(GLOB(localaddr), (struct sockaddr *)&s->sin)) {
+	if (GLOB(localaddr) && cw_acl_check(GLOB(localaddr), (struct sockaddr *)&s->sin)) {
 		/* ok the device is natted */
 		sccp_log(1)(VERBOSE_PREFIX_3 "%s: Device is behind NAT. We will set externip or externhost for the RTP stream \n", r->msg.RegisterMessage.sId.deviceName);
 		d->nat = 1;

@@ -666,7 +666,6 @@ static int reload_config(void) {
 	char				iabuf[INET_ADDRSTRLEN];
 	struct cw_hostent	ahp;
 	struct hostent		*hp;
-	struct cw_ha 		*na;
 	sccp_hostname_t 	*permithost;
 	sccp_device_t		*d;
 	sccp_line_t			*l;
@@ -726,12 +725,15 @@ static int reload_config(void) {
 				memcpy(&GLOB(bindaddr.sin_addr), hp->h_addr, sizeof(GLOB(bindaddr.sin_addr)));
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-			GLOB(ha) = cw_append_ha(v->name, v->value, GLOB(ha));
+			int err;
+
+			if ((err = cw_acl_add(&GLOB(ha), v->name, v->value)))
+				cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 		} else if (!strcasecmp(v->name, "localnet")) {
-			if (!(na = cw_append_ha("d", v->value, GLOB(localaddr))))
-				cw_log(CW_LOG_WARNING, "Invalid localnet value: %s\n", v->value);
-			else
-				GLOB(localaddr) = na;
+			int err;
+
+			if ((err = cw_acl_add(&GLOB(localaddr), "d", v->value)))
+				cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = cw_gethostbyname(v->value, &ahp)))
 				cw_log(CW_LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
@@ -951,7 +953,10 @@ static int reload_config(void) {
 			speeddial_index = 1;
 			k_last = NULL;
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-			d->ha = cw_append_ha(v->name, v->value, d->ha);
+			int err;
+
+			if ((err = cw_acl_add(&d->ha, v->name, v->value)))
+				cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 		} else if (!strcasecmp(v->name, "permithost")) {
 			if ((permithost = malloc(sizeof(sccp_hostname_t)))) {
 				cw_copy_string(permithost->name, v->value, sizeof(permithost->name));
@@ -1402,10 +1407,10 @@ static int unload_module(void) {
 	}
 
 	if (GLOB(ha))
-		cw_free_ha(GLOB(ha));
+		cw_acl_free(GLOB(ha));
 
 	if (GLOB(localaddr))
-		cw_free_ha(GLOB(localaddr));
+		cw_acl_free(GLOB(localaddr));
 
 	free(sccp_globals);
 

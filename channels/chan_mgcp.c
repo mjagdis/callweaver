@@ -445,7 +445,7 @@ static struct mgcp_gateway {
 	int dynamic;
 	int expire;		/* XXX Should we ever expire dynamic registrations? XXX */
 	struct mgcp_endpoint *endpoints;
-	struct cw_ha *ha;
+	struct cw_acl *acl;
 /* SC: obsolete
 	time_t lastouttime;
 	int lastout;
@@ -3641,9 +3641,11 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 					}
 					return NULL;
 				}
-			} else if (!strcasecmp(v->name, "permit") ||
-				!strcasecmp(v->name, "deny")) {
-				gw->ha = cw_append_ha(v->name, v->value, gw->ha);
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
+				int err;
+
+				if ((err = cw_acl_add(&gw->acl, v->name, v->value)))
+					cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 			} else if (!strcasecmp(v->name, "port")) {
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {
@@ -4078,8 +4080,8 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
 
 static void destroy_gateway(struct mgcp_gateway *g)
 {
-	if (g->ha)
-		cw_free_ha(g->ha);
+	if (g->acl)
+		cw_acl_free(g->acl);
 
 	dump_queue(g, NULL);
 

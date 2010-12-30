@@ -641,14 +641,17 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 				/* This is a user */
 				if (!strcasecmp(cat, user)) {
 					struct cw_variable *v;
-					struct cw_ha *ha = NULL;
+					struct cw_acl *acl = NULL;
 					char *password = NULL;
 
 					for (v = cw_variable_browse(cfg, cat); v; v = v->next) {
 						if (!strcasecmp(v->name, "secret")) {
 							password = v->value;
 						} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
-							ha = cw_append_ha(v->name, v->value, ha);
+							int err;
+
+							if ((err = cw_acl_add(&acl, v->name, v->value)))
+								cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
 						} else if (!strcasecmp(v->name, "writetimeout")) {
 							cw_log(CW_LOG_WARNING, "writetimeout is deprecated - remove it from manager.conf\n");
 						}
@@ -656,13 +659,13 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 
 					ret = 0;
 
-					if (ha) {
-						if (sess->addr.sa_family != AF_INET || !cw_apply_ha(ha, &sess->addr)) {
-							cw_log(CW_LOG_NOTICE, "%s failed to pass IP ACL as '%s'\n", sess->name, user);
+					if (acl) {
+						if (!cw_acl_check(acl, &sess->addr)) {
+							cw_log(CW_LOG_NOTICE, "%s failed to pass ACL as '%s'\n", sess->name, user);
 							ret = -1;
 						}
 
-						cw_free_ha(ha);
+						cw_acl_free(acl);
 					}
 
 					if (!ret) {

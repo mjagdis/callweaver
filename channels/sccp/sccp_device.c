@@ -851,5 +851,5 @@ void sccp_dev_clean(sccp_device_t * d) {
 		free(permithost);
 	}
 	if (d->ha)
-		cw_free_ha(d->ha);
+		cw_acl_free(d->ha);
 }

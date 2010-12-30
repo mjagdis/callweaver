@@ -32,17 +32,16 @@ extern "C" {
 #include "callweaver/dynstr.h"
 #include "callweaver/io.h"
 
-#define CW_SENSE_DENY                  0
-#define CW_SENSE_ALLOW                 1
 
 /* Host based access control */
 
-struct cw_ha;
+struct cw_acl;
 
-extern CW_API_PUBLIC void cw_free_ha(struct cw_ha *ha);
-extern CW_API_PUBLIC struct cw_ha *cw_append_ha(const char *sense, const char *spec, struct cw_ha *path);
-extern CW_API_PUBLIC int cw_apply_ha(struct cw_ha *ha, struct sockaddr *addr);
-extern CW_API_PUBLIC void cw_print_ha(struct cw_dynstr *ds_p, struct cw_ha *ha);
+extern CW_API_PUBLIC void cw_acl_free(struct cw_acl *acl);
+extern CW_API_PUBLIC int cw_acl_add(struct cw_acl **acl_p, const char *sense, const char *spec);
+extern CW_API_PUBLIC int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr);
+extern CW_API_PUBLIC void cw_acl_print(struct cw_dynstr *ds_p, struct cw_acl *acl);
+
 extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
 #define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)
 extern CW_API_PUBLIC int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);

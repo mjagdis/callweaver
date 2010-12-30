@@ -334,7 +334,7 @@ struct sccp_device {
 /*	btnlist					*btntemplate; XXX remove */
 
 	/* permit or deny connections to the main socket */
-	struct cw_ha			*ha;
+	struct cw_acl			*ha;
 	/* permit registration to the hostname ip address */
 	sccp_hostname_t			*permithost;
 
@@ -435,9 +435,9 @@ struct sccp_global_vars {
 	struct sockaddr_in		bindaddr;
 	int						ourport;
 	/* permit or deny connections to the main socket */
-	struct cw_ha			*ha;
+	struct cw_acl			*ha;
 	/* localnet for NAT */
-	struct cw_ha			*localaddr;
+	struct cw_acl			*localaddr;
 	struct sockaddr_in		externip;
 	char 					externhost[MAXHOSTNAMELEN];
 	time_t 					externexpire;

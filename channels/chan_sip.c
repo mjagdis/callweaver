@@ -961,7 +961,7 @@ struct sip_user {
     int capability;            /*!< Codec capability */
     int inUse;            /*!< Number of calls in use */
     int call_limit;            /*!< Limit of concurrent calls */
-    struct cw_ha *ha;        /*!< ACL setting */
+    struct cw_acl *acl;        /*!< ACL setting */
     struct cw_variable *chanvars;    /*!< Variables to set for channel created by user */
 };
 
@@ -1019,7 +1019,7 @@ struct sip_peer {
     struct timeval ps;        /*!<  Ping send time */
     
     struct sockaddr_in defaddr;    /*!<  Default IP address, used until registration */
-    struct cw_ha *ha;        /*!<  Access control list */
+    struct cw_acl *acl;        /*!<  Access control list */
     struct cw_variable *chanvars;    /*!<  Variables to set for     channel created by user */
     int lastmsg;
 };
@@ -1090,7 +1090,7 @@ static struct sockaddr_in externip;
 static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
 static int externrefresh = 10;
-static struct cw_ha *localaddr;
+static struct cw_acl *localaddr;
 
 /* The list of manual NOTIFY types we know how to send */
 struct cw_config *notify_types;
@@ -1801,7 +1801,7 @@ static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct si
     struct sockaddr_in theirs;
     theirs.sin_addr = *them;
 
-    if ((localaddr && cw_apply_ha(localaddr, (struct sockaddr *)&theirs))
+    if ((localaddr && cw_acl_check(localaddr, (struct sockaddr *)&theirs))
         &&
         (rfc3489_active || externip.sin_addr.s_addr))
     {
@@ -2825,7 +2825,7 @@ static void sip_peer_release(struct cw_object *obj)
 	if (peer->chanvars)
 		cw_variables_destroy(peer->chanvars);
 
-	cw_free_ha(peer->ha);
+	cw_acl_free(peer->acl);
 
 	clear_realm_authentication(&peer->auth);
 	free(peer);
@@ -2956,7 +2956,7 @@ static void sip_user_release(struct cw_object *obj)
 {
 	struct sip_user *user = container_of(obj, struct sip_user, obj);
 
-	cw_free_ha(user->ha);
+	cw_acl_free(user->acl);
 
 	if (user->chanvars) {
 		cw_variables_destroy(user->chanvars);
@@ -9056,7 +9056,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     cw_copy_string(p->exten, name, sizeof(p->exten));
     build_contact(p);
 
-    if ((peer = find_peer(name, NULL, 1)) && !cw_apply_ha(peer->ha, (struct sockaddr *)sin))
+    if ((peer = find_peer(name, NULL, 1)) && !cw_acl_check(peer->acl, (struct sockaddr *)sin))
     {
         cw_object_put(peer);
 	peer = NULL;
@@ -9772,7 +9772,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
 
     /* Find user based on user name in the from header */
 
-    if (user && cw_apply_ha(user->ha, (struct sockaddr *)sin))
+    if (user && cw_acl_check(user->acl, (struct sockaddr *)sin))
     {
         cw_copy_flags(p, user, SIP_FLAGS_TO_COPY);
         /* copy channel vars */
@@ -10216,7 +10216,7 @@ static int sip_show_users_one(struct cw_object *obj, void *data)
 			user->secret,
 			user->accountcode,
 			user->context,
-			(user->ha ? "Yes" : "No"),
+			(user->acl ? "Yes" : "No"),
 			nat2str(cw_test_flag(user, SIP_NAT)));
 	}
 	return 0;
@@ -10294,7 +10294,7 @@ static int sip_show_peers_one(struct cw_object *obj, void *data)
 			peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
 			cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			(cw_test_flag(peer, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",    /* NAT=yes? */
-			peer->ha ? " A " : "   ",       /* permit/deny */
+			peer->acl ? " A " : "   ",       /* permit/deny */
 			ntohs(peer->addr.sin_port),
 			peer_status(peer), peer->timer_t1);
 
@@ -10371,7 +10371,7 @@ static int manager_sip_show_peers_one(struct cw_object *obj, void *data)
 	);
 
 	if (msg) {
-		cw_print_ha(&args->ds, peer->ha);
+		cw_acl_print(&args->ds, peer->acl);
 		cw_manager_msg(&msg, 1, cw_msg_tuple("ACL", "%s", args->ds.data));
 		cw_dynstr_reset(&args->ds);
 	}
@@ -10729,7 +10729,7 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
         cw_getformatname_multiple(ds_p, peer->capability);
 
         cw_dynstr_printf(ds_p, "\n  ACL              : ");
-        cw_print_ha(ds_p, peer->ha);
+        cw_acl_print(ds_p, peer->acl);
 
         cw_dynstr_printf(ds_p, "\n  Codec Order      : (");
         print_codec_to_cli(ds_p, &peer->prefs);
@@ -10834,7 +10834,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 				);
 
 				if (msg) {
-					cw_print_ha(&ds, peer->ha);
+					cw_acl_print(&ds, peer->acl);
 					cw_manager_msg(&msg, 1, cw_msg_tuple("ACL", "%s", ds.data));
 					cw_dynstr_reset(&ds);
 				}
@@ -10917,7 +10917,7 @@ static int sip_show_user(struct cw_dynstr *ds_p, int argc, char *argv[])
 	);
 
         cw_dynstr_printf(ds_p, "  ACL          : ");
-        cw_print_ha(ds_p, user->ha);
+        cw_acl_print(ds_p, user->acl);
 
         cw_dynstr_printf(ds_p, "\n  Codec Order  : (");
         pref = &user->prefs;
@@ -15831,12 +15831,11 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, cha
     return a;
 }
 
-/*! \brief  build_user: Initiate a SIP user structure from sip.conf */
+/*! \brief  build_user: Initialize a SIP user structure from sip.conf */
 static struct sip_user *build_user(const char *name, struct cw_variable *v, int realtime)
 {
     struct sip_user *user;
     int format;
-    struct cw_ha *oldha = NULL;
     char *varname = NULL, *varval = NULL;
     struct cw_variable *tmpvar = NULL;
     struct cw_flags userflags = {(0)};
@@ -15853,8 +15852,6 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
     user->obj.release = sip_user_release;
 
     cw_copy_string(user->name, name, sizeof(user->name));
-    oldha = user->ha;
-    user->ha = NULL;
     cw_copy_flags(user, &global_flags, SIP_FLAGS_TO_COPY);
     user->capability = global_capability;
     user->prefs = prefs;
@@ -15892,11 +15889,12 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
                 }
             }
         }
-        else if (!strcasecmp(v->name, "permit")
-                 ||
-                 !strcasecmp(v->name, "deny"))
+        else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny"))
         {
-            user->ha = cw_append_ha(v->name, v->value, user->ha);
+            int err;
+
+            if ((err = cw_acl_add(&user->acl, v->name, v->value)))
+                cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
         }
         else if (!strcasecmp(v->name, "secret"))
         {
@@ -15969,7 +15967,6 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
     }
 
     cw_copy_flags(user, &userflags, mask.flags);
-    cw_free_ha(oldha);
 
     return user;
 }
@@ -16051,7 +16048,6 @@ static int async_get_ip(struct sip_peer *peer, struct sockaddr_in *sin, const ch
 static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int realtime)
 {
     struct sip_peer *peer = NULL;
-    struct cw_ha *oldha = NULL;
     char *varname = NULL, *varval = NULL;
     struct cw_variable *tmpvar = NULL;
     struct cw_flags peerflags = { 0 };
@@ -16102,8 +16098,6 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     peer->rtpkeepalive = global_rtpkeepalive;
     peer->maxms = default_qualify;
     peer->prefs = prefs;
-    oldha = peer->ha;
-    peer->ha = NULL;
     cw_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
     peer->capability = global_capability;
     peer->timer_t2 = rfc_timer_t2;
@@ -16202,7 +16196,10 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
         }
         else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny"))
         {
-            peer->ha = cw_append_ha(v->name, v->value, peer->ha);
+            int err;
+
+            if ((err = cw_acl_add(&peer->acl, v->name, v->value)))
+                cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
         }
         else if (!strcasecmp(v->name, "port"))
         {
@@ -16367,8 +16364,6 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
 
     if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && !cw_test_flag(peer, SIP_REALTIME))
         reg_source_db(peer);
-
-    cw_free_ha(oldha);
 
     peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(0, peer->name), &peer->obj);
     if (addr_defined)
@@ -16707,12 +16702,10 @@ static int reload_config(void)
         }
         else if (!strcasecmp(v->name, "localnet"))
         {
-            struct cw_ha *na;
+            int err;
 
-            if (!(na = cw_append_ha("d", v->value, localaddr)))
-                cw_log(CW_LOG_WARNING, "Invalid localnet value: %s\n", v->value);
-            else
-                localaddr = na;
+            if ((err = cw_acl_add(&localaddr, "d", v->value)))
+                cw_log(CW_LOG_ERROR, "%s = %s: %s\n", v->name, v->value, gai_strerror(err));
         }
         else if (!strcasecmp(v->name, "localmask"))
         {
@@ -18120,7 +18113,7 @@ static void release_module(void)
 	}
 
 	/* Free memory for local network address mask */
-	cw_free_ha(localaddr);
+	cw_acl_free(localaddr);
 
 	sip_destroyall_registry();
 
