@@ -4099,7 +4099,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	while(user) {
 		if ((cw_strlen_zero(iaxs[callno]->username) ||				/* No username specified */
 			!strcmp(iaxs[callno]->username, user->name))	/* Or this username specified */
-			&& cw_acl_check(user->acl, (struct sockaddr *)sin) 	/* Access is permitted from this IP */
+			&& cw_acl_check(user->acl, (struct sockaddr *)sin, 1) 	/* Access is permitted from this IP */
 			&& (cw_strlen_zero(iaxs[callno]->context) ||			/* No context specified */
 			     apply_context(user->contexts, iaxs[callno]->context))) {			/* Context is permitted */
 			if (!cw_strlen_zero(iaxs[callno]->username)) {
@@ -4430,7 +4430,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		return -1;
 	}
 
-	if (!cw_acl_check(p->acl, (struct sockaddr *)sin)) {
+	if (!cw_acl_check(p->acl, (struct sockaddr *)sin, 1)) {
 		if (authdebug)
 			cw_log(CW_LOG_NOTICE, "Host %s denied access to register peer '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 		if (cw_test_flag(p, IAX_TEMPONLY))

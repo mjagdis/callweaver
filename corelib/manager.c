@@ -660,7 +660,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 					ret = 0;
 
 					if (acl) {
-						if (!cw_acl_check(acl, &sess->addr)) {
+						if (!cw_acl_check(acl, &sess->addr, 1)) {
 							cw_log(CW_LOG_NOTICE, "%s failed to pass ACL as '%s'\n", sess->name, user);
 							ret = -1;
 						}

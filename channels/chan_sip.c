@@ -560,10 +560,12 @@ static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
 
-#define SIP_DEBUG_CONFIG 1 << 0
-#define SIP_DEBUG_CONSOLE 1 << 1
 static int sipdebug = 0;
-static struct sockaddr_in debugaddr;
+
+static struct {
+	pthread_rwlock_t lock;
+	struct cw_acl *acl;
+} debugacl;
 
 static int tos = 0;
 
@@ -1671,21 +1673,19 @@ static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 }
 
 /*! \brief  sip_debug_test_addr: See if we pass debug IP filter */
-static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
+static inline int sip_debug_test_addr(struct sockaddr *addr)
 {
-    if (sipdebug == 0)
-        return 0;
-    if (debugaddr.sin_addr.s_addr)
-    {
-        if (((ntohs(debugaddr.sin_port) != 0)
-            &&
-            (debugaddr.sin_port != addr->sin_port))
-                || (debugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-        {
-            return 0;
-        }
-    }
-    return 1;
+	int res = 0;
+
+	while (pthread_rwlock_rdlock(&debugacl.lock) == EAGAIN)
+		usleep(1000);
+
+	if (unlikely(debugacl.acl))
+		res = cw_acl_check(debugacl.acl, addr, 0);
+
+	pthread_rwlock_unlock(&debugacl.lock);
+
+	return res;
 }
 
 /*! \brief  sip_is_nat_needed: Check if we need NAT or STUN */
@@ -1740,11 +1740,7 @@ static inline int sip_is_nat_needed(struct sip_pvt *p)
 /*! \brief  sip_debug_test_pvt: Test PVT for debugging output */
 static inline int sip_debug_test_pvt(struct sip_pvt *p) 
 {
-    if (sipdebug == 0)
-        return 0;
-    return sip_debug_test_addr((
-	    sip_is_nat_needed(p) ? &p->recv : &p->sa
-	));
+	return sip_debug_test_addr((struct sockaddr *)(sip_is_nat_needed(p) ? &p->recv : &p->sa));
 }
 
 
@@ -1801,7 +1797,7 @@ static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct si
     struct sockaddr_in theirs;
     theirs.sin_addr = *them;
 
-    if ((localaddr && cw_acl_check(localaddr, (struct sockaddr *)&theirs))
+    if ((localaddr && cw_acl_check(localaddr, (struct sockaddr *)&theirs, 1))
         &&
         (rfc3489_active || externip.sin_addr.s_addr))
     {
@@ -9056,7 +9052,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
     cw_copy_string(p->exten, name, sizeof(p->exten));
     build_contact(p);
 
-    if ((peer = find_peer(name, NULL, 1)) && !cw_acl_check(peer->acl, (struct sockaddr *)sin))
+    if ((peer = find_peer(name, NULL, 1)) && !cw_acl_check(peer->acl, (struct sockaddr *)sin, 1))
     {
         cw_object_put(peer);
 	peer = NULL;
@@ -9711,7 +9707,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
     int res = 0;
     char *t;
     char calleridname[50];
-    int debug=sip_debug_test_addr(sin);
+    int debug = sip_debug_test_addr((struct sockaddr *)sin);
     struct cw_variable *tmpvar = NULL, *v = NULL;
     char *uri2 = cw_strdupa(uri);
 
@@ -9772,7 +9768,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
 
     /* Find user based on user name in the from header */
 
-    if (user && cw_acl_check(user->acl, (struct sockaddr *)sin))
+    if (user && cw_acl_check(user->acl, (struct sockaddr *)sin, 1))
     {
         cw_copy_flags(p, user, SIP_FLAGS_TO_COPY);
         /* copy channel vars */
@@ -11658,83 +11654,81 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 /*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
 static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    struct hostent *hp;
-    struct cw_hostent ahp;
-    char iabuf[INET_ADDRSTRLEN];
-    int port = 0;
-    char *p, *arg;
+	int i;
 
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-    arg = argv[3];
-    p = strstr(arg, ":");
-    if (p)
-    {
-        *p = '\0';
-        p++;
-        port = atoi(p);
-    }
-    if ((hp = cw_gethostbyname(arg, &ahp)) == NULL)
-        return RESULT_SHOWUSAGE;
-    debugaddr.sin_family = AF_INET;
-    memcpy(&debugaddr.sin_addr, hp->h_addr, sizeof(debugaddr.sin_addr));
-    debugaddr.sin_port = htons(port);
-    if (port == 0)
-        cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr));
-    else
-        cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), port);
-    sipdebug |= SIP_DEBUG_CONSOLE;
-    return RESULT_SUCCESS;
+	pthread_rwlock_wrlock(&debugacl.lock);
+
+	for (i = 3; i < argc; i++) {
+		int err;
+
+		if ((err = cw_acl_add(&debugacl.acl, "p", argv[i])))
+			cw_dynstr_printf(ds_p, "%s: %s\n", argv[i], gai_strerror(err));
+	}
+
+	pthread_rwlock_unlock(&debugacl.lock);
+
+	return RESULT_SUCCESS;
 }
 
 /*! \brief  sip_do_debug_peer: Turn on SIP debugging with peer mask */
 static int sip_do_debug_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    struct sip_peer *peer;
-    char iabuf[INET_ADDRSTRLEN];
-    if (argc != 4)
-        return RESULT_SHOWUSAGE;
-    peer = find_peer(argv[3], NULL, 1);
-    if (peer)
-    {
-        if (peer->addr.sin_addr.s_addr)
-        {
-            debugaddr.sin_family = AF_INET;
-            memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
-            debugaddr.sin_port = peer->addr.sin_port;
-            cw_dynstr_printf(ds_p, "SIP Debugging Enabled for IP: %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
-            sipdebug |= SIP_DEBUG_CONSOLE;
-        }
-        else
-            cw_dynstr_printf(ds_p, "Unable to get IP address of peer '%s'\n", argv[3]);
-        cw_object_put(peer);
-    }
-    else
-        cw_dynstr_printf(ds_p, "No such peer '%s'\n", argv[3]);
-    return RESULT_SUCCESS;
+	int i;
+
+	pthread_rwlock_wrlock(&debugacl.lock);
+
+	for (i = 3; i < argc; i++) {
+		struct sip_peer *peer;
+
+		if ((peer = find_peer(argv[i], NULL, 1))) {
+			int err;
+
+			if ((err = cw_acl_add_addr(&debugacl.acl, "p", (struct sockaddr *)&peer->addr, sizeof(peer->addr), -1)))
+				cw_dynstr_printf(ds_p, "%s: %s\n", argv[i], gai_strerror(err));
+
+			cw_object_put(peer);
+		}
+	}
+
+	pthread_rwlock_unlock(&debugacl.lock);
+
+	return RESULT_SUCCESS;
+}
+
+
+/*! \brief  sip_do_debug_show: Show SIP debugging ACLs (CLI command) */
+static void sip_do_debug_show(struct cw_dynstr *ds_p)
+{
+	cw_dynstr_printf(ds_p, "Global debug is %s\nMessage debug ACLs:\n", (sipdebug ? "ON" : "OFF"));
+
+	while (pthread_rwlock_rdlock(&debugacl.lock) == EAGAIN)
+		usleep(1000);
+
+	cw_acl_print(ds_p, debugacl.acl);
+
+	pthread_rwlock_unlock(&debugacl.lock);
 }
 
 /*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
 static int sip_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    int oldsipdebug = sipdebug & SIP_DEBUG_CONSOLE;
-    if (argc != 2)
-    {
-        if (argc != 4) 
-            return RESULT_SHOWUSAGE;
-        else if (strncmp(argv[2], "ip\0", 3) == 0)
-            return sip_do_debug_ip(ds_p, argc, argv);
-        else if (strncmp(argv[2], "peer\0", 5) == 0)
-            return sip_do_debug_peer(ds_p, argc, argv);
-        else return RESULT_SHOWUSAGE;
-    }
-    sipdebug |= SIP_DEBUG_CONSOLE;
-    memset(&debugaddr, 0, sizeof(debugaddr));
-    if (oldsipdebug)
-        cw_dynstr_printf(ds_p, "SIP Debugging re-enabled\n");
-    else
-        cw_dynstr_printf(ds_p, "SIP Debugging enabled\n");
-    return RESULT_SUCCESS;
+	int res = RESULT_SHOWUSAGE;
+
+	if (argc == 2) {
+		sipdebug = 1;
+		cw_dynstr_printf(ds_p, "SIP Debugging enabled\n");
+		res = RESULT_SUCCESS;
+	} else if (argc == 3 && !strcmp(argv[2], "show")) {
+		sip_do_debug_show(ds_p);
+		res = RESULT_SUCCESS;
+	} else if (argc > 3) {
+		if (!strcmp(argv[2], "ip"))
+			res = sip_do_debug_ip(ds_p, argc, argv);
+		else if (!strcmp(argv[2], "peer"))
+			res = sip_do_debug_peer(ds_p, argc, argv);
+	}
+
+	return res;
 }
 
 /*! \brief  sip_notify: Send SIP notify to peer */
@@ -11833,14 +11827,25 @@ static int sip_no_history(struct cw_dynstr *ds_p, int argc, char *argv[])
 /*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
 static int sip_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    CW_UNUSED(argv);
+	int res = RESULT_SHOWUSAGE;
 
-    if (argc != 3)
-        return RESULT_SHOWUSAGE;
+	CW_UNUSED(argv);
 
-    sipdebug &= ~SIP_DEBUG_CONSOLE;
-    cw_dynstr_printf(ds_p, "SIP Debugging Disabled\n");
-    return RESULT_SUCCESS;
+	if (argc == 3) {
+		pthread_rwlock_wrlock(&debugacl.lock);
+
+		cw_acl_free(debugacl.acl);
+		debugacl.acl = NULL;
+
+		pthread_rwlock_unlock(&debugacl.lock);
+
+		sipdebug = 0;
+
+		cw_dynstr_printf(ds_p, "SIP Debugging disabled\n");
+		res = RESULT_SUCCESS;
+	}
+
+	return res;
 }
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, const char *header, enum sipmethod sipmethod, char *digest, int digest_len);
@@ -12119,7 +12124,8 @@ static const char show_reg_usage[] =
 
 static const char debug_usage[] =
 "Usage: sip debug\n"
-"       Enables dumping of SIP packets for debugging purposes\n\n"
+"       sip debug show\n"
+"       Shows the current SIP debugging state.\n\n"
 "       sip debug ip <host[:PORT]>\n"
 "       Enables dumping of SIP packets to and from host.\n\n"
 "       sip debug peer <peername>\n"
@@ -14992,7 +14998,7 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 			}
 		}
 	} else {
-		if (sip_debug_test_addr(&req->sa)) {
+		if (sip_debug_test_addr((struct sockaddr *)&req->sa)) {
 			cw_set_flag(req, SIP_PKT_DEBUG);
 			cw_verbose("\n<-- SIP read from %s:%d: \n%s---\n", cw_inet_ntoa(iabuf, sizeof(iabuf), req->sa.sin_addr), ntohs(req->sa.sin_port), req->data);
 		}
@@ -16408,7 +16414,6 @@ static int reload_config(void)
     memset(&localaddr, 0, sizeof(localaddr));
     memset(&externip, 0, sizeof(externip));
     memset(&prefs, 0 , sizeof(prefs));
-    sipdebug &= ~SIP_DEBUG_CONFIG;
 
     memset(&stunserver_ip, 0, sizeof(stunserver_ip));
     stunserver_ip.sin_family = AF_INET;
@@ -16672,8 +16677,7 @@ static int reload_config(void)
         }
         else if (!strcasecmp(v->name, "sipdebug"))
         {
-            if (cw_true(v->value))
-                sipdebug |= SIP_DEBUG_CONFIG;
+            sipdebug = cw_true(v->value);
         }
         else if (!strcasecmp(v->name, "dumphistory"))
         {
@@ -17906,6 +17910,12 @@ static struct cw_clicmd  my_clis[] = {
 	    .usage = debug_usage,
     },
     {
+	    .cmda = { "sip", "debug", "show", NULL },
+	    .handler = sip_do_debug,
+	    .summary = "Show SIP debugging state",
+	    .usage = debug_usage,
+    },
+    {
 	    .cmda = { "sip", "debug", "ip", NULL },
 	    .handler = sip_do_debug,
 	    .summary = "Enable SIP debugging on IP",
@@ -18016,6 +18026,8 @@ static int load_module(void)
     cw_registry_init(&peerbyaddr_registry, 1024);
     cw_registry_init(&userbyname_registry, 1024);
 
+    pthread_rwlock_init(&debugacl.lock, NULL);
+
     if ((sched = sched_context_create(1)) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
 
@@ -18122,6 +18134,8 @@ static void release_module(void)
 	close(sipsock);
 	cw_io_context_destroy(io);
 	sched_context_destroy(sched);
+
+	pthread_rwlock_destroy(&debugacl.lock);
 
 	cw_registry_destroy(&dialogue_registry);
 	cw_registry_destroy(&peerbyname_registry);

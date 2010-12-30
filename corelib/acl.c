@@ -62,6 +62,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/acl.h"
 #include "callweaver/connection.h"
+#include "callweaver/registry.h"
 #include "callweaver/logger.h"
 #include "callweaver/channel.h"
 #include "callweaver/options.h"
@@ -73,7 +74,7 @@ struct cw_acl {
 	/* Host access rule */
 	int sense;
 	int masklen;
-	struct cw_acl *next;
+	struct cw_list list;
 	/* This must be last */
 	struct sockaddr addr;
 };
@@ -91,10 +92,37 @@ void cw_acl_free(struct cw_acl *acl)
 {
 	struct cw_acl *ace;
 
-	while ((ace = acl)) {
-		acl = ace->next;
-		free(ace);
+	if ((ace = acl)) {
+		do {
+			struct cw_acl *tmp = ace;
+			ace = container_of(ace->list.next, struct cw_acl, list);
+			free(tmp);
+		} while (ace != acl);
 	}
+}
+
+
+int cw_acl_add_addr(struct cw_acl **acl_p, const char *sense, const struct sockaddr *addr, socklen_t addrlen, int masklen)
+{
+	struct cw_acl *ace;
+	int err = EAI_MEMORY;
+
+	if ((ace = malloc(sizeof(*ace) - sizeof(ace->addr) + addrlen))) {
+		ace->sense = (sense[0] == 'p' || sense[0] == 'P');
+		ace->masklen = masklen;
+		memcpy(&ace->addr, addr, addrlen);
+
+		if (*acl_p)
+			cw_list_add((*acl_p)->list.prev, &ace->list);
+		else {
+			cw_list_init(&ace->list);
+			*acl_p = ace;
+		}
+
+		err = 0;
+	}
+
+	return err;
 }
 
 
@@ -110,26 +138,10 @@ int cw_acl_add(struct cw_acl **acl_p, const char *sense, const char *spec)
 	int err, masklen;
 
 	if (!(err = cw_getaddrinfo(spec, &hints, &addrs, &masklen))) {
-		struct cw_dynstr ds = CW_DYNSTR_INIT;
 		struct addrinfo *addr;
 
-		for (addr = addrs; addr; addr = addr->ai_next) {
-			struct cw_acl *ace;
-
-			if ((ace = malloc(sizeof(*ace) - sizeof(ace->addr) + addr->ai_addrlen))) {
-				ace->sense = (sense[0] == 'p' || sense[0] == 'P');
-				ace->masklen = masklen;
-				ace->next = *acl_p;
-				memcpy(&ace->addr, addr->ai_addr, addr->ai_addrlen);
-				*acl_p = ace;
-
-				if (option_debug) {
-					cw_dynstr_reset(&ds);
-					cw_address_print(&ds, addr->ai_addr, masklen, ":%hu");
-					cw_log(CW_LOG_DEBUG, "%s (%s) appended to acl\n", ds.data, spec);
-				}
-			}
-		}
+		for (addr = addrs; addr; addr = addr->ai_next)
+			cw_acl_add_addr(acl_p, sense, addr->ai_addr, addr->ai_addrlen, masklen);
 
 		freeaddrinfo(addrs);
 	}
@@ -138,29 +150,34 @@ int cw_acl_add(struct cw_acl **acl_p, const char *sense, const char *spec)
 }
 
 
-int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr)
+int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr, int defsense)
 {
-	int res = -1;
+	int res = defsense;
 
-	while (acl) {
-		if (!cw_address_cmp(addr, &acl->addr, acl->masklen, 1)) {
-			if (option_debug > 5) {
-				struct cw_dynstr ds = CW_DYNSTR_INIT;
+	if (acl) {
+		struct cw_list *l = acl->list.prev;
+		do {
+			struct cw_acl *ace = container_of(l, struct cw_acl, list);
 
-				cw_address_print(&ds, addr, -1, ":%hu");
-				cw_dynstr_printf(&ds, " matches ");
-				cw_address_print(&ds, &acl->addr, acl->masklen, ":%hu");
+			if (!cw_address_cmp(addr, &ace->addr, ace->masklen, 1)) {
+				if (option_debug > 5) {
+					struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-				cw_log(CW_LOG_DEBUG, "%s => %s\n", ds.data, (acl->sense ? "permit" : "deny"));
+					cw_address_print(&ds, addr, -1, ":%hu");
+					cw_dynstr_printf(&ds, " matches ");
+					cw_address_print(&ds, &ace->addr, ace->masklen, ":%hu");
 
-				cw_dynstr_free(&ds);
+					cw_log(CW_LOG_DEBUG, "%s => %s\n", ds.data, (ace->sense ? "permit" : "deny"));
+
+					cw_dynstr_free(&ds);
+				}
+
+				res = ace->sense;
+				break;
 			}
 
-			res = acl->sense;
-			break;
-		}
-
-		acl = acl->next;
+			l = l->prev;
+		} while (l != acl->list.prev);
 	}
 
 	return res;
@@ -169,17 +186,21 @@ int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr)
 
 void cw_acl_print(struct cw_dynstr *ds_p, struct cw_acl *acl)
 {
+	struct cw_acl *ace;
 	int first = 1;
 
-	while (acl) {
-		cw_dynstr_tprintf(ds_p, 2,
-			cw_fmtval("%s", (!first ? ", " : "")),
-			cw_fmtval("%s ", (acl->sense ? "permit" : "deny"))
-		);
-		cw_address_print(ds_p, &acl->addr, acl->masklen, ":%hu");
+	if ((ace = acl)) {
+		do {
+			cw_dynstr_tprintf(ds_p, 2,
+				cw_fmtval("%s", (!first ? ", " : "")),
+				cw_fmtval("%s ", (ace->sense ? "permit" : "deny"))
+			);
+			cw_address_print(ds_p, &ace->addr, ace->masklen, ":%hu");
 
-		first = 0;
-		acl = acl->next;
+			first = 0;
+
+			ace = container_of(ace->list.next, struct cw_acl, list);
+		} while (ace != acl);
 	}
 }
 

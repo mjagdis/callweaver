@@ -38,8 +38,9 @@ extern "C" {
 struct cw_acl;
 
 extern CW_API_PUBLIC void cw_acl_free(struct cw_acl *acl);
+extern CW_API_PUBLIC int cw_acl_add_addr(struct cw_acl **acl_p, const char *sense, const struct sockaddr *addr, socklen_t addrlen, int masklen);
 extern CW_API_PUBLIC int cw_acl_add(struct cw_acl **acl_p, const char *sense, const char *spec);
-extern CW_API_PUBLIC int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr);
+extern CW_API_PUBLIC int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr, int defsense);
 extern CW_API_PUBLIC void cw_acl_print(struct cw_dynstr *ds_p, struct cw_acl *acl);
 
 extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
