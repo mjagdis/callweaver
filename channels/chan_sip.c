@@ -1110,7 +1110,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int send
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int duration);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
-static int transmit_message_with_text(struct sip_pvt *p, const char *text);
+static int transmit_message_with_text(struct sip_pvt *p, const char *mimetype, const char *disposition, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static struct sip_peer *temp_peer(const char *name);
@@ -2723,21 +2723,19 @@ static char *get_in_brackets(char *tmp)
 
 /*! \brief  sip_sendtext: Send SIP MESSAGE text within a call */
 /*      Called from PBX core text message functions */
-static int sip_sendtext(struct cw_channel *ast, const char *text)
+static int sip_sendtext(struct cw_channel *chan, const char *text)
 {
-    struct sip_pvt *p = ast->tech_pvt;
-    int debug=sip_debug_test_pvt(p);
+	struct sip_pvt *p = chan->tech_pvt;
+	int res = -1;
 
-    if (debug)
-        cw_verbose("Sending text %s on %s\n", text, ast->name);
-    if (!p)
-        return -1;
-    if (cw_strlen_zero(text))
-        return 0;
-    if (debug)
-        cw_verbose("Really sending text %s on %s\n", text, ast->name);
-    transmit_message_with_text(p, text);
-    return 0;    
+	if (p) {
+		if (sip_debug_test_pvt(p))
+			cw_verbose("%s: sending text: %s\n", chan->name, text);
+
+		res = transmit_message_with_text(p, "text/plain", NULL, text);
+	}
+
+	return res;
 }
 
 /*! \brief  realtime_update_peer: Update peer object in realtime storage */
@@ -6369,15 +6367,6 @@ static int transmit_response_with_auth(struct sip_pvt *p, const char *status, st
 	return res;
 }
 
-/*! \brief  add_text: Add text body to SIP message */
-static int add_text(struct sip_request *req, const char *text)
-{
-    /* XXX Convert \n's to \r\n's XXX */
-    add_header(req, "Content-Type", "text/plain", SIP_DL_DONTCARE);
-    add_header_contentLength(req, strlen(text));
-    add_line(req, text, SIP_DL_DONTCARE);
-    return 0;
-}
 
 /*! \brief  add_digit: add DTMF INFO tone to sip message */
 /* Always adds default duration 250 ms, regardless of what came in over the line */
@@ -8032,18 +8021,26 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 }
 
 /*! \brief  transmit_message_with_text: Transmit text with SIP MESSAGE method */
-static int transmit_message_with_text(struct sip_pvt *p, const char *text)
+static int transmit_message_with_text(struct sip_pvt *p, const char *mimetype, const char *disposition, const char *text)
 {
 	struct sip_request *msg;
 	int res = -1;
 
 	if ((msg = malloc(sizeof(*msg)))) {
 		reqprep(p, msg, &p->initreq, SIP_MESSAGE, 0, 1);
-		add_text(msg, text);
+
+		add_header(msg, "Content-Type", mimetype, SIP_DL_DONTCARE);
+		if (disposition)
+			add_header(msg, "Content-Disposition", disposition, SIP_DL_DONTCARE );
+
+		/* FIXME: we should convert \n's to \r\n's? */
+		if (!text) text = "";
+		add_header_contentLength(msg, strlen(text));
+		add_line(msg, text, SIP_DL_DONTCARE);
 
 		res = send_request(p, &msg, 1);
-
-		free(msg);
+		if (msg)
+			free(msg);
 	}
 
 	return res;
@@ -17425,74 +17422,43 @@ static const char siposd_description[] = ""
 "supported by the SIP phone and if the channel has  already been answered.\n"
 "Omitting the text parameter will allow the previous message to be cleared.";
 
-/*
- * Cloned version of sendtext with extra paramters used by sip_osd
- */
-static int sip_sendtext2(struct cw_channel *ast, const char *text, const char *disp) {
-	struct sip_pvt *p = ast->tech_pvt;
-	struct sip_request *msg;
-	int res = -1;
-
-	if (p) {
-		res = 0;
-		if (cw_strlen_zero(text)) {
-			res = -1;
-			if ((msg = malloc(sizeof(*msg)))) {
-				reqprep(p, msg, &p->initreq, SIP_MESSAGE, 0, 1);
-				add_header(msg, "Content-Type", "text/plain", SIP_DL_DONTCARE);
-				add_header(msg, "Content-Disposition", disp, SIP_DL_DONTCARE );
-				add_header_contentLength(msg, strlen(text));
-				add_line(msg, text, SIP_DL_DONTCARE);
-				res = send_request(p, &msg, 1);
-			}
-		}
-	}
-
-	return res;
-}
 
 /*
  * Display message onto phone LCD, if supported. -- Antonio Gallo
  */
 static int sip_osd(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	static const char blank[] = " ";
-	struct sip_pvt *p = NULL;
+	const char *text = " ";
+	struct sip_pvt *p;
 	int res = 0;
 
 	CW_UNUSED(result);
 
-	/* parameter checking */
-	if (argc != 1 || !argv[0][0]) {
-		argv[0]=(char*)blank;
-	}
-	if (cw_strlen_zero(argv[0])) {
-		argv[0]=(char*)blank;
-	}
-	/* checking the chan channel structure require locking it */
-	cw_channel_lock(chan);
-	if ( (chan->tech != &sip_tech) && (chan->type != channeltype) ) {
+	if (argc >= 1 && argv[0][0])
+		text = argv[0];
+
+	if (chan->tech != &sip_tech && chan->type != channeltype) {
 		cw_log(CW_LOG_WARNING, "sip_osd: Call this application only on SIP incoming calls\n");
-		cw_channel_unlock(chan);
 		return 0;
 	}
 	if (chan->_state != CW_STATE_UP) {
 		cw_log(CW_LOG_WARNING, "sip_osd: channel is NOT YET answered!\n");
-		cw_channel_unlock(chan);
 		return 0;
 	}
+
 	p = chan->tech_pvt;
 	if (!p) {
 		cw_log(CW_LOG_WARNING, "sip_osd: P IS NULL\n");
-		cw_channel_unlock(chan);
 		return 0;
 	}
-	cw_channel_unlock(chan);
-	/* clone sendtext using sendtext2 (all in one) */
-	if (cw_test_flag(chan, CW_FLAG_ZOMBIE) || cw_check_hangup(chan)) return -1;
-	CHECK_BLOCKING(chan);
-	res = sip_sendtext2(chan, argv[0], "desktop");
-	cw_clear_flag(chan, CW_FLAG_BLOCKING);
+
+	res = -1;
+	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE) && !cw_check_hangup(chan)) {
+		CHECK_BLOCKING(chan);
+		res = transmit_message_with_text(p, "text/plain", "desktop", argv[0]);
+		cw_clear_flag(chan, CW_FLAG_BLOCKING);
+	}
+
 	return res;
 }
 
