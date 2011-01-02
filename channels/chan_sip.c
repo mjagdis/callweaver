@@ -1411,22 +1411,28 @@ static int peerbyaddr_qsort_compare_by_addr(const void *a, const void *b)
 	const struct cw_object * const *objp_b = b;
 	const struct sip_peer *peer_a = container_of(*objp_a, struct sip_peer, obj);
 	const struct sip_peer *peer_b = container_of(*objp_b, struct sip_peer, obj);
-	int ret;
 
-	ret = peer_a->addr.sin_addr.s_addr - peer_b->addr.sin_addr.s_addr;
-	if (!ret)
-		ret = peer_a->addr.sin_port - peer_b->addr.sin_port;
-	return ret;
+	return cw_address_cmp((struct sockaddr *)&peer_a->addr, (struct sockaddr *)&peer_b->addr, -1, 1);
 }
 
 static int peerbyaddr_object_match(struct cw_object *obj, const void *pattern)
 {
 	const struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
-	const struct sockaddr_in *sin = pattern;
+	const struct sockaddr *addr = pattern;
+	int withport = 1;
 
-	return (!inaddrcmp(&peer->addr, sin)
-		|| (cw_test_flag(peer, SIP_INSECURE_PORT)
-			&& (peer->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
+	switch (addr->sa_family) {
+		case AF_INET:
+			withport = (((struct sockaddr_in *)addr)->sin_port != 0);
+			break;
+		case AF_INET6:
+			withport = (((struct sockaddr_in6 *)addr)->sin6_port != 0);
+			break;
+	}
+
+	return (withport || cw_test_flag(peer, SIP_INSECURE_PORT))
+			? !cw_address_cmp((struct sockaddr *)&peer->addr, addr, -1, withport)
+			: 0;
 }
 
 struct cw_registry peerbyaddr_registry = {
@@ -2928,20 +2934,28 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
     or outgoing message to find matching peer on name */
 static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int realtime)
 {
-    struct cw_object *obj;
-    struct sip_peer *p = NULL;
+	struct cw_object *obj;
+	struct sip_peer *p = NULL;
 
-    if (peer)
-        obj = cw_registry_find(&peerbyname_registry, 1, cw_hash_string(0, peer), peer);
-    else
-        obj = cw_registry_find(&peerbyaddr_registry, 1, cw_hash_addr(sin), sin);
+	if (peer)
+		obj = cw_registry_find(&peerbyname_registry, 1, cw_hash_string(0, peer), peer);
+	else {
+		unsigned int hash = cw_address_hash((struct sockaddr *)sin, 0);
 
-    if (obj)
-        p = container_of(obj, struct sip_peer, obj);
-    else if (realtime)
-        p = realtime_peer(peer, sin);
+		if (!(obj = cw_registry_find(&peerbyaddr_registry, 1, hash, sin))) {
+			unsigned short port = sin->sin_port;
+			sin->sin_port = 0;
+			obj = cw_registry_find(&peerbyaddr_registry, 1, hash, sin);
+			sin->sin_port = port;
+		}
+	}
 
-    return p;
+	if (obj)
+		p = container_of(obj, struct sip_peer, obj);
+	else if (realtime)
+		p = realtime_peer(peer, sin);
+
+	return p;
 }
 
 
@@ -8538,7 +8552,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     {
         if (p->reg_entry_byaddr)
             cw_registry_del(&peerbyaddr_registry, p->reg_entry_byaddr);
-        p->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&p->addr), &p->obj);
+        p->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_address_hash((struct sockaddr *)&p->addr, 0), &p->obj);
 
         if (p->pokeexpire == -1)
             p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
@@ -16370,7 +16384,7 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
 
     peer->reg_entry_byname = cw_registry_add(&peerbyname_registry, cw_hash_string(0, peer->name), &peer->obj);
     if (addr_defined)
-        peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_hash_addr(&peer->addr), &peer->obj);
+        peer->reg_entry_byaddr = cw_registry_add(&peerbyaddr_registry, cw_address_hash((struct sockaddr *)&peer->addr, 0), &peer->obj);
 
     return peer;
 }
