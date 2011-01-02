@@ -10025,11 +10025,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
     return res;
 }
 
-/*! \brief  check_user: Find user */
-static int check_user(struct sip_pvt *p, struct sip_request *req, enum sipmethod sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
-{
-    return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL, 0);
-}
 
 /*! \brief  get_msg_text: Get text out of a SIP MESSAGE packet */
 static int get_msg_text(char *buf, int len, struct sip_request *req)
@@ -13757,7 +13752,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     if (!p->lastinvite && !ignore && !p->owner)
     {
         /* Handle authentication if this is our first invite */
-        res = check_user(p, req, SIP_INVITE, req->data + req->uriresp, 1, sin, ignore);
+        res = check_user_full(p, req, SIP_INVITE, req->data + req->uriresp, 1, sin, ignore, NULL, 0);
 	if (res > 0)
 	    return 0;
         if (res < 0)
