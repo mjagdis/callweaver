@@ -84,10 +84,40 @@
 }
 
 
+/* \brief Static initializer for a generic dynamic array with a non-malloc'd buffer of given size.
+ *
+ * This can be used to statically initialize a dynamic array with any type
+ * of elements (except for those that have special requirements such as
+ * dynamic strings) and assign an existing buffer of known size to it.
+ */
+#define CW_DYNARRAY_INIT_FIXED(buffer, nmemb) { \
+	.data = (buffer), \
+	.used = 0, \
+	.size = (nmemb), \
+	.chunk = 0, \
+	.error = 0, \
+}
+
+
+/* \brief Static initializer for a generic dynamic array with a static buffer.
+ *
+ * This can be used to statically initialize a dynamic array with any type
+ * of elements (except for those that have special requirements such as
+ * dynamic strings) and assign a pre-declared buffer to it.
+ */
+#define CW_DYNARRAY_INIT_STATIC(buffer)	CW_DYNARRAY_INIT_FIXED((buffer), (sizeof((buffer)) / sizeof((buffer)[0])))
+
+
 #define CW_DYNARRAY_DECL_FUNCS(type, name) \
 	static inline void CW_DYNARRAY_IDENT(name, _init)(struct CW_DYNARRAY_NAME(name) *da_p, size_t len, size_t chunk) \
 	{ \
 		cw_dynarray_init(da_p, len, chunk); \
+	} \
+\
+\
+	static inline void CW_DYNARRAY_IDENT(name, _init_fixed)(struct CW_DYNARRAY_NAME(name) *da_p, type *buffer, size_t nmemb) \
+	{ \
+		cw_dynarray_init_fixed(da_p, buffer, nmemb); \
 	} \
 \
 \
@@ -130,10 +160,31 @@
 	int __nmemb_init = (nmemb); \
 	int __chunk = (chunk); \
 	memset(__ptr_init, 0, sizeof(*__ptr_init)); \
-	__ptr_init->chunk = (__chunk ? __chunk : CW_DYNARRAY_DEFAULT_CHUNK) - 1; \
+	if (__chunk == 0) { \
+		__ptr_init->chunk = CW_DYNARRAY_DEFAULT_CHUNK - 1; \
+	} else if (__chunk == 1) { \
+		__ptr_init->chunk = 1; \
+	} else { \
+		__ptr_init->chunk = __chunk - 1; \
+	} \
 	if (__nmemb_init) \
 		cw_dynarray_need(__ptr_init, __nmemb_init); \
 	__ptr_init->error; \
+})
+
+
+/*! \brief Initialize a new dynamic array with a non-malloc'd buffer of given size.
+ *
+ *	\param da_p	dynamic array to initialize
+ *	\param buffer	the buffer to use for data
+ *	\param nmemb	number of elements in the buffer
+ */
+#define cw_dynarray_init_fixed(da_p, buffer, nmemb) ({ \
+	typeof(da_p) __ptr_init = (da_p); \
+	memset(__ptr_init, 0, sizeof(*__ptr_init)); \
+	__ptr_init->size = (nmemb); \
+	__ptr_init->data = (buffer); \
+	0; \
 })
 
 
@@ -164,12 +215,13 @@
 		 * of the element being 1 allows the condition to be optimized out at compile time \
 		 * for anything other than arrays of characters. \
 		 */ \
-		if ((__ndata[0] = realloc(__ndata[(__ptr->size == 0 && sizeof(__ptr->data[0]) == 1 ? 1 : 0)], __space))) { \
+		if (__ptr->chunk && (__ndata[0] = realloc(__ndata[(__ptr->size == 0 && sizeof(__ptr->data[0]) == 1 ? 1 : 0)], __space))) { \
 			__ptr->size = __space / sizeof(*__ptr->data); \
 			__ptr->data = __ndata[0]; \
 		} else { \
 			__ptr->error = 1; \
-			cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
+			if (__ptr->chunk) \
+				cw_log(CW_LOG_ERROR, "Out of memory!\n"); \
 		} \
 	} \
 	__ptr->error; \
@@ -183,7 +235,7 @@
  */
 #define cw_dynarray_free(da_p) ({ \
 	typeof(da_p) __ptr_free = (da_p); \
-	if (__ptr_free->size) { \
+	if (__ptr_free->chunk && __ptr_free->size) { \
 		free(__ptr_free->data); \
 		__ptr_free->data = NULL; \
 	} \

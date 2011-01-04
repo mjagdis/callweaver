@@ -48,6 +48,14 @@ CW_DYNARRAY_DECL_STRUCT(char, str);
 }
 
 
+/* \brief Static initializer for a dynamic string with a non-malloc'd buffer of given size. */
+#define CW_DYNSTR_INIT_FIXED(buffer, nmemb)	CW_DYNARRAY_INIT_FIXED(buffer, nmemb)
+
+
+/* \brief Static initializer for a dynamic string with a static buffer. */
+#define CW_DYNSTR_INIT_STATIC(buffer)	CW_DYNARRAY_INIT_STATIC(buffer)
+
+
 /*! \brief Initialize a new dynamic string.
  *
  *	\param ds_p	dynamic string to initialize
@@ -69,6 +77,18 @@ static inline void cw_dynstr_init(struct cw_dynstr *ds_p, size_t len, size_t chu
 	/* Dynamic strings NEVER have a NULL data pointer */
 	if (!ds_p->size)
 		ds_p->data = (char *)"";
+}
+
+
+/*! \brief Initialize a new dynamic string with a non-malloc'd buffer of given size.
+ *
+ *	\param ds_p	dynamic string to initialize
+ *	\param buffer	the buffer to use for data
+ *	\param nmemb	number of elements in the buffer
+ */
+static inline void cw_dynstr_init_fixed(struct cw_dynstr *ds_p, char *buffer, size_t nmemb)
+{
+	cw_dynarray_init_fixed(ds_p, buffer, nmemb);
 }
 
 
@@ -127,7 +147,11 @@ static inline void cw_dynstr_truncate(struct cw_dynstr *ds_p, size_t count)
  * \note Calling cw_dynstr_steal() on an empty dynstr will return NULL rather
  * than a zero length string.
  *
- * In all cases the dynstr is reset to be empty and not in an error state.
+ * \note Calling cw_dynstr_steal() on a fixed length dynstr is not possible
+ * and will return NULL.
+ *
+ * In all cases (other than when the dynstr is fixed size) the dynstr is reset
+ * to be empty and not in an error state.
  *
  *	\param ds_p	dynamic string to steal data from
  *
@@ -141,13 +165,15 @@ static inline char *cw_dynstr_steal(struct cw_dynstr *ds_p)
 {
 	char *data = NULL;
 
-	if (ds_p->size) {
-		data = ds_p->data;
-		ds_p->size = ds_p->used = 0;
-		ds_p->data = (char *)"";
-	}
+	if (ds_p->chunk) {
+		if (ds_p->size) {
+			data = ds_p->data;
+			ds_p->size = ds_p->used = 0;
+			ds_p->data = (char *)"";
+		}
 
-	ds_p->error = 0;
+		ds_p->error = 0;
+	}
 
 	return data;
 }
