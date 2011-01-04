@@ -556,7 +556,7 @@ typedef enum {
 static int global_capability = CW_FORMAT_ULAW | CW_FORMAT_ALAW | CW_FORMAT_GSM | CW_FORMAT_H263;
 static int noncodeccapability = CW_RTP_DTMF;
 static int global_t38_capability = T38FAX_VERSION_0 | T38FAX_RATE_2400 | T38FAX_RATE_4800 | T38FAX_RATE_7200 | T38FAX_RATE_9600 | T38FAX_RATE_14400; /* This is default: NO MMR and JBIG trancoding, NO fill bit removal, transfered TCF, UDP FEC, Version 0 and 9600 max fax rate */
-static struct in_addr __ourip;
+static struct sockaddr_in __ouraddr;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
 
@@ -650,6 +650,7 @@ struct sip_request {
 	struct sip_data_line    *sdp_lines;
 
 	struct sockaddr_in sa;
+	struct sockaddr_in ouraddr;
 
 	/* sipsock_read() only clears request packets down to here */
 	unsigned int header[SIP_MAX_HEADERS];
@@ -807,12 +808,12 @@ struct sip_pvt {
     int tag_len;
     int sessionid;                /*!< SDP Session ID */
     int sessionversion;            /*!< SDP Session Version */
+    struct sockaddr_in ouraddr;      /*!< Our address */
     struct sockaddr_in sa;            /*!< Our peer */
     struct sockaddr_in redirip;        /*!< Where our RTP should be going if not to us */
     struct sockaddr_in vredirip;        /*!< Where our Video RTP should be going if not to us */
     int redircodecs;            /*!< Redirect codecs */
     struct sockaddr_in recv;        /*!< Received as */
-    struct in_addr ourip;            /*!< Our IP */
     struct cw_channel *owner;        /*!< Who owns us */
     char exten[CW_MAX_EXTENSION];        /*!< Extension where to start */
     char refer_to[CW_MAX_EXTENSION];    /*!< Place to store REFER-TO extension */
@@ -1150,7 +1151,7 @@ static int transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
 static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt, int reinvite); /* T38 negotiation helper function */
 static enum cw_bridge_result sip_bridge(struct cw_channel *c0, struct cw_channel *c1, int flag, struct cw_frame **fo,struct cw_channel **rc, int timeoutms); /* Function to bridge to SIP channels if T38 support enabled */
 static const char *nat2str(int nat);
-static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p);
+static int cw_sip_ouraddrfor(struct sip_pvt *dialogue);
 static int sip_poke_peer(void *data);
 
 
@@ -1596,12 +1597,12 @@ static void sip_debug_ports(struct sip_pvt *p)
 
         if (p->udptl) {
             cw_udptl_get_us(p->udptl, &udptlsin);
-            cw_log(CW_LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+            cw_log(CW_LOG_DEBUG,"DEBUG PORTS T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(udptlsin.sin_port));
         }
 
         if (p->rtp) {
             cw_rtp_get_us(p->rtp, &sin);
-            cw_log(CW_LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));
+            cw_log(CW_LOG_DEBUG,"DEBUG PORTS rtp is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(sin.sin_port));
         }
     }
 }
@@ -1699,7 +1700,7 @@ static inline int sip_is_nat_needed(struct sip_pvt *p)
 {
     int local;
 
-    local = !cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p);
+    local = !cw_sip_ouraddrfor(p);
 
     cw_log(CW_LOG_DEBUG,"Checking nat (local %d = %s)\n", local, nat2str(cw_test_flag(p, SIP_NAT)) );
 
@@ -1763,11 +1764,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
         res = cw_sendfromto(sipsock, data, len, 0, NULL, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
     else
     {
-        struct sockaddr_in from;
-
-        from.sin_family = AF_INET;
-        memcpy(&from.sin_addr, &p->ourip, sizeof(from.sin_addr));
-        res=cw_sendfromto(sipsock, data, len, 0, (struct sockaddr *)&from, sizeof(struct sockaddr_in), (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
+        res=cw_sendfromto(sipsock, data, len, 0, (struct sockaddr *)&p->ouraddr, sizeof(struct sockaddr_in), (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
     }
     
     if (res != len)
@@ -1784,65 +1781,66 @@ static void build_via(struct sip_pvt *p, char *buf, int len)
 
     /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
     if (cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
-        snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
+        snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), p->ourport, p->branch);
     else /* Work around buggy UNIDEN UIP200 firmware */
-        snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
+        snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), p->ourport, p->branch);
 }
 
 /*! \brief  cw_sip_ouraddrfor: NAT fix - decide which IP address to use for CallWeaver.org server? */
 /* Only used for outbound registrations */
-static int cw_sip_ouraddrfor(struct in_addr *them, struct in_addr *us, struct sip_pvt *p)
+static int cw_sip_ouraddrfor(struct sip_pvt *dialogue)
 {
-    /*
-     * Using the localaddr structure built up with localnet statements
-     * apply it to their address to see if we need to substitute our
-     * externip or can get away with our internal bindaddr
-     */
+	/*
+	 * Using the localaddr structure built up with localnet statements
+	 * apply it to their address to see if we need to substitute our
+	 * externip or can get away with our internal bindaddr
+	 */
 
-    int res = 0;
-    struct sockaddr_in theirs;
-    theirs.sin_addr = *them;
+	int res = 0;
+	struct sockaddr_in theirs;
 
-    if ((localaddr && cw_acl_check(localaddr, (struct sockaddr *)&theirs, 1))
-        &&
-        (rfc3489_active || externip.sin_addr.s_addr))
-    {
-        char iabuf[INET_ADDRSTRLEN];
-    
-        if (externexpire  &&  (time(NULL) >= externexpire))
-        {
-            struct cw_hostent ahp;
-            struct hostent *hp;
+	theirs = dialogue->sa;
 
-            time(&externexpire);
-            externexpire += externrefresh;
-            if ((hp = cw_gethostbyname(externhost, &ahp)))
-                memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
-            else
-                cw_log(CW_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
-        }
-        memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
-        cw_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr);
-        if (!rfc3489_active)
-        {
-            cw_log(CW_LOG_DEBUG, "Target address %s is not local, substituting externip\n", iabuf);
-            p->stun_needed = 0;
-            res = 1;
-        }
-        else
-        {
-            cw_log(CW_LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", iabuf);
-            p->stun_needed = 1;
-            res = 1;
-        }
-    }
-    else if (bindaddr.sin_addr.s_addr) {
-        memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
-    } else {
-        res=cw_ouraddrfor(them, us);
-    }
+	if ((localaddr && cw_acl_check(localaddr, (struct sockaddr *)&theirs, 1))
+	&& (rfc3489_active || externip.sin_addr.s_addr)) {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
 
-    return res;
+		if (externexpire && time(NULL) >= externexpire) {
+			struct cw_hostent ahp;
+			struct hostent *hp;
+
+			time(&externexpire);
+			externexpire += externrefresh;
+			if ((hp = cw_gethostbyname(externhost, &ahp)))
+				memcpy(&externip, hp->h_addr_list[0], sizeof(hp->h_length));
+			else
+				cw_log(CW_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
+		}
+
+		memcpy(&dialogue->ouraddr, &externip, sizeof(externip));
+
+		cw_address_print(&ds, (struct sockaddr *)&dialogue->sa, -1, ":%hu");
+
+		if (!rfc3489_active) {
+			cw_log(CW_LOG_DEBUG, "Target address %s is not local, substituting externip\n", ds.data);
+			dialogue->stun_needed = 0;
+			res = 1;
+		} else {
+			cw_log(CW_LOG_DEBUG, "Target address %s is not local, substituting externip and enabling stun\n", ds.data);
+			dialogue->stun_needed = 1;
+			res = 1;
+		}
+
+		cw_dynstr_free(&ds);
+	} else if (bindaddr.sin_addr.s_addr)
+		memcpy(&dialogue->ouraddr, &bindaddr, sizeof(bindaddr));
+	else {
+		dialogue->ouraddr.sin_family = AF_INET;
+		dialogue->ouraddr.sin_port = 0;
+		res = cw_ouraddrfor(&dialogue->sa.sin_addr, &dialogue->ouraddr.sin_addr);
+	}
+
+	return res;
 }
 
 
@@ -2240,7 +2238,7 @@ static void copy_and_parse_request(struct sip_request *dst,struct sip_request *s
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 
 static char *get_header(struct sip_request *req, const char *name);
-static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain);
+static void build_callid(char *callid, int len, struct sockaddr *ouraddr, char *fromdomain);
 static int sip_resend_reqresp(void *data);
 
 static void sip_dealloc_headsdp_lines(struct sip_request *req) 
@@ -2302,13 +2300,13 @@ static void sip_rebuild_payload(struct sip_pvt *p, struct sip_request *req,int h
             if (tmpsdl->type == SIP_DL_HEAD_CONTACT)
             {
                 snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", 
-                         cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+                         cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), p->ourport);
                 sprintf(tmpsdl->content, "Contact: %s", p->our_contact);
             }
             else if (tmpsdl->type == SIP_DL_HEAD_VIA)
             { 
                 snprintf(p->via, SIP_MAX_LINE_LEN, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", 
-                cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport, p->branch);
+                cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), p->ourport, p->branch);
                 sprintf(tmpsdl->content, "Via: %s", p->via);
             }
             else if (tmpsdl->type==SIP_DL_HEAD_CALLID)
@@ -2564,7 +2562,6 @@ static int send_request(struct sip_pvt *p, struct sip_request **req_p, int relia
 
 static int sip_resend_reqresp(void *data)
 {
-    struct sockaddr_in msin;
     struct sip_reqresp *rr = data;    
     rfc3489_addr_t *map = NULL;
     struct sip_pvt *p = rr->p;
@@ -2618,10 +2615,10 @@ static int sip_resend_reqresp(void *data)
     {
         char iabuf[INET_ADDRSTRLEN];
 
-        rfc3489_addr_to_sockaddr(&msin, map);
+        rfc3489_addr_to_sockaddr(&p->ouraddr, map);
         memcpy(&p->stun_transid, &rr->streq->req_head.id, sizeof(p->stun_transid));
         if (stundebug)
-            cw_log(CW_LOG_DEBUG,"** STUN: Mapped address is %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), msin.sin_addr), ntohs(map->port));
+            cw_log(CW_LOG_DEBUG,"** STUN: Mapped address is %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(map->port));
     }
     else
     {
@@ -2639,7 +2636,6 @@ static int sip_resend_reqresp(void *data)
         return res;
     }
 
-    p->ourip = msin.sin_addr;
     p->ourport = ntohs(map->port);
 
 #if STUN_DEV_DEBUG
@@ -4512,25 +4508,25 @@ static struct cw_frame *sip_read(struct cw_channel *ast)
 }
 
 /*! \brief  build_callid: Build SIP CALLID header */
-static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain)
+static void build_callid(char *callid, int len, struct sockaddr *ouraddr, char *fromdomain)
 {
-    int res;
-    int val;
-    int x;
-    char iabuf[INET_ADDRSTRLEN];
+	int x, res;
 
-    for (x = 0;  x < 4;  x++)
-    {
-        val = cw_random();
-        res = snprintf(callid, len, "%08x", val);
-        len -= res;
-        callid += res;
-    }
-    if (!cw_strlen_zero(fromdomain))
-        snprintf(callid, len, "@%s", fromdomain);
-    else
-        /* It's not important that we really use our right IP here... */
-        snprintf(callid, len, "@%s", cw_inet_ntoa(iabuf, sizeof(iabuf), ourip));
+	for (x = 0;  x < 4;  x++) {
+		int val = cw_random();
+		res = snprintf(callid, len, "%08x", val);
+		len -= res;
+		callid += res;
+	}
+	if (!cw_strlen_zero(fromdomain))
+		snprintf(callid, len, "@%s", fromdomain);
+	else {
+		struct cw_dynstr ds = CW_DYNSTR_INIT;
+		/* It's not important that we really use our right IP here... */
+		cw_address_print(&ds, ouraddr, -1, NULL);
+		snprintf(callid, len, "@%s", ds.data);
+		cw_dynstr_free(&ds);
+	}
 }
 
 static void make_our_tag(struct sip_pvt *p)
@@ -4539,7 +4535,7 @@ static void make_our_tag(struct sip_pvt *p)
 }
 
 /*! \brief  sip_alloc: Allocate SIP_PVT structure and set defaults */
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *ouraddr, struct sockaddr_in *sin, int useglobal_nat, const enum sipmethod intended_method)
 {
     struct sip_pvt *p;
 
@@ -4572,20 +4568,17 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
     if (sin)
     {
         memcpy(&p->sa, sin, sizeof(p->sa));
-        if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p)) {
-            memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-        }
+	if (ouraddr)
+            memcpy(&p->ouraddr, ouraddr, sizeof(p->ouraddr));
+	else if (cw_sip_ouraddrfor(p))
+            p->ouraddr = __ouraddr;
     }
     else
-    {
-        memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
-    }
+        p->ouraddr = __ouraddr;
 
     p->branch = cw_random();    
     make_our_tag(p);
     p->ocseq = 1;
-
-    //cw_log(CW_LOG_DEBUG,"Sip Alloc ... (globalnat %d) \n", useglobal_nat);
 
     if (sip_methods[intended_method].need_rtp)
     {
@@ -4639,7 +4632,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
         cw_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
     build_via(p, p->via, sizeof(p->via));
     if (!callid)
-        build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+        build_callid(p->callid, sizeof(p->callid), (struct sockaddr *)&p->ouraddr, p->fromdomain);
     else
         cw_copy_string(p->callid, callid, sizeof(p->callid));
     cw_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
@@ -5991,7 +5984,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
     if (debug)
         cw_verbose("set_destination: set destination to %s, port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), port);
 
-    cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p);
+    cw_sip_ouraddrfor(p);
 }
 
 /*! \brief  init_resp: Initialize SIP response, based on SIP request */
@@ -6259,13 +6252,12 @@ static int transmit_response_using_temp(char *callid, struct sockaddr_in *sin, i
     if (sin)
     {
         dialogue.sa = *sin;
-        if (cw_sip_ouraddrfor(&dialogue.sa.sin_addr, &dialogue.ourip, &dialogue))
-            dialogue.ourip = __ourip;
+        if (cw_sip_ouraddrfor(&dialogue))
+            dialogue.ouraddr = __ouraddr;
     }
     else
-    {
-        dialogue.ourip = __ourip;
-    }
+        dialogue.ouraddr = __ouraddr;
+
     dialogue.branch = cw_random();
     make_our_tag(&dialogue);
     dialogue.ocseq = 1;
@@ -6541,12 +6533,11 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
     {
         if (p->udptlredirip.sin_addr.s_addr)
         {
-            udptldest.sin_port = p->udptlredirip.sin_port;
-            udptldest.sin_addr = p->udptlredirip.sin_addr;
+            udptldest = p->udptlredirip;
         }
         else
         {
-            udptldest.sin_addr = p->ourip;
+            udptldest = p->ouraddr;
             udptldest.sin_port = udptlsin.sin_port;
         }
     }
@@ -6554,7 +6545,7 @@ static int add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
     if (debug)
     {
         if (p->udptl) {
-            cw_verbose("T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(udptlsin.sin_port));
+            cw_verbose("T.38 UDPTL is at port %s:%hu...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(udptlsin.sin_port));
         }
     }
 
@@ -6691,7 +6682,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     }
     else
     {
-        dest.sin_addr = p->ourip;
+        dest = p->ouraddr;
         dest.sin_port = sin.sin_port;
     }
 
@@ -6705,7 +6696,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
         }
         else
         {
-            vdest.sin_addr = p->ourip;
+            vdest = p->ouraddr;
             vdest.sin_port = vsin.sin_port;
         }
     }
@@ -6713,9 +6704,9 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
     sip_debug_ports(p);
 
     if (debug){
-        cw_verbose("We're at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(sin.sin_port));
+        cw_verbose("We're at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(sin.sin_port));
         if (p->vrtp)
-            cw_verbose("Video is at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));
+            cw_verbose("Video is at %s port %hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), ntohs(vsin.sin_port));
     }
 
     protocol = "AVP";
@@ -7043,17 +7034,12 @@ static void build_contact(struct sip_pvt *p)
 {
     char iabuf[INET_ADDRSTRLEN];
 
-    /* Construct Contact: header */
-    if (p->stun_needed)
-        // If we are using stun, let's preserve the port information.
-        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d;transport=udp>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
+    // If we are using stun, let's preserve the port information.
+    if (p->ourport != 5060 || p->stun_needed)
+        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d;transport=udp>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr), p->ourport);
 
-    else {
-        if (p->ourport != 5060)    // Needs to be 5060, according to the RFC
-        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d;transport=udp>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), p->ourport);
-        else
-        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
-    }
+    else
+        snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, cw_strlen_zero(p->exten) ? "" : "@", cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr));
 }
 
 /*! \brief  build_rpid: Build the Remote Party-ID & From using callingpres options */
@@ -7130,7 +7116,7 @@ static void build_rpid(struct sip_pvt *p)
         break;
     }
     
-    fromdomain = cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain;
+    fromdomain = cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr) : p->fromdomain;
 
     snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>", clin, clid, fromdomain);
     if (send_pres_tags)
@@ -7222,10 +7208,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, enum sipmeth
         l = cw_uri_encode(l, &tmp2, 0);
     }
 
-    if ((p->ourport != 5060) && cw_strlen_zero(p->fromdomain))    /* Needs to be 5060 */
-        snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->ourport, p->tag);
+    if (p->ourport != 5060 && cw_strlen_zero(p->fromdomain))    /* Needs to be 5060 */
+        snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr) : p->fromdomain, p->ourport, p->tag);
     else
-        snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
+        snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, cw_strlen_zero(p->fromdomain) ? cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr) : p->fromdomain, p->tag);
 
     cw_dynstr_free(&tmp2);
 
@@ -7840,11 +7826,11 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         /* Build callid for registration if we haven't registered before */
         if (!r->callid_valid)
         {
-            build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
+            build_callid(r->callid, sizeof(r->callid), (struct sockaddr *)&__ouraddr, default_fromdomain);
             r->callid_valid = 1;
         }
         /* Allocate SIP packet for registration */
-        p = sip_alloc(r->callid, NULL, 0, SIP_REGISTER);
+        p = sip_alloc(r->callid, NULL, NULL, 0, SIP_REGISTER);
         if (!p)
         {
             cw_log(CW_LOG_WARNING, "Unable to allocate registration call\n");
@@ -7917,8 +7903,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
           based on whether the remote host is on the external or
           internal network so we can register through nat
          */
-        if (cw_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
-            memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
+        if (cw_sip_ouraddrfor(p))
+            memcpy(&p->ouraddr, &bindaddr, sizeof(bindaddr));
         build_contact(p);
 
         p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
@@ -11393,7 +11379,7 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 			cw_fmtval("  Theoretical Address:    %s:%d\n", cw_inet_ntoa(iabuf1, sizeof(iabuf1), dialogue->sa.sin_addr), ntohs(dialogue->sa.sin_port)),
 			cw_fmtval("  Received Address:       %s:%d\n", cw_inet_ntoa(iabuf2, sizeof(iabuf2), dialogue->recv.sin_addr), ntohs(dialogue->recv.sin_port)),
 			cw_fmtval("  NAT Support:            %s\n", nat2str(cw_test_flag(dialogue, SIP_NAT))),
-			cw_fmtval("  Audio IP:               %s %s\n", cw_inet_ntoa(iabuf3, sizeof(iabuf3), (dialogue->redirip.sin_addr.s_addr ? dialogue->redirip.sin_addr : dialogue->ourip)), (dialogue->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)")),
+			cw_fmtval("  Audio IP:               %s %s\n", cw_inet_ntoa(iabuf3, sizeof(iabuf3), (dialogue->redirip.sin_addr.s_addr ? dialogue->redirip.sin_addr : dialogue->ouraddr.sin_addr)), (dialogue->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)")),
 			cw_fmtval("  Our Tag:                %s\n", dialogue->tag),
 			cw_fmtval("  Their Tag:              %s\n", dialogue->theirtag),
 			cw_fmtval("  SIP User agent:         %s\n", dialogue->useragent)
@@ -11766,7 +11752,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
         struct sip_request req;
         struct cw_variable *var;
 
-        p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
+        p = sip_alloc(NULL, NULL, NULL, 0, SIP_NOTIFY);
         if (!p)
         {
             cw_log(CW_LOG_WARNING, "Unable to build sip pvt data for notify\n");
@@ -11790,10 +11776,10 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
         add_blank_header(&req);
 
         /* Recalculate our side, and recalculate Call ID */
-        if (cw_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip,p))
-            memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+        if (cw_sip_ouraddrfor(p))
+            p->ouraddr = __ouraddr;
         build_via(p, p->via, sizeof(p->via));
-        build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+        build_callid(p->callid, sizeof(p->callid), (struct sockaddr *)&p->ouraddr, p->fromdomain);
 
         p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
@@ -14859,7 +14845,7 @@ static int handle_message(void *data)
 				 */
 				if (sip_methods[req->method].can_create == 1) {
 					if (req->taglen < sizeof(dialogue->theirtag) - 1) {
-						if ((dialogue = sip_alloc(req->data + req->callid, &req->sa, 1, req->method))) {
+						if ((dialogue = sip_alloc(req->data + req->callid, &req->ouraddr, &req->sa, 1, req->method))) {
 							memcpy(dialogue->theirtag, req->data + req->tag, (dialogue->theirtag_len = req->taglen));
 							dialogue->theirtag[req->taglen] = '\0';
 							dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
@@ -14941,7 +14927,6 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	static struct sip_request *req = NULL;
 	static int oom = 0;
 	char iabuf[INET_ADDRSTRLEN];
-	struct sockaddr_in sa_to;
 	struct parse_request_state pstate;
 	socklen_t sa_from_len, sa_to_len;
 
@@ -14962,9 +14947,9 @@ static int sipsock_read(struct cw_io_rec *ior, int fd, short events, void *ignor
 	memset(req, 0, offsetof(typeof(*req), header));
 
 	sa_from_len = sizeof(req->sa);
-	sa_to_len = sizeof(sa_to);
+	sa_to_len = sizeof(req->ouraddr);
 
-	req->len = cw_recvfromto(sipsock, req->data, sizeof(req->data) - 1, 0, (struct sockaddr *)&req->sa, &sa_from_len, (struct sockaddr *)&sa_to, &sa_to_len);
+	req->len = cw_recvfromto(sipsock, req->data, sizeof(req->data) - 1, 0, (struct sockaddr *)&req->sa, &sa_from_len, (struct sockaddr *)&req->ouraddr, &sa_to_len);
 	if (req->len == -1) {
 #if !defined(__FreeBSD__)
 		if (errno == EAGAIN)
@@ -15051,7 +15036,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
         return 0;
     }
     
-    p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
+    p = sip_alloc(NULL, NULL, NULL, 0, SIP_NOTIFY);
     if (!p)
     {
         cw_log(CW_LOG_WARNING, "Unable to build sip pvt data for MWI\n");
@@ -15067,10 +15052,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     }
 
     /* Recalculate our side, and recalculate Call ID */
-    if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
-        memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+    if (cw_sip_ouraddrfor(p))
+        p->ouraddr = __ouraddr;
     build_via(p, p->via, sizeof(p->via));
-    build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+    build_callid(p->callid, sizeof(p->callid), &p->ouraddr, p->fromdomain);
 
     p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
@@ -15300,7 +15285,7 @@ static void *sip_poke_peer_thread(void *data)
          * have an address we can't poke the host.
          */
         if (peer->maxms && peer->addr.sin_addr.s_addr) {
-            if ((p = sip_alloc(NULL, NULL, 0, SIP_OPTIONS))) {
+            if ((p = sip_alloc(NULL, NULL, NULL, 0, SIP_OPTIONS))) {
                 memcpy(&p->sa, &peer->addr, sizeof(p->sa));
                 memcpy(&p->recv, &peer->addr, sizeof(p->sa));
                 cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
@@ -15315,10 +15300,10 @@ static void *sip_poke_peer_thread(void *data)
                     cw_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
 
                 /* Recalculate our side, and recalculate Call ID */
-                if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
-                    memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+                if (cw_sip_ouraddrfor(p))
+                    p->ouraddr = __ouraddr;
                 build_via(p, p->via, sizeof(p->via));
-                build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+                build_callid(p->callid, sizeof(p->callid), (struct sockaddr *)&p->ouraddr, p->fromdomain);
 
 	        p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
@@ -15459,7 +15444,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
         return NULL;
     }
 
-    p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
+    p = sip_alloc(NULL, NULL, NULL, 0, SIP_INVITE);
     if (!p)
     {
         cw_log(CW_LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
@@ -15510,10 +15495,10 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
         cw_copy_string(p->peername, ext, sizeof(p->peername));
 
     /* Recalculate our side, and recalculate Call ID */
-    if (cw_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip,p))
-        memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
+    if (cw_sip_ouraddrfor(p))
+        p->ouraddr = __ouraddr;
     build_via(p, p->via, sizeof(p->via));
-    build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
+    build_callid(p->callid, sizeof(p->callid), (struct sockaddr *)&p->ouraddr, p->fromdomain);
 
     p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
@@ -16905,15 +16890,15 @@ static int reload_config(void)
         cat = cw_category_browse(cfg, cat);
     }
 
-    if (cw_find_ourip(&__ourip, bindaddr))
+    if (!ntohs(bindaddr.sin_port))
+        bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
+    bindaddr.sin_family = AF_INET;
+
+    if (cw_find_ourip(&__ouraddr.sin_addr, bindaddr))
     {
         cw_log(CW_LOG_WARNING, "Unable to get own IP address, SIP disabled\n");
         return 0;
     }
-
-    if (!ntohs(bindaddr.sin_port))
-        bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
-    bindaddr.sin_family = AF_INET;
 
     if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in))))
     {
@@ -17072,7 +17057,7 @@ static int sip_set_rtp_peer(struct cw_channel *chan, struct cw_rtp *rtp, struct 
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ouraddr.sin_addr));
             }
             transmit_reinvite_with_sdp(p);
         }
@@ -17081,7 +17066,7 @@ static int sip_set_rtp_peer(struct cw_channel *chan, struct cw_rtp *rtp, struct 
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ouraddr.sin_addr));
             }
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -17130,7 +17115,7 @@ static int sip_set_udptl_peer(struct cw_channel *chan, cw_udptl_t *udptl)
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ouraddr.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             transmit_reinvite_with_t38_sdp(p);
         }
@@ -17139,7 +17124,7 @@ static int sip_set_udptl_peer(struct cw_channel *chan, cw_udptl_t *udptl)
             if (option_debug > 2)
             {
                 char iabuf[INET_ADDRSTRLEN];
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ourip), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl ? p->udptlredirip.sin_addr : p->ouraddr.sin_addr), udptl ? ntohs(p->udptlredirip.sin_port) : 0);
             }
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -17188,7 +17173,7 @@ static int sip_set_tpkt_peer(struct cw_channel *chan, struct cw_tpkt *tpkt)
             {
                 char iabuf[INET_ADDRSTRLEN];
 
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ouraddr.sin_addr));
             }
             transmit_reinvite_with_t38_sdp(p);
         }
@@ -17198,7 +17183,7 @@ static int sip_set_tpkt_peer(struct cw_channel *chan, struct cw_tpkt *tpkt)
             {
                 char iabuf[INET_ADDRSTRLEN];
 
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ourip));
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %s\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), tpkt ? p->redirip.sin_addr : p->ouraddr.sin_addr));
             }
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -17253,7 +17238,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
                     if (flag)
                         cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
-                        cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                        cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr));
                 }
                 transmit_reinvite_with_t38_sdp(p);
             }
@@ -17265,7 +17250,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
                     if (flag)
                         cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
                     else
-                        cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                        cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr));
                 }
                 cw_set_flag(p, SIP_NEEDREINVITE);    
             }
@@ -17294,7 +17279,7 @@ static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt,
             if (flag)
                 cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %s:%hu\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->udptlredirip.sin_addr), ntohs(p->udptlredirip.sin_port));
             else
-                cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
+                cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to us (IP %s)\n", p->callid, cw_inet_ntoa(iabuf, sizeof(iabuf), p->ouraddr.sin_addr));
         }
         pvt->t38state = SIP_T38_NEGOTIATED;
         p->t38state = SIP_T38_NEGOTIATED;
