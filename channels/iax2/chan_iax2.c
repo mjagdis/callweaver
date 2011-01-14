@@ -7033,7 +7033,7 @@ static void *iax2_do_register_thread(void *data)
 	if (option_debug && iaxdebug)
 		cw_log(CW_LOG_DEBUG, "Starting registration request for '%s' at '%s'\n", reg->username, reg->host);
 
-	cw_get_ip_or_srv(&reg->addr, reg->host, "_iax._udp");
+	cw_get_ip_or_srv(AF_INET, (struct sockaddr *)&reg->addr, reg->host, "_iax._udp");
 
 	if (reg->addr.sin_addr.s_addr) {
 		if (!reg->callno) {
@@ -7114,7 +7114,7 @@ static void *iax2_poke_peer_thread(void *data)
 	 * now and, if required, give it a poke.
 	 */
 	if (!cw_test_flag(peer, IAX_DYNAMIC) && peer->host[0])
-		cw_get_ip_or_srv(&peer->addr, peer->host, "_iax._udp");
+		cw_get_ip_or_srv(AF_INET, (struct sockaddr *)&peer->addr, peer->host, "_iax._udp");
 
 	/* If we don't have a qualify timeout we don't need to poke the host, if we don't
 	 * have an address we can't poke the host.
@@ -7390,7 +7390,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			port = listen_port;
 	}
 	
-	if (!cw_get_ip(&sin, addr)) {
+	if (!cw_get_ip(AF_INET, (struct sockaddr *)&sin, addr)) {
 		struct cw_netsock *sock;
 		int res;
 
@@ -7422,20 +7422,22 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 
 struct async_get_ip_args {
 	struct iax2_peer *peer;
-	struct sockaddr_in *sin;
-	char *value;
+	struct sockaddr *addr;
 	const char *service;
+	char value[0];
 };
+
+static void async_get_ip_free_args(struct async_get_ip_args *args)
+{
+	free(args);
+}
 
 static void *async_get_ip_handler(void *data)
 {
 	struct async_get_ip_args *args = (struct async_get_ip_args *)data;
 
-	if (args->value) {
-		cw_get_ip_or_srv(args->sin, args->value, args->service);
-		free(args->value);
-	}
-	free(args);
+	cw_get_ip_or_srv(AF_INET, args->addr, args->value, args->service);
+	async_get_ip_free_args(args);
 	return NULL;
 }
 
@@ -7443,14 +7445,16 @@ static int async_get_ip(struct iax2_peer *peer, struct sockaddr_in *sin, const c
 {
 	pthread_t tid;
 	struct async_get_ip_args *args;
-	int ret = -1;
+	int l, ret = -1;
 
-	if ((args = malloc(sizeof(*args)))) {
+	l = strlen(value) + 1;
+	if ((args = malloc(sizeof(*args) + l))) {
 		args->peer = peer;
-		args->sin = sin;
-		args->value = strdup(value);
+		args->addr = (struct sockaddr *)sin;
 		args->service = service;
-		ret = cw_pthread_create(&tid, &global_attr_detached, async_get_ip_handler, args);
+		memcpy(args->value, value, l);
+		if ((ret = cw_pthread_create(&tid, &global_attr_detached, async_get_ip_handler, args)))
+			async_get_ip_free_args(args);
 	}
 	return ret;
 }

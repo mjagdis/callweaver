@@ -1,8 +1,10 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2009 - 2010, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
@@ -257,25 +259,25 @@ int cw_manager_send(struct mansession *sess, const struct message *req, struct c
 }
 
 
-static int cw_mansession_qsort_compare_by_name(const void *a, const void *b)
+static int cw_mansession_qsort_compare_by_addr(const void *a, const void *b)
 {
 	const struct cw_object * const *objp_a = a;
 	const struct cw_object * const *objp_b = b;
 	const struct mansession *item_a = container_of(*objp_a, struct mansession, obj);
 	const struct mansession *item_b = container_of(*objp_b, struct mansession, obj);
 
-	return strcmp(item_a->name,  item_b->name);
+	return cw_sockaddr_cmp(&item_a->addr,  &item_b->addr, -1, 1);
 }
 
 static int manager_session_object_match(struct cw_object *obj, const void *pattern)
 {
 	struct mansession *item = container_of(obj, struct mansession, obj);
-	return !strcmp(item->name, pattern);
+	return !cw_sockaddr_cmp(&item->addr, pattern, -1, 1);
 }
 
 struct cw_registry manager_session_registry = {
 	.name = "Manager Session",
-	.qsort_compare = cw_mansession_qsort_compare_by_name,
+	.qsort_compare = cw_mansession_qsort_compare_by_addr,
 	.match = manager_session_object_match,
 };
 
@@ -459,18 +461,16 @@ struct listener_print_args {
 	struct cw_dynstr *ds_p;
 };
 
-#define MANLISTEN_FORMAT "%-10s "
+#define MANLISTEN_FORMAT_HEADER "%-10s %s\n"
+#define MANLISTEN_FORMAT_DETAIL "%-10s %l@\n"
 
 static int listener_print(struct cw_object *obj, void *data)
 {
 	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
 	struct listener_print_args *args = data;
 
-	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING)) {
-		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT, cw_connection_state_name[conn->state]);
-		cw_address_print(args->ds_p, &conn->addr, -1, ":%hu");
-		cw_dynstr_printf(args->ds_p, "\n");
-	}
+	if (conn->tech == &tech_ami && (conn->state == INIT || conn->state == LISTENING))
+		cw_dynstr_printf(args->ds_p, MANLISTEN_FORMAT_DETAIL, cw_connection_state_name[conn->state], &conn->addr);
 
 	return 0;
 }
@@ -484,9 +484,10 @@ static int handle_show_listener(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 
-	cw_dynstr_printf(ds_p, MANLISTEN_FORMAT "%s\n" MANLISTEN_FORMAT "%s\n",
-		"State", "Address",
-		"-----", "-------");
+	cw_dynstr_tprintf(ds_p, 2,
+		cw_fmtval(MANLISTEN_FORMAT_HEADER, "State", "Address"),
+		cw_fmtval(MANLISTEN_FORMAT_HEADER, "-----", "-------")
+	);
 
 	cw_registry_iterate_ordered(&cw_connection_registry, listener_print, &args);
 
@@ -504,15 +505,15 @@ struct mansess_print_args {
 	struct cw_dynstr *ds_p;
 };
 
-#define MANSESS_FORMAT1	"%-40s %-15s %-6s %-9s %-8s\n"
-#define MANSESS_FORMAT2	"%-40s %-15s %6u %9u %8u\n"
+#define MANSESS_FORMAT_HEADER	"%-40s %-15s %-6s %-9s %-8s\n"
+#define MANSESS_FORMAT_DETAIL	"%-40l@ %-15s %6u %9u %8u\n"
 
 static int mansess_print(struct cw_object *obj, void *data)
 {
 	struct mansession *it = container_of(obj, struct mansession, obj);
 	struct mansess_print_args *args = data;
 
-	cw_dynstr_printf(args->ds_p, MANSESS_FORMAT2, it->name, it->username, it->q_count, it->q_max, it->q_overflow);
+	cw_dynstr_printf(args->ds_p, MANSESS_FORMAT_DETAIL, &it->addr, it->username, it->q_count, it->q_max, it->q_overflow);
 	return 0;
 }
 
@@ -525,9 +526,10 @@ static int handle_show_mansess(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(argc);
 	CW_UNUSED(argv);
 
-	cw_dynstr_printf(ds_p, MANSESS_FORMAT1 MANSESS_FORMAT1,
-		"Address", "Username", "Queued", "Max Queue", "Overflow",
-		"--------", "-------", "------", "---------", "--------");
+	cw_dynstr_tprintf(ds_p, 2,
+		cw_fmtval(MANSESS_FORMAT_HEADER, "Address", "Username", "Queued", "Max Queue", "Overflow"),
+		cw_fmtval(MANSESS_FORMAT_HEADER, "--------", "-------", "------", "---------", "--------")
+	);
 
 	cw_registry_iterate_ordered(&manager_session_registry, mansess_print, &args);
 
@@ -584,7 +586,6 @@ static void mansession_release(struct cw_object *obj)
 	pthread_cond_destroy(&sess->ack);
 	pthread_cond_destroy(&sess->activity);
 	free(sess->q);
-	free(sess->name);
 	cw_object_destroy(sess);
 	free(sess);
 }
@@ -661,7 +662,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 
 					if (acl) {
 						if (!cw_acl_check(acl, &sess->addr, 1)) {
-							cw_log(CW_LOG_NOTICE, "%s failed to pass ACL as '%s'\n", sess->name, user);
+							cw_log(CW_LOG_NOTICE, "%l@ failed to pass ACL as '%s'\n", &sess->addr, user);
 							ret = -1;
 						}
 
@@ -706,8 +707,8 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 
 			sess->authenticated = 1;
 			if (option_verbose > 3 && displayconnects)
-				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %s\n", sess->username, sess->name);
-			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %s\n", sess->username, sess->name);
+				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %l@\n", sess->username, &sess->addr);
+			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %l@\n", sess->username, &sess->addr);
 			msg = cw_manager_response("Success", "Authentication accepted");
 		}
 
@@ -715,7 +716,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 	}
 
 	if (!msg) {
-		cw_log(CW_LOG_ERROR, "%s failed to authenticate as '%s'\n", sess->name, user);
+		cw_log(CW_LOG_ERROR, "%l@ failed to authenticate as '%s'\n", &sess->addr, user);
 		/* FIXME: this should be handled by a scheduled callback not a sleep */
 		sleep(1);
 		msg = cw_manager_response("Error", "Authentication failed");
@@ -1510,7 +1511,7 @@ static int process_message(struct mansession *sess, const struct message *req)
 			if (!islogoff)
 				return 0;
 		} else
-			cw_log(CW_LOG_ERROR, "failed to send response to %s - session will be closed\n", sess->name);
+			cw_log(CW_LOG_ERROR, "failed to send response to %l@ - session will be closed\n", &sess->addr);
 	}
 
 	return -1;
@@ -1609,7 +1610,7 @@ static void *manager_session_ami_read(void *data)
 
 		if (pos == sizeof(buf)) {
 			pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			cw_log(CW_LOG_ERROR, "Manager session %s dropped due to oversize message\n", sess->name);
+			cw_log(CW_LOG_ERROR, "Manager session %l@ dropped due to oversize message\n", &sess->addr);
 			break;
 		}
 	}
@@ -1634,8 +1635,8 @@ static void manager_session_cleanup(void *data)
 	if (sess->authenticated) {
 		if (sess->username[0]) {
 			if (option_verbose > 3 && displayconnects)
-				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %s\n", sess->username, sess->name);
-			cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %s\n", sess->username, sess->name);
+				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %l@\n", sess->username, &sess->addr);
+			cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %l@\n", sess->username, &sess->addr);
 		}
 	}
 
@@ -1731,7 +1732,7 @@ static void *manager_session(void *data)
 
 		if (event) {
 			if ((res = sess->handler(sess, event)) < 0)
-				cw_log(CW_LOG_WARNING, "Disconnecting manager session %s, handler gave: %s\n", sess->name, strerror(errno));
+				cw_log(CW_LOG_WARNING, "Disconnecting manager session %l@, handler gave: %s\n", &sess->addr, strerror(errno));
 			cw_object_put(event);
 			if (res < 0)
 				break;
@@ -1745,12 +1746,7 @@ static void *manager_session(void *data)
 
 struct mansession *manager_session_start(int (* const handler)(struct mansession *, const struct cw_manager_message *), int fd, const struct sockaddr *addr, socklen_t addrlen, struct cw_object *pvt_obj, int readperm, int writeperm, int send_events)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct mansession *sess = NULL;
-
-	cw_address_print(&ds, addr, -1, ":%hu");
-	if (ds.error)
-		goto out;
 
 	if (!(sess = calloc(1, sizeof(*sess) - sizeof(sess->addr) + addrlen)))
 		goto out_of_memory;
@@ -1759,7 +1755,6 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 		goto out_of_memory;
 	sess->q_size = queuesize;
 
-	sess->name = cw_dynstr_steal(&ds);
 	memcpy(&sess->addr, addr, addrlen);
 
 	sess->fd = fd;
@@ -1785,7 +1780,6 @@ struct mansession *manager_session_start(int (* const handler)(struct mansession
 	}
 
 out:
-	cw_dynstr_free(&ds);
 	return sess;
 
 out_of_memory:
@@ -2134,7 +2128,6 @@ static void listener_pvt_free(struct cw_object *obj)
 
 static void manager_listen(const char *spec, int (* const handler)(struct mansession *, const struct cw_manager_message *), int readperm, int writeperm, int send_events)
 {
-	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct manager_listener_pvt *pvt;
 	const char *banner = NULL;
 	struct addrinfo *addrs, *addr;
@@ -2179,16 +2172,15 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 		};
 		int err;
 
-		if ((err = cw_getaddrinfo(spec, &hints, &addrs, NULL)))
+		if ((err = cw_getaddrinfo(spec, "0", &hints, &addrs, NULL)))
 			cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
 	}
 
 	if (!err) {
 		for (addr = addrs; addr; addr = addr->ai_next) {
-			cw_dynstr_reset(&ds);
-			cw_address_print(&ds, addr->ai_addr, -1, ":%hu");
+			if ((pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
+				struct cw_connection *conn;
 
-			if (!ds.error && (pvt = malloc(sizeof(*pvt) + banner_len + 1))) {
 				cw_object_init(pvt, NULL, 1);
 				pvt->obj.release = listener_pvt_free;
 				pvt->handler = handler;
@@ -2198,17 +2190,19 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 				memcpy(pvt->banner, banner, banner_len);
 				pvt->banner[banner_len] = '\0';
 
-				if (!(err = cw_connection_listen(SOCK_STREAM, addr->ai_addr, addr->ai_addrlen, &tech_ami, &pvt->obj))) {
+				if ((conn = cw_connection_listen(SOCK_STREAM, addr->ai_addr, addr->ai_addrlen, &tech_ami, &pvt->obj))) {
 					/* Local listener sockets that are not pre-authenticated are public */
 					if (addr->ai_addr->sa_family == AF_LOCAL && !writeperm)
 						chmod(((struct sockaddr_un *)addr->ai_addr)->sun_path, 0666);
 
 					if (option_verbose)
-						cw_verbose("CallWeaver listening on %s (%s)\n", ds.data, spec);
-				} else {
-					cw_log(CW_LOG_ERROR, "Unable to listen on %s (%s): %s\n", ds.data, spec, strerror(err));
-					cw_object_put(pvt);
-				}
+						cw_verbose("CallWeaver listening on %l@ (%s)\n", addr->ai_addr, spec);
+
+					cw_object_put(conn);
+				} else
+					cw_log(CW_LOG_ERROR, "Unable to listen on %l@ (%s): %s\n", addr->ai_addr, spec, strerror(errno));
+
+				cw_object_put(pvt);
 			} else
 				cw_log(CW_LOG_ERROR, "Out of memory\n");
 		}
@@ -2216,8 +2210,6 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 
 	if (!sun)
 		freeaddrinfo(addrs);
-
-	cw_dynstr_free(&ds);
 }
 
 

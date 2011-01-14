@@ -69,6 +69,8 @@ CORE_SRC = \
     crypto.c \
     dynstr.c \
     blacklist.c \
+    sockaddr.c \
+    printf.c \
     lang/say_br.c \
     lang/say_cz.c \
     lang/say_da.c \

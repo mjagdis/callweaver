@@ -26,6 +26,7 @@
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 #include "callweaver/dynstr.h"
+#include "callweaver/printf.h"
 #include "callweaver/utils.h"
 
 
@@ -41,7 +42,7 @@ int cw_dynstr_vprintf(struct cw_dynstr *ds_p, const char *fmt, va_list ap)
 		size = ds_p->size - ds_p->used;
 
 		va_copy(aq, ap);
-		used = vsnprintf(data, size, fmt, aq);
+		used = cw_vsnprintf(data, size, fmt, aq);
 		va_end(aq);
 
 		/* FIXME: only ancient libcs have *printf functions that return -1 if the

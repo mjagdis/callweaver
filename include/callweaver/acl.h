@@ -1,8 +1,10 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2009 - 2010, Eris Associates Limited, UK
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
@@ -43,11 +45,9 @@ extern CW_API_PUBLIC int cw_acl_add(struct cw_acl **acl_p, const char *sense, co
 extern CW_API_PUBLIC int cw_acl_check(struct cw_acl *acl, struct sockaddr *addr, int defsense);
 extern CW_API_PUBLIC void cw_acl_print(struct cw_dynstr *ds_p, struct cw_acl *acl);
 
-extern CW_API_PUBLIC int cw_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *service);
-#define cw_get_ip(sin, value) cw_get_ip_or_srv((sin), (value), NULL)
+extern CW_API_PUBLIC int cw_get_ip_or_srv(int family, struct sockaddr *addr, const char *value, const char *service);
+#define cw_get_ip(family, sin, value) cw_get_ip_or_srv((family), (sin), (value), NULL)
 extern CW_API_PUBLIC int cw_ouraddrfor(struct in_addr *them, struct in_addr *us);
-extern CW_API_PUBLIC int cw_lookup_iface(char *iface, struct in_addr *address);
-extern CW_API_PUBLIC int cw_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
 extern CW_API_PUBLIC int cw_str2tos(const char *value, int *tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)

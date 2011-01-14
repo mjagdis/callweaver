@@ -24,11 +24,11 @@
 #ifndef _CALLWEAVER_BLACKLIST_H
 #define _CALLWEAVER_BLACKLIST_H
 
-#include "callweaver/connection.h"
+#include "callweaver/sockaddr.h"
 
 
 extern CW_API_PUBLIC int cw_blacklist_check(const struct sockaddr *addr);
-extern CW_API_PUBLIC void cw_blacklist_add(const struct sockaddr *addr, socklen_t addrlen);
+extern CW_API_PUBLIC void cw_blacklist_add(const struct sockaddr *addr);
 
 extern int cw_blacklist_init(void);
 

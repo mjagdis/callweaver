@@ -68,6 +68,7 @@ syn match   cwKeyword       "\K\k*" contained
 syn match   cwBoolean       "\c\%(y\%(es\)\?\|t\%(rue\)\?\|1\|on\|no\?\|f\%(alse\)\?\|0\|off\)" contained
 syn match   cwNumber        "-\?\d\+\%(\.\d\+\)\?\%([eE]-\?\d\+\)\?\ze\%([^.eE]\|$\)" contained
 syn match   cwInt           "-\?\d\+\ze\%([^.eE]\|$\)" contained
+syn match   cwUInt16        "\d\{1,5}\ze\%([^.eE\d]\|$\)" contained
 syn match   cwHex           "0[xX][0-9a-fA-F]\+" contained
 syn match   cwOctal         "0[0-7]\+" contained
 
@@ -80,15 +81,23 @@ syn region  cwLiteral       start=+'+ end=+'+ oneline contained contains=NONE
 
 syn match   cwIntList       "-\?\d\+\%(,-\?\d\+\)*" contained contains=cwInt,cwComma,cwError
 
-syn match   cwFQDN          "[[:alnum:]]\+\%(\.[[:alnum:]]\+\)\{-}\.[[:alpha:]]\+\ze\%([^.[:alnum:]]\|$\)" contained
+syn cluster cwIPPort        contains=cwUInt16,cwLiteral
 
-syn match   cwIPPort        "\d\{1,5}\ze\%([^.eE\d]\|$\)" contained
+syn match   cwFQDN          "[[:alnum:]]\+\%(\.[[:alnum:]]\+\)\{-}\.[[:alpha:]]\+\ze\%([^.[:alnum:]]\|$\)" contained
+syn match   cwFQDNPort      "[[:alnum:]]\+\%(\.[[:alnum:]]\+\)\{-}\.[[:alpha:]]\+:" contained nextgroup=@cwIPPort
+
 syn match   cwIPv4          "\d\{1,3}\%(\.\d\{1,3}\)\{3}\ze\%([^.\d]\|$\)" contained
+syn match   cwIPv4Port      "\d\{1,3}\%(\.\d\{1,3}\)\{3}:" contained nextgroup=@cwIPPort
+
+syn match   cwIPv6          "[0-9a-fA-F]*\%(:[0-9a-fA-F]*\)\{1,7}\%(\%(\.\d\{1,3}\)\{3}\ze\%([^.\d]\|$\)\)\?" contained
+syn match   cwIPv6          "\[[0-9a-fA-F]*\%(:[0-9a-fA-F]*\)\{1,7}\%(\%(\.\d\{1,3}\)\{3}\)\?\]" contained
+syn match   cwIPv6Port      "\[[0-9a-fA-F]*\%(:[0-9a-fA-F]*\)\{1,7}\%(\%(\.\d\{1,3}\)\{3}\)\?\]:" contained nextgroup=@cwIPPort
 
 syn match   cwSubnet        "\d\{1,3}\%(\.\d\{1,3}\)\{3}/" contained nextgroup=@cwIPv4Mask
 syn cluster cwIPv4Mask      contains=cwIPv4,cwInt
 
-syn cluster cwNetAddr       contains=cwFQDN,cwIPv4
+syn cluster cwNetAddr       contains=cwFQDN,cwIPv4,cwIPv6
+syn cluster cwNetAddrPort   contains=cwFQDNPort,cwIPv4Port,cwIPv6Port
 
 
 syn keyword cwCIDPresentation contained
@@ -230,14 +239,15 @@ hi def link cwFunc          Type
 hi def link cwHex           Number
 hi def link cwIdent         Identifier
 hi def link cwInt           Number
-hi def link cwIPPort        Number
 hi def link cwIPv4          Constant
+hi def link cwIPv6          Constant
 hi def link cwKeyword       Type
 hi def link cwLiteral       Constant
 hi def link cwNumber        Float
 hi def link cwOctal         Number
 hi def link cwString        String
 hi def link cwTOSKey        cwKeyword
+hi def link cwUInt16        Number
 
 hi def link cwError         Error
 hi def link cwPreProc       PreProc

@@ -134,6 +134,19 @@ syn match cwSipAuthentication "^\s*\%(auth\)\s*=>\?" contained contains=cwSipAut
 syn match cwSipAuth           "[^:@;]\+:[^@;]\+@[^;]\+" contained contains=cwIdent,cwBareString,cwColon,cwAt,cwFQDN
 
 
+" [connection] contains connection settings
+syn region cwSection        matchgroup=cwSectionName start="^\s*\%(;\s*\)\?\[connection\]\%(([^)]*)\)\?" end="^\s*\%(;\s*\)\?\[.\{-}\]\%(([^)]*)\)\?" keepend contained contains=cwPreProc,cwSipConnection,cwComment,cwError
+
+syn keyword cwSipConnectionKeys contained
+ \ bindaddr
+ \ bindport
+ \ tos
+
+syn match cwSipConnection "^\s*\%(bindaddr\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=@cwNetAddr
+syn match cwSipConnection "^\s*\%(bindport\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=@cwIPPort
+syn match cwSipConnection "^\s*\%(tos\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=cwTOS
+
+
 " [general] contains configuration settings
 syn region cwSection        matchgroup=cwSectionName start="^\s*\%(;\s*\)\?\[general\]\%(([^)]*)\)\?" end="^\s*\%(;\s*\)\?\[.\{-}\]\%(([^)]*)\)\?" keepend contained contains=cwPreProc,cwSipGeneral,cwSipCommon,cwGenericJB,cwComment,cwError
 
@@ -142,8 +155,6 @@ syn keyword cwSipGeneralKeys contained
  \ alwaysauthreject
  \ autocreatepeer
  \ autodomain
- \ bindaddr
- \ bindport
  \ callerid
  \ callevents
  \ checkmwi
@@ -203,9 +214,9 @@ syn match   cwSipGeneral     "^\s*\%(allowexternaldomains\|alwaysauthreject\|aut
 syn match   cwSipGeneral     "^\s*\%(rtautoclear\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=@cwSipRTAutoClear
 syn cluster cwSipRTAutoClear contains=cwInt,cwBoolean
 
-syn match   cwSipGeneral     "^\s*\%(bindaddr\|externhost\|externip\|outboundproxy\|stunserver_host\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=@cwNetAddr
+syn match   cwSipGeneral     "^\s*\%(externhost\|externip\|outboundproxy\|stunserver_host\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=@cwNetAddr
 
-syn match   cwSipGeneral     "^\s*\%(outboundproxyport\|stunserver_port\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=cwIPPort
+syn match   cwSipGeneral     "^\s*\%(outboundproxyport\|stunserver_port\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=@cwIPPort
 
 syn match   cwSipGeneral     "^\s*\%(localnet\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=cwSubnet
 
@@ -218,13 +229,11 @@ syn match   cwSipRegisterU   "[^:@]\+" contained contains=cwIdent,cwBareString n
 syn match   cwSipRegisterS   "\%(:[^:@]\+\)\?" contained contains=cwColon,cwIdent,cwBareString nextgroup=cwSipRegisterA
 syn match   cwSipRegisterA   "\%(:[^:@]\+\)\?" contained contains=cwColon,cwIdent,cwBareString nextgroup=cwSipRegisterH
 syn match   cwSipRegisterH   "@[^:/;]\+" contained contains=cwAt,@cwNetAddr,cwError nextgroup=cwSipRegisterP
-syn match   cwSipRegisterP   "\%(:\d\{1,5}\)\?" contained contains=cwColon,cwIPPort,cwError nextgroup=cwSipRegisterE
+syn match   cwSipRegisterP   "\%(:\d\{1,5}\)\?" contained contains=cwColon,@cwIPPort,cwError nextgroup=cwSipRegisterE
 syn match   cwSipRegisterE  "/" contained nextgroup=cwLitText
-" syn match   cwSipRegister    "[^:@]\+\%(:[^:@]\+\%(:[^:@]\+\)\?\)\?@[^:/;]\+\%(:\d\{1,5}\)\?\%(.\{-}\ze\s*\%(;\|$\)\)\?" contained contains=cwIdent,@cwNetAddr,cwIPPort,cwBareString,cwError
+" syn match   cwSipRegister    "[^:@]\+\%(:[^:@]\+\%(:[^:@]\+\)\?\)\?@[^:/;]\+\%(:\d\{1,5}\)\?\%(.\{-}\ze\s*\%(;\|$\)\)\?" contained contains=cwIdent,@cwNetAddr,@cwIPPort,cwBareString,cwError
 
 syn match   cwSipGeneral     "^\s*\%(tos\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=cwTOS
-
-syn match   cwSipGeneral     "^\s*\%(bindport\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=cwIPPort
 
 syn match   cwSipGeneral     "^\s*\%(qualify\)\s*=>\?" contained contains=cwSipGeneralKeys,cwMapTo skipwhite nextgroup=@cwSipQualify
 
@@ -293,21 +302,22 @@ syn match   cwSipCommon      "^\s*\%(allow\|disallow\)\s*=>\?" contained contain
 " Highlighting Settings
 " ============================================================================
 
-hi def link cwSipSectType    cwKeyword
-hi def link cwSipAuthKeys    cwKeyword
-hi def link cwSipFriendKeys  cwKeyword
-hi def link cwSipPeerKeys    cwKeyword
-hi def link cwSipPeerDynamic cwKeyword
-hi def link cwSipUserKeys    cwKeyword
-hi def link cwSipGeneralKeys cwKeyword
-hi def link cwSipCommonKeys  cwKeyword
-hi def link cwDTMFMode       cwKeyword
-hi def link cwSipNATWords    cwKeyword
-hi def link cwSipCanReinvW   cwKeyword
-hi def link cwSipInsecureW   cwKeyword
-hi def link cwSipProgInbandW cwKeyword
-hi def link cwSipAllowGuestW cwKeyword
-hi def link cwSipOSPAuth     cwKeyword
+hi def link cwSipSectType        cwKeyword
+hi def link cwSipAuthKeys        cwKeyword
+hi def link cwSipConnectionKeys  cwKeyword
+hi def link cwSipFriendKeys      cwKeyword
+hi def link cwSipPeerKeys        cwKeyword
+hi def link cwSipPeerDynamic     cwKeyword
+hi def link cwSipUserKeys        cwKeyword
+hi def link cwSipGeneralKeys     cwKeyword
+hi def link cwSipCommonKeys      cwKeyword
+hi def link cwDTMFMode           cwKeyword
+hi def link cwSipNATWords        cwKeyword
+hi def link cwSipCanReinvW       cwKeyword
+hi def link cwSipInsecureW       cwKeyword
+hi def link cwSipProgInbandW     cwKeyword
+hi def link cwSipAllowGuestW     cwKeyword
+hi def link cwSipOSPAuth         cwKeyword
 
 
 let b:current_syntax = "cw-sip"

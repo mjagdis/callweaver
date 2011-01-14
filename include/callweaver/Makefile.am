@@ -44,6 +44,7 @@ cwinclude_HEADERS = acl.h \
                       options.h \
                       pbx.h \
                       phone_no_utils.h \
+		      printf.h \
                       privacy.h \
                       rtp.h \
                       say.h \

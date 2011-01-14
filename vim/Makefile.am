@@ -1,5 +1,12 @@
 AUTOMAKE_OPTS = gnu
 
+# Note: the contents of the "after" directory are not actually installed.
+# The "after" directory just contains overrides for standard vim stuff
+# to give improved operation with callweaver code (e.g. knowledge that
+# "%...@" is a valid conversion due to our printf extensions).
+# To use it simply copy or link to your own ~/.vim/after.
+
+
 noinst_DATA = doc/callweaver.txt \
 	      doc/tags \
 	      ftdetect/callweaver.vim \

@@ -22,11 +22,61 @@ if [[ $status -ne 0 ]]; then
 			echo "*** Ignoring pthread cleanup nesting"
 			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-Wno-shadow'
 		fi
+
+		if grep "unknown conversion type character '@' in format" "$tmpfile" > /dev/null 2>&1; then
+			# Ok, %@ is our extension for sockaddrs. Sadly there's no way to tell gcc that.
+			if egrep "unknown conversion type character '[^@]' in format" "$tmpfile"; then
+				# Something else is wrong too, though. Since we let the output
+				# from the above grep through we'll leave it at that for now.
+				# Otherwise there's a good chance the real errors would be
+				# submerged beneath a storm of complaints about %@ conversions
+				exit $status
+			else
+				echo "*** Disabling printf format checks due to use of the %@ extension"
+				OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-Wno-format'
+			fi
+		fi
 	elif [[ "$CC" = 'icc' ]]; then
 		if grep 'error #1599: declaration hides variable "__cancel_buf"' "$tmpfile" > /dev/null 2>&1; then
 			# There's a nested pthread_cleanup_push...pthread_cleanup_pop
 			echo "*** Ignoring pthread cleanup nesting"
 			OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd1599'
+		fi
+
+		if grep 'error #269: invalid format string conversion' "$tmpfile" > /dev/null 2>&1; then
+			# Ok, %@ is our extension for sockaddrs. Sadly there's no way to tell icc that.
+			notaddrs=`
+				invfmt=
+				while IFS= read line; do
+					case $line in
+						*'invalid format string conversion'*)
+							invfmt="$line"
+							;;
+						*)
+							if [[ -n "$invfmt" ]]; then
+								data=$( echo "$line" | egrep -v '%#?(\*|[0-9]*)?(\.(\*|[0-9]*))?[hl]?@' )
+								if [[ -n "$data" ]]; then
+									echo "$invfmt"
+									echo "$data"
+								fi
+							fi
+							invfmt=
+							;;
+					esac
+				done < "$tmpfile"
+			`
+
+			if [[ -n "$notaddrs" ]]; then
+				# Something else is wrong too, though. We'll give the non-addr
+				# format errors and leave it at that for now.
+				# Otherwise there's a good chance the real errors would be
+				# submerged beneath a storm of complaints about %@ conversions
+				echo "$notaddrs"
+				exit $status
+			else
+				echo "*** Disabling printf format checks due to use of the %@ extension"
+				OVERRIDE_CFLAGS[${#OVERRIDE_CFLAGS[@]}]='-wd269'
+			fi
 		fi
 
 		if grep 'error #1419: external declaration in primary source file' "$tmpfile" > /dev/null 2>&1; then

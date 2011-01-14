@@ -3625,7 +3625,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 						cw_sched_del(sched, gw->expire);
 					gw->expire = -1;
 					gw->dynamic = 0;
-					if (cw_get_ip(&gw->addr, v->value)) {
+					if (cw_get_ip(AF_INET, (struct sockaddr *)&gw->addr, v->value)) {
 						if (!gw_reload) {
 							cw_mutex_destroy(&gw->msgs_lock);
 							free(gw);
@@ -3634,7 +3634,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 					}
 				}
 			} else if (!strcasecmp(v->name, "defaultip")) {
-				if (cw_get_ip(&gw->defaddr, v->value)) {
+				if (cw_get_ip(AF_INET, (struct sockaddr *)&gw->defaddr, v->value)) {
 					if (!gw_reload) {
 						cw_mutex_destroy(&gw->msgs_lock);
 						free(gw);

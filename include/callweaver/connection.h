@@ -1,7 +1,7 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * Copyright (C) 2009, Eris Associates Limited, UK
+ * Copyright (C) 2009 - 2010, Eris Associates Limited, UK
  *
  * Mike Jagdis <mjagdis@eris-associates.co.uk>
  *
@@ -19,23 +19,13 @@
 #ifndef _CALLWEAVER_CONNECTION_H
 #define _CALLWEAVER_CONNECTION_H
 
-#include <sys/un.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <pthread.h>
 
 #include "callweaver/object.h"
 #include "callweaver/registry.h"
 #include "callweaver/dynstr.h"
-
-
-#define CW_SOCKADDR_UN_SIZE(pathlen) ((size_t)(((struct sockaddr_un *)0)->sun_path + (pathlen)))
-
-#ifndef SUN_LEN
-#  include <string.h>
-#  define SUN_LEN(ptr) ((size_t)(((struct sockaddr_un *) 0)->sun_path) + strlen ((ptr)->sun_path))
-#endif
+#include "callweaver/sockaddr.h"
+#include "callweaver/utils.h"
 
 
 enum cw_connection_state {
@@ -66,23 +56,37 @@ struct cw_connection {
 };
 
 
+struct cw_connection_match_args {
+	const struct cw_connection_tech *tech;
+	int withport;
+	const struct sockaddr *sa;
+};
+
+
 extern CW_API_PUBLIC const char *cw_connection_state_name[];
 
+extern CW_API_PUBLIC struct cw_registry cw_connection_registry;
 
-/* As getaddrinfo(3) but takes a combined host & service rather than separate
- * strings with an optional masklen (as /n or /a.b.c.d) after the host part.
- */
-extern CW_API_PUBLIC int cw_getaddrinfo(const char *spec, const struct addrinfo *hints, struct addrinfo **res, int *masklen);
 
-extern CW_API_PUBLIC void cw_address_print(struct cw_dynstr *ds_p, const struct sockaddr *addr, int masklen, const char *portfmt);
+static inline struct cw_connection *cw_connection_find(const struct cw_connection_tech *tech, const struct sockaddr *sa, int withport)
+{
+	struct cw_connection_match_args args = {
+		.tech = tech,
+		.sa = sa,
+		.withport = withport,
+	};
+	struct cw_connection *conn = NULL;
+	struct cw_object *obj;
 
-extern CW_API_PUBLIC unsigned int cw_address_hash(const struct sockaddr *addr, int withport);
-extern CW_API_PUBLIC int cw_address_cmp(const struct sockaddr *a, const struct sockaddr *b, int masklen, int withport);
+	if ((obj = cw_registry_find(&cw_connection_registry, 1, cw_sockaddr_hash(sa, 0), &args)))
+		conn = container_of(obj, struct cw_connection, obj);
+
+	return conn;
+}
+
 
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
 
-extern CW_API_PUBLIC int cw_connection_listen(int type, struct sockaddr *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
-
-extern CW_API_PUBLIC struct cw_registry cw_connection_registry;
+extern CW_API_PUBLIC struct cw_connection *cw_connection_listen(int type, struct sockaddr *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
 
 #endif /* _CALLWEAVER_CONNECTION_H */

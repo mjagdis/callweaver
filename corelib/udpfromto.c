@@ -34,26 +34,46 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include "callweaver/logger.h"
 #include "callweaver/udpfromto.h"
 
-int cw_udpfromto_init(int s)
+
+#ifndef SOL_IP
+#  define SOL_IP	IPPROTO_IP
+#endif
+
+#ifndef SOL_IPV6
+#  define SOL_IPV6	IPPROTO_IPV6
+#endif
+
+
+int cw_udpfromto_init(int s, int family)
 {
-#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_RECVDSTADDR)
-    static const int opt = 1;
-	int err = -1;
-    
-#ifdef HAVE_IP_PKTINFO
-	errno = ENOSYS;
-	/* Set the IP_PKTINFO option (Linux). */
-	err = setsockopt(s, SOL_IP, IP_PKTINFO, &opt, sizeof(opt));
+#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_RECVDSTADDR) || defined(IPV6_RECVPKTINFO) || defined(IPV6_2292PKTINFO)
+	static const int opt = 1;
+	int err;
+
+	errno = EPROTONOSUPPORT;
+	err = -1;
+
+	switch (family) {
+		case AF_INET6:
+#if defined(IPV6_RECVPKTINFO)
+			err = setsockopt(s, SOL_IPV6, IPV6_RECVPKTINFO, &opt, sizeof(opt));
+#elif defined(IPV6_2292PKTINFO)
+			err = setsockopt(s, SOL_IPV6, IPV6_2292PKTINFO, &opt, sizeof(opt));
 #endif
-#ifdef HAVE_IP_RECVDSTADDR
-	/*
-	 * Set the IP_RECVDSTADDR option (BSD). 
-	 * Note: IP_RECVDSTADDR == IP_SENDSRCADDR 
-	 */
-	err = setsockopt(s, IPPROTO_IP, IP_RECVDSTADDR, &opt, sizeof(opt));
+			/* Fall through - IPv4-mapped addresses are returned as IP CMSGs on IPv6 sockets */
+
+		case AF_INET:
+#if defined(HAVE_IP_PKTINFO)
+			err = setsockopt(s, SOL_IP, IP_PKTINFO, &opt, sizeof(opt));
+#elif defined(HAVE_IP_RECVDSTADDR)
+			err = setsockopt(s, SOL_IP, IP_RECVDSTADDR, &opt, sizeof(opt));
 #endif
+			break;
+	}
+
 	return err;
 #else
 	CW_UNUSED(s);
@@ -62,111 +82,72 @@ int cw_udpfromto_init(int s)
 #endif
 }
 	
-int cw_recvfromto(int s,
-                    void *buf,
-                    size_t len,
-                    int flags,
-                    struct sockaddr *from,
-                    socklen_t *fromlen,
-                    struct sockaddr *to,
-                    socklen_t *tolen)
+int cw_recvfromto(int s, void *buf, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen, struct sockaddr *to, socklen_t *tolen)
 {
-#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_RECVDSTADDR)
-	struct msghdr msgh;
-	struct cmsghdr *cmsg;
-	struct iovec iov;
+#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_RECVDSTADDR) || defined(IPV6_PKTINFO) || defined(IPV6_2292PKTINFO)
 	char cbuf[256];
+	struct msghdr msgh;
+	struct iovec iov;
+	struct cmsghdr *cmsg;
 	int err;
 
-	/*
-	 *	If from or to are set, they must be big enough
-	 *	to store a struct sockaddr_in.
-	 */
-	if ((from && (!fromlen || *fromlen < sizeof(struct sockaddr_in)))
-        ||
-	    (to   && (!tolen   || *tolen < sizeof(struct sockaddr_in))))
-    {
-		errno = EINVAL;
-		return -1;
-	}
-
-	/*
-	 *	IP_PKTINFO / IP_RECVDSTADDR don't provide sin_port so we have to
-	 *	retrieve it using getsockname().
-	 */
-	if (to)
-    {
-		struct sockaddr_in si;
-		socklen_t l = sizeof(si);
-
-		((struct sockaddr_in *) to)->sin_family = AF_INET;
-		((struct sockaddr_in *) to)->sin_port = 0;
-		l = sizeof(si);
-		if (getsockname(s, (struct sockaddr *) &si, &l) == 0)
-        {
-			((struct sockaddr_in *) to)->sin_port = si.sin_port;
-			((struct sockaddr_in *) to)->sin_addr = si.sin_addr; 
-		}
-		if (tolen)
-            *tolen = sizeof(struct sockaddr_in);
-	}
-
-	/* Set up iov and msgh structures. */
-	memset(&msgh, 0, sizeof(struct msghdr));
 	iov.iov_base = buf;
 	iov.iov_len  = len;
-	msgh.msg_control = cbuf;
-	msgh.msg_controllen = sizeof(cbuf);
-	msgh.msg_name = from;
-	msgh.msg_namelen = fromlen  ?  *fromlen  :  0;
 	msgh.msg_iov  = &iov;
 	msgh.msg_iovlen = 1;
+	msgh.msg_name = from;
+	msgh.msg_namelen = (fromlen ? *fromlen : 0);
+	msgh.msg_control = NULL;
+	msgh.msg_controllen = 0;
 	msgh.msg_flags = 0;
 
-	/* Receive one packet. */
+	if (to && tolen) {
+		msgh.msg_control = cbuf;
+		msgh.msg_controllen = sizeof(cbuf);
+	}
+
 	if ((err = recvmsg(s, &msgh, flags)) < 0)
 		return err;
+
 	if (fromlen)
-        *fromlen = msgh.msg_namelen;
+		*fromlen = msgh.msg_namelen;
 
-	/* Process auxiliary received data in msgh */
-	for (cmsg = CMSG_FIRSTHDR(&msgh);
-	     cmsg != NULL;
-	     cmsg = CMSG_NXTHDR(&msgh,cmsg))
-    {
-
-#ifdef HAVE_IP_PKTINFO
-		if (cmsg->cmsg_level == SOL_IP
-		    &&
-            cmsg->cmsg_type == IP_PKTINFO)
-        {
-			struct in_pktinfo *i = (struct in_pktinfo *) CMSG_DATA(cmsg);
-			if (to)
-            {
-				((struct sockaddr_in *) to)->sin_addr = i->ipi_addr;
-				if (tolen)
-                    *tolen = sizeof(struct sockaddr_in);
+	if (to && tolen) {
+		for (cmsg = CMSG_FIRSTHDR(&msgh); cmsg != NULL; cmsg = CMSG_NXTHDR(&msgh,cmsg)) {
+#if defined(HAVE_IP_PKTINFO)
+			if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
+				struct in_pktinfo *pktinfo = (struct in_pktinfo *)CMSG_DATA(cmsg);
+				to->sa_family = AF_INET;
+				memcpy(&((struct sockaddr_in *)to)->sin_addr, &pktinfo->ipi_addr, sizeof(pktinfo->ipi_addr));
+				*tolen = sizeof(struct sockaddr_in);
+				break;
 			}
-			break;
-		}
-#endif
-
-#ifdef HAVE_IP_RECVDSTADDR
-		if (cmsg->cmsg_level == IPPROTO_IP
-		    &&
-            cmsg->cmsg_type == IP_RECVDSTADDR)
-        {
-			struct in_addr *i = (struct in_addr *)CMSG_DATA(cmsg);
-			if (to)
-            {
-				((struct sockaddr_in *)to)->sin_addr = *i;
-				if (tolen)
-                    *tolen = sizeof(struct sockaddr_in);
+#elif defined(HAVE_IP_RECVDSTADDR)
+			if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVDSTADDR) {
+				struct in_addr *inaddr = (struct in_addr *)CMSG_DATA(cmsg);
+				to->sa_family = AF_INET;
+				memcpy(&((struct sockaddr_in *)to)->sin_addr, inaddr, sizeof(*inaddr));
+				*tolen = sizeof(struct sockaddr_in);
+				break;
 			}
-			break;
-		}
 #endif
+#if defined(IPV6_PKTINFO) || defined(IPV6_2292PKTINFO)
+#if defined(IPV6_PKTINFO)
+			if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO)
+#elif defined(IPV6_2292PKTINFO)
+			if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_2292PKTINFO)
+#endif
+			{
+				struct in6_pktinfo *pktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+				to->sa_family = AF_INET6;
+				memcpy(&((struct sockaddr_in6 *)to)->sin6_addr, &pktinfo->ipi6_addr, sizeof(pktinfo->ipi6_addr));
+				*tolen = sizeof(struct sockaddr_in6);
+				break;
+			}
+#endif
+		}
 	}
+
 	return err;
 #else 
 	/* fallback: call recvfrom */
@@ -177,70 +158,88 @@ int cw_recvfromto(int s,
 #endif
 }
 
-int cw_sendfromto(int s,
-                    void *buf,
-                    size_t len,
-                    int flags,
-                    struct sockaddr *from,
-                    socklen_t fromlen,
-                    struct sockaddr *to,
-                    socklen_t tolen)
+int cw_sendfromto(int s, const void *buf, size_t len, int flags, const struct sockaddr *from, socklen_t fromlen, const struct sockaddr *to, socklen_t tolen)
 {
-#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_SENDSRCADDR)
+#if defined(HAVE_IP_PKTINFO) || defined(HAVE_IP_SENDSRCADDR) || defined(IPV6_PKTINFO) || defined(IPV6_2292PKTINFO)
 	if (from  &&  fromlen)
 	{
+		/* N.B. CMSG_SPACE for size of in6_pktinfo >= in_pktinfo >= in_addr. cmsgbuf may be used for all three */
+		char cmsgbuf[CMSG_SPACE(sizeof(struct in6_pktinfo))];
 		struct msghdr msgh;
 		struct cmsghdr *cmsg;
 		struct iovec iov;
-#ifdef HAVE_IP_PKTINFO
-		char cmsgbuf[CMSG_SPACE(sizeof(struct in_pktinfo))];
-		struct in_pktinfo pktinfo, *pktinfo_ptr;
-		memset(&pktinfo, 0, sizeof(struct in_pktinfo));
-#endif
 
-#ifdef HAVE_IP_SENDSRCADDR
-		char cmsgbuf[CMSG_SPACE(sizeof(struct in_addr))];
-#endif
-
-		/* Set up iov and msgh structures. */
-		memset(&msgh, 0, sizeof(struct msghdr));
-		iov.iov_base = buf;
+		iov.iov_base = (char *)buf;
 		iov.iov_len = len;
 		msgh.msg_iov = &iov;
 		msgh.msg_iovlen = 1;
-		msgh.msg_control = cmsgbuf;
-		msgh.msg_controllen = sizeof(cmsgbuf);
-		msgh.msg_name = to;
+		msgh.msg_name = (char *)to;
 		msgh.msg_namelen = tolen;
+		msgh.msg_flags = 0;
 	
-		cmsg = CMSG_FIRSTHDR(&msgh);
+		switch (from->sa_family) {
+			case AF_INET: {
+#if defined(HAVE_IP_PKTINFO)
+				struct in_pktinfo *pktinfo;
 
-#ifdef HAVE_IP_PKTINFO
-		cmsg->cmsg_level = SOL_IP;
-		cmsg->cmsg_type = IP_PKTINFO;
-		cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_pktinfo));
-		pktinfo.ipi_spec_dst = ((struct sockaddr_in *)from)->sin_addr;
-		pktinfo_ptr = (struct in_pktinfo *)CMSG_DATA(cmsg);
-		memcpy(pktinfo_ptr, &pktinfo, sizeof(struct in_pktinfo));
+				msgh.msg_controllen = sizeof(cmsgbuf);
+				msgh.msg_control = cmsgbuf;
+
+				cmsg = CMSG_FIRSTHDR(&msgh);
+				cmsg->cmsg_level = IPPROTO_IP;
+				cmsg->cmsg_type = IP_PKTINFO;
+				cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_pktinfo));
+
+				memset(CMSG_DATA(cmsg), 0, sizeof(struct in_pktinfo));
+				pktinfo = (struct in_pktinfo *)CMSG_DATA(cmsg);
+				memcpy(&pktinfo->ipi_spec_dst, &((struct sockaddr_in *)from)->sin_addr, sizeof(struct in_addr));
+				msgh.msg_controllen = CMSG_SPACE(sizeof(struct in_pktinfo));
+#elif defined(HAVE_IP_SENDSRCADDR)
+				msgh.msg_controllen = sizeof(cmsgbuf);
+				msgh.msg_control = cmsgbuf;
+
+				cmsg = CMSG_FIRSTHDR(&msgh);
+				cmsg->cmsg_level = SOL_IP;
+				cmsg->cmsg_type = IP_SENDSRCADDR;
+				cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+				memcpy(CMSG_DATA(cmsg), &((struct sockaddr_in *)from)->sin_addr, sizeof(struct in_addr));
+				msgh.msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
 #endif
-#ifdef HAVE_IP_SENDSRCADDR
-		cmsg->cmsg_level = IPPROTO_IP;
-		cmsg->cmsg_type = IP_SENDSRCADDR;
-		cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
-		memcpy((struct in_addr *) CMSG_DATA(cmsg), 
-               &((struct sockaddr_in *) from)->sin_addr,
-               sizeof(struct in_addr));
+				break;
+			}
+
+			case AF_INET6: {
+#if defined(IPV6_PKTINFO) || defined(IPV6_2292PKTINFO)
+				struct in6_pktinfo *pktinfo;
+
+				msgh.msg_controllen = sizeof(cmsgbuf);
+				msgh.msg_control = cmsgbuf;
+
+				cmsg = CMSG_FIRSTHDR(&msgh);
+				cmsg->cmsg_level = IPPROTO_IPV6;
+#ifdef IPV6_PKTINFO
+				cmsg->cmsg_type = IPV6_PKTINFO;
+#else
+				cmsg->cmsg_type = IPV6_2292PKTINFO;
 #endif
+				cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
+
+				memset(CMSG_DATA(cmsg), 0, sizeof(struct in6_pktinfo));
+				pktinfo = (struct in6_pktinfo *)CMSG_DATA(cmsg);
+				memcpy(&pktinfo->ipi6_addr, &((struct sockaddr_in6 *)from)->sin6_addr, sizeof(struct in6_addr));
+				msgh.msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+#endif
+				break;
+			}
+		}
 
 		return sendmsg(s, &msgh, flags);
 	}
-    /* from is NULL, use good ol' sendto */
-    return sendto(s, buf, len, flags, to, tolen);
 #else
 	/* fallback: call sendto() */
 	CW_UNUSED(from);
 	CW_UNUSED(fromlen);
+#endif
 
 	return sendto(s, buf, len, flags, to, tolen);
-#endif
 }

@@ -138,6 +138,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/features.h"
 #include "callweaver/curl.h"
 #include "callweaver/blacklist.h"
+#include "callweaver/printf.h"
 
 #include "callweaver/crypto.h"
 
@@ -1439,6 +1440,12 @@ int callweaver_main(int argc, char *argv[])
 
 	gethostname(hostname, sizeof(hostname) - 1);
 	hostname[sizeof(hostname) - 1] = '\0';
+
+#if defined(HAVE_REGISTER_PRINTF_SPECIFIER)
+	register_printf_specifier('@', print_sockaddr, print_sockaddr_arginfo);
+#elif defined(HAVE_REGISTER_PRINTF_FUNCTION)
+	register_printf_function('@', print_sockaddr, print_sockaddr_arginfo);
+#endif
 
 	cw_ulaw_init();
 	cw_alaw_init();

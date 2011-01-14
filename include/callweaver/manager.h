@@ -100,7 +100,6 @@ struct mansession {
 	pthread_t writer_tid;
 	char username[80];		/*!< Logged in username */
 	char challenge[10];		/*!< Authentication challenge */
-	char *name;
 	/* This must be last */
 	struct sockaddr addr;
 };
