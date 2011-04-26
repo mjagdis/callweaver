@@ -71,6 +71,8 @@ CORE_SRC = \
     blacklist.c \
     sockaddr.c \
     printf.c \
+    rfc3489.c \
+    udp.c \
     lang/say_br.c \
     lang/say_cz.c \
     lang/say_da.c \

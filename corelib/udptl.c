@@ -33,14 +33,14 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <vale/rfc3489.h>
 #include <vale/udptl.h>
-#include <vale/udp.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include <callweaver/rfc3489.h>
+#include <callweaver/udp.h>
 #include "callweaver/udptl.h"
 #include "callweaver/frame.h"
 #include "callweaver/logger.h"

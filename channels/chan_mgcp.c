@@ -82,12 +82,12 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <time.h>
-#include <vale/udp.h>
 
 #include "callweaver.h"
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include <callweaver/udp.h>
 #include "callweaver/lock.h"
 #include "callweaver/channel.h"
 #include "callweaver/config.h"

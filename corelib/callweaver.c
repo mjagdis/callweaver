@@ -86,8 +86,6 @@
 #include <regex.h>
 #define SPANDSP_EXPOSE_INTERNAL_STRUCTURES
 #include <spandsp.h>
-#include <vale/rfc3489.h>
-#include <vale/udp.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
@@ -107,6 +105,8 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include <callweaver/rfc3489.h>
+#include <callweaver/udp.h>
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
 #include "callweaver/cli.h"
