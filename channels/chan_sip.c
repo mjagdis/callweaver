@@ -5198,17 +5198,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 /*! \brief  add_header: Add header to SIP message */
 static int add_header(struct sip_request *req, const char *var, const char *value)
 {
-	int len;
-
-	if (req->headers == SIP_MAX_HEADERS) {
-		cw_log(CW_LOG_WARNING, "Out of SIP header space\n");
-		return -1;
-	}
-
-	if (req->lines) {
-		cw_log(CW_LOG_WARNING, "Can't add more headers when lines have been added\n");
-		return -1;
-	}
+	int len, ret = -1;
 
 	if (compactheaders) {
 		const char *p;
@@ -5218,57 +5208,50 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	}
 
 	len = snprintf(req->data + req->len, sizeof(req->data) - req->len - 1,
-		"%s%s%n%s\r\n",
-		var, (var[0] && value[0] ? ": " : ""), (int *)&req->header_val[req->headers], value);
+		"%s%s%s\r\n",
+		var, (var[0] && value[0] ? ": " : ""), value);
 
-	if (len > sizeof(req->data) - req->len - 1) {
+	if (len <= sizeof(req->data) - req->len - 1) {
+		req->len += len;
+		ret = 0;
+	} else
 		cw_log(CW_LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
-		return -1;
-	}
-
-	req->header[req->headers] = req->len;
-	req->header_val[req->headers] += req->len;
-	req->len += len;
-	req->headers++;
-
-	return 0;
-}
-
-
-/*! \brief  add_header_contentLength: Add 'Content-Length' header to SIP message */
-static int add_header_contentLength(struct sip_request *req, int len)
-{
-	char clen[11];
-	int ret = req->headers;
-
-	snprintf(clen, sizeof(clen), "%-10d", len);
-	add_header(req, "Content-Length", clen);
 
 	return ret;
 }
 
 
-/*! \brief  add_header_contentLen: Add 'Content-Length' header to SIP message */
-static void update_header_contentLength(struct sip_request *req, int hdrno, int len)
+/*! \brief  add_header_contentLength: Add 'Content-Length' header to SIP message */
+static int add_header_contentLength(struct sip_request *req, int content_len)
 {
-	char clen[11];
+	int len, offset;
 
-	snprintf(clen, sizeof(clen), "%-10d", len);
-	memcpy(req->data + req->header_val[hdrno], clen, sizeof(clen) - 1);
+	len = snprintf(req->data + req->len, sizeof(req->data) - req->len - 1,
+		"%s: %n%-10d\r\n",
+		(!compactheaders ? "Content-Length" : "l"), &offset, content_len);
+
+	if (len <= sizeof(req->data) - req->len - 1) {
+		req->len += len;
+	} else {
+		offset = -1;
+		cw_log(CW_LOG_WARNING, "Out of space, adding content length header\n");
+	}
+
+	return offset;
+}
+
+
+/*! \brief  add_header_contentLen: Add 'Content-Length' header to SIP message */
+static void update_header_contentLength(struct sip_request *req, int offset, int len)
+{
+	if (offset >= 0)
+		snprintf(req->data + offset, sizeof(req->data) - offset - 1, "%-10d", len);
 }
 
 
 /*! \brief  add_blank_header: Add blank header to SIP message */
 static int add_blank_header(struct sip_request *req)
 {
-	if (req->headers == SIP_MAX_HEADERS) {
-		cw_log(CW_LOG_WARNING, "Out of SIP header space\n");
-		return -1;
-	}
-	if (req->lines) {
-		cw_log(CW_LOG_WARNING, "Can't add more headers when lines have been added\n");
-		return -1;
-	}
 	if (req->len > sizeof(req->data) - 3) {
 		cw_log(CW_LOG_WARNING, "Out of space, can't add anymore\n");
 		return -1;
@@ -5287,11 +5270,6 @@ static int add_line(struct sip_request *req, const char *dline)
 {
 	int len;
 
-	if (req->lines == SIP_MAX_LINES) {
-		cw_log(CW_LOG_WARNING, "Out of SIP line space\n");
-		return -1;
-	}
-
 	len = strlen(dline);
 
 	if (req->len + len > sizeof(req->data) - 3) {
@@ -5299,12 +5277,10 @@ static int add_line(struct sip_request *req, const char *dline)
 		return -1;
 	}
 
-	req->line[req->lines] = req->len;
 	memcpy(req->data + req->len, dline, len);
 	memcpy(req->data + req->len + len, "\r\n\0", 3);
 
 	req->len += len + 2;
-	req->lines++;
 
 	return 0;
 }
@@ -5463,11 +5439,6 @@ static int init_resp(struct sip_request *req, const char *resp, struct sip_reque
 {
     char content[256];
 
-    /* Initialize a response */
-    if (req->headers || req->len) {
-        cw_log(CW_LOG_WARNING, "Request already initialized?!?\n");
-        return -1;
-    }
     req->method = SIP_RESPONSE;
     req->seqno = orig->seqno;
     sprintf(content, "SIP/2.0 %s", resp);
@@ -5480,11 +5451,6 @@ static int init_req(struct sip_request *req, enum sipmethod sipmethod, const cha
 {
     char content[256];
 
-    /* Initialize a request */
-    if (req->headers || req->len) {
-        cw_log(CW_LOG_WARNING, "Request already initialized?!?\n");
-        return -1;
-    }
     req->method = sipmethod;
     sprintf(content, "%s %s SIP/2.0", sip_methods[sipmethod].text, recip);
     add_header(req, content, "");
