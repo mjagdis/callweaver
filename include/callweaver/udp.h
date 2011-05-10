@@ -71,12 +71,6 @@ extern CW_API_PUBLIC int udp_socket_fd(udp_state_t *s);
 
 extern CW_API_PUBLIC int udp_socket_get_rfc3489_state(udp_state_t *s);
 
-extern CW_API_PUBLIC void udp_socket_set_rfc3489_state(udp_state_t *s, int state);
-
-extern CW_API_PUBLIC const struct sockaddr_in *udp_socket_get_rfc3489(udp_state_t *s);
-
-extern CW_API_PUBLIC void udp_socket_set_rfc3489(udp_state_t *s, const struct sockaddr_in *rfc3489);
-
 extern CW_API_PUBLIC int udp_socket_set_local(udp_state_t *s, const struct sockaddr_in *us);
 
 extern CW_API_PUBLIC void udp_socket_set_far(udp_state_t *s, const struct sockaddr_in *far);
@@ -88,8 +82,6 @@ extern CW_API_PUBLIC int udp_socket_set_tos(udp_state_t *s, int tos);
 extern CW_API_PUBLIC void udp_socket_set_nat(udp_state_t *s, int nat_mode);
 
 extern CW_API_PUBLIC void udp_socket_group_set_nat(udp_state_t *s, int nat_mode);
-
-extern CW_API_PUBLIC const struct sockaddr_in *udp_socket_get_local(udp_state_t *s);
 
 extern CW_API_PUBLIC const struct sockaddr_in *udp_socket_get_apparent_local(udp_state_t *s);
 
@@ -103,21 +95,8 @@ extern CW_API_PUBLIC int udp_socket_recvfrom(udp_state_t *s,
                         socklen_t *salen,
                         int *action);
 
-extern CW_API_PUBLIC int udp_socket_recv(udp_state_t *s,
-                    void *buf,
-                    size_t size,
-                    int flags,
-                    int *action);
-
 extern CW_API_PUBLIC int udp_socket_send(udp_state_t *s, const void *buf, size_t size, int flags);
 
-extern CW_API_PUBLIC int udp_socket_sendto(udp_state_t *s,
-                      const void *buf,
-                      size_t size,
-                      int flags,
-                      struct sockaddr *sa,
-                      socklen_t salen);
-                          
 #if defined(__cplusplus)
 }
 #endif

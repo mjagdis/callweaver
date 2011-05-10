@@ -45,8 +45,8 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/stun.h"
 #include "callweaver/udp.h"
-#include "callweaver/rfc3489.h"
 
 /*
  *
@@ -56,6 +56,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * RFC3489 STUN is integrated for NAT traversal.
  * 
  */
+
+enum
+{
+    RFC3489_STATE_IDLE = 0,
+    RFC3489_STATE_REQUEST_PENDING,
+    RFC3489_STATE_RESPONSE_RECEIVED
+};
 
 struct udp_state_s
 {
@@ -69,6 +76,9 @@ struct udp_state_s
     struct udp_state_s *next;
     struct udp_state_s *prev;
 };
+
+int rfc3489_active = 0;
+
 
 static uint16_t make_mask16(uint16_t x)
 {
@@ -333,12 +343,6 @@ void udp_socket_set_far(udp_state_t *s, const struct sockaddr_in *far)
 }
 /*- End of function --------------------------------------------------------*/
 
-void udp_socket_set_rfc3489(udp_state_t *s, const struct sockaddr_in *rfc3489)
-{
-    memcpy(&s->rfc3489_local, rfc3489, sizeof(struct sockaddr_in));
-}
-/*- End of function --------------------------------------------------------*/
-
 int udp_socket_set_tos(udp_state_t *s, int tos)
 {
     if (s == NULL)
@@ -354,7 +358,8 @@ void udp_socket_set_nat(udp_state_t *s, int nat_mode)
     s->nat = nat_mode;
     if (nat_mode  &&  s->rfc3489_state == RFC3489_STATE_IDLE  &&  rfc3489_active)
     {
-        rfc3489_udp_binding_request(s->fd, NULL, NULL, NULL);
+        /* FIXME: far should be stunserver_ip */
+        cw_stun_bindrequest(s->fd, (struct sockaddr *)&s->local, sizeof(s->local), (struct sockaddr *)&s->far, sizeof(s->far), &s->rfc3489_local);
         s->rfc3489_state = RFC3489_STATE_REQUEST_PENDING;
     }
 }
@@ -386,22 +391,6 @@ int udp_socket_get_rfc3489_state(udp_state_t *s)
 }
 /*- End of function --------------------------------------------------------*/
 
-void udp_socket_set_rfc3489_state(udp_state_t *s, int state)
-{
-    s->rfc3489_state = state;
-}
-/*- End of function --------------------------------------------------------*/
-
-const struct sockaddr_in *udp_socket_get_local(udp_state_t *s)
-{
-    static const struct sockaddr_in dummy = {0};
-
-    if (s)
-        return &s->local;
-    return &dummy;
-}
-/*- End of function --------------------------------------------------------*/
-
 const struct sockaddr_in *udp_socket_get_apparent_local(udp_state_t *s)
 {
     static const struct sockaddr_in dummy = {0};
@@ -426,16 +415,6 @@ const struct sockaddr_in *udp_socket_get_far(udp_state_t *s)
 }
 /*- End of function --------------------------------------------------------*/
 
-const struct sockaddr_in *udp_socket_get_rfc3489(udp_state_t *s)
-{
-    static const struct sockaddr_in dummy = {0};
-
-    if (s)
-        return &s->rfc3489_local;
-    return &dummy;
-}
-/*- End of function --------------------------------------------------------*/
-
 int udp_socket_recvfrom(udp_state_t *s,
                         void *buf,
                         size_t size,
@@ -444,8 +423,6 @@ int udp_socket_recvfrom(udp_state_t *s,
                         socklen_t *salen,
                         int *action)
 {
-    struct sockaddr_in rfc3489_sin;
-    rfc3489_state_t stunning;
     int res;
 
     *action = 0;
@@ -468,42 +445,14 @@ int udp_socket_recvfrom(udp_state_t *s,
         }
         if (s->rfc3489_state == RFC3489_STATE_REQUEST_PENDING)
         {
-            rfc3489_handle_packet(s->rfc3489_state, (struct sockaddr_in *) sa, buf, res, &stunning);
-            if (stunning.msgtype == RFC3489_MSG_TYPE_BINDING_RESPONSE)
+            cw_stun_handle_packet(s->fd, (struct sockaddr_in *) sa, buf, res, &s->rfc3489_local);
+	    if (s->rfc3489_local.sin_family != AF_UNSPEC)
             {
                 s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
-                if (rfc3489_addr_to_sockaddr(&rfc3489_sin, stunning.mapped_addr) == 0)
-                    memcpy(&s->rfc3489_local, &rfc3489_sin, sizeof(struct sockaddr_in));
-                rfc3489_delete_request(&stunning.id);
                 *action |= 2;
                 errno = EAGAIN;
                 return -1;
             }
-        }
-    }
-    return res;
-}
-/*- End of function --------------------------------------------------------*/
-
-int udp_socket_recv(udp_state_t *s,
-                    void *buf,
-                    size_t size,
-                    int flags,
-                    int *action)
-{
-    struct sockaddr sa;
-    socklen_t salen;
-    int res;
-
-    salen = sizeof(sa);
-    if ((res = udp_socket_recvfrom(s, buf, size, flags, &sa, &salen, action)) >= 0)
-    {
-        if (salen != sizeof(s->far)
-            ||
-            memcmp(&sa, &s->far, sizeof(s->far)))
-        {
-            errno = EAGAIN;
-            return -1;
         }
     }
     return res;
@@ -520,18 +469,4 @@ int udp_socket_send(udp_state_t *s, const void *buf, size_t size, int flags)
 }
 /*- End of function --------------------------------------------------------*/
 
-int udp_socket_sendto(udp_state_t *s,
-                      const void *buf,
-                      size_t size,
-                      int flags,
-                      struct sockaddr *sa,
-                      socklen_t salen)
-{
-    if (s == NULL  ||  s->fd < 0)
-        return 0;
-    if (s->far.sin_port == 0)
-        return 0;
-    return sendto(s->fd, buf, size, flags, sa, salen);
-}
-/*- End of function --------------------------------------------------------*/
 /*- End of file ------------------------------------------------------------*/

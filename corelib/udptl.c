@@ -39,7 +39,6 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
-#include <callweaver/rfc3489.h>
 #include <callweaver/udp.h>
 #include "callweaver/udptl.h"
 #include "callweaver/frame.h"

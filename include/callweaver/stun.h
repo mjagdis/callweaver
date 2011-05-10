@@ -12,29 +12,11 @@
  * at the top of the source tree.
  */
 
-#include <callweaver/dynstr.h>
+#include <callweaver/sockaddr.h>
 
 
-extern CW_API_PUBLIC char stunserver_host[MAXHOSTNAMELEN];
-extern CW_API_PUBLIC struct sockaddr_in stunserver_ip;
-extern CW_API_PUBLIC int stunserver_portno;
-extern CW_API_PUBLIC int stundebug;               /*!< Are we debugging stun? */
+extern CW_API_PUBLIC int cw_stun_bindrequest(int s, const struct sockaddr *from, socklen_t fromlen, const struct sockaddr *to, socklen_t tolen, struct sockaddr_in *stunaddr);
 
-extern CW_API_PUBLIC rfc3489_addr_t *cw_stun_find_request(rfc3489_trans_id_t *st);
-
-extern CW_API_PUBLIC rfc3489_request_t *cw_udp_stun_bindrequest(int fdus,
-                                             struct sockaddr_in *suggestion, 
-                                             const char *username,
-                                             const char *password);
-
-extern CW_API_PUBLIC int stun_remove_request(rfc3489_trans_id_t *st);
-
-extern CW_API_PUBLIC int stun_handle_packet(int s, struct sockaddr_in *src, unsigned char *data, size_t len, rfc3489_state_t *st);
-
-extern CW_API_PUBLIC int stun_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[]);
-
-extern CW_API_PUBLIC int stun_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[]);
+extern CW_API_PUBLIC int cw_stun_handle_packet(int s, const struct sockaddr_in *src, const unsigned char *data, size_t len, struct sockaddr_in *sin);
 
 int cw_stun_init(void);
-
-//static void append_attr_string(rfc3489_attr_t **attr, int attrval, const char *s, int *len, int *left)
