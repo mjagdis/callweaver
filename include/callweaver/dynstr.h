@@ -30,7 +30,7 @@
 
 /* A dynamic string is derived from a dynamic array of chars but uses
  * its own slightly modified type specific wrappers for the generic
- * dynamic array functions rather than simply generating default with
+ * dynamic array functions rather than simply generating defaults with
  * CW_DYNARRAY_FUNCS().
  */
 CW_DYNARRAY_DECL_STRUCT(char, str);
@@ -89,6 +89,33 @@ static inline void cw_dynstr_init(struct cw_dynstr *ds_p, size_t len, size_t chu
 static inline void cw_dynstr_init_fixed(struct cw_dynstr *ds_p, char *buffer, size_t nmemb)
 {
 	cw_dynarray_init_fixed(ds_p, buffer, nmemb);
+}
+
+
+/* \brief Clone a dynamic string.
+ * The destination dynamic string MUST be of the malloc'd * variety. It may or
+ * may not be initialized but MUST NOT already contain data (if it does the
+ * storage will be leaked).
+ *
+ *	\param dst_p	destination dynamic string to clone into
+ *	\param src_p	source dynamic string to clone from
+ */
+static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
+	__attribute__ ((nonnull (1,2)));
+
+static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
+{
+	dst_p->chunk = src_p->chunk;
+	if (src_p->size && (dst_p->data = malloc(src_p->used + 1))) {
+		dst_p->used = src_p->used;
+		dst_p->size = src_p->used + 1;
+		dst_p->error = src_p->error;
+		memcpy(dst_p->data, src_p->data, src_p->used + 1);
+	} else {
+		dst_p->used = dst_p->size = 0;
+		dst_p->error = src_p->size;
+		dst_p->data = (char *)"";
+	}
 }
 
 
