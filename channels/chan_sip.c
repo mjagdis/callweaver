@@ -927,7 +927,6 @@ struct sip_pvt {
     struct sip_auth *peerauth;        /*!< Realm authentication */
     char cid_num[256];            /*!< Caller*ID */
     char cid_name[256];            /*!< Caller*ID */
-    char via[256];                /*!< Via: header */
     char fullcontact[128];            /*!< The Contact: that the UA registers with us */
     char accountcode[CW_MAX_ACCOUNT_CODE];    /*!< Account code */
     char our_contact[256];            /*!< Our contact header */
@@ -1794,13 +1793,6 @@ static int __sip_xmit(struct cw_connection *conn, struct cw_sockaddr_net *from, 
 
 static void sip_destroy(struct sip_pvt *p);
 
-/*! \brief  build_via: Build a Via header for a request */
-static void build_via(struct sip_pvt *p, char *buf, int len)
-{
-	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	/* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
-	cw_snprintf(buf, len, "SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s", &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : ""));
-}
 
 /*! \brief  cw_sip_ouraddrfor: NAT fix - decide which IP address to use for CallWeaver.org server? */
 static int cw_sip_ouraddrfor(struct sip_pvt *dialogue, struct sockaddr *peer_sa, socklen_t peer_salen)
@@ -2937,7 +2929,6 @@ static int create_addr(struct sip_pvt *dialogue, char *opeername, struct sip_pee
 		/* FIXME: should these should happen after STUN completes? i.e. they should
 		 * include NAT-mapped addresses?
 		 */
-		build_via(dialogue, dialogue->via, sizeof(dialogue->via));
 		build_callid(dialogue->callid, sizeof(dialogue->callid), &dialogue->ouraddr.sa, dialogue->fromdomain);
 	}
 
@@ -5489,7 +5480,6 @@ out:
 static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, const struct sip_request *orig, enum sipmethod sipmethod, unsigned int seqno, int newbranch)
 {
 	char stripped[80];
-	char tmp[80];
 	char *c, *n;
 	char *ot, *of;
 	int is_strict = 0;    /* Strict routing flag */
@@ -5503,10 +5493,8 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Tx: %s", sip_methods[sipmethod].text);
     
-	if (newbranch) {
+	if (newbranch)
 		p->branch ^= cw_random();
-		build_via(p, p->via, sizeof(p->via));
-	}
 
 	/* Check for strict or loose router */
 	if (p->route && !cw_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL)
@@ -5543,9 +5531,10 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 		seqno = ++p->ocseq;
 	req->seqno = seqno;
 
-	snprintf(tmp, sizeof(tmp), "%u %s", seqno, sip_methods[sipmethod].text);
+	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
+	/* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
+	cw_dynstr_printf(&req->pkt, "%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : ""));
 
-	cw_dynstr_printf(&req->pkt, "%s: %s\r\n", sip_hdr_name[SIP_NHDR_VIA], p->via);
 	if (p->route) {
 		if (is_strict)
 			add_route(req, p->route->next);
@@ -5578,7 +5567,7 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 
 	cw_dynstr_tprintf(&req->pkt, 4,
 		cw_fmtval("%s: %s\r\n",           sip_hdr_name[SIP_NHDR_CONTACT], p->our_contact),
-		cw_fmtval("CSeq: %s\r\n",         tmp),
+		cw_fmtval("CSeq: %u %s\r\n",      seqno, sip_methods[sipmethod].text),
 		cw_fmtval("User-Agent: %s\r\n",   default_useragent),
 		cw_fmtval("Max-Forwards: %s\r\n", DEFAULT_MAX_FORWARDS)
 	);
@@ -6436,7 +6425,9 @@ static struct sip_request *initreqprep(struct sip_request *req, struct sip_pvt *
     init_req(req, sipmethod, p->uri);
     req->seqno = ++p->ocseq;
 
-    cw_dynstr_printf(&req->pkt, "%s: %s\r\n", sip_hdr_name[SIP_NHDR_VIA], p->via);
+    /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
+    /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
+    cw_dynstr_printf(&req->pkt, "%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : ""));
 
     /* Build Remote Party-ID and From */
     if (cw_test_flag(p, SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
@@ -6471,7 +6462,6 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= cw_random();
-		build_via(p, p->via, sizeof(p->via));
 	}
 
 	if (init > 1) {
@@ -6941,12 +6931,9 @@ static int sip_reg_timeout(void *data)
 /*! \brief  transmit_register: Transmit register to SIP proxy or UA */
 static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, const char *auth, const char *authheader)
 {
-    char from[256];
-    char to[256];
-    char via[80];
-    char addr[80];
     struct sip_request *msg;
     struct sip_pvt *p;
+    int has_at;
     int res = -1;
 
     /* exit if we are already in process with this registrar ?*/
@@ -7064,52 +7051,42 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
     }
 
-    if (strchr(r->username, '@'))
-    {
-        snprintf(from, sizeof(from), "<sip:%s>;tag=%s", r->username, p->tag);
-        if (!cw_strlen_zero(p->theirtag))
-            snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
-        else
-            snprintf(to, sizeof(to), "<sip:%s>", r->username);
-    }
-    else
-    {
-        snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->tag);
-        if (!cw_strlen_zero(p->theirtag))
-            snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
-        else
-            snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
-    }
-    
     /* Fromdomain is what we are registering to, regardless of actual
        host name from SRV */
     if (!cw_strlen_zero(p->fromdomain)) {
 	if (r->portno && r->portno != DEFAULT_SIP_PORT)
-	    snprintf(addr, sizeof(addr), "sip:%s:%d", p->fromdomain, r->portno);
+	    snprintf(p->uri, sizeof(p->uri), "sip:%s:%d", p->fromdomain, r->portno);
 	else
-	    snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+	    snprintf(p->uri, sizeof(p->uri), "sip:%s", p->fromdomain);
     } else {
 	if (r->portno && r->portno != DEFAULT_SIP_PORT)
-	    snprintf(addr, sizeof(addr), "sip:%s:%d", r->hostname, r->portno);
+	    snprintf(p->uri, sizeof(p->uri), "sip:%s:%d", r->hostname, r->portno);
 	else
-	    snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	    snprintf(p->uri, sizeof(p->uri), "sip:%s", r->hostname);
     }
-
-    cw_copy_string(p->uri, addr, sizeof(p->uri));
 
     p->branch ^= cw_random();
 
     if ((msg = malloc(sizeof(*msg)))) {
-        init_req(msg, sipmethod, addr);
+        init_req(msg, sipmethod, p->uri);
 
 	r->ocseq++;
         msg->seqno = p->ocseq = r->ocseq;
 
-        build_via(p, via, sizeof(via));
+        has_at = (strchr(r->username, '@') != NULL);
         cw_dynstr_tprintf(&msg->pkt, 7,
-            cw_fmtval("%s: %s\r\n",          sip_hdr_name[SIP_NHDR_VIA], via),
-            cw_fmtval("%s: %s\r\n",          sip_hdr_name[SIP_NHDR_FROM], from),
-            cw_fmtval("%s: %s\r\n",          sip_hdr_name[SIP_NHDR_TO], to),
+            /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
+            /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
+            cw_fmtval("%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n",
+                sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
+            cw_fmtval("%s: <sip:%s%s%s>;tag=%s\r\n",
+                sip_hdr_name[SIP_NHDR_FROM], r->username, (has_at ? "" : "@"), (has_at ? "" : p->tohost), p->tag),
+            cw_fmtval("%s: <sip:%s%s%s>%s%s\r\n",
+                sip_hdr_name[SIP_NHDR_TO],
+                r->username,
+	        (has_at ? "" : "@"), (has_at ? "" : p->tohost),
+	        (p->theirtag[0] ? ";tag=" : ""),
+	        (p->theirtag[0] ? p->theirtag : "")),
             cw_fmtval("%s: %s\r\n",          sip_hdr_name[SIP_NHDR_CALL_ID], p->callid),
             cw_fmtval("CSeq: %u %s\r\n",     r->ocseq, sip_methods[sipmethod].text),
             cw_fmtval("User-Agent: %s\r\n", default_useragent),
@@ -13854,7 +13831,6 @@ static int handle_message(void *data)
 								cw_sip_ouraddrfor(dialogue, &req->recvdaddr.sa, sizeof(req->recvdaddr));
 
 							if (dialogue->conn) {
-								build_via(dialogue, dialogue->via, sizeof(dialogue->via));
 								cw_copy_string(dialogue->callid, req->pkt.data + req->callid, sizeof(dialogue->callid));
 								memcpy(dialogue->theirtag, req->pkt.data + req->tag, (dialogue->theirtag_len = req->taglen));
 								dialogue->theirtag[req->taglen] = '\0';
