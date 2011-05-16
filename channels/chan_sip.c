@@ -2259,29 +2259,8 @@ static char *get_header(const struct sip_request *req, const char *name, const c
 static void build_callid(char *callid, int len, struct sockaddr *ouraddr, char *fromdomain);
 
 
-/*! \brief  send_response: Transmit response on SIP request*/
-static void send_response(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int reliable)
-{
-	if (!msg->pkt.error) {
-		if (sip_debug_test_pvt(p))
-			cw_verbose("%sTransmitting from %#l@ to %#l@:\n%s\n---\n",
-				(reliable ? "Reliably " : ""),
-				from, to,
-				msg->pkt.data);
-
-		if (reliable)
-			__sip_reliable_xmit(p, conn, from, to, msg, 1, (reliable > 1));
-		else {
-			__sip_xmit(conn, from, to, msg);
-			cw_dynstr_free(&msg->pkt);
-			if (msg->free)
-				free(msg);
-		}
-	}
-}
-
-/*! \brief  send_request: Send SIP Request to the other part of the dialogue */
-static int send_request(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int reliable)
+/*! \brief  send_message: Send a SIP message (request or response) to the other part of the dialogue */
+static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int reliable)
 {
 	int res = -1;
 
@@ -5523,7 +5502,7 @@ static void __transmit_response(struct sip_pvt *p, const char *status, struct si
 
 		cw_dynstr_printf(&msg->pkt, "\r\n");
 
-		send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
+		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
 	}
 }
 
@@ -5560,7 +5539,7 @@ static void transmit_response_with_unsupported(struct sip_pvt *p, const char *st
 	respprep(&msg, p, status, req);
 	append_date(&msg);
 	cw_dynstr_printf(&msg.pkt, "Unsupported: %s\r\n", unsupported);
-	send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, &msg, 0);
+	send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, &msg, 0);
 }
 
 /*! \brief  transmit_response_reliable: Transmit response, Make sure you get a reply */
@@ -5594,7 +5573,7 @@ static void transmit_response_with_date(struct sip_pvt *p, const char *status, s
 	append_date(&msg);
 	add_header_contentLength(&msg, 0);
 	cw_dynstr_printf(&msg.pkt, "\r\n");
-	send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, &msg, 0);
+	send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, &msg, 0);
 }
 
 /*! \brief  transmit_response_with_allow: Append Accept header, content length before transmitting response */
@@ -5606,7 +5585,7 @@ static void transmit_response_with_allow(struct sip_pvt *p, const char *status, 
 		cw_dynstr_printf(&msg->pkt, "Accept: application/sdp\r\n");
 		add_header_contentLength(msg, 0);
 		cw_dynstr_printf(&msg->pkt, "\r\n");
-		send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
+		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
 	}
 }
 
@@ -5620,7 +5599,7 @@ static void transmit_response_with_auth(struct sip_pvt *p, const char *status, s
 		cw_dynstr_printf(&msg->pkt, "%s: Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", sip_hdr_generic(header), global_realm, randdata, stale ? ", stale=true" : "");
 		add_header_contentLength(msg, 0);
 		cw_dynstr_printf(&msg->pkt, "\r\n");
-		send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
+		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
 	}
 }
 
@@ -6019,7 +5998,7 @@ static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, st
 		} else
 			cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 
-		send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
+		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
 	}
 }
 
@@ -6035,7 +6014,7 @@ static void transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status
 		} else
 			cw_log(CW_LOG_ERROR, "Can't add SDP to response, since we have no UDPTL session allocated. Call-ID %s\n", p->callid);
 
-		send_response(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
+		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
 	}
 }
 
@@ -6074,7 +6053,7 @@ static void transmit_reinvite_with_sdp(struct sip_pvt *p)
 			cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
 		}
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -6104,7 +6083,7 @@ static void transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 		p->lastinvite = p->ocseq;
 		cw_set_flag(p, SIP_OUTGOING);
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -6457,7 +6436,7 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 	}
 	p->lastinvite = p->ocseq;
 
-	res = send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, (init ? 2 : 1));
+	res = send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, (init ? 2 : 1));
 
 out:
 	return res;
@@ -6633,7 +6612,7 @@ static void transmit_state_notify(struct sip_pvt *p, int state, int full, int su
 
 		update_header_contentLength(msg, cl_index, msg->pkt.used - body_start);
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -6676,7 +6655,7 @@ static void transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs
 				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		}
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 #endif
@@ -6692,7 +6671,7 @@ static void transmit_sip_request(struct sip_pvt *p, struct sip_request *req)
 			cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	}
 
-	send_request(p, p->conn, &p->ouraddr, &p->peeraddr, req, 0);
+	send_message(p, p->conn, &p->ouraddr, &p->peeraddr, req, 0);
 }
 
 /*! \brief  transmit_notify_with_sipfrag: Notify a transferring party of the status of transfer */
@@ -6722,7 +6701,7 @@ static void transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 				cw_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		}
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -7038,7 +7017,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
 	msg->free = 1;
 
-        res = send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 2);
+        res = send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 2);
     }
 
     /* set up a timeout */
@@ -7070,7 +7049,7 @@ static int transmit_message_with_text(struct sip_pvt *p, const char *mimetype, c
 		add_header_contentLength(msg, strlen(text) + sizeof("\r\n") - 1);
 		cw_dynstr_printf(&msg->pkt, "\r\n%s\r\n", text);
 
-		res = send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		res = send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 
 	return res;
@@ -7118,7 +7097,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 			cw_dynstr_printf(&msg->pkt, "%s: %s\r\n", sip_hdr_name[SIP_NHDR_REFERRED_BY], p->our_contact);
 		cw_dynstr_printf(&msg->pkt, "\r\n");
 
-		res = send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		res = send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 
 	return res;
@@ -7140,7 +7119,7 @@ static void transmit_info_with_digit(struct sip_pvt *p, char digit, unsigned int
 			cw_fmtval("%s\r\n", tmp)
 		);
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -7167,7 +7146,7 @@ static void transmit_info_with_vidupdate(struct sip_pvt *p)
 			cw_fmtval("%s\r\n", data)
 		);
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 1);
 	}
 }
 
@@ -7180,7 +7159,7 @@ static void transmit_ack(struct sip_pvt *p, struct sip_request *req, int newbran
 	add_header_contentLength(&msg, 0);
 	cw_dynstr_printf(&msg.pkt, "\r\n");
 
-	send_request(p, p->conn, &p->ouraddr, &p->peeraddr, &msg, 0);
+	send_message(p, p->conn, &p->ouraddr, &p->peeraddr, &msg, 0);
 }
 
 /*! \brief  transmit_request_with_auth: Transmit SIP request, auth added */
@@ -7206,7 +7185,7 @@ static void transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmeth
 		add_header_contentLength(msg, 0);
 		cw_dynstr_printf(&msg->pkt, "\r\n");
 
-		send_request(p, p->conn, &p->ouraddr, &p->peeraddr, msg, reliable);
+		send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, reliable);
 	}
 }
 
