@@ -142,7 +142,7 @@ syn keyword cwSipConnectionKeys contained
  \ bindport
  \ tos
 
-syn match cwSipConnection "^\s*\%(bindaddr\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=@cwNetAddr
+syn match cwSipConnection "^\s*\%(bindaddr\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=@cwNetAddrOptPort
 syn match cwSipConnection "^\s*\%(bindport\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=@cwIPPort
 syn match cwSipConnection "^\s*\%(tos\)\s*=>\?" contained contains=cwSipConnectionKeys,cwMapTo skipwhite nextgroup=cwTOS
 

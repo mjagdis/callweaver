@@ -295,21 +295,25 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; it's configuration is in doc/README.generic_jb
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-[connections]
-; Local addresses to bind to.
-; Note that IPv4 and IPv6 port spaces will be explicitly not shared if that
-; is supported on your OS so an IPv4 connection will only handle IPv4
-; traffic and an IPv6 connection will only handle IPv6 traffic. If OS does
-; not support this mode then you can only bind to a particular port once
-; and an IPv6 connection may receive IPv4 traffic (with addresses mapped
-; to the IPv6 form ::ffff:a.b.c.d) however an IPv4 connection cannot
-; receive IPv6 traffic (there is no way to represent IPv6 addresses as
-; IPv4). Hence it is strongly recommended that you listen IPv6 connections
-; first so that they are the ones that succeed.
-listen = [::]:5060		; Any IPv6 address using the standard port
-listen = 0.0.0.0:5060		; Any IPv4 address using the standard port
-listen = myhost.dyndns.org:5566	; Whatever my external address and using a
-				; non-standard port
+[connection]
+; A local address to bind to and listen for traffic on.
+;
+; There may be multiple connection sections specifying multiple addresses
+; to listen on.
+;
+; N.B. An IPv6 connection can, and will, receive IPv4 traffic (with addresses
+; mapped to the IPv6 form ::ffff:a.b.c.d) however an IPv4 connection cannot
+; receive IPv6 traffic (there is no way to represent IPv6 addresses as IPv4).
+; However IPv4 and IPv6 share port space and you can only bind to a particular
+; port once.
+; Hence it is strongly recommended that you list IPv6 connections first so
+; that they are the ones that succeed.
+bindaddr = [::]:5060			; Any IPv6 or IPv4 address using the
+					; standard port
+;bindaddr = 0.0.0.0:5060		; Any IPv4 address using the standard
+					; port
+;bindaddr = myhost.dyndns.org:5566	; Whatever my DNS-registered address
+					; is and using a non-standard port
 
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your

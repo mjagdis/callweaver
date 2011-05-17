@@ -98,6 +98,7 @@ syn cluster cwIPv4Mask      contains=cwIPv4,cwInt
 
 syn cluster cwNetAddr       contains=cwFQDN,cwIPv4,cwIPv6
 syn cluster cwNetAddrPort   contains=cwFQDNPort,cwIPv4Port,cwIPv6Port
+syn cluster cwNetAddrOptPort contains=cwFQDNPort,cwIPv4Port,cwIPv4,cwIPv6Port,cwIPv6
 
 
 syn keyword cwCIDPresentation contained
@@ -240,7 +241,9 @@ hi def link cwHex           Number
 hi def link cwIdent         Identifier
 hi def link cwInt           Number
 hi def link cwIPv4          Constant
+hi def link cwIPv4Port      Constant
 hi def link cwIPv6          Constant
+hi def link cwIPv6Port      Constant
 hi def link cwKeyword       Type
 hi def link cwLiteral       Constant
 hi def link cwNumber        Float
