@@ -725,7 +725,7 @@ struct sip_invite_param {
     struct cw_var_t *distinctive_ring;    /*!< Distinctive ring header */
     struct cw_var_t *uri_options;    /*!< URI options to add to the URI */
     struct cw_var_t *vxml_url;        /*!< VXML url for Cisco phones */
-    const char *auth;        /*!< Authentication */
+    struct cw_dynstr auth;        /*!< Authentication */
     const char *authheader;    /*!< Auth header */
     enum sip_auth_type auth_type;    /*!< Authentication type */
 #ifdef OSP_SUPPORT
@@ -1154,7 +1154,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest);
 static struct sip_peer *temp_peer(const char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, const char *header, const char *respheader, enum sipmethod sipmethod, int init);
 static void free_old_route(struct sip_route *route);
-static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char *digest, int digest_len);
+static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, struct cw_dynstr *digest);
 static int update_call_counter(struct sip_pvt *fup, int event);
 static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int realtime, int sip_running);
 static struct sip_user *build_user(const char *name, struct cw_variable *v, int realtime);
@@ -1568,6 +1568,7 @@ static void dialogue_release(struct cw_object *obj)
 		if (dialogue->options->osptoken)
 			cw_object_put(dialogue->options->osptoken);
 #endif
+		cw_dynstr_free(&dialogue->options->auth);
 		free(dialogue->options);
 	}
 
@@ -6359,8 +6360,9 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 			goto out;
 	}
 
-	if (p->options && p->options->auth)
-		cw_dynstr_printf(&msg->pkt, "%s: %s\r\n", sip_hdr_generic(p->options->authheader), p->options->auth);
+	if (p->options && p->options->auth.used)
+		cw_dynstr_printf(&msg->pkt, "%s: %s\r\n", sip_hdr_generic(p->options->authheader), p->options->auth.data);
+
 	append_date(msg);
 	if (sipmethod == SIP_REFER) {
 		/* Call transfer */
@@ -6730,7 +6732,7 @@ static const char *regstate2str(int regstate)
     }
 }
 
-static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, const char *auth, const char *authheader);
+static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, const struct cw_dynstr *auth, const char *authheader);
 
 /*! \brief  __sip_do_register: Register with SIP proxy */
 static void *__sip_do_register(void *data)
@@ -6813,7 +6815,7 @@ static int sip_reg_timeout(void *data)
 }
 
 /*! \brief  transmit_register: Transmit register to SIP proxy or UA */
-static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, const char *auth, const char *authheader)
+static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, const struct cw_dynstr *auth, const char *authheader)
 {
     struct sip_request *msg;
     struct sip_pvt *p;
@@ -6974,11 +6976,14 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             cw_fmtval("Max-Forwards: " DEFAULT_MAX_FORWARDS "\r\n")
         );
 
-        if (auth)
-            cw_dynstr_printf(&msg->pkt, "%s: %s\r\n", sip_hdr_generic(authheader), auth);
+        if (auth) {
+            msg->pkt.error |= auth->error;
+            cw_dynstr_printf(&msg->pkt, "%s: %s\r\n", sip_hdr_generic(authheader), auth->data);
+        }
+
         else if (!cw_strlen_zero(r->nonce))
         {
-            char digest[1024];
+            struct cw_dynstr digest = CW_DYNSTR_INIT;
 
             /* We have auth data to reuse, build a digest header! */
             if (sipdebug)
@@ -6990,10 +6995,11 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             cw_copy_string(p->qop, r->qop, sizeof(p->qop));
             p->noncecount = r->noncecount++;
 
-            memset(digest,0,sizeof(digest));
-            if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-                cw_dynstr_printf(&msg->pkt, "Authorization: %s\r\n", digest);
-            else
+            if(!build_reply_digest(p, sipmethod, &digest)) {
+                msg->pkt.error |= digest.error;
+                cw_dynstr_printf(&msg->pkt, "Authorization: %s\r\n", digest.data);
+	        cw_dynstr_free(&digest);
+	    } else
                 cw_log(CW_LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
         }
 
@@ -7169,12 +7175,13 @@ static void transmit_request_with_auth(struct sip_pvt *p, enum sipmethod sipmeth
 
 	if ((msg = reqprep(p, (reliable ? NULL : &tmpmsg), &p->initreq, sipmethod, seqno, newbranch))) {
 		if (*p->realm) {
-			char digest[1024];
+			struct cw_dynstr digest = CW_DYNSTR_INIT;
 
-			memset(digest, 0, sizeof(digest));
-			if (!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-				cw_dynstr_printf(&msg->pkt, "%sAuthorization: %s\r\n", (p->options && p->options->auth_type == WWW_AUTH ? "" : "Proxy-"), digest);
-			else
+			if (!build_reply_digest(p, sipmethod, &digest)) {
+				msg->pkt.error |= digest.error;
+				cw_dynstr_printf(&msg->pkt, "%sAuthorization: %s\r\n", (p->options && p->options->auth_type == WWW_AUTH ? "" : "Proxy-"), digest.data);
+				cw_dynstr_free(&digest);
+			} else
 				cw_log(CW_LOG_WARNING, "No authentication available for call %s\n", p->callid);
 		}
 
@@ -10610,218 +10617,208 @@ static int sip_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return res;
 }
 
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, const char *header, enum sipmethod sipmethod, char *digest, int digest_len);
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, const char *header, enum sipmethod sipmethod, struct cw_dynstr  *digest);
 
 /*! \brief  do_register_auth: Authenticate for outbound registration */
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, const char *header, const char *respheader)
 {
-    char digest[1024];
+	struct cw_dynstr digest = CW_DYNSTR_INIT;
+	int res = -1;
     
-    p->authtries++;
-    memset(digest,0,sizeof(digest));
-    if (reply_digest(p, req, header, SIP_REGISTER, digest, sizeof(digest)))
-    {
-        /* There's nothing to use for authentication */
-         /* No digest challenge in request */
-         if (sip_debug_test_pvt(p) && p->registry)
-             cw_verbose("No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
-             /* No old challenge */
-        return -1;
-    }
-
-     if (sip_debug_test_pvt(p) && p->registry)
-         cw_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
-    return transmit_register(p->registry, SIP_REGISTER, digest, respheader); 
+	p->authtries++;
+	if (!reply_digest(p, req, header, SIP_REGISTER, &digest)) {
+		if (sip_debug_test_pvt(p) && p->registry)
+			cw_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
+		res = transmit_register(p->registry, SIP_REGISTER, &digest, respheader);
+		cw_dynstr_free(&digest);
+	} else {
+		/* There's nothing to use for authentication */
+		/* No digest challenge in request */
+		if (sip_debug_test_pvt(p) && p->registry)
+			cw_verbose("No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
+	}
+	return res;
 }
+
 
 /*! \brief  do_proxy_auth: Add authentication on outbound SIP packet */
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, const char *header, const char *respheader, enum sipmethod sipmethod, int init)
 {
-    char digest[1024];
+	int res = -2;
 
-    if (!p->options)
-    {
-        p->options = calloc(1, sizeof(struct sip_invite_param));
-        if (!p->options)
-        {
-            cw_log(CW_LOG_ERROR, "Out of memory\n");
-            return -2;
-        }
-    }
+	if (!p->options && (p->options = calloc(1, sizeof(struct sip_invite_param))))
+		cw_dynstr_init(&p->options->auth, 0, CW_DYNSTR_DEFAULT_CHUNK);
 
-    p->authtries++;
-    if (option_debug > 1)
-        cw_log(CW_LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
-    memset(digest, 0, sizeof(digest));
-    if (reply_digest(p, req, header, sipmethod, digest, sizeof(digest) ))
-    {
-        /* No way to authenticate */
-        return -1;
-    }
-    /* Now we have a reply digest */
-    p->options->auth = digest;
-    p->options->authheader = respheader;
-    return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init); 
+	if (p->options) {
+		p->authtries++;
+		if (option_debug > 1)
+			cw_log(CW_LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
+
+		cw_dynstr_reset(&p->options->auth);
+		if (!reply_digest(p, req, header, sipmethod, &p->options->auth) && !p->options->auth.error) {
+			p->options->authheader = respheader;
+			res = transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init);
+		}
+	}
+
+	return res;
 }
+
 
 /*! \brief  reply_digest: reply to authentication for outbound registrations */
 /*      This is used for register= servers in sip.conf, SIP proxies we register
         with  for receiving calls from.  */
 /*    Returns -1 if we have no auth */
-static int reply_digest(struct sip_pvt *p, struct sip_request *req,
-    const char *header, enum sipmethod sipmethod,  char *digest, int digest_len)
+static int reply_digest(struct sip_pvt *p, struct sip_request *req, const char *header, enum sipmethod sipmethod,  struct cw_dynstr *digest)
 {
-    char tmp[512];
-    char *c;
-    char oldnonce[256];
+	char tmp[512];
+	char oldnonce[256];
+	char *c;
 
-    /* table of recognised keywords, and places where they should be copied */
-    const struct x {
-        const char *key;
-        char *dst;
-        int dstlen;
-    } *i, keys[] = {
-        { "realm=", p->realm, sizeof(p->realm) },
-        { "nonce=", p->nonce, sizeof(p->nonce) },
-        { "opaque=", p->opaque, sizeof(p->opaque) },
-        { "qop=", p->qop, sizeof(p->qop) },
-        { "domain=", p->domain, sizeof(p->domain) },
-        { NULL, NULL, 0 },
-    };
+	/* table of recognised keywords, and places where they should be copied */
+	const struct x {
+		const char *key;
+		char *dst;
+		int dstlen;
+	} *i, keys[] = {
+		{ "realm=", p->realm, sizeof(p->realm) },
+		{ "nonce=", p->nonce, sizeof(p->nonce) },
+		{ "opaque=", p->opaque, sizeof(p->opaque) },
+		{ "qop=", p->qop, sizeof(p->qop) },
+		{ "domain=", p->domain, sizeof(p->domain) },
+		{ NULL, NULL, 0 },
+	};
 
-    cw_copy_string(tmp, get_header(req, SIP_HDR_GENERIC(header)), sizeof(tmp));
-    if (cw_strlen_zero(tmp)) 
-        return -1;
-    if (strncasecmp(tmp, "Digest ", strlen("Digest ")))
-    {
-        cw_log(CW_LOG_WARNING, "missing Digest.\n");
-        return -1;
-    }
-    c = tmp + strlen("Digest ");
-    for (i = keys; i->key != NULL; i++)
-        i->dst[0] = '\0';    /* init all to empty strings */
-    cw_copy_string(oldnonce, p->nonce, sizeof(oldnonce));
-    while (c && *(c = cw_skip_blanks(c)))
-    {
-        /* lookup for keys */
-        for (i = keys; i->key != NULL; i++)
-        {
-            const char *separator;
-            char *src;
+	cw_copy_string(tmp, get_header(req, SIP_HDR_GENERIC(header)), sizeof(tmp));
+	if (cw_strlen_zero(tmp))
+		return -1;
+	if (strncasecmp(tmp, "Digest ", strlen("Digest "))) {
+		cw_log(CW_LOG_WARNING, "missing Digest.\n");
+		return -1;
+	}
+	c = tmp + strlen("Digest ");
+	for (i = keys; i->key != NULL; i++)
+		i->dst[0] = '\0';    /* init all to empty strings */
+	cw_copy_string(oldnonce, p->nonce, sizeof(oldnonce));
+	while (c && *(c = cw_skip_blanks(c))) {
+		/* lookup for keys */
+		for (i = keys; i->key != NULL; i++) {
+			const char *separator;
+			char *src;
 
-            if (strncasecmp(c, i->key, strlen(i->key)) != 0)
-                continue;
-            /* Found. Skip keyword, take text in quotes or up to the separator. */
-            c += strlen(i->key);
-            if (*c == '\"')
-            {
-                src = ++c;
-                separator = "\"";
-            }
-            else
-            {
-                src = c;
-                separator = ",";
-            }
-            strsep(&c, separator); /* clear separator and move ptr */
-            cw_copy_string(i->dst, src, i->dstlen);
-            break;
-        }
-        if (i->key == NULL) /* not found, try ',' */
-            strsep(&c, ",");
-    }
-    /* Reset nonce count */
-    if (strcmp(p->nonce, oldnonce)) 
-        p->noncecount = 0;
+			if (strncasecmp(c, i->key, strlen(i->key)) != 0)
+				continue;
+			/* Found. Skip keyword, take text in quotes or up to the separator. */
+			c += strlen(i->key);
+			if (*c == '\"') {
+				src = ++c;
+				separator = "\"";
+			} else {
+				src = c;
+				separator = ",";
+			}
+			strsep(&c, separator); /* clear separator and move ptr */
+			cw_copy_string(i->dst, src, i->dstlen);
+			break;
+		}
+		if (i->key == NULL) /* not found, try ',' */
+			strsep(&c, ",");
+	}
+	/* Reset nonce count */
+	if (strcmp(p->nonce, oldnonce))
+		p->noncecount = 0;
 
-    /* Save auth data for following registrations */
-    if (p->registry)
-    {
-        struct sip_registry *r = p->registry;
+	/* Save auth data for following registrations */
+	if (p->registry) {
+		struct sip_registry *r = p->registry;
 
-        if (strcmp(r->nonce, p->nonce))
-        {
-            cw_copy_string(r->realm, p->realm, sizeof(r->realm));
-            cw_copy_string(r->nonce, p->nonce, sizeof(r->nonce));
-            cw_copy_string(r->domain, p->domain, sizeof(r->domain));
-            cw_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
-            cw_copy_string(r->qop, p->qop, sizeof(r->qop));
-            r->noncecount = 0;
-        }
-    }
-    return build_reply_digest(p, sipmethod, digest, digest_len); 
+		if (strcmp(r->nonce, p->nonce)) {
+			cw_copy_string(r->realm, p->realm, sizeof(r->realm));
+			cw_copy_string(r->nonce, p->nonce, sizeof(r->nonce));
+			cw_copy_string(r->domain, p->domain, sizeof(r->domain));
+			cw_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
+			cw_copy_string(r->qop, p->qop, sizeof(r->qop));
+			r->noncecount = 0;
+		}
+	}
+	return build_reply_digest(p, sipmethod, digest);
 }
 
 /*! \brief  build_reply_digest:  Build reply digest */
 /*      Build digest challenge for authentication of peers (for registration)
     and users (for calls). Also used for authentication of CANCEL and BYE */
 /*    Returns -1 if we have no auth */
-static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, char* digest, int digest_len)
+static int build_reply_digest(struct sip_pvt *p, enum sipmethod method, struct cw_dynstr *digest)
 {
-    char a1[256];
-    char a2[256];
-    char a1_hash[256];
-    char a2_hash[256];
-    char resp[256];
-    char resp_hash[256];
-    char uri[256];
-    char cnonce[80];
-    char *username;
-    char *secret;
-    char *md5secret;
-    struct sip_auth *auth = (struct sip_auth *) NULL;    /* Realm authentication */
+	char uri[256];
+	char a1_hash[CW_MAX_HEX_MD_SIZE];
+	char a2_hash[CW_MAX_HEX_MD_SIZE];
+	char resp_hash[CW_MAX_HEX_MD_SIZE];
+	char cnonce[8 + 1];
+	char *username;
+	char *secret;
+	char *md5secret;
+	struct sip_auth *auth = (struct sip_auth *) NULL;    /* Realm authentication */
+	size_t mark;
+	int res = -1;
 
-    if (!cw_strlen_zero(p->domain))
-        cw_copy_string(uri, p->domain, sizeof(uri));
-    else if (!cw_strlen_zero(p->uri))
-        cw_copy_string(uri, p->uri, sizeof(uri));
-    else
-        cw_snprintf(uri, sizeof(uri), "sip:%s@%#@", p->username, &p->peeraddr.sa);
+	if (!cw_strlen_zero(p->domain))
+		cw_copy_string(uri, p->domain, sizeof(uri));
+	else if (!cw_strlen_zero(p->uri))
+		cw_copy_string(uri, p->uri, sizeof(uri));
+	else
+		cw_snprintf(uri, sizeof(uri), "sip:%s@%#@", p->username, &p->peeraddr.sa);
 
-    snprintf(cnonce, sizeof(cnonce), "%08lx", cw_random());
+	snprintf(cnonce, sizeof(cnonce), "%08lx", cw_random());
 
-     /* Check if we have separate auth credentials */
-     if ((auth = find_realm_authentication(authl, p->realm)))
-     {
-         username = auth->username;
-         secret = auth->secret;
-         md5secret = auth->md5secret;
-        if (sipdebug)
-             cw_log(CW_LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
-     }
-     else
-     {
-         /* No authentication, use peer or register= config */
-         username = p->authname;
-         secret =  p->peersecret;
-         md5secret = p->peermd5secret;
-     }
-    if (cw_strlen_zero(username))    /* We have no authentication */
-        return -1;
- 
+	/* Check if we have separate auth credentials */
+	if ((auth = find_realm_authentication(authl, p->realm))) {
+		username = auth->username;
+		secret = auth->secret;
+		md5secret = auth->md5secret;
+		if (sipdebug)
+			cw_log(CW_LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
+	} else {
+		/* No authentication, use peer or register= config */
+		username = p->authname;
+		secret =  p->peersecret;
+		md5secret = p->peermd5secret;
+	}
 
-     /* Calculate SIP digest response */
-     snprintf(a1,sizeof(a1),"%s:%s:%s", username, p->realm, secret);
-    snprintf(a2,sizeof(a2),"%s:%s", sip_methods[method].text, uri);
-    if (!cw_strlen_zero(md5secret))
-        cw_copy_string(a1_hash, md5secret, sizeof(a1_hash));
-    else
-        cw_md5_hash(a1_hash,a1);
-    cw_md5_hash(a2_hash,a2);
+	if (!cw_strlen_zero(username)) {
+		mark = digest->used;
 
-    p->noncecount++;
-    if (!cw_strlen_zero(p->qop))
-        snprintf(resp,sizeof(resp),"%s:%s:%08x:%s:%s:%s", a1_hash, p->nonce, p->noncecount, cnonce, "auth", a2_hash);
-    else
-        snprintf(resp,sizeof(resp),"%s:%s:%s", a1_hash, p->nonce, a2_hash);
-    cw_md5_hash(resp_hash, resp);
-    /* XXX We hard code our qop to "auth" for now.  XXX */
-    if (!cw_strlen_zero(p->qop))
-        snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce, p->noncecount);
-    else
-        snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
+		/* Calculate SIP digest response */
+		if (!cw_strlen_zero(md5secret))
+			cw_copy_string(a1_hash, md5secret, sizeof(a1_hash));
+		else {
+			cw_dynstr_printf(digest, "%s:%s:%s", username, p->realm, secret);
+			cw_md5_hash(a1_hash, &digest->data[mark]);
+			cw_dynstr_truncate(digest, mark);
+		}
+		cw_dynstr_printf(digest, "%s:%s", sip_methods[method].text, uri);
+		cw_md5_hash(a2_hash, &digest->data[mark]);
+		cw_dynstr_truncate(digest, mark);
 
-    return 0;
+		p->noncecount++;
+
+		/* XXX We hard code our qop to "auth" for now.  XXX */
+		if (!cw_strlen_zero(p->qop))
+			cw_dynstr_printf(digest, "%s:%s:%08x:%s:auth:%s", a1_hash, p->nonce, p->noncecount, cnonce, a2_hash);
+		else
+			cw_dynstr_printf(digest, "%s:%s:%s", a1_hash, p->nonce, a2_hash);
+		cw_md5_hash(resp_hash, &digest->data[mark]);
+		cw_dynstr_truncate(digest, mark);
+
+		if (!cw_strlen_zero(p->qop))
+			cw_dynstr_printf(digest, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce, p->noncecount);
+		else
+			cw_dynstr_printf(digest, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
+
+		res = 0;
+	}
+
+	return res;
 }
     
 static const char show_domains_usage[] =
