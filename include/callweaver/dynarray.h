@@ -121,6 +121,15 @@
 	} \
 \
 \
+	static inline void CW_DYNARRAY_IDENT(name, _clone)(struct CW_DYNARRAY_NAME(name) *da_p, struct CW_DYNARRAY_NAME(name) *ds_p) \
+		__attribute__ ((nonnull (1,2))); \
+\
+	static inline void CW_DYNARRAY_IDENT(name, _clone)(struct CW_DYNARRAY_NAME(name) *da_p, struct CW_DYNARRAY_NAME(name) *ds_p) \
+	{ \
+		cw_dynarray_clone(da_p, ds_p); \
+	} \
+\
+\
 	static inline void CW_DYNARRAY_IDENT(name, _reset)(struct CW_DYNARRAY_NAME(name) *da_p) \
 		__attribute__ ((nonnull (1))); \
 \
@@ -185,6 +194,30 @@
 	__ptr_init->size = (nmemb); \
 	__ptr_init->data = (buffer); \
 	0; \
+})
+
+
+/* \brief Clone a dynamic array.
+ * The destination dynamic array MUST be of the malloc'd * variety. It may or
+ * may not be initialized but MUST NOT already contain data (if it does the
+ * storage will be leaked).
+ *
+ *	\param da_p	destination dynamic array to clone into
+ *	\param ds_p	source dynamic array to clone from
+ */
+#define cw_dynarray_clone(da_p, ds_p) ({ \
+	typeof(da_p) __dst_p = (da_p); \
+	typeof(ds_p) __src_p = (ds_p); \
+	__dst_p->chunk = __src_p->chunk; \
+	if (__src_p->used && (__dst_p->data = malloc(__src_p->used * sizeof(__dst_p->data[0])))) { \
+		__dst_p->size = __dst_p->used = __src_p->used; \
+		__dst_p->error = __src_p->error; \
+		memcpy(__dst_p->data, __src_p->data, __src_p->used * sizeof(__dst_p->data[0])); \
+	} else { \
+		__dst_p->used = __dst_p->size = 0; \
+		__dst_p->error = __src_p->size; \
+		__dst_p->data = NULL; \
+	} \
 })
 
 
