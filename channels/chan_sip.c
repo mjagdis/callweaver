@@ -3919,7 +3919,7 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
 
 static char *get_sdp_iterate(int *i, struct sip_request *req, const char *name, size_t len, int sdp_end)
 {
-	char *ret = (char *)"";
+	char *ret = NULL;
 
 	while (*i < sdp_end) {
 		char *p = &req->pkt.data[*i];
@@ -4456,7 +4456,7 @@ done:
 
 
 /*! \brief  process_sdp: Process SIP SDP and activate RTP channels */
-static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start, int sdp_end)
+static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, int sdp_start, int sdp_end)
 {
     char host[258];
     struct cw_sockaddr_net addr;
@@ -4489,6 +4489,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     int old = 0;
     int t38_disabled;
 
+    CW_UNUSED(ignore);
+
     if (!p->rtp)
     {
         cw_log(CW_LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
@@ -4502,7 +4504,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     m = get_sdp(req, "m", 1, sdp_start, sdp_end);
     destiterator = sdp_start;
     c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end);
-    if (cw_strlen_zero(m)  ||  cw_strlen_zero(c))
+    if (!m || !c)
     {
         cw_log(CW_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
         return -1;
@@ -4520,7 +4522,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     }
     iterator = sdp_start;
     cw_set_flag(p, SIP_NOVIDEO);    
-    while ((m = get_sdp_iterate(&iterator, req, "m", 1, sdp_end))[0] != '\0')
+    while ((m = get_sdp_iterate(&iterator, req, "m", 1, sdp_end)))
     {
         char protocol[5] = "";
         int found = 0;
@@ -4658,8 +4660,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     /* Check for Media-description-level-address for audio */
     if (pedanticsipchecking)
     {
-        c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end);
-        if (!cw_strlen_zero(c))
+        if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end)))
         {
             if (sscanf(c, "IN IP4 %255s", host) != 1)
             {
@@ -4694,8 +4695,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     /* Check for Media-description-level-address for video */
     if (pedanticsipchecking)
     {
-        c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end);
-        if (!cw_strlen_zero(c))
+        if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end)))
         {
             if (sscanf(c, "IN IP4 %255s", host) != 1)
             {
@@ -4738,7 +4738,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
      * specified RTP payload type (with corresponding MIME subtype):
      */
     iterator = sdp_start;
-    while ((a = get_sdp_iterate(&iterator, req, "a", 1, sdp_end))[0] != '\0')
+    while ((a = get_sdp_iterate(&iterator, req, "a", 1, sdp_end)))
     {
         char *mimeSubtype = cw_strdupa(a); /* ensures we have enough space */
         
@@ -4779,7 +4779,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         int found = 0;
     
         ec_found = UDPTL_ERROR_CORRECTION_REDUNDANCY;
-        while ((a = get_sdp_iterate(&iterator, req, "a", 1, sdp_end))[0] != '\0')
+        while ((a = get_sdp_iterate(&iterator, req, "a", 1, sdp_end)))
         {
             if (old  &&  (iterator-old != 1))
                 break;
@@ -5065,12 +5065,26 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
 }
 
 
-static int mime_parse(struct sip_pvt *dialogue, struct sip_request *req, const char *content_type, int start, int end)
+struct cw_mime_process_action {
+	const char *content_type;
+	int content_type_len;
+	int (*action)(struct sip_pvt *dialogue, struct sip_request *req, int ignore, int start, int end);
+};
+
+
+static const struct cw_mime_process_action mime_sdp_actions[] = {
+	{ "application/sdp", sizeof("application/sdp") - 1, process_sdp }
+};
+
+
+static int mime_parse(struct sip_pvt *dialogue, struct sip_request *req, int ignore, const struct cw_mime_process_action *actions, int nactions, const char *content_type, int start, int end)
 {
 	size_t content_type_len;
 	int processed = 0;
 
 	for (content_type_len = 0; content_type[content_type_len] && content_type[content_type_len] >= 32 && !isspace(content_type[content_type_len]) && !strchr("()<>@,;:\\\"/[]?=", content_type[content_type_len]); content_type_len++);
+	if (content_type[content_type_len] == '/')
+		for (content_type_len++; content_type[content_type_len] && content_type[content_type_len] >= 32 && !isspace(content_type[content_type_len]) && !strchr("()<>@,;:\\\"/[]?=", content_type[content_type_len]); content_type_len++);
 
 	if (content_type_len == sizeof("multipart/mixed") - 1 && !strncasecmp(content_type, "multipart/mixed", sizeof("multipart/mixed") - 1)) {
 		const char *p, *key, *value;
@@ -5121,7 +5135,7 @@ static int mime_parse(struct sip_pvt *dialogue, struct sip_request *req, const c
 			 * boundary marker and thus require correctly formatted objects.
 			 * This is a technical violation of RFC 2046 5.1.2 :-(.
 			 */
-			if ((r = mime_parse(dialogue, req, content_type, start, p - req->pkt.data)) < 0)
+			if ((r = mime_parse(dialogue, req, ignore, actions, nactions, content_type, start, p - req->pkt.data)) < 0)
 				break;
 			processed += r;
 
@@ -5149,14 +5163,23 @@ static int mime_parse(struct sip_pvt *dialogue, struct sip_request *req, const c
 			p = (q[0] == '\r' ? &q[2] : &q[1]);
 			start = p - req->pkt.data;
 		}
-	} else if (content_type_len == sizeof("application/sdp") - 1 && !strncasecmp(content_type, "application/sdp", sizeof("application/sdp") - 1))
-		processed = (process_sdp(dialogue, req, req->hdr.data[req->hdr.used].key, req->pkt.used) ? -1 : 1);
+	} else {
+		int i;
+
+		for (i = 0; i < nactions; i++) {
+			if ((content_type_len == actions[i].content_type_len && !strncasecmp(content_type, actions[i].content_type, content_type_len))
+			|| (actions[i].content_type_len <= 0 && content_type_len >= -actions[i].content_type_len && !strncasecmp(content_type, actions[i].content_type, -actions[i].content_type_len))) {
+				processed = (actions[i].action(dialogue, req, ignore, req->hdr.data[req->hdr.used].key, req->pkt.used) ? -1 : 1);
+				break;
+			}
+		}
+	}
 
 	return processed;
 }
 
 
-static int mime_process(struct sip_pvt *dialogue, struct sip_request *req)
+static int mime_process(struct sip_pvt *dialogue, struct sip_request *req, int ignore, const struct cw_mime_process_action *actions, int nactions)
 {
 	const char *content_type;
 
@@ -5165,7 +5188,7 @@ static int mime_process(struct sip_pvt *dialogue, struct sip_request *req)
 		content_type = "text/plain";
 	}
 
-	return mime_parse(dialogue, req, content_type, req->hdr.data[req->hdr.used].key, req->pkt.used);
+	return mime_parse(dialogue, req, ignore, actions, nactions, content_type, req->hdr.data[req->hdr.used].key, req->pkt.used);
 }
 
 
@@ -10301,131 +10324,143 @@ static int sip_show_channel(struct cw_dynstr *ds_p, int argc, char *argv[])
 }
 
 
+static int info_dtmf(struct sip_pvt *dialogue, struct sip_request *req, int ignore, int start, int end)
+{
+	struct cw_frame f;
+	int i, j, event, duration;
+	char c;
+
+	if (!ignore && dialogue->owner) {
+		duration = event = -1;
+
+		for (i = start; i < end; ) {
+			if (sscanf(&req->pkt.data[i], "Signal = %n%c", &j, &c) > 0 || sscanf(&req->pkt.data[i], "d = %n%c", &j, &c) > 0) {
+				i += j;
+				if (c == '*')
+					event = 10;
+				else if (c == '#')
+					event = 11;
+				else if (c >= 'A' && c <= 'D')
+					event = 12 + c - 'A';
+				else if (c == '!')
+					event = 16;
+				else
+					event = atoi(&req->pkt.data[i]);
+			} else
+				sscanf(&req->pkt.data[i], "Duration = %d", &duration);
+
+			for (i += strcspn(&req->pkt.data[i], "\r\n"); i < end && strchr("\r\n", req->pkt.data[i]); i++);
+		}
+
+
+		if (event >= 0) {
+			if (event <= 16) {
+				if (event != 16)
+					cw_fr_init_ex(&f, CW_FRAME_DTMF, "0123456789*#ABCD"[event]);
+				else
+					cw_fr_init_ex(&f, CW_FRAME_CONTROL, CW_CONTROL_FLASH);
+
+				f.duration = (duration > 0 ? duration : 100);
+				cw_queue_frame(dialogue->owner, &f);
+
+				if (sipdebug && option_verbose > 2)
+					cw_verbose("* DTMF-relay event received: %c%s duration %d\n",
+						(event == 16 ? 'F' : f.subclass),
+						(event == 16 ? "LASH" : ""),
+						f.duration
+					);
+			}
+		} else
+			cw_log(CW_LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", dialogue->callid);
+	}
+
+	return 0;
+}
+
+
+static int info_mediaxml(struct sip_pvt *dialogue, struct sip_request *req, int ignore, int start, int end)
+{
+	CW_UNUSED(req);
+	CW_UNUSED(start);
+	CW_UNUSED(end);
+
+	/* Eh, we'll just assume it's a fast picture update for now */
+	if (dialogue->owner && !ignore)
+		cw_queue_control(dialogue->owner, CW_CONTROL_VIDUPDATE);
+
+	return 0;
+}
+
+
+static int info_unknown(struct sip_pvt *dialogue, struct sip_request *req, int ignore, int start, int end)
+{
+	CW_UNUSED(dialogue);
+	CW_UNUSED(req);
+	CW_UNUSED(ignore);
+	CW_UNUSED(start);
+	CW_UNUSED(end);
+
+	return -1;
+}
+
+
 /*! \brief  handle_request_info: Receive SIP INFO Message */
 /*    Doesn't read the duration of the DTMF signal */
-static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
+static void handle_request_info(struct sip_pvt *dialogue, struct sip_request *req, int ignore)
 {
-    char buf[1024];
-    struct cw_channel *bchan;
-    char *c;
-    unsigned int event;
-    
-    /* Need to check the media/type */
-    if (!strcasecmp(get_header(req, SIP_HDR_CONTENT_TYPE), "application/dtmf-relay")
-        ||
-        !strcasecmp(get_header(req, SIP_HDR_CONTENT_TYPE), "application/vnd.nortelnetworks.digits"))
-    {
-        /* Try getting the "signal=" part */
-        if (cw_strlen_zero(c = get_sdp(req, "Signal", sizeof("Signal") - 1, req->hdr.data[req->hdr.used].key, req->pkt.used)) && cw_strlen_zero(c = get_sdp(req, "d", 1, req->hdr.data[req->hdr.used].key, req->pkt.used)))
-        {
-            cw_log(CW_LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
-            transmit_response(p, "200 OK", req); /* Should return error */
-            return;
-        }
-        else
-        {
-            cw_copy_string(buf, c, sizeof(buf));
-        }
-    
-        if (!p->owner)
-        {
-            /* not a PBX call */
-            transmit_response(p, "481 Call leg/transaction does not exist", req);
-            sip_destroy(p);
-            return;
-        }
+	static const struct cw_mime_process_action actions[] = {
+		{ "application/dtmf-relay",                sizeof("application/dtmf-relay") - 1,                info_dtmf },
+		{ "application/vnd.nortelnetworks.digits", sizeof("application/vnd.nortelnetworks.digits") - 1, info_dtmf },
+		{ "application/media_control+xml",         sizeof("application/media_control+xml") - 1,         info_mediaxml },
+		{ "",                                      0,                                                   info_unknown }
+	};
+	int processed;
 
-        if (cw_strlen_zero(buf))
-        {
-            transmit_response(p, "200 OK", req);
-            return;
-        }
+	/* RFC 2976 2.2:
+	 *
+	 * A 200 OK response MUST be sent by a UAS for an INFO request with no message
+	 * body if the INFO request was successfully received for an existing call.
+	 *
+	 * If a server receives an INFO request with a body it understands, but it has
+	 * no knowledge of INFO associated processing rules for the body, the body MAY
+	 * be rendered and displayed to the user. The INFO is responded to with a
+	 * 200 OK.
+	 *
+	 * If the INFO request contains a body that the server does not understand then, in the
+	 * absence of INFO associated processing rules for the body, the server MUST respond
+	 * with a 415 Unsupported Media Type message.
+	 */
+	processed = 0;
+	if (req->hdr.data[req->hdr.used].key == req->pkt.used) {
+		const char *cmc;
 
-        if (sipdebug && option_verbose > 2)
-            cw_verbose("* DTMF-relay event received: '%c'\n", buf[0]);
-        if (buf[0] == '*')
-            event = 10;
-        else if (buf[0] == '#')
-            event = 11;
-        else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
-            event = 12 + buf[0] - 'A';
-        else if (buf[0] == '!')
-            event = 16;
-        else
-            event = atoi(buf);
-        if (event == 16)
-        {
-            /* send a FLASH event */
-            struct cw_frame f = { CW_FRAME_CONTROL, CW_CONTROL_FLASH, };
-            cw_queue_frame(p->owner, &f);
-	    if (sipdebug && option_verbose > 2)
-            cw_verbose("* DTMF-relay event received: FLASH\n");
-        }
-        else
-        {
-            /* send a DTMF event */
-            struct cw_frame f = { CW_FRAME_DTMF, };
-            if (event < 10)
-            {
-                f.subclass = '0' + event;
-            }
-            else if (event < 11)
-            {
-                f.subclass = '*';
-            }
-            else if (event < 12)
-            {
-                f.subclass = '#';
-            }
-            else if (event < 16)
-            {
-                f.subclass = 'A' + (event - 12);
-            }
-            cw_queue_frame(p->owner, &f);
-	    if (sipdebug && option_verbose > 2)
-            cw_verbose("* DTMF-relay event received: %c\n", f.subclass);
-        }
-        transmit_response(p, "200 OK", req);
-        return;
-    }
-    else if (!strcasecmp(get_header(req, SIP_HDR_CONTENT_TYPE), "application/media_control+xml"))
-    {
-        /* Eh, we'll just assume it's a fast picture update for now */
-        if (p->owner)
-            cw_queue_control(p->owner, CW_CONTROL_VIDUPDATE);
-        transmit_response(p, "200 OK", req);
-        return;
-    }
-    else if ((c = get_header(req, SIP_HDR_NOSHORT("X-ClientCode"))) && c[0])
-    {
-        /* Client code (from SNOM phone) */
-        if (cw_test_flag(p, SIP_USECLIENTCODE))
-        {
-            if (p->owner && p->owner->cdr)
-                cw_cdr_setuserfield(p->owner, c);
-            if (p->owner && (bchan = cw_bridged_channel(p->owner)))
-            {
-                if (bchan->cdr)
-                    cw_cdr_setuserfield(bchan, c);
-                cw_object_put(bchan);
-            }
-            transmit_response(p, "200 OK", req);
-        }
-        else if (strcasecmp(get_header(req, SIP_HDR_CONTENT_LENGTH), "0") == 0) {
-            transmit_response(p, "200 OK", req);
-            return;
-        }
-        else
-        {
-            transmit_response(p, "403 Unauthorized", req);
-        }
-        return;
-    }
-    /* Other type of INFO message, not really understood by CallWeaver */
-    cw_log(CW_LOG_WARNING, "Unable to parse INFO message from %s. Content %s\n", p->callid, buf);
-    transmit_response(p, "415 Unsupported media type", req);
-    return;
+		/* Client Matter Code (from SNOM phone) */
+		if (!(cmc = get_header(req, SIP_HDR_NOSHORT("X-ClientCode"))) || !cmc[0]
+		|| cw_test_flag(dialogue, SIP_USECLIENTCODE)) {
+			if (cmc && cmc[0] && !ignore) {
+				struct cw_channel *bchan;
+
+				if (dialogue->owner && dialogue->owner->cdr)
+					cw_cdr_setuserfield(dialogue->owner, cmc);
+				if (dialogue->owner && (bchan = cw_bridged_channel(dialogue->owner))) {
+					if (bchan->cdr)
+						cw_cdr_setuserfield(bchan, cmc);
+					cw_object_put(bchan);
+				}
+			}
+			transmit_response(dialogue, "200 OK", req);
+		} else
+			transmit_response(dialogue, "403 Unauthorized", req);
+	} else if ((processed = mime_process(dialogue, req, ignore, actions, arraysize(actions))) >= 0)
+		transmit_response(dialogue, "200 OK", req);
+	else {
+		if (!ignore)
+			cw_log(CW_LOG_WARNING, "Unable to parse INFO message from %s.\n", dialogue->callid);
+
+		transmit_response(dialogue, "415 Unsupported media type", req);
+	}
 }
+
 
 /*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
 static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
@@ -11299,7 +11334,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
             if (p->owner->_state != CW_STATE_UP)
 	            cw_setstate(p->owner, CW_STATE_RINGING);
         }
-        if (mime_process(p, req))
+        if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)))
         {
             if (!ignore && p->owner)
             {
@@ -11314,7 +11349,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
         /* Session progress */
         if (!ignore)
             sip_cancel_destroy(p);
-        if (mime_process(p, req))
+        if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)))
         {
             if (!ignore && p->owner)
             {
@@ -11329,7 +11364,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, struct sip_reque
         if (!ignore)
             sip_cancel_destroy(p);
         p->authtries = 0;
-        mime_process(p, req);
+        mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions));
 
         /* Parse contact header for continued conversation */
         /* When we get 200 OK, we know which device (and IP) to contact for this call */
@@ -12034,7 +12069,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
                 if (sipmethod == SIP_INVITE)
                 {
                     if (!ignore) sip_cancel_destroy(p);
-                    mime_process(p, req);
+                    mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions));
                     if (p->owner)
                     {
                         /* Queue a progress frame */
@@ -12416,7 +12451,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         if (p->owner)
         {
             /* Handle SDP here if we already have an owner */
-            if (mime_process(p, req) < 0)
+            if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
             {
                 transmit_response(p, "488 Not acceptable here", req);
                 if (!p->lastinvite)
@@ -12454,7 +12489,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	    return 0;
         }
         /* Process the SDP portion */
-        if (mime_process(p, req) < 0)
+        if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
         {
             transmit_response(p, "488 Not acceptable here", req);
             sip_destroy(p);
@@ -13388,17 +13423,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
         res = handle_request_register(p, req, debug, ignore);
         break;
     case SIP_INFO:
-        if (!ignore)
-        {
-            if (debug)
-                cw_verbose("Receiving INFO!\n");
-            handle_request_info(p, req);
-        }
-        else
-        {
-            /* if ignoring, transmit response */
-            transmit_response(p, "200 OK", req);
-        }
+        handle_request_info(p, req, ignore);
         break;
     case SIP_NOTIFY:
         /* XXX we get NOTIFY's from some servers. WHY?? Maybe we should
@@ -13412,7 +13437,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
         if (req->seqno == p->pendinginvite)
         {
             p->pendinginvite = 0;
-            if (mime_process(p, req) < 0)
+            if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
                 return -1;
             check_pendings(p);
         }
