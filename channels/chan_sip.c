@@ -10450,6 +10450,17 @@ static void handle_request_info(struct sip_pvt *dialogue, struct sip_request *re
 }
 
 
+static void handle_request_publish(struct sip_pvt *dialogue, struct sip_request *req, int ignore)
+{
+	CW_UNUSED(ignore);
+
+	/* We don't currently parse publish messages but regardless
+	 * of what they were trying to tell us - we heard them.
+	 */
+	transmit_response(dialogue, "200 OK", req);
+}
+
+
 /*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
 static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
@@ -13412,6 +13423,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
         break;
     case SIP_INFO:
         handle_request_info(p, req, ignore);
+        break;
+    case SIP_PUBLISH:
+        handle_request_publish(p, req, ignore);
         break;
     case SIP_NOTIFY:
         /* XXX we get NOTIFY's from some servers. WHY?? Maybe we should
