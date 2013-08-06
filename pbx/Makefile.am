@@ -41,11 +41,11 @@ pbx_ael_la_CFLAGS	= $(AM_CFLAGS) -D_GNU_SOURCE=1
 BUILT_SOURCES += ael/ael_tab.c ael/ael_tab.h ael/ael_lex.c
 
 ael/ael_tab.c ael/ael_tab.h: ael/ael.y
-	-mkdir ael
+	test -d ael || mkdir ael
 	$(YACC) -d -o ael/ael_tab.c $(srcdir)/ael/ael.y
 
 ael/ael_lex.c: ael/ael.l
-	-mkdir ael
+	test -d ael || mkdir ael
 	$(LEX) -t ael/ael.l > $(srcdir)/ael/ael_lex.c
 
 endif WANT_PBX_AEL
