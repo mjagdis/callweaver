@@ -220,9 +220,6 @@ nan|NAN|NaN	{
 %%
 
 
-extern int cw_yyparse(void *);
-
-
 int cw_expr(struct cw_channel *chan, const char *expr, struct cw_dynstr *result)
 {
 	struct parse_io io;

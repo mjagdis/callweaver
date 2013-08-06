@@ -19,6 +19,11 @@
 #include "callweaver/channel.h"
 
 
+struct parse_io;
+#define YYPARSE_PARAM parseio
+#define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
+
+
 /* printf format to use when converting a number (long double) to text */
 #define NUMBER_FORMAT	"%.18Lg"
 

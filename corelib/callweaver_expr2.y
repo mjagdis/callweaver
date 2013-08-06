@@ -54,16 +54,13 @@
 typedef void *yyscan_t;
 
 #include "callweaver_expr2-common.h"
+#include "callweaver_expr2.h"
 
 
 /* Arglists are stored as dynamic arrays of vals (struct val *).
  * This defines "struct cw_dynvals" and the cw_dynvals_* functions used to operate on it.
  */
 CW_DYNARRAY_DECL(struct val *, vals)
-
-
-#define YYPARSE_PARAM parseio
-#define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 
 
 static struct {
