@@ -714,7 +714,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 	char *mac = NULL, *proc_name = NULL;
 	char status[256];
 	char toast[80];
-	int playargs=0, sentringing=0, moh=0;
+	int sentringing=0, moh=0;
 	char *mohclass = NULL;
 	struct cw_var_t *outbound_group;
 	char *proc_transfer_dest = NULL;
@@ -869,7 +869,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 					} else
 						config.warning_sound = strdup("timeleft");
 
-					playargs = sscanf(&argv[0][2], "%ld:%ld:%ld", &timelimit, &play_warning, &warning_freq);
+					sscanf(&argv[0][2], "%ld:%ld:%ld", &timelimit, &play_warning, &warning_freq);
 
 					if (!timelimit) {
 						timelimit = play_warning = warning_freq = 0;

@@ -147,7 +147,7 @@ static int read_image_try(struct cw_object *obj, void *data)
 		cw_dynstr_free(&fname);
 	}
 
-	return 0;
+	return res;
 }
 
 struct cw_frame *cw_read_image(char *filename, char *lang, int format)

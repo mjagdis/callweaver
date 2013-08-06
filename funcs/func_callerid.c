@@ -111,6 +111,8 @@ static int callerid_rw(struct cw_channel *chan, int argc, char **argv, struct cw
 					cw_log(CW_LOG_ERROR, "Unknown callerid data type '%s'\n", argv[0]);
 					return -1;
 				}
+
+				cw_dynstr_printf(result, "%d", n);
 			}
 
 			if (p)

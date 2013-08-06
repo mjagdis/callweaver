@@ -2252,6 +2252,7 @@ static int agentmonitoroutgoing_exec(struct cw_channel *chan, int argc, char **a
 	int res = 0;
 
 	CW_UNUSED(result);
+	CW_UNUSED(exitifnoagentid);	/* FIXME It should do _something_ though shouldn't it? */
 
 	if (argc > 1) {
 		for (; argv[0][0]; argv[0]++) {

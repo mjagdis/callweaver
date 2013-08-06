@@ -507,13 +507,11 @@ static int pbx_builtin_execiftime(struct cw_channel *chan, int argc, char **argv
 
 static int pbx_builtin_wait(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	int res = 0;
-
 	CW_UNUSED(result);
 
 	/* Wait for "n" seconds */
 	if (argc > 0 && argv[0][0])
-		res = cw_safe_sleep(chan, argtol(argv[0], 1000));
+		cw_safe_sleep(chan, argtol(argv[0], 1000));
 
 	return 0;
 }

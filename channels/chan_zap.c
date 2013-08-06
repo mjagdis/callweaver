@@ -6632,7 +6632,9 @@ static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct d
 #endif
 	struct dahdi_spaninfo si;
 	int res;
+#ifdef ZAPATA_PRI
 	int span=0;
+#endif
 	int here = 0;
 	int x;
 	struct dahdi_pvt **wlist;
@@ -6713,7 +6715,9 @@ static struct dahdi_pvt *mkintf(int channel, int signalling, int radio, struct d
 				}
 				tmp->law = p.curlaw;
 				tmp->span = p.spanno;
+#ifdef ZAPATA_PRI
 				span = p.spanno - 1;
+#endif
 			} else {
 				if (channel == CHAN_PSEUDO)
 					signalling = 0;

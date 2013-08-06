@@ -15457,14 +15457,11 @@ static const char siposd_description[] = ""
  */
 static int sip_osd(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
 {
-	const char *text = " ";
 	struct sip_pvt *p;
 	int res = 0;
 
+	CW_UNUSED(argc);
 	CW_UNUSED(result);
-
-	if (argc >= 1 && argv[0][0])
-		text = argv[0];
 
 	if (chan->tech != &sip_tech && chan->type != channeltype) {
 		cw_log(CW_LOG_WARNING, "sip_osd: Call this application only on SIP incoming calls\n");
