@@ -46,7 +46,7 @@ ael/ael_tab.c ael/ael_tab.h: ael/ael.y
 
 ael/ael_lex.c: ael/ael.l
 	test -d ael || mkdir ael
-	$(LEX) -t ael/ael.l > $(srcdir)/ael/ael_lex.c
+	$(LEX) -t ${srcdir}/ael/ael.l > ael/ael_lex.c
 
 endif WANT_PBX_AEL
 

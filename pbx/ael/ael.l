@@ -67,7 +67,7 @@
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
 
-#include "ael_structs.h"
+#include "ael/ael_structs.h"
 #include "ael/ael_tab.h"
 
 /*
