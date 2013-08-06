@@ -66,9 +66,9 @@
 #include "callweaver/logger.h"
 #include "callweaver/lock.h"
 #include "callweaver/utils.h"
-#include "ael/ael_tab.h"
 
 #include "ael_structs.h"
+#include "ael/ael_tab.h"
 
 /*
  * A stack to keep track of matching brackets ( [ { } ] )
