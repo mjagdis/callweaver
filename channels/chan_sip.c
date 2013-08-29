@@ -5639,7 +5639,7 @@ static void transmit_response_with_auth(struct sip_pvt *p, const char *status, s
 
 	if ((msg = respprep((reliable ? NULL : &tmpmsg), p, status, req))) {
 		/* Stale means that they sent us correct authentication, but based it on an old challenge (nonce) */
-		cw_dynstr_printf(&msg->pkt, "%s: Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s", sip_hdr_generic(header), global_realm, randdata, stale ? ", stale=true" : "");
+		cw_dynstr_printf(&msg->pkt, "%s: Digest algorithm=MD5, realm=\"%s\", nonce=\"%s\"%s\r\n", sip_hdr_generic(header), global_realm, randdata, stale ? ", stale=true" : "");
 		add_header_contentLength(msg, 0);
 		cw_dynstr_printf(&msg->pkt, "\r\n");
 		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
