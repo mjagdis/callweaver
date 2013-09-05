@@ -713,6 +713,7 @@ struct sip_request {
 	struct cw_sockaddr_net ouraddr;
 
 	unsigned int body_start;
+	unsigned int hdr_start;
 
 	/* sipsock_read() only clears request packets down to here */
 	struct cw_dynstr pkt;
@@ -3985,7 +3986,7 @@ static char *__get_header(const struct sip_request *req, const char *name, size_
 /*! \brief  get_header: Get header from SIP request */
 static char *get_header(const struct sip_request *req, const char *name, size_t name_len, const char *alias, size_t alias_len)
 {
-	int start = 0;
+	int start = req->hdr_start;
 	return __get_header(req, name, name_len, alias, alias_len, &start);
 }
 
@@ -4332,7 +4333,8 @@ static int parse_request(struct parse_request_state *state, struct sip_request *
 					if (j && req->pkt.data[j - 1] == '>')
 						j--;
 				}
-				req->pkt.data[j] = '\0';
+				req->hdr_start = state->i + 1;
+				req->pkt.data[state->i] = req->pkt.data[j] = '\0';
 				state->state = 3;
 				break;
 
@@ -5223,7 +5225,7 @@ static void copy_all_header(struct sip_request *req, const struct sip_request *o
 {
 	const char *dstname = ((sip_hdr_name == sip_hdr_fullname || !alias_len) ? name : alias);
 	char *p;
-	int start = 0;
+	int start = req->hdr_start;
     
 	while ((p = __get_header(orig, name, name_len, alias, alias_len, &start)) && p[0])
 		cw_dynstr_printf(&req->pkt, "%s: %s\r\n", dstname, p);
@@ -5239,7 +5241,7 @@ static void copy_all_header(struct sip_request *req, const struct sip_request *o
 static void copy_via_headers(struct sip_request *resp, const struct sip_request *req)
 {
 	char *oh;
-	int start = 0;
+	int start = req->hdr_start;
 
 	if ((oh = __get_header(req, SIP_HDR_VIA, &start)) && oh[0]) {
 		/* Only check for empty rport in topmost via header */
@@ -7579,7 +7581,7 @@ static void list_route(struct sip_route *route)
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards)
 {
     struct sip_route *thishop, *head, *tail;
-    int start = 0;
+    int start = req->hdr_start;
     int len;
     char *rr, *contact, *c;
 
@@ -11639,7 +11641,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         {
             char *contact = NULL;
             char *tmptmp = NULL;
-            int start = 0;
+            int start = req->hdr_start;
         
             for (;;)
             {
