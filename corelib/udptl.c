@@ -64,7 +64,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #endif
 
 static int udptldebug = 0;                  /* Are we debugging? */
-static struct sockaddr_in udptldebugaddr;   /* Debug packets to/from this host */
+static struct cw_sockaddr_net udptldebugaddr;   /* Debug packets to/from this host */
 
 CW_MUTEX_DEFINE_STATIC(settingslock);
 static int nochecksums = 0;
@@ -92,17 +92,9 @@ struct cw_udptl_s
     int nat;
     int flags;
     struct cw_io_rec ioid;
-    struct sched_context *sched;
-    cw_io_context_t io;
     void *data;
-    cw_udptl_callback callback;
     int udptl_offered_from_local;
-
-    int created_sock_info;
-    
     int verbose;
-
-    struct sockaddr_in far;
 
     udptl_state_t state;
 };
@@ -111,19 +103,11 @@ static struct cw_udptl_protocol *protos = NULL;
 
 static int cw_udptl_rx_packet(cw_udptl_t *s, const uint8_t buf[], int len);
 
-static inline int udptl_debug_test_addr(const struct sockaddr_in *addr)
+static inline int udptl_debug_test_addr(const struct sockaddr *addr)
 {
-    if (udptldebug == 0)
+    if (udptldebug == 0 || cw_sockaddr_cmp(addr, &udptldebugaddr.sa, -1, cw_sockaddr_get_port(&udptldebugaddr.sa)))
         return 0;
-    if (udptldebugaddr.sin_addr.s_addr)
-    {
-        if (((ntohs(udptldebugaddr.sin_port) != 0)  &&  (udptldebugaddr.sin_port != addr->sin_port))
-            ||
-            (udptldebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-        {
-            return 0;
-        }
-    }
+
     return 1;
 }
 
@@ -160,31 +144,6 @@ static int cw_udptl_rx_packet(cw_udptl_t *s, const uint8_t buf[], int len)
     return 0;
 }
 
-int cw_udptl_fd(cw_udptl_t *udptl)
-{
-    return udp_socket_fd(udptl->udptl_sock_info);
-}
-
-udp_state_t *cw_udptl_udp_socket(cw_udptl_t *udptl,
-                                   udp_state_t *sock_info)
-{
-    udp_state_t *old;
-    
-    old = udptl->udptl_sock_info;
-    if (sock_info)
-        udptl->udptl_sock_info = sock_info;
-    return old;
-}
-
-void cw_udptl_set_data(cw_udptl_t *udptl, void *data)
-{
-    udptl->data = data;
-}
-
-void cw_udptl_set_callback(cw_udptl_t *udptl, cw_udptl_callback callback)
-{
-    udptl->callback = callback;
-}
 
 void cw_udptl_setnat(cw_udptl_t *udptl, int nat)
 {
@@ -192,75 +151,39 @@ void cw_udptl_setnat(cw_udptl_t *udptl, int nat)
     udp_socket_set_nat(udptl->udptl_sock_info, nat);
 }
 
-static int udptlread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
-{
-    cw_udptl_t *udptl = cbdata;
-    struct cw_frame *f;
-
-    CW_UNUSED(ior);
-    CW_UNUSED(fd);
-    CW_UNUSED(events);
-
-    if ((f = cw_udptl_read(udptl)))
-    {
-        if (udptl->callback)
-            udptl->callback(udptl, f, udptl->data);
-    }
-    return 1;
-}
-
 struct cw_frame *cw_udptl_read(cw_udptl_t *udptl)
 {
-    char iabuf[INET_ADDRSTRLEN];
-    struct sockaddr_in original_dest;
-    struct sockaddr_in sin;
-    socklen_t len;
+    struct cw_sockaddr_net original_dest;
     int res;
     int actions;
 
-    len = sizeof(sin);
-
-    memcpy(&original_dest, udp_socket_get_far(udptl->udptl_sock_info), sizeof(original_dest));
+    cw_sockaddr_copy(&original_dest.sa, &udptl->udptl_sock_info->peer.sa);
 
     /* Cache where the header will go */
-    res = udp_socket_recvfrom(udptl->udptl_sock_info,
+    res = udp_socket_recv(udptl->udptl_sock_info,
                               udptl->rawdata + CW_FRIENDLY_OFFSET,
                               sizeof(udptl->rawdata) - CW_FRIENDLY_OFFSET,
                               0,
-                              (struct sockaddr *) &sin,
-                              &len,
                               &actions);
     if (res < 0)
     {
         if (errno != EAGAIN)
-        {
-            if (errno == EBADF)
-            {
-                cw_log(CW_LOG_ERROR, "UDPTL read error: %s\n", strerror(errno));
-                cw_udptl_set_active(udptl, 0);
-            }
-            else
-                cw_log(CW_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
-        }
+            cw_log(CW_LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
         return &cw_null_frame;
     }
     if ((actions & 1))
     {
         if (option_debug || udptldebug)
-            cw_log(CW_LOG_DEBUG, "UDPTL NAT: Using address %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(udptl->udptl_sock_info)->sin_addr), ntohs(udp_socket_get_far(udptl->udptl_sock_info)->sin_port));
+            cw_log(CW_LOG_DEBUG, "UDPTL NAT: Using address %l@\n", &udptl->udptl_sock_info->peer.sa);
     }
 
-    if (udptl_debug_test_addr(&sin))
+    if (udptl_debug_test_addr(&udptl->udptl_sock_info->peer.sa))
     {
-        cw_verbose("Got UDPTL packet from %s:%hu (len %d)\n",
-            cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
+        cw_verbose("Got UDPTL packet from %l@ (len %d)\n", &udptl->udptl_sock_info->peer.sa, res);
     }
-#if 0
-    printf("Got UDPTL packet from %s:%hu (len %d)\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), res);
-#endif
     /* If its not a valid UDPTL packet, restore the original port */
     if (cw_udptl_rx_packet(udptl, udptl->rawdata + CW_FRIENDLY_OFFSET, res) < 0)
-        udp_socket_set_far(udptl->udptl_sock_info, &original_dest);
+        udp_socket_set_far(udptl->udptl_sock_info, &original_dest.sa);
 
     return &udptl->f[0];
 }
@@ -358,61 +281,27 @@ void cw_udptl_set_far_max_datagram(cw_udptl_t *udptl, int max_datagram)
         cw_log(CW_LOG_WARNING, "udptl structure is null\n");
 }
 
-cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
-                                            cw_io_context_t io,
-                                            int callbackmode,
-                                            udp_state_t *sock_info)
+cw_udptl_t *cw_udptl_new_with_sock_info(udp_state_t *sock_info)
 {
-    cw_udptl_t *udptl;
+	cw_udptl_t *udptl = NULL;
 
-    if ((udptl = malloc(sizeof(cw_udptl_t))) == NULL)
-        return NULL;
-    memset(udptl, 0, sizeof(cw_udptl_t));
+	if ((udptl = calloc(1, sizeof(cw_udptl_t)))) {
+		udptl_init(&udptl->state, udptlfectype, udptlfecspan, udptlfecentries, udptl_rx_packet_handler, (void *)udptl);
 
-    cw_mutex_lock(&settingslock);
+		udptl_set_far_max_datagram(&udptl->state, udptlmaxdatagram);
+		udptl_set_local_max_datagram(&udptl->state, udptlmaxdatagram);
 
-    udptl_init(&udptl->state,
-               udptlfectype,
-               udptlfecspan,
-               udptlfecentries,
-               udptl_rx_packet_handler,
-               (void *) udptl);
+		/* This sock_info should already be bound to an address */
+		udptl->udptl_sock_info = sock_info;
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 
-    udptl_set_far_max_datagram(&udptl->state, udptlmaxdatagram);
-    udptl_set_local_max_datagram(&udptl->state, udptlmaxdatagram);
-
-    cw_mutex_unlock(&settingslock);
-
-    /* This sock_info should already be bound to an address */
-    udptl->udptl_sock_info = sock_info;
-
-    cw_io_init(&udptl->ioid, udptlread, udptl);
-    if (io  &&  sched  &&  callbackmode)
-    {
-        /* Operate this one in a callback mode */
-        udptl->sched = sched;
-        udptl->io = io;
-    }
-    udptl->created_sock_info = FALSE;
-    return udptl;
+	return udptl;
 }
 
-int cw_udptl_set_active(cw_udptl_t *udptl, int active)
+void cw_udptl_destroy(cw_udptl_t *udptl)
 {
-    if (udptl->sched  &&  udptl->io)
-    {
-        if (active)
-        {
-            if (!cw_io_isactive(&udptl->ioid))
-                cw_io_add(udptl->io, &udptl->ioid, udp_socket_fd(udptl->udptl_sock_info), CW_IO_IN);
-        }
-        else
-        {
-            if (cw_io_isactive(&udptl->ioid))
-                cw_io_remove(udptl->io, &udptl->ioid);
-        }
-    }
-    return 0;
+	free(udptl);
 }
 
 int cw_udptl_settos(cw_udptl_t *udptl, int tos)
@@ -420,26 +309,19 @@ int cw_udptl_settos(cw_udptl_t *udptl, int tos)
     return udp_socket_set_tos(udptl->udptl_sock_info, tos);
 }
 
-void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
+void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr *them)
 {
     udp_socket_set_far(udptl->udptl_sock_info, them);
 }
 
-void cw_udptl_get_peer(cw_udptl_t *udptl, struct sockaddr_in *them)
+struct sockaddr *cw_udptl_get_peer(cw_udptl_t *udptl)
 {
-    memcpy(them, udp_socket_get_far(udptl->udptl_sock_info), sizeof(*them));
+    return &udptl->udptl_sock_info->peer.sa;
 }
 
-void cw_udptl_get_us(cw_udptl_t *udptl, struct sockaddr_in *us)
+struct sockaddr *cw_udptl_get_us(cw_udptl_t *udptl)
 {
-    memcpy(us, udp_socket_get_apparent_local(udptl->udptl_sock_info), sizeof(*us));
-}
-
-int cw_udptl_get_stunstate(cw_udptl_t *udptl)
-{
-    if (udptl)
-        return udp_socket_get_rfc3489_state(udptl->udptl_sock_info);
-    return 0;
+    return udp_socket_get_apparent_local(udptl->udptl_sock_info);
 }
 
 void cw_udptl_stop(cw_udptl_t *udptl)
@@ -447,28 +329,18 @@ void cw_udptl_stop(cw_udptl_t *udptl)
     udp_socket_restart(udptl->udptl_sock_info);
 }
 
-void cw_udptl_destroy(cw_udptl_t *udptl)
-{
-    if (cw_io_isactive(&udptl->ioid))
-        cw_io_remove(udptl->io, &udptl->ioid);
-    //if (udptl->created_sock_info)
-    //    udp_socket_destroy_group(udptl->udptl_sock_info);
-    free(udptl);
-}
-
 int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
 {
     uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
-    char iabuf[INET_ADDRSTRLEN];
-    const struct sockaddr_in *them;
+    const struct sockaddr *them;
     int len;
     int copies;
     int i;
 
-    them = udp_socket_get_far(s->udptl_sock_info);
+    them = &s->udptl_sock_info->peer.sa;
 
     /* If we have no peer, return immediately */    
-    if (them->sin_addr.s_addr == INADDR_ANY)
+    if (them->sa_family == AF_UNSPEC)
         return 0;
 
     /* If there is no data length, return immediately */
@@ -483,23 +355,22 @@ int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
     /* Cook up the UDPTL packet, with the relevant EC info. */
     len = udptl_build_packet(&s->state, buf, f->data, f->datalen);
 
-    if (len > 0  &&  them->sin_port  &&  them->sin_addr.s_addr)
+    if (len > 0)
     {
 #if 0
-        printf("Sending %d copies of %d bytes of UDPTL data to %s:%hu\n", f->state.tx_copies, len, cw_inet_ntoa(iabuf, sizeof(iabuf), udptl->them.sin_addr), ntohs(udptl->them.sin_port));
+        printf("Sending %d copies of %d bytes of UDPTL data to %l@\n", f->state.tx_copies, len, them);
 #endif
         copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
         for (i = 0;  i < copies;  i++)
         {
             if (udp_socket_send(s->udptl_sock_info, buf, len, 0) < 0)
-                cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %s:%hu: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %l@: %s\n", them, strerror(errno));
         }
 
         if (udptl_debug_test_addr(them))
         {
-            cw_verbose("Sent UDPTL packet to %s:%hu (seq %d, len %d)\n",
-                         cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                         ntohs(them->sin_port),
+            cw_verbose("Sent UDPTL packet to %l@ (seq %d, len %d)\n",
+                         them,
                          (s->state.tx_seq_no - 1) & 0xFFFF,
                          len);
         }
@@ -565,11 +436,10 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     cw_udptl_t *p1;
     struct cw_udptl_protocol *pr0;
     struct cw_udptl_protocol *pr1;
-    struct sockaddr_in ac0;
-    struct sockaddr_in ac1;
-    struct sockaddr_in t0;
-    struct sockaddr_in t1;
-    char iabuf[INET_ADDRSTRLEN];
+    struct cw_sockaddr_net ac0;
+    struct cw_sockaddr_net ac1;
+    struct cw_sockaddr_net t0;
+    struct cw_sockaddr_net t1;
     void *pvt0;
     void *pvt1;
     int to;
@@ -617,7 +487,7 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     else
     {
         /* Store UDPTL peer */
-        cw_udptl_get_peer(p1, &ac1);
+        cw_sockaddr_copy(&ac1.sa, cw_udptl_get_peer(p1));
     }
     if (pr1->set_udptl_peer(c1, p0))
     {
@@ -626,7 +496,7 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
     else
     {
         /* Store UDPTL peer */
-        cw_udptl_get_peer(p0, &ac0);
+        cw_sockaddr_copy(&ac0.sa, cw_udptl_get_peer(p0));
     }
     cw_channel_unlock(c0);
     cw_channel_unlock(c1);
@@ -646,23 +516,17 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
             return CW_BRIDGE_RETRY;
         }
         to = -1;
-        cw_udptl_get_peer(p1, &t1);
-        cw_udptl_get_peer(p0, &t0);
-        if (inaddrcmp(&t1, &ac1))
+        cw_sockaddr_copy(&t1.sa, cw_udptl_get_peer(p1));
+        cw_sockaddr_copy(&t0.sa, cw_udptl_get_peer(p0));
+        if (cw_sockaddr_cmp(&t1.sa, &ac1.sa, -1, 1))
         {
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu\n",
-                c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port));
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu\n",
-                c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port));
-            memcpy(&ac1, &t1, sizeof(ac1));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %l@\n", c1->name, &t1.sa);
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %l@\n", c1->name, &ac1.sa);
         }
-        if (inaddrcmp(&t0, &ac0))
+        if (cw_sockaddr_cmp(&t0.sa, &ac0.sa, -1, 1))
         {
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu\n",
-                c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port));
-            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu\n",
-                c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port));
-            memcpy(&ac0, &t0, sizeof(ac0));
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %l@\n", c0->name, &t0.sa);
+            cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %l@\n", c0->name, &ac0.sa);
         }
         if ((who = cw_waitfor_n(cs, 2, &to)) == 0)
         {
@@ -699,35 +563,19 @@ enum cw_bridge_result cw_udptl_bridge(struct cw_channel *c0, struct cw_channel *
 
 static int udptl_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    struct hostent *hp;
-    struct cw_hostent ahp;
-    char iabuf[INET_ADDRSTRLEN];
-    int port;
-    char *p;
-    char *arg;
+    struct addrinfo *addrs;
+    int err;
 
-    port = 0;
     if (argc != 4)
         return RESULT_SHOWUSAGE;
-    arg = argv[3];
-    p = strstr(arg, ":");
-    if (p)
-    {
-        *p = '\0';
-        p++;
-        port = atoi(p);
-    }
-    hp = cw_gethostbyname(arg, &ahp);
-    if (hp == NULL)
-        return RESULT_SHOWUSAGE;
-    udptldebugaddr.sin_family = AF_INET;
-    memcpy(&udptldebugaddr.sin_addr, hp->h_addr, sizeof(udptldebugaddr.sin_addr));
-    udptldebugaddr.sin_port = htons(port);
-    if (port == 0)
-        cw_dynstr_printf(ds_p, "UDPTL Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr));
-    else
-        cw_dynstr_printf(ds_p, "UDPTL Debugging Enabled for IP: %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udptldebugaddr.sin_addr), port);
-    udptldebug = 1;
+
+    if (!(err = cw_getaddrinfo(argv[3], "0", NULL, &addrs, NULL))) {
+        memcpy(&udptldebugaddr, addrs->ai_addr, addrs->ai_addrlen);
+        cw_dynstr_printf(ds_p, "UDPTL debugging enabled for IP: %l@\n", udptldebugaddr);
+        udptldebug = 1;
+    } else
+        cw_log(CW_LOG_WARNING, "%s: %s\n", argv[3], gai_strerror(err));
+
     return RESULT_SUCCESS;
 }
 

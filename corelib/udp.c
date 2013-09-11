@@ -45,6 +45,7 @@
 
 CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
+#include "callweaver/sockaddr.h"
 #include "callweaver/stun.h"
 #include "callweaver/udp.h"
 
@@ -57,27 +58,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
  * 
  */
 
-enum
-{
-    RFC3489_STATE_IDLE = 0,
-    RFC3489_STATE_REQUEST_PENDING,
-    RFC3489_STATE_RESPONSE_RECEIVED
-};
 
-struct udp_state_s
-{
-    int fd;
-    struct sockaddr_in local;
-    struct sockaddr_in far;
-    struct sockaddr_in rfc3489_local;
-    int nochecksums;
-    int nat;
-    int rfc3489_state;
-    struct udp_state_s *next;
-    struct udp_state_s *prev;
-};
-
-int rfc3489_active = 0;
+static int rfc3489_active = 0;
 
 
 static uint16_t make_mask16(uint16_t x)
@@ -90,256 +72,75 @@ static uint16_t make_mask16(uint16_t x)
 }
 /*- End of function --------------------------------------------------------*/
 
-udp_state_t *udp_socket_create(int nochecksums)
+int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums, struct cw_sockaddr_net *addr, int lowest_port, int highest_port)
 {
-    int fd;
-    long flags;
-    udp_state_t *s;
-    
-    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-        return NULL;
-    flags = fcntl(fd, F_GETFL);
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
-    {
-        close(fd);
-        return NULL;
-    }
+	int i;
+	int base;
+	int port_mask;
+	int starting_point;
+	int err;
+	int ret = -1;
+
+	/* Find a port or group of ports we can bind to, within a specified numeric range */
+	port_mask = make_mask16(nelem - 1);
+	/* Trim the port range to suitable multiples of the size of the blocks of ports being used. */
+	lowest_port = (lowest_port + port_mask) & ~port_mask;
+	if (highest_port < lowest_port + nelem - 1)
+		return ret;
+	highest_port &= ~port_mask;
+	base = lowest_port;
+	if (highest_port != lowest_port)
+		base += ((rand()%(highest_port - lowest_port + 1)) & ~port_mask);
+	starting_point = base;
+
+	for (i = 0; i < nelem; i++) {
+		s[i].peer.sa.sa_family = AF_UNSPEC;
+		s[i].rfc3489_local.sa.sa_family = AF_UNSPEC;
+		s[i].nochecksums = nochecksums;
+		s[i].rfc3489_state = RFC3489_STATE_IDLE;
+	}
+
+	for (;;) {
+		for (i = 0; i < nelem; i++) {
+			cw_sockaddr_set_port(&addr->sa, base + i);
+			if ((s[i].fd = socket(addr->sa.sa_family, SOCK_DGRAM, 0)) < 0)
+				break;
+			fcntl(s[i].fd, F_SETFL, fcntl(s[i].fd, F_GETFL) | O_NONBLOCK);
 #ifdef SO_NO_CHECK
-    if (nochecksums)
-        setsockopt(fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
+			if (nochecksums)
+				setsockopt(s[i].fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
-    if ((s = malloc(sizeof(*s))) == NULL)
-    {
-        close(fd);
-        return NULL;
-    }
-    memset(s, 0, sizeof(*s));
-    s->far.sin_family = AF_INET;
-    s->local.sin_family = AF_INET;
-    s->nochecksums = nochecksums;
-    s->fd = fd;
-    s->rfc3489_state = RFC3489_STATE_IDLE;
-    s->next = NULL;
-    s->prev = NULL;
-    return s;
+			if (bind(s[i].fd, &addr->sa, sizeof(*addr)))
+				break;
+
+			cw_sockaddr_copy(&s[i].local.sa, &addr->sa);
+		}
+		if (i >= nelem) {
+			/* We must have bound all ports OK. */
+			ret = 0;
+			break;
+		}
+
+		err = errno;
+
+		while (--i >= 0)
+			close(s[i].fd);
+
+		base += (port_mask + 1);
+		if (base > highest_port)
+			base = lowest_port;
+
+		if (base == starting_point || err != EADDRINUSE)
+			break;
+	}
+
+	return ret;
 }
 /*- End of function --------------------------------------------------------*/
 
-int udp_socket_destroy(udp_state_t *s)
+void udp_socket_set_far(udp_state_t *s, const struct sockaddr *far)
 {
-    if (s == NULL)
-        return -1;
-    if (s->fd >= 0)
-        close(s->fd);
-    free(s);
-    return 0;
-}
-/*- End of function --------------------------------------------------------*/
-
-int udp_socket_destroy_group(udp_state_t *s)
-{
-    udp_state_t *sx;
-    udp_state_t *sy;
-
-    /* Assume s could be in the middle of the group, and search both ways when
-       destroying */
-    sx = s->next;
-    while (sx)
-    {
-        sy = sx->next;
-        udp_socket_destroy(sx);
-        sx = sy;
-    }
-    sx = s;
-    while (sx)
-    {
-        sy = sx->prev;
-        udp_socket_destroy(sx);
-        sx = sy;
-    }
-    return 0;
-}
-/*- End of function --------------------------------------------------------*/
-
-udp_state_t *udp_socket_create_and_bind(int nochecksums, struct in_addr *addr, int lowest_port, int highest_port)
-{
-    udp_state_t *s;
-    struct sockaddr_in sockaddr;
-    int port;
-    int starting_point;
-
-    port = lowest_port;
-    if (highest_port != lowest_port)
-        port += (rand()%(highest_port - lowest_port + 1));
-    starting_point = port;
-
-    if ((s = udp_socket_create(nochecksums)) == NULL)
-        return NULL;
-
-    for (;;)
-    {
-        sockaddr.sin_family = AF_INET;
-        if (addr)
-            sockaddr.sin_addr = *addr;
-        else
-            sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        sockaddr.sin_port = htons(port);
-        if (udp_socket_set_local(s, &sockaddr) == 0)
-        {
-            /* We must have bound the port OK. */
-            return s;
-        }
-        if (errno != EADDRINUSE)
-        {
-            udp_socket_destroy(s);
-            return NULL;
-        }
-        if (++port > highest_port)
-            port = lowest_port;
-        if (port == starting_point)
-            break;
-    }
-    /* Unravel what we did so far, and give up */
-    udp_socket_destroy(s);
-    return NULL;
-}
-/*- End of function --------------------------------------------------------*/
-
-udp_state_t *udp_socket_group_create_and_bind(int group, int nochecksums, struct in_addr *addr, int lowest_port, int highest_port)
-{
-    udp_state_t *s;
-    udp_state_t *s_extra;
-    struct sockaddr_in sockaddr;
-    int i;
-    int base;
-    int port;
-    int port_mask;
-    int starting_point;
-
-    /* Find a port or group of ports we can bind to, within a specified numeric range */
-    port_mask = make_mask16(group - 1);
-    /* Trim the port range to suitable multiples of the size of the blocks of ports being used. */
-    lowest_port = (lowest_port + port_mask) & ~port_mask;
-    if (highest_port < lowest_port + group - 1)
-        return NULL;
-    highest_port &= ~port_mask;
-    base = lowest_port;
-    if (highest_port != lowest_port)
-        base += ((rand()%(highest_port - lowest_port + 1)) & ~port_mask);
-    starting_point = base;
-
-    if ((s = udp_socket_create(nochecksums)) == NULL)
-        return NULL;
-
-    if (group > 1)
-    {
-        s_extra = s;
-        for (i = 1;  i < group;  i++)
-        {
-            if ((s_extra->next = udp_socket_create(nochecksums)) == NULL)
-            {
-                /* Unravel what we did so far, and give up */
-                udp_socket_destroy_group(s);
-                return NULL;
-            }
-            s_extra->next->prev = s_extra;
-            s_extra = s_extra->next;
-        }
-    }
-
-    for (;;)
-    {
-        port = base;
-        sockaddr.sin_family = AF_INET;
-        if (addr)
-            sockaddr.sin_addr = *addr;
-        else
-            sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-        sockaddr.sin_port = htons(port);
-        s_extra = s;
-        while (s_extra)
-        {
-            if (udp_socket_set_local(s_extra, &sockaddr))
-                break;
-            sockaddr.sin_port = htons(++port);
-            s_extra = s_extra->next;
-        }
-        if (s_extra == NULL)
-        {
-            /* We must have bound all ports OK. */
-            return s;
-        }
-        if (errno != EADDRINUSE)
-        {
-            udp_socket_destroy_group(s);
-            return NULL;
-        }
-        base += (port_mask + 1);
-        if (base > highest_port)
-            base = lowest_port;
-        if (base == starting_point)
-            break;
-    }
-    /* Unravel what we did so far, and give up */
-    udp_socket_destroy_group(s);
-    return NULL;
-}
-/*- End of function --------------------------------------------------------*/
-
-udp_state_t *udp_socket_find_group_element(udp_state_t *s, int element)
-{
-    int i;
-
-    /* Find the start of the group */
-    while (s->prev)
-        s = s->prev;
-    /* Now count to the element we want */
-    for (i = 0;  i < element  &&  s;  i++)
-        s = s->next;
-    return s;
-}
-/*- End of function --------------------------------------------------------*/
-
-int udp_socket_set_local(udp_state_t *s, const struct sockaddr_in *us)
-{
-    int res;
-    long flags;
-
-    if (s == NULL  ||  s->fd < 0)
-        return -1;
-
-    if (s->local.sin_addr.s_addr  ||  s->local.sin_port)
-    {
-        /* We are already bound, so we need to re-open the socket to unbind it */
-        close(s->fd);
-        if ((s->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-            return -1;
-        flags = fcntl(s->fd, F_GETFL);
-        if (fcntl(s->fd, F_SETFL, flags | O_NONBLOCK) < 0)
-        {
-            close(s->fd);
-            return -1;
-        }
-#ifdef SO_NO_CHECK
-        if (s->nochecksums)
-            setsockopt(s->fd, SOL_SOCKET, SO_NO_CHECK, &s->nochecksums, sizeof(s->nochecksums));
-#endif
-    }
-    s->local.sin_port = us->sin_port;
-    s->local.sin_addr.s_addr = us->sin_addr.s_addr;
-    if ((res = bind(s->fd, (struct sockaddr *) &s->local, sizeof(s->local))) < 0)
-    {
-        s->local.sin_port = 0;
-        s->local.sin_addr.s_addr = 0;
-    }
-    return res;
-}
-/*- End of function --------------------------------------------------------*/
-
-void udp_socket_set_far(udp_state_t *s, const struct sockaddr_in *far)
-{
-    s->far.sin_port = far->sin_port;
-    s->far.sin_addr.s_addr = far->sin_addr.s_addr;
+	cw_sockaddr_copy(&s->peer.sa, far);
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -358,8 +159,8 @@ void udp_socket_set_nat(udp_state_t *s, int nat_mode)
     s->nat = nat_mode;
     if (nat_mode  &&  s->rfc3489_state == RFC3489_STATE_IDLE  &&  rfc3489_active)
     {
-        /* FIXME: far should be stunserver_ip */
-        cw_stun_bindrequest(s->fd, (struct sockaddr *)&s->local, sizeof(s->local), (struct sockaddr *)&s->far, sizeof(s->far), &s->rfc3489_local);
+        /* FIXME: peer should be stunserver_ip */
+        cw_stun_bindrequest(s->fd, &s->local.sa, sizeof(s->local), &s->peer.sa, sizeof(s->peer), &s->rfc3489_local.sin);
         s->rfc3489_state = RFC3489_STATE_REQUEST_PENDING;
     }
 }
@@ -369,8 +170,8 @@ int udp_socket_restart(udp_state_t *s)
 {
     if (s == NULL)
         return -1;
-    memset(&s->far.sin_addr.s_addr, 0, sizeof(s->far.sin_addr.s_addr));
-    s->far.sin_port = 0;
+
+    s->peer.sa.sa_family = AF_UNSPEC;
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
@@ -383,89 +184,46 @@ int udp_socket_fd(udp_state_t *s)
 }
 /*- End of function --------------------------------------------------------*/
 
-int udp_socket_get_rfc3489_state(udp_state_t *s)
+int udp_socket_recv(udp_state_t *s, void *buf, size_t size, int flags, int *action)
 {
-    if (s)
-        return s->rfc3489_state;
-    return 0;
-}
-/*- End of function --------------------------------------------------------*/
+	struct cw_sockaddr_net addr;
+	socklen_t salen = sizeof(addr);
+	int res;
 
-const struct sockaddr_in *udp_socket_get_apparent_local(udp_state_t *s)
-{
-    static const struct sockaddr_in dummy = {0};
+	*action = 0;
 
-    if (s)
-    {
-        if (s->rfc3489_state == RFC3489_STATE_RESPONSE_RECEIVED)
-            return &s->rfc3489_local;
-        return &s->local;
-    }
-    return &dummy;
-}
-/*- End of function --------------------------------------------------------*/
+	if (s == NULL  ||  s->fd < 0)
+		return 0;
 
-const struct sockaddr_in *udp_socket_get_far(udp_state_t *s)
-{
-    static const struct sockaddr_in dummy = {0};
-
-    if (s)
-        return &s->far;
-    return &dummy;
-}
-/*- End of function --------------------------------------------------------*/
-
-int udp_socket_recvfrom(udp_state_t *s,
-                        void *buf,
-                        size_t size,
-                        int flags,
-                        struct sockaddr *sa,
-                        socklen_t *salen,
-                        int *action)
-{
-    int res;
-
-    *action = 0;
-    if (s == NULL  ||  s->fd < 0)
-        return 0;
-    if ((res = recvfrom(s->fd, buf, size, flags, sa, salen)) >= 0)
-    {
-        if ((s->nat  &&  !rfc3489_active)
-            ||
-            (s->nat  &&  rfc3489_active  &&  s->rfc3489_state == RFC3489_STATE_IDLE))
-        {
-            /* Send to whoever sent to us */
-            if (s->far.sin_addr.s_addr != ((struct sockaddr_in *) sa)->sin_addr.s_addr
-                || 
-                s->far.sin_port != ((struct sockaddr_in *) sa)->sin_port)
-            {
-                memcpy(&s->far, sa, sizeof(s->far));
-                *action |= 1;
-            }
-        }
-        if (s->rfc3489_state == RFC3489_STATE_REQUEST_PENDING)
-        {
-            cw_stun_handle_packet(s->fd, (struct sockaddr_in *) sa, buf, res, &s->rfc3489_local);
-	    if (s->rfc3489_local.sin_family != AF_UNSPEC)
-            {
-                s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
-                *action |= 2;
-                errno = EAGAIN;
-                return -1;
-            }
-        }
-    }
-    return res;
+	if ((res = recvfrom(s->fd, buf, size, flags, &addr.sa, &salen)) >= 0) {
+		if (s->nat && (!rfc3489_active || (rfc3489_active  &&  s->rfc3489_state == RFC3489_STATE_IDLE))) {
+			/* Send to whoever sent to us */
+			if (cw_sockaddr_cmp(&addr.sa, &s->peer.sa, -1, 1)) {
+				cw_sockaddr_copy(&s->peer.sa, &addr.sa);
+				*action |= 1;
+			}
+		}
+		if (s->rfc3489_state == RFC3489_STATE_REQUEST_PENDING) {
+			cw_stun_handle_packet(s->fd, &addr.sin, buf, res, &s->rfc3489_local.sin);
+			if (s->rfc3489_local.sa.sa_family != AF_UNSPEC) {
+				s->rfc3489_state = RFC3489_STATE_RESPONSE_RECEIVED;
+				*action |= 2;
+				errno = EAGAIN;
+				return -1;
+			}
+		}
+	}
+	return res;
 }
 /*- End of function --------------------------------------------------------*/
 
 int udp_socket_send(udp_state_t *s, const void *buf, size_t size, int flags)
 {
-    if (s == NULL  ||  s->fd < 0)
-        return 0;
-    if (s->far.sin_port == 0)
-        return 0;
-    return sendto(s->fd, buf, size, flags, (struct sockaddr *) &s->far, sizeof(s->far));
+	int ret = 0;
+
+	if (s && s->fd >= 0 && cw_sockaddr_get_port(&s->peer.sa))
+		ret = sendto(s->fd, buf, size, flags, &s->peer.sa, sizeof(s->peer));
+	return ret;
 }
 /*- End of function --------------------------------------------------------*/
 

@@ -874,9 +874,9 @@ struct sip_pvt {
     struct cw_sockaddr_net ouraddr;            /*!< Our address as we know it */
     struct cw_sockaddr_net stunaddr;           /*!< Our address as seen externally (it may be changed by NAT) */
     struct cw_sockaddr_net peeraddr;          /*!< The peer address */
-    struct sockaddr_in redirip;         /*!< Where our RTP should be going if not to us */
-    struct sockaddr_in vredirip;        /*!< Where our Video RTP should be going if not to us */
-    struct sockaddr_in udptlredirip;    /*!< Where our T.38 UDPTL should be going if not to us */
+    struct cw_sockaddr_net redirip;         /*!< Where our RTP should be going if not to us */
+    struct cw_sockaddr_net vredirip;        /*!< Where our Video RTP should be going if not to us */
+    struct cw_sockaddr_net udptlredirip;    /*!< Where our T.38 UDPTL should be going if not to us */
 
     int redircodecs;            /*!< Redirect codecs */
     struct cw_channel *owner;        /*!< Who owns us */
@@ -1551,6 +1551,22 @@ static void dialogue_release(struct cw_object *obj)
 {
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
 
+	if (dialogue->rtp)
+		cw_rtp_destroy(dialogue->rtp);
+
+	if (dialogue->vrtp)
+		cw_rtp_destroy(dialogue->vrtp);
+
+	if (dialogue->udptl)
+		cw_udptl_destroy(dialogue->udptl);
+
+#if 0
+	if (dialogue->tpkt) {
+		cw_tpkt_destroy(dialogue->tpkt);
+		dialogue->tpkt = NULL;
+	}
+#endif
+
 	if (dialogue->route) {
 		free_old_route(dialogue->route);
 		dialogue->route = NULL;
@@ -1617,20 +1633,16 @@ static const struct cw_channel_tech sip_tech =
 
 static void sip_debug_ports(struct sip_pvt *p)
 {
-	struct cw_sockaddr_net addr;
-
 	if (option_debug > 8) {
 		if (p->owner)
 			cw_log(CW_LOG_DEBUG,"DEBUG PORTS CHANNEL %s\n", p->owner->name);
 
 		if (p->udptl) {
-			cw_udptl_get_us(p->udptl, &addr.sin);
-			cw_log(CW_LOG_DEBUG, "DEBUG PORTS T.38 UDPTL is at port %#l@\n", &addr.sa);
+			cw_log(CW_LOG_DEBUG, "DEBUG PORTS T.38 UDPTL is at port %#l@\n", cw_udptl_get_us(p->udptl));
 		}
 
 		if (p->rtp) {
-			cw_rtp_get_us(p->rtp, &addr.sin);
-			cw_log(CW_LOG_DEBUG, "DEBUG PORTS rtp is at port %#l@\n", &addr.sa);
+			cw_log(CW_LOG_DEBUG, "DEBUG PORTS rtp is at port %#l@\n", cw_rtp_get_us(p->rtp));
 		}
 	}
 }
@@ -1939,7 +1951,7 @@ static int retrans_pkt(void *data)
             cw_verbose("SIP TIMER: #%d: Retransmitting (%sNAT) to %#l@ (peer %#l@):\n%s\n---\n",
                 msg->retransid,
                 (sip_is_nat_needed(msg->owner) ? "" : "no "),
-                &msg->recvdaddr, &msg->owner->peeraddr.sa,
+                &msg->recvdaddr.sa, &msg->owner->peeraddr.sa,
                 msg->pkt.data);
         if (sipdebug && option_debug > 3)
             cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", msg->retransid, sip_methods[msg->method].text, reschedule, msg->owner->timer_t1);
@@ -2973,28 +2985,6 @@ static void sip_destroy(struct sip_pvt *dialogue)
 {
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
-
-	if (dialogue->rtp) {
-		cw_rtp_destroy(dialogue->rtp);
-		dialogue->rtp = NULL;
-	}
-
-	if (dialogue->vrtp) {
-		cw_rtp_destroy(dialogue->vrtp);
-		dialogue->vrtp = NULL;
-	}
-
-	if (dialogue->udptl) {
-		cw_udptl_destroy(dialogue->udptl);
-		dialogue->udptl = NULL;
-	}
-
-#if 0
-	if (dialogue->tpkt) {
-		cw_tpkt_destroy(dialogue->tpkt);
-		dialogue->tpkt = NULL;
-	}
-#endif
 
 	if (dialogue->stateid > -1)
 		cw_extension_state_del(dialogue->stateid, NULL);
@@ -4163,17 +4153,17 @@ static void sip_alloc_media(struct sip_pvt *dialogue)
 	dialogue->rtpholdtimeout = global_rtpholdtimeout;
 	dialogue->rtpkeepalive = global_rtpkeepalive;
 
-	if ((dialogue->rtp = cw_rtp_new_with_bindaddr(sched, io, 1, 0, dialogue->ouraddr.sin.sin_addr))) {
+	if ((dialogue->rtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr))) {
 		cw_rtp_settos(dialogue->rtp, tos);
 		cw_rtp_setnat(dialogue->rtp, natneeded);
 	}
 
-	if (videosupport && (dialogue->vrtp = cw_rtp_new_with_bindaddr(sched, io, 1, 0, dialogue->ouraddr.sin.sin_addr))) {
+	if (videosupport && (dialogue->vrtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr))) {
 		cw_rtp_settos(dialogue->vrtp, tos);
 		cw_rtp_setnat(dialogue->vrtp, natneeded);
 	}
 
-	if (t38udptlsupport && (dialogue->udptl = cw_udptl_new_with_sock_info(sched, io, 0, cw_rtp_udp_socket(dialogue->rtp, NULL)))) {
+	if (t38udptlsupport && (dialogue->udptl = cw_udptl_new_with_sock_info(&dialogue->rtp->sock_info[0]))) {
 		cw_udptl_settos(dialogue->udptl, tos);
 		cw_udptl_setnat(dialogue->udptl, natneeded);
 
@@ -4192,11 +4182,8 @@ static void sip_alloc_media(struct sip_pvt *dialogue)
 
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG,"Our T38 capability (%d)\n", dialogue->t38capability);
-
-		cw_udptl_set_active(dialogue->udptl, 0);
 	}
 
-	cw_rtp_set_active(dialogue->rtp, 1);
 	dialogue->udptl_active = 0;
 }
 
@@ -4452,15 +4439,20 @@ done:
 /*! \brief  process_sdp: Process SIP SDP and activate RTP channels */
 static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, int sdp_start, int sdp_end)
 {
-    char host[258];
+	static const struct addrinfo hints = {
+		.ai_flags = AI_V4MAPPED | AI_ADDRCONFIG | AI_NUMERICHOST | AI_NUMERICSERV,
+		.ai_family = AF_UNSPEC,
+		.ai_socktype = SOCK_DGRAM,
+	};
+	struct addrinfo *addrs;
+	int host, err;
+	char chr;
     struct cw_sockaddr_net addr;
-    struct cw_hostent ahp;
     char *m;
     char *c;
     char *a;
     char *s;
     char *codecs;
-    struct hostent *hp;
     struct cw_channel *bridgepeer = NULL;
     struct cw_var_t *var;
     int len = -1;
@@ -4483,37 +4475,33 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
     int old = 0;
     int t38_disabled;
 
-    CW_UNUSED(ignore);
+	CW_UNUSED(ignore);
 
-    if (!p->rtp)
-    {
-        cw_log(CW_LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
-        return -1;
-    }
+	/*  FIXME: is this even possible? */
+	if (!p->rtp) {
+		cw_log(CW_LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
+		return -1;
+	}
 
-    /* Update our last rtprx when we receive an SDP, too */
-    time(&p->lastrtprx);
-    time(&p->lastrtptx);
+	/* Update our last rtprx when we receive an SDP, too */
+	/*  FIXME: why? How is this used? SDP is not RTP? */
+	time(&p->lastrtprx);
+	time(&p->lastrtptx);
 
-    m = get_sdp(req, "m", 1, sdp_start, sdp_end);
-    destiterator = sdp_start;
-    c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end);
-    if (!m || !c)
-    {
-        cw_log(CW_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
-        return -1;
-    }
-    if (sscanf(c, "IN IP4 %255s", host) != 1)
-    {
-        cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
-        return -1;
-    }
-    /* XXX This could block for a long time, and block the main thread! XXX */
-    if ((hp = cw_gethostbyname(host, &ahp)) == NULL)
-    {
-        cw_log(CW_LOG_WARNING, "Unable to lookup host in c= line, '%s'\n", c);
-        return -1;
-    }
+	m = get_sdp(req, "m", 1, sdp_start, sdp_end);
+	destiterator = sdp_start;
+	c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end);
+
+	if (!m || !c) {
+		cw_log(CW_LOG_WARNING, "Insufficient information for SDP (m = '%s', c = '%s')\n", m, c);
+		return -1;
+	}
+
+	if (!sscanf(c, "IN IP%c %n", &chr, &host) || (chr != '4' && chr != '6')) {
+		cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+		return -1;
+	}
+
     iterator = sdp_start;
     cw_set_flag(p, SIP_NOVIDEO);    
     while ((m = get_sdp_iterate(&iterator, req, "m", 1, sdp_end)))
@@ -4579,19 +4567,9 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
             udptlportno = x;
 
             cw_log(CW_LOG_DEBUG, "Activating UDPTL on response %s (1)\n", p->callid);
-            cw_rtp_set_active(p->rtp, 0);
-	    if (t38udptlsupport && p->udptl && !t38_disabled ) {
-        	cw_udptl_set_active(p->udptl, 1);
-    		p->udptl_active = 1;
-		cw_channel_set_t38_status(p->owner,T38_NEGOTIATED);
-                /*
-                int a;
-                a=cw_channel_get_t38_status(p->owner);
-                cw_log(CW_LOG_DEBUG,"Now t38_status is %d for %s \n",a, p->owner->name);
-                sip_debug_ports(p);
-                */
-	    }
-	    
+            p->udptl_active = 1;
+            cw_channel_set_t38_status(p->owner,T38_NEGOTIATED);
+
             if (p->owner  &&  p->lastinvite)
             {
                 p->t38state = SIP_T38_OFFER_RECEIVED_REINVITE; /* T38 Offered in re-invite from remote party */
@@ -4606,9 +4584,6 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
         else
         {
             cw_log(CW_LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
-            cw_rtp_set_active(p->rtp, 1);
-    	    if (t38udptlsupport &&p->udptl )
-        	cw_udptl_set_active(p->udptl, 0);
             p->udptl_active = 0;
         }
         if (p->vrtp)
@@ -4651,83 +4626,85 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
         /* No acceptable offer found in SDP */
         return -2;
     }
-    /* Check for Media-description-level-address for audio */
-    if (pedanticsipchecking)
-    {
-        if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end)))
-        {
-            if (sscanf(c, "IN IP4 %255s", host) != 1)
-            {
-                cw_log(CW_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
-            }
-            else
-            {
-                /* XXX This could block for a long time, and block the main thread! XXX */
-                if ((hp = cw_gethostbyname(host, &ahp)) == NULL){
-                    cw_log(CW_LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
-		    return -1;
-		}
-            }
-        }
-    }
 
-    /* RTP addresses and ports for audio and video */
-    addr.sa.sa_family = AF_INET;
-    memcpy(&addr.sin.sin_addr, hp->h_addr, sizeof(addr.sin.sin_addr));
+	/* Check for Media-description-level-address for audio.
+	 * If there isn't one we use the main address.
+	 */
+	if (pedanticsipchecking) {
+		if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end))) {
+			int host2;
 
-    /* Setup audio port number */
-    if (portno != -1)
-    {
-        if (p->rtp && portno)
-        {
-            cw_sockaddr_set_port(&addr.sa, portno);
-            cw_rtp_set_peer(p->rtp, &addr.sin);
-            if (debug)
-                cw_log(CW_LOG_DEBUG,"Peer audio RTP is at %#l@\n", &addr.sa);
-        }
-    }
-    /* Check for Media-description-level-address for video */
-    if (pedanticsipchecking)
-    {
-        if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end)))
-        {
-            if (sscanf(c, "IN IP4 %255s", host) != 1)
-            {
-                cw_log(CW_LOG_WARNING, "Invalid secondary host in c= line, '%s'\n", c);
-            }
-            else
-            {
-                /* XXX This could block for a long time, and block the main thread! XXX */
-                if ((hp = cw_gethostbyname(host, &ahp)) == NULL) {
-                    cw_log(CW_LOG_WARNING, "Unable to lookup host in secondary c= line, '%s'\n", c);
-		    return -1;
+			if (!sscanf(c, "IN IP%c %n", &chr, &host2) || (chr != '4' && chr != '6'))
+				cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+
+			host = host2;
 		}
-            }
-        }
-    }
-    /* Setup video port number */
-    if (vportno != -1)
-    {
-        if (p->vrtp && vportno)
-        {
-            cw_sockaddr_set_port(&addr.sa, vportno);
-            cw_rtp_set_peer(p->vrtp, &addr.sin);
-            if (debug)
-                cw_log(CW_LOG_DEBUG, "Peer video RTP is at %#l@\n", &addr.sa);
-        }
-    }
-    
-    /* Setup UDPTL port number */
-    if (udptlportno != -1 )
-    {
-        if (p->udptl && t38udptlsupport && udptlportno)
-        {
-            cw_sockaddr_set_port(&addr.sa, udptlportno);
-            cw_udptl_set_peer(p->udptl, &addr.sin);
-            if (debug)
-                cw_log(CW_LOG_DEBUG, "Peer T.38 UDPTL is at %#l@\n", &addr.sa);
-        }
-    }
+	}
+
+	/*  N.B. We ignore the IPv[46] indicator and go by what the address looks like */
+	if ((err = cw_getaddrinfo(&c[host], "0", &hints, &addrs, NULL))) {
+		cw_log(CW_LOG_WARNING, "Unable to lookup host \"%s\" in c= line: %s\n", &c[host], gai_strerror(err));
+		return -1;
+	}
+	memcpy(&addr.sa, addrs->ai_addr, addrs->ai_addrlen);
+
+	/* Setup audio port number */
+	if (portno != -1) {
+		if (p->rtp && portno) {
+			/* N.B. we set the port first because set_peer sets both RTP and RTCP destinations */
+			cw_sockaddr_set_port(addrs->ai_addr, portno);
+			cw_rtp_set_peer(p->rtp, addrs->ai_addr);
+			if (debug)
+				cw_log(CW_LOG_DEBUG,"Peer audio RTP is at %#l@\n", cw_rtp_get_peer(p->rtp));
+		}
+	}
+
+	/* Check for Media-description-level-address for video.
+	 * If there isn't one we use whatever we used for audio.
+	 * FIXME: is that the right thing to do?
+	 */
+	if (pedanticsipchecking) {
+		if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end))) {
+			if (!sscanf(c, "IN IP%c %n", &chr, &host) || (chr != '4' && chr != '6'))
+				cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+			else {
+				freeaddrinfo(addrs);
+
+				/*  N.B. We ignore the IPv[46] indicator and go by what the address looks like */
+				if ((err = cw_getaddrinfo(&c[host], "0", &hints, &addrs, NULL))) {
+					cw_log(CW_LOG_WARNING, "Unable to lookup host \"%s\" in c= line: %s\n", &c[host], gai_strerror(err));
+					return -1;
+				}
+			}
+		}
+	}
+
+	/* Setup video port number */
+	if (vportno != -1) {
+		if (p->vrtp && vportno) {
+			/* N.B. we set the port first because set_peer sets both RTP and RTCP destinations */
+			cw_sockaddr_set_port(addrs->ai_addr, vportno);
+			cw_rtp_set_peer(p->vrtp, addrs->ai_addr);
+			if (debug)
+				cw_log(CW_LOG_DEBUG, "Peer video RTP is at %#l@\n", cw_rtp_get_peer(p->vrtp));
+		}
+	}
+
+	/* Setup UDPTL port number */
+	if (udptlportno != -1 ) {
+		if (p->udptl && t38udptlsupport && udptlportno) {
+			/* FIXME: we're using the same address as audio here. Is that right?
+			 * Should we look for another media-description-level address?
+			 */
+			cw_udptl_set_peer(p->udptl, cw_rtp_get_peer(p->rtp));
+			cw_sockaddr_set_port(cw_udptl_get_peer(p->udptl), udptlportno);
+			if (debug)
+				cw_log(CW_LOG_DEBUG, "Peer T.38 UDPTL is at %#l@\n", cw_udptl_get_peer(p->udptl));
+		}
+	}
+
+	freeaddrinfo(addrs);
+
     /* Next, scan through each "a=rtpmap:" line, noting each
      * specified RTP payload type (with corresponding MIME subtype):
      */
@@ -5729,7 +5706,6 @@ static int t38_get_rate(int t38cap)
 /*! \brief  add_t38_sdp: Add T.38 Session Description Protocol message */
 static void add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
-	struct cw_sockaddr_net udptladdr;
 	struct cw_sockaddr_net udptldest;
 	unsigned int sdp_start;
 	int cl_index;
@@ -5750,15 +5726,12 @@ static void add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 		p->sessionversion++;
 	}
 
-	/* Our T.38 end is */
-	cw_udptl_get_us(p->udptl, &udptladdr.sin);
-
 	/* Determine T.38 UDPTL destination */
-	if (p->udptlredirip.sin_addr.s_addr)
-		memcpy(&udptldest, &p->udptlredirip, sizeof(p->udptlredirip));
+	if (cw_sockaddr_is_specific(&p->udptlredirip.sa))
+		cw_sockaddr_copy(&udptldest.sa, &p->udptlredirip.sa);
 	else {
 		udptldest = p->stunaddr;
-		cw_sockaddr_set_port(&udptldest.sa, cw_sockaddr_get_port(&udptladdr.sa));
+		cw_sockaddr_set_port(&udptldest.sa, cw_sockaddr_get_port(cw_udptl_get_us(p->udptl)));
 	}
 
 	if (debug)
@@ -5782,9 +5755,9 @@ static void add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	x = cw_udptl_get_local_max_datagram(p->udptl);
 	cw_dynstr_tprintf(&resp->pkt, 15,
 		cw_fmtval("v=0\r\n"),
-		cw_fmtval("o=root %d %d IN IP4 %@\r\n", p->sessionid, p->sessionversion, &udptldest.sa),
+		cw_fmtval("o=root %d %d IN IP%c %@\r\n", p->sessionid, p->sessionversion, (udptldest.sa.sa_family == AF_INET ? '4' : '6'), &udptldest.sa),
 		cw_fmtval("s=session\r\n"),
-		cw_fmtval("c=IN IP4 %@\r\n", &udptldest.sa),
+		cw_fmtval("c=IN IP%c %@\r\n", (udptldest.sa.sa_family == AF_INET ? '4' : '6'), &udptldest.sa),
 		cw_fmtval("t=0 0\r\n"),
 		cw_fmtval("m=image %#h@ udptl t38\r\n", &udptldest.sa),
 		cw_fmtval("%s", ((p->t38jointcapability & T38FAX_VERSION) == T38FAX_VERSION_0 ? "a=T38FaxVersion:0\r\n" : "")),
@@ -5817,8 +5790,6 @@ static void add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char m_audio[256];
 	char m_video[256];
 	char buf[256];
-	struct cw_sockaddr_net ouraddr;
-	struct cw_sockaddr_net ourvaddr;
 	struct cw_sockaddr_net dest;
 	struct cw_sockaddr_net vdest;
 #ifdef ENABLE_SRTP
@@ -5841,35 +5812,29 @@ static void add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		return;
 	}
 	capability = p->capability;
-        
+
 	if (!p->sessionid) {
 		p->sessionid = getpid();
 		p->sessionversion = p->sessionid;
 	} else
 		p->sessionversion++;
 
-	cw_rtp_get_us(p->rtp, &ouraddr.sin);
-
-	ourvaddr.sa.sa_family = AF_UNSPEC;
-	if (p->vrtp)
-		cw_rtp_get_us(p->vrtp, &ourvaddr.sin);
-
-	if (p->redirip.sin_addr.s_addr) {
-		memcpy(&dest, &p->redirip, sizeof(p->redirip));
+	if (cw_sockaddr_is_specific(&p->redirip.sa)) {
+		cw_sockaddr_copy(&dest.sa, &p->redirip.sa);
 		if (p->redircodecs)
 			capability = p->redircodecs;
 	} else {
 		dest = p->stunaddr;
-		cw_sockaddr_set_port(&dest.sa, cw_sockaddr_get_port(&ouraddr.sa));
+		cw_sockaddr_set_port(&dest.sa, cw_sockaddr_get_port(cw_rtp_get_us(p->rtp)));
 	}
 
 	/* Determine video destination */
 	if (p->vrtp) {
-		if (p->vredirip.sin_addr.s_addr)
-			memcpy(&vdest, &p->vredirip, sizeof(p->vredirip));
+		if (cw_sockaddr_is_specific(&p->vredirip.sa))
+			cw_sockaddr_copy(&vdest.sa, &p->vredirip.sa);
 		else {
-			vdest = p->stunaddr;
-			cw_sockaddr_set_port(&vdest.sa, cw_sockaddr_get_port(&ourvaddr.sa));
+			cw_sockaddr_copy(&vdest.sa, &p->stunaddr.sa);
+			cw_sockaddr_set_port(&vdest.sa, cw_sockaddr_get_port(cw_rtp_get_us(p->vrtp)));
 		}
 	}
 
@@ -5897,9 +5862,9 @@ static void add_sdp(struct sip_request *resp, struct sip_pvt *p)
 
 	cw_dynstr_tprintf(&resp->pkt, 5,
 		cw_fmtval("v=0\r\n"),
-		cw_fmtval("o=root %d %d IN IP4 %@\r\n", p->sessionid, p->sessionversion, &dest.sa),
+		cw_fmtval("o=root %d %d IN IP%c %@\r\n", p->sessionid, p->sessionversion, (dest.sa.sa_family == AF_INET ? '4' : '6'), &dest.sa),
 		cw_fmtval("s=session\r\n"),
-		cw_fmtval("c=IN IP4 %@\r\n", &dest.sa),
+		cw_fmtval("c=IN IP%c %@\r\n", (dest.sa.sa_family == AF_INET ? '4' : '6'), &dest.sa),
 		cw_fmtval("t=0 0\r\n")
 	);
 
@@ -6093,8 +6058,6 @@ static void transmit_reinvite_with_sdp(struct sip_pvt *p)
 
 		cw_log(CW_LOG_DEBUG, "Activating UDPTL on reinvite %s (b)\n", p->callid);
 		if (t38udptlsupport  &&  p->udptl ) {
-			cw_rtp_set_active(p->rtp, 0);
-			cw_udptl_set_active(p->udptl, 1);
 			p->udptl_active = 1;
 			cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
 		}
@@ -10220,7 +10183,6 @@ struct sip_show_channel_args {
 
 static int sip_show_channel_one(struct cw_object *obj, void *data)
 {
-	char iabuf3[INET_ADDRSTRLEN];
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
 	struct sip_show_channel_args *args = data;
 
@@ -10250,8 +10212,8 @@ static int sip_show_channel_one(struct cw_object *obj, void *data)
 			cw_fmtval("  SIP User agent:         %s\n", dialogue->useragent)
 		);
 
-		if (dialogue->redirip.sin_addr.s_addr)
-			cw_dynstr_printf(args->ds_p, "  Audio IP:               %s (Outside bridge)\n", cw_inet_ntoa(iabuf3, sizeof(iabuf3), dialogue->redirip.sin_addr));
+		if (cw_sockaddr_is_specific(&dialogue->redirip.sa))
+			cw_dynstr_printf(args->ds_p, "  Audio IP:               %l@ (Outside bridge)\n", &dialogue->redirip.sa);
 		else
 			cw_dynstr_printf(args->ds_p, "  Audio IP:               %l@ (local)\n", &dialogue->stunaddr.sa);
 
@@ -11991,19 +11953,19 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
             if (sipmethod == SIP_INVITE)
                 handle_response_invite(p, resp, req, ignore, req->seqno);
             else
-                cw_log(CW_LOG_WARNING, "Host %#l@ (received from %#l@) does not implement %s\n", &p->peeraddr.sa, &req->recvdaddr, msg);
+                cw_log(CW_LOG_WARNING, "Host %#l@ (received from %#l@) does not implement %s\n", &p->peeraddr.sa, &req->recvdaddr.sa, msg);
             break;
         case 501: /* Not Implemented */
             if (sipmethod == SIP_INVITE)
                 handle_response_invite(p, resp, req, ignore, req->seqno);
             else
-                cw_log(CW_LOG_WARNING, "Host %#l@ (received from %#l@) does not implement %s\n", &p->peeraddr.sa, &req->recvdaddr, msg);
+                cw_log(CW_LOG_WARNING, "Host %#l@ (received from %#l@) does not implement %s\n", &p->peeraddr.sa, &req->recvdaddr.sa, msg);
             break;
         default:
             if ((resp >= 300) && (resp < 700))
             {
                 if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr);
+                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr.sa);
                 if (p->rtp)
                 {
                     /* Immediately stop RTP */
@@ -13722,9 +13684,9 @@ static int sipsock_read(struct cw_connection *conn)
 	if (req->ouraddr.sa.sa_family != AF_UNSPEC)
 		cw_sockaddr_set_port(&req->ouraddr.sa, cw_sockaddr_get_port(&conn->addr));
 
-	/* If either of the first two bytes are less than 32 this must be a stun packet */
-	if (req->pkt.data[0] < ' ' || req->pkt.data[1] < ' ') {
-		cw_stun_handle_packet(conn->sock, (struct sockaddr_in *)&req->recvdaddr, (unsigned char *)req->pkt.data, req->pkt.used, NULL);
+	/* If this is IPv4 and either of the first two bytes are less than 32 this must be a stun packet */
+	if (req->recvdaddr.sa.sa_family == AF_INET && (req->pkt.data[0] < ' ' || req->pkt.data[1] < ' ')) {
+		cw_stun_handle_packet(conn->sock, &req->recvdaddr.sin, (unsigned char *)req->pkt.data, req->pkt.used, NULL);
 	} else {
 		if (sip_debug_test_addr(&req->recvdaddr.sa)) {
 			cw_set_flag(req, SIP_PKT_DEBUG);
@@ -13807,7 +13769,7 @@ static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
 
 	/* If we can't get the lock it's not a problem. We'll just try again next time. */
 	if (!cw_mutex_trylock(&dialogue->lock)) {
-		if (dialogue->rtp && dialogue->owner && (dialogue->owner->_state == CW_STATE_UP) && !dialogue->redirip.sin_addr.s_addr) {
+		if (dialogue->rtp && dialogue->owner && (dialogue->owner->_state == CW_STATE_UP) && !cw_sockaddr_is_specific(&dialogue->redirip.sa)) {
 			if (dialogue->lastrtptx && dialogue->rtpkeepalive && args->t > dialogue->lastrtptx + dialogue->rtpkeepalive) {
 				/* Need to send an empty RTP packet */
 				dialogue->lastrtptx = args->t;
@@ -13816,11 +13778,7 @@ static int do_monitor_dialogue_one(struct cw_object *obj, void *data)
 
 			if (dialogue->owner && dialogue->lastrtprx && (dialogue->rtptimeout || dialogue->rtpholdtimeout) && args->t > dialogue->lastrtprx + dialogue->rtptimeout) {
 				/* Might be a timeout now -- see if we're on hold */
-				struct sockaddr_in sin;
-
-				cw_rtp_get_peer(dialogue->rtp, &sin);
-
-				if (sin.sin_addr.s_addr
+				if (cw_rtp_get_peer(dialogue->rtp)->sa_family != AF_UNSPEC
 				|| (dialogue->rtpholdtimeout && args->t > dialogue->lastrtprx + dialogue->rtpholdtimeout)) {
 					/* Needs a hangup */
 					if (dialogue->rtptimeout) {
@@ -15107,27 +15065,27 @@ static int sip_set_rtp_peer(struct cw_channel *chan, struct cw_rtp *rtp, struct 
         return -1;
     cw_mutex_lock(&p->lock);
     if (rtp)
-        cw_rtp_get_peer(rtp, &p->redirip);
+        cw_sockaddr_copy(&p->redirip.sa, cw_rtp_get_peer(rtp));
     else
-        memset(&p->redirip, 0, sizeof(p->redirip));
+        p->redirip.sa.sa_family = AF_UNSPEC;
     if (vrtp)
-        cw_rtp_get_peer(vrtp, &p->vredirip);
+        cw_sockaddr_copy(&p->vredirip.sa, cw_rtp_get_peer(vrtp));
     else
-        memset(&p->vredirip, 0, sizeof(p->vredirip));
+        p->vredirip.sa.sa_family = AF_UNSPEC;
     p->redircodecs = codecs;
     if (!cw_test_flag(p, SIP_GOTREFER))
     {
         if (!p->pendinginvite)
         {
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %#l@\n", p->callid, (rtp ? (struct sockaddr *)&p->redirip : &p->stunaddr.sa));
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %#l@\n", p->callid, (rtp ? &p->redirip.sa : &p->stunaddr.sa));
 
             transmit_reinvite_with_sdp(p);
         }
         else if (!cw_test_flag(p, SIP_PENDINGBYE))
         {
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %#l@\n", p->callid, (rtp ? (struct sockaddr *)&p->redirip : &p->stunaddr.sa));
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %#l@\n", p->callid, (rtp ? &p->redirip.sa : &p->stunaddr.sa));
 
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -15157,40 +15115,36 @@ static cw_udptl_t *sip_get_udptl_peer(struct cw_channel *chan)
 
 static int sip_set_udptl_peer(struct cw_channel *chan, cw_udptl_t *udptl)
 {
-    struct sip_pvt *p;
+	struct sip_pvt *p;
 
-    p = chan->tech_pvt;
-    if (!p) 
-        return -1;
-    cw_mutex_lock(&p->lock);
-    if (udptl)
-        cw_udptl_get_peer(udptl, &p->udptlredirip);
-    else
-        memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
+	if (!(p = chan->tech_pvt))
+		return -1;
 
+	cw_mutex_lock(&p->lock);
 
-    if (!cw_test_flag(p, SIP_GOTREFER))
-    {
-        if (!p->pendinginvite)
-        {
-            if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (udptl ? (struct sockaddr *)&p->udptlredirip : &p->stunaddr.sa));
+	p->udptlredirip.sa.sa_family = AF_UNSPEC;
+	if (udptl)
+		cw_sockaddr_copy(&p->udptlredirip.sa, cw_udptl_get_peer(udptl));
 
-            transmit_reinvite_with_t38_sdp(p);
-        }
-        else if (!cw_test_flag(p, SIP_PENDINGBYE))
-        {
-            if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %#l@\n", p->callid, (udptl ? (struct sockaddr *)&p->udptlredirip : &p->stunaddr.sa));
+	if (!cw_test_flag(p, SIP_GOTREFER)) {
+		if (!p->pendinginvite) {
+			if (option_debug > 2)
+				cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (udptl ? &p->udptlredirip.sa : &p->stunaddr.sa));
 
-            cw_set_flag(p, SIP_NEEDREINVITE);    
-        }
-    }
-    /* Reset lastrtprx timer */
-    time(&p->lastrtprx);
-    time(&p->lastrtptx);
-    cw_mutex_unlock(&p->lock);
-    return 0;
+			transmit_reinvite_with_t38_sdp(p);
+		} else if (!cw_test_flag(p, SIP_PENDINGBYE)) {
+			if (option_debug > 2)
+				cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %#l@\n", p->callid, (udptl ? &p->udptlredirip.sa : &p->stunaddr.sa));
+
+			cw_set_flag(p, SIP_NEEDREINVITE);
+		}
+	}
+
+	/* Reset lastrtprx timer */
+	time(&p->lastrtprx);
+
+	cw_mutex_unlock(&p->lock);
+	return 0;
 }
 
 #if 0
@@ -15219,22 +15173,22 @@ static int sip_set_tpkt_peer(struct cw_channel *chan, struct cw_tpkt *tpkt)
         return -1;
     cw_mutex_lock(&p->lock);
     if (tpkt)
-        cw_tpkt_get_peer(tpkt, &p->redirip);
+        cw_tpkt_get_peer(tpkt, &p->redirip.sa);
     else
-        memset(&p->redirip, 0, sizeof(p->redirip));
+        p->redirip.sa.sa_family = AF_UNSPEC;
     if (!cw_test_flag(p, SIP_GOTREFER))
     {
         if (!p->pendinginvite)
         {
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %#l@\n", p->callid, (tpkt ? (struct sockaddr *)&p->redirip : &p->stunaddr.sa));
+                cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's TPKT soon redirected to IP %#l@\n", p->callid, (tpkt ? &p->redirip.sa : &p->stunaddr.sa));
 
             transmit_reinvite_with_t38_sdp(p);
         }
         else if (!cw_test_flag(p, SIP_PENDINGBYE))
         {
             if (option_debug > 2)
-                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %#l@\n", p->callid, (tpkt ? (struct sockaddr *)&p->redirip : &p->stunaddr.sa));
+                cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's TPKT will be redirected to IP %#l@\n", p->callid, (tpkt ? &p->redirip.sa : &p->stunaddr.sa));
 
             cw_set_flag(p, SIP_NEEDREINVITE);    
         }
@@ -15250,88 +15204,71 @@ static int sip_set_tpkt_peer(struct cw_channel *chan, struct cw_tpkt *tpkt)
 
 static int sip_handle_t38_reinvite(struct cw_channel *chan, struct sip_pvt *pvt, int reinvite)
 {
-    struct sip_pvt *p;
-    int flag = 0;
+	struct sip_pvt *p;
+	int flag = 0;
 
-    p = chan->tech_pvt;
-    if (!p) 
-        return -1;
-    if (!pvt->udptl)
-        return -1;
+	if (!(p = chan->tech_pvt) || !pvt->udptl)
+		return -1;
 
-    /* Setup everything on the other side like offered/responded from first side */
-    cw_mutex_lock(&p->lock);
-    p->t38jointcapability =
-    p->t38peercapability = pvt->t38jointcapability; 
-    cw_udptl_set_far_max_datagram(p->udptl, cw_udptl_get_local_max_datagram(pvt->udptl));
-    cw_udptl_set_local_max_datagram(p->udptl, cw_udptl_get_local_max_datagram(pvt->udptl));
-    cw_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
+	cw_mutex_lock(&p->lock);
 
-    if (reinvite)
-    {
-        /* If we are handling sending re-invite to the other side of the bridge */
-        if (cw_test_flag(p, SIP_CAN_REINVITE) && cw_test_flag(pvt, SIP_CAN_REINVITE))
-        {
-            cw_udptl_get_peer(pvt->udptl, &p->udptlredirip);
-            flag =1;
-        }
-        else
-        {
-            memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-        }
-        if (!cw_test_flag(p, SIP_GOTREFER))
-        {
-            if (!p->pendinginvite)
-            {
-                if (option_debug > 2)
-                    cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (flag ? (struct sockaddr *)&p->udptlredirip : &p->stunaddr.sa));
+	/* Setup everything on the other side like offered/responded from first side */
+	p->t38jointcapability = p->t38peercapability = pvt->t38jointcapability;
+	cw_udptl_set_far_max_datagram(p->udptl, cw_udptl_get_local_max_datagram(pvt->udptl));
+	cw_udptl_set_local_max_datagram(p->udptl, cw_udptl_get_local_max_datagram(pvt->udptl));
+	cw_udptl_set_error_correction_scheme(p->udptl, UDPTL_ERROR_CORRECTION_REDUNDANCY);
 
-                transmit_reinvite_with_t38_sdp(p);
-            }
-            else if (!cw_test_flag(p, SIP_PENDINGBYE))
-            {
-                if (option_debug > 2)
-                    cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %#l@\n", p->callid, (flag ? (struct sockaddr *)&p->udptlredirip : &p->stunaddr.sa));
+	if (reinvite) {
+		/* If we are handling sending re-invite to the other side of the bridge */
+		p->udptlredirip.sa.sa_family = AF_UNSPEC;
+		if (cw_test_flag(p, SIP_CAN_REINVITE) && cw_test_flag(pvt, SIP_CAN_REINVITE)) {
+			cw_sockaddr_copy(&p->udptlredirip.sa, cw_udptl_get_peer(pvt->udptl));
+			flag =1;
+		}
 
-                cw_set_flag(p, SIP_NEEDREINVITE);    
-            }
-        }
-        /* Reset lastrtprx timer */
-        time(&p->lastrtprx);
-        time(&p->lastrtptx);
-        cw_mutex_unlock(&p->lock);
-        return 0;
-    }
-    else
-    {
-        /* If we are handling sending 200 OK to the other side of the bridge */
-        if (cw_test_flag(p, SIP_CAN_REINVITE) && cw_test_flag(pvt, SIP_CAN_REINVITE))
-        {
-            cw_udptl_get_peer(pvt->udptl, &p->udptlredirip);
-            flag = 1;
-        }
-        else
-        {
-            memset(&p->udptlredirip, 0, sizeof(p->udptlredirip));
-        }
+		if (!cw_test_flag(p, SIP_GOTREFER)) {
+			if (!p->pendinginvite) {
+				if (option_debug > 2)
+					cw_log(CW_LOG_DEBUG, "Sending reinvite on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (flag ? &p->udptlredirip.sa : &p->stunaddr.sa));
 
-        if (option_debug > 2)
-            cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (flag ? (struct sockaddr *)&p->udptlredirip : &p->stunaddr.sa));
+				transmit_reinvite_with_t38_sdp(p);
+			} else if (!cw_test_flag(p, SIP_PENDINGBYE)) {
+				if (option_debug > 2)
+					cw_log(CW_LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's UDPTL will be redirected to IP %#l@\n", p->callid, (flag ? &p->udptlredirip.sa : &p->stunaddr.sa));
 
-        pvt->t38state = SIP_T38_NEGOTIATED;
-        p->t38state = SIP_T38_NEGOTIATED;
-        cw_log(CW_LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
-        sip_debug_ports(pvt);
-        cw_log(CW_LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
-        sip_debug_ports(p);
-        cw_channel_set_t38_status(chan, T38_NEGOTIATED);
-        cw_log(CW_LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
-        transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
-        time(&p->lastrtprx);
-        time(&p->lastrtptx);
-        cw_mutex_unlock(&p->lock);
-        return 0;
-    }
+				cw_set_flag(p, SIP_NEEDREINVITE);
+			}
+		}
+
+		time(&p->lastrtprx);
+	} else {
+		/* If we are handling sending 200 OK to the other side of the bridge */
+		p->udptlredirip.sa.sa_family = AF_UNSPEC;
+		if (cw_test_flag(p, SIP_CAN_REINVITE) && cw_test_flag(pvt, SIP_CAN_REINVITE)) {
+			cw_sockaddr_copy(&p->udptlredirip.sa, cw_udptl_get_peer(pvt->udptl));
+			flag = 1;
+		}
+
+		if (option_debug > 2)
+			cw_log(CW_LOG_DEBUG, "Responding 200 OK on SIP '%s' - It's UDPTL soon redirected to IP %#l@\n", p->callid, (flag ? &p->udptlredirip.sa : &p->stunaddr.sa));
+
+		pvt->t38state = SIP_T38_NEGOTIATED;
+		cw_log(CW_LOG_DEBUG, "T38 changed state to %d on channel %s\n", pvt->t38state, pvt->owner ? pvt->owner->name : "<none>");
+		sip_debug_ports(pvt);
+
+		p->t38state = SIP_T38_NEGOTIATED;
+		cw_log(CW_LOG_DEBUG, "T38 changed state to %d on channel %s\n", p->t38state, chan ? chan->name : "<none>");
+		sip_debug_ports(p);
+
+		cw_channel_set_t38_status(chan, T38_NEGOTIATED);
+		cw_log(CW_LOG_DEBUG,"T38mode enabled for channel %s\n", chan->name);
+
+		transmit_response_with_t38_sdp(p, "200 OK", &p->initreq, 1);
+		time(&p->lastrtprx);
+	}
+
+	cw_mutex_unlock(&p->lock);
+	return 0;
 }
 
 static void *dtmfmode_app;

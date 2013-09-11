@@ -346,7 +346,7 @@ struct mgcp_subchannel {
 	struct cw_channel *owner;
 	struct mgcp_endpoint *parent;
 	struct cw_rtp *rtp;
-	struct sockaddr_in tmpdest;
+	struct cw_sockaddr_net tmpdest;
 	char txident[80]; /* FIXME SC: txident is replaced by rqnt_ident in endpoint. 
 			This should be obsoleted */
 	char cxident[80];
@@ -535,7 +535,7 @@ static int unalloc_sub(struct mgcp_subchannel *sub)
 	sub->cxmode = MGCP_CX_INACTIVE;
 	sub->outgoing = 0;
 	sub->alreadygone = 0;
-	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
+	sub->tmpdest.sa.sa_family = AF_UNSPEC;
 	if (sub->rtp) {
 		cw_rtp_destroy(sub->rtp);
 		sub->rtp = NULL;
@@ -1049,7 +1049,7 @@ static int mgcp_hangup(struct cw_channel *ast)
 	sub->cxmode = MGCP_CX_INACTIVE;
 	sub->callid[0] = '\0';
 	/* Reset temporary destination */
-	memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
+	sub->tmpdest.sa.sa_family = AF_UNSPEC;
 	if (sub->rtp) {
 		cw_rtp_destroy(sub->rtp);
 		sub->rtp = NULL;
@@ -1794,7 +1794,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sin.sin_family = AF_INET;
 	memcpy(&sin.sin_addr, hp->h_addr, sizeof(sin.sin_addr));
 	sin.sin_port = htons(portno);
-	cw_rtp_set_peer(sub->rtp, &sin);
+	cw_rtp_set_peer(sub->rtp, (struct sockaddr *)&sin);
 #if 0
 	printf("Peer RTP is at port %s:%d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 #endif	
@@ -1971,7 +1971,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	int len;
 	int codec;
 	char costr[80];
-	struct sockaddr_in sin;
+	struct cw_sockaddr_net addr;
 	char v[256];
 	char s[256];
 	char o[256];
@@ -1979,9 +1979,8 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char t[256];
 	char m[256] = "";
 	char a[1024] = "";
-	char iabuf[INET_ADDRSTRLEN];
 	int x;
-	struct sockaddr_in dest;
+	struct cw_sockaddr_net dest;
 	struct mgcp_endpoint *p = sub->parent;
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to cw_gethostbyname() us XXX */
@@ -1990,29 +1989,30 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 		cw_log(CW_LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
-	cw_rtp_get_us(sub->rtp, &sin);
+	cw_sockaddr_copy(&addr.sa, cw_rtp_get_us(sub->rtp));
 	if (rtp) {
-		cw_rtp_get_peer(rtp, &dest);
+		cw_sockaddr_copy(&dest.sa, cw_rtp_get_peer(rtp));
 	} else {
-		if (sub->tmpdest.sin_addr.s_addr) {
-			dest.sin_addr = sub->tmpdest.sin_addr;
-			dest.sin_port = sub->tmpdest.sin_port;
+		if (sub->tmpdest.sa.sa_family != AF_UNSPEC) {
+			cw_sockaddr_copy(&dest.sa, &sub->tmpdest.sa);
 			/* Reset temporary destination */
-			memset(&sub->tmpdest, 0, sizeof(sub->tmpdest));
+			sub->tmpdest.sa.sa_family = AF_UNSPEC;
 		} else {
-			dest.sin_addr = p->parent->ourip;
-			dest.sin_port = sin.sin_port;
+			dest.sin.sin_family = AF_INET;
+			dest.sin.sin_addr = p->parent->ourip;
+			dest.sin.sin_port = cw_sockaddr_get_port(&addr.sa);
 		}
 	}
 	if (mgcpdebug) {
-		cw_verbose("We're at %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->parent->ourip), ntohs(sin.sin_port));
+		char iabuf[INET_ADDRSTRLEN];
+		cw_verbose("We're at %s port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), p->parent->ourip), cw_sockaddr_get_port(&addr.sa));
 	}
 	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", getpid(), getpid(), cw_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	snprintf(o, sizeof(o), "o=root %d %d IN IP%c %@\r\n", getpid(), getpid(), (addr.sa.sa_family == AF_INET ? '4' : '6'), &addr.sa);
 	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", cw_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
+	snprintf(c, sizeof(c), "c=IN IP%c %s\r\n", (addr.sa.sa_family == AF_INET ? '4' : '6'), cw_sockaddr_get_port(&addr.sa));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
-	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", cw_sockaddr_get_port(&dest.sa));
 	for (x = 1; x <= CW_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
 			if (mgcpdebug) {
@@ -2071,9 +2071,8 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct cw_rtp *
 	CW_UNUSED(codecs);
 
 	if (cw_strlen_zero(sub->cxident) && rtp) {
-		/* We don't have a CXident yet, store the destination and
-		   wait a bit */
-		cw_rtp_get_peer(rtp, &sub->tmpdest);
+		/* We don't have a CXident yet, store the destination and wait a bit */
+		cw_sockaddr_copy(&sub->tmpdest.sa, cw_rtp_get_peer(rtp));
 		return 0;
 	}
 	snprintf(local, sizeof(local), "p:20");
@@ -2445,7 +2444,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 							}
 						}
 						strncpy(sub->cxident, c, sizeof(sub->cxident) - 1);
-						if (sub->tmpdest.sin_addr.s_addr) {
+						if (sub->tmpdest.sa.sa_family != AF_UNSPEC) {
 							transmit_modify_with_sdp(sub, NULL, 0);
 						}
 					} else {
@@ -2546,15 +2545,11 @@ static void start_rtp(struct mgcp_subchannel *sub)
 		sub->rtp = NULL;
 	}
 	/* Allocate the RTP now */
-	sub->rtp = cw_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+	sub->rtp = cw_rtp_new_with_bindaddr((struct cw_sockaddr_net *)&bindaddr);
 	if (sub->rtp && sub->owner)
 		sub->owner->fds[0] = cw_rtp_fd(sub->rtp);
 	if (sub->rtp)
 		cw_rtp_setnat(sub->rtp, sub->nat);
-#if 0
-	cw_rtp_set_callback(p->rtp, rtpready);
-	cw_rtp_set_data(p->rtp, p);
-#endif		
 	/* Make a call*ID */
         snprintf(sub->callid, sizeof(sub->callid), "%08lx%s", cw_random(), sub->txident);
 	/* Transmit the connection create */

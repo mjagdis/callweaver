@@ -30,17 +30,12 @@
 #ifndef _CALLWEAVER_RTP_H
 #define _CALLWEAVER_RTP_H
 
-#include <callweaver/udp.h>
-#include "callweaver/frame.h"
-#include "callweaver/io.h"
-#include "callweaver/sched.h"
-#include "callweaver/channel.h"
-
 #include <netinet/in.h>
 
-#if defined(__cplusplus) || defined(c_plusplus)
-extern "C" {
-#endif
+#include <callweaver/udp.h>
+#include "callweaver/frame.h"
+#include "callweaver/channel.h"
+
 
 /* Codes for RTP-specific data - not defined by our CW_FORMAT codes */
 /*! DTMF (RFC2833) */
@@ -67,8 +62,6 @@ struct cw_rtp_protocol
 	struct cw_rtp_protocol *next;
 };
 
-typedef int (*cw_rtp_callback)(struct cw_rtp *rtp, struct cw_frame *f, void *data);
-
 /* The value of each payload format mapping: */
 struct rtpPayloadType
 {
@@ -80,8 +73,7 @@ struct cw_srtp;
 
 struct cw_rtp
 {
-    udp_state_t *rtp_sock_info;
-    udp_state_t *rtcp_sock_info;
+	udp_state_t sock_info[2];
 	struct cw_frame f;
 	uint8_t rawdata[8192 + CW_FRIENDLY_OFFSET];
 	uint32_t ssrc;
@@ -111,13 +103,8 @@ struct cw_rtp
 	struct timeval txcore;
 	struct timeval dtmfmute;
 	struct cw_smoother *smoother;
-	struct cw_io_rec ioid;
 	uint16_t seqno;
 	uint16_t rxseqno;
-	struct sched_context *sched;
-	cw_io_context_t io;
-	void *data;
-	cw_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
 	int rtp_lookup_code_cache_is_cw_format;	/* a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
@@ -129,23 +116,21 @@ struct cw_rtp
 };
 
 
-extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr in);
+extern CW_API_PUBLIC int cw_rtp_fd(struct cw_rtp *rtp) __attribute__ (( __nonnull__ (1) ));
 
-extern CW_API_PUBLIC void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
+extern CW_API_PUBLIC int cw_rtcp_fd(struct cw_rtp *rtp) __attribute__ (( __nonnull__ (1) ));
 
-extern CW_API_PUBLIC void cw_rtp_get_peer(struct cw_rtp *rtp, struct sockaddr_in *them);
+extern CW_API_PUBLIC struct sockaddr *cw_rtp_get_peer(struct cw_rtp *rtp) __attribute__ (( __nonnull__ (1) ));
 
-extern CW_API_PUBLIC void cw_rtp_get_us(struct cw_rtp *rtp, struct sockaddr_in *us);
+extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct cw_sockaddr_net *addr);
 
-extern CW_API_PUBLIC int cw_rtp_get_stunstate(struct cw_rtp *rtp);
+extern CW_API_PUBLIC void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr *them);
+
+extern CW_API_PUBLIC struct sockaddr *cw_rtp_get_us(struct cw_rtp *rtp);
 
 extern CW_API_PUBLIC void cw_rtp_destroy(struct cw_rtp *rtp);
 
 extern CW_API_PUBLIC void cw_rtp_reset(struct cw_rtp *rtp);
-
-extern CW_API_PUBLIC void cw_rtp_set_callback(struct cw_rtp *rtp, cw_rtp_callback callback);
-
-extern CW_API_PUBLIC void cw_rtp_set_data(struct cw_rtp *rtp, void *data);
 
 extern CW_API_PUBLIC int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *f);
 
@@ -153,21 +138,11 @@ extern CW_API_PUBLIC struct cw_frame *cw_rtp_read(struct cw_rtp *rtp);
 
 extern CW_API_PUBLIC struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp);
 
-extern CW_API_PUBLIC int cw_rtp_fd(struct cw_rtp *rtp);
-
 extern CW_API_PUBLIC int cw_rtcp_fd(struct cw_rtp *rtp);
-
-extern CW_API_PUBLIC udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
-                                 udp_state_t *sock_info);
-
-extern CW_API_PUBLIC udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
-                                  udp_state_t *sock_info);
 
 extern CW_API_PUBLIC int cw_rtp_sendevent(struct cw_rtp *const rtp, char event, uint16_t duration);
 
 extern CW_API_PUBLIC int cw_rtp_sendcng(struct cw_rtp *rtp, int level);
-
-extern CW_API_PUBLIC int cw_rtp_set_active(struct cw_rtp *rtp, int active);
 
 extern CW_API_PUBLIC int cw_rtp_settos(struct cw_rtp *rtp, int tos);
 
@@ -292,10 +267,6 @@ extern CW_API_PUBLIC void cw_srtp_policy_set_ssrc(struct cw_srtp_policy *policy,
 
 extern CW_API_PUBLIC void cw_srtp_policy_destroy(struct cw_srtp_policy *policy);
 extern CW_API_PUBLIC int cw_srtp_get_random(unsigned char *key, size_t len);
-#endif
-
-#if defined(__cplusplus) || defined(c_plusplus)
-}
 #endif
 
 #endif /* _CALLWEAVER_RTP_H */

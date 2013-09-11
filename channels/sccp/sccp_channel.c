@@ -286,7 +286,7 @@ void sccp_channel_openreceivechannel(sccp_channel_t * c) {
 
 void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	sccp_moo_t * r;
-	struct sockaddr_in sain;
+	struct cw_sockaddr_net addr;
 	char iabuf[INET_ADDRSTRLEN];
 	struct cw_hostent ahp;
 	struct hostent *hp;
@@ -297,7 +297,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 		return;
 	}
 
-	cw_rtp_get_us(c->rtp, &sain);
+	cw_sockaddr_copy(&addr.sa, cw_rtp_get_us(c->rtp));
 	cw_rtp_settos(c->rtp, c->line->rtptos);
 
 	REQ(r, StartMediaTransmission);
@@ -314,11 +314,11 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 				} else
 					cw_log(CW_LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", GLOB(externhost));
 			}
-			memcpy(&sain.sin_addr, &GLOB(externip.sin_addr), 4);
+			memcpy(&addr.sin.sin_addr, &GLOB(externip.sin_addr), 4);
 		}
 	}
-	memcpy(&r->msg.StartMediaTransmission.bel_remoteIpAddr, &sain.sin_addr, 4);
-	r->msg.StartMediaTransmission.lel_remotePortNumber = htolel(ntohs(sain.sin_port));
+	memcpy(&r->msg.StartMediaTransmission.bel_remoteIpAddr, &addr.sin.sin_addr, 4);
+	r->msg.StartMediaTransmission.lel_remotePortNumber = htolel(ntohs(addr.sin.sin_port));
 	r->msg.StartMediaTransmission.lel_millisecondPacketSize = htolel(20);
 	r->msg.StartMediaTransmission.lel_payloadType = htolel((payloadType) ? payloadType : 4);
 	r->msg.StartMediaTransmission.lel_precedenceValue = htolel(c->line->rtptos);
@@ -326,7 +326,7 @@ void sccp_channel_startmediatransmission(sccp_channel_t * c) {
 	r->msg.StartMediaTransmission.lel_maxFramesPerPacket = 0;
 	r->msg.StartMediaTransmission.lel_conferenceId1 = htolel(c->callid);
 	sccp_dev_send(c->line->device, r);
-	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %s:%d with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sain.sin_addr), ntohs(sain.sin_port), skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
+	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Tell device to send RTP media to %l@ with codec: %s, tos %d, silencesuppression: %s\n",c->line->device->id, &addr.sa, skinny_codec2str(payloadType), c->line->rtptos, c->line->silencesuppression ? "ON" : "OFF");
 }
 
 
@@ -665,6 +665,7 @@ void sccp_channel_delete(sccp_channel_t * c) {
 }
 
 void sccp_channel_start_rtp(sccp_channel_t * c) {
+	struct cw_sockaddr_net addr;
 	sccp_session_t * s;
 	char iabuf[INET_ADDRSTRLEN];
 	if (!c || !c->device)
@@ -676,7 +677,10 @@ void sccp_channel_start_rtp(sccp_channel_t * c) {
 /* No need to lock, because already locked in the sccp_indicate.c */
 /*	cw_mutex_lock(&c->lock); */
 	sccp_log(10)(VERBOSE_PREFIX_3 "%s: Creating rtp server connection at %s\n", c->device->id, cw_inet_ntoa(iabuf, sizeof(iabuf), s->ourip));
-	c->rtp = cw_rtp_new_with_bindaddr(sched, io, 1, 0, s->ourip);
+	/* FIXME: sccp needs work to support IPv6 properly */
+	addr.sin.sin_family = AF_INET;
+	addr.sin.sin_addr = s->ourip;
+	c->rtp = cw_rtp_new_with_bindaddr(&addr);
 	if (c->device->nat)
 		cw_rtp_setnat(c->rtp, 1);
 

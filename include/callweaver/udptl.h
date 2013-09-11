@@ -32,10 +32,6 @@
 
 #include <netinet/in.h>
 
-#if defined(__cplusplus) || defined(c_plusplus)
-extern "C" {
-#endif
-
 struct cw_udptl_s;
 typedef struct cw_udptl_s cw_udptl_t;
 
@@ -49,46 +45,26 @@ struct cw_udptl_protocol
 	struct cw_udptl_protocol *next;
 };
 
-typedef int (*cw_udptl_callback)(cw_udptl_t *udptl, struct cw_frame *f, void *data);
 
-extern CW_API_PUBLIC cw_udptl_t *cw_udptl_new_with_sock_info(struct sched_context *sched,
-                                            cw_io_context_t io,
-                                            int callbackmode,
-                                            udp_state_t *sock_info);
-
-extern CW_API_PUBLIC int cw_udptl_set_active(cw_udptl_t *udptl, int active);
-
-extern CW_API_PUBLIC void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr_in *them);
-
-extern CW_API_PUBLIC void cw_udptl_get_peer(cw_udptl_t *udptl, struct sockaddr_in *them);
-
-extern CW_API_PUBLIC void cw_udptl_get_us(cw_udptl_t *udptl, struct sockaddr_in *us);
-
-extern CW_API_PUBLIC int cw_udptl_get_stunstate(cw_udptl_t *udptl);
+extern CW_API_PUBLIC cw_udptl_t *cw_udptl_new_with_sock_info(udp_state_t *sock_info);
 
 extern CW_API_PUBLIC void cw_udptl_destroy(cw_udptl_t *udptl);
 
-extern CW_API_PUBLIC void cw_udptl_reset(cw_udptl_t *udptl);
+extern CW_API_PUBLIC void cw_udptl_set_peer(cw_udptl_t *udptl, struct sockaddr *them);
 
-extern CW_API_PUBLIC void cw_udptl_set_callback(cw_udptl_t *udptl, cw_udptl_callback callback);
+extern CW_API_PUBLIC struct sockaddr *cw_udptl_get_peer(cw_udptl_t *udptl);
 
-extern CW_API_PUBLIC void cw_udptl_set_data(cw_udptl_t *udptl, void *data);
+extern CW_API_PUBLIC struct sockaddr *cw_udptl_get_us(cw_udptl_t *udptl);
 
 extern CW_API_PUBLIC int cw_udptl_write(cw_udptl_t *udptl, struct cw_frame *f);
 
 extern CW_API_PUBLIC struct cw_frame *cw_udptl_read(cw_udptl_t *udptl);
 
-extern CW_API_PUBLIC int cw_udptl_fd(cw_udptl_t *udptl);
-
-extern CW_API_PUBLIC udp_state_t *cw_udptl_udp_socket(cw_udptl_t *udptl,
-                                   udp_state_t *sock_info);
-
 extern CW_API_PUBLIC int cw_udptl_settos(cw_udptl_t *udptl, int tos);
 
 extern CW_API_PUBLIC void cw_udptl_set_m_type(cw_udptl_t *udptl, int pt);
 
-extern CW_API_PUBLIC void cw_udptl_set_udptlmap_type(cw_udptl_t *udptl, int pt,
-                                  char *mimeType, char *mimeSubtype);
+extern CW_API_PUBLIC void cw_udptl_set_udptlmap_type(cw_udptl_t *udptl, int pt, char *mimeType, char *mimeSubtype);
 
 extern CW_API_PUBLIC int cw_udptl_lookup_code(cw_udptl_t* udptl, int is_cw_format, int code);
 
@@ -124,9 +100,5 @@ extern CW_API_PUBLIC void cw_udptl_stop(cw_udptl_t *udptl);
 int cw_udptl_init(void);
 
 void cw_udptl_reload(void);
-
-#if defined(__cplusplus) || defined(c_plusplus)
-}
-#endif
 
 #endif

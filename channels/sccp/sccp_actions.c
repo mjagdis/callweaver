@@ -1297,7 +1297,7 @@ void sccp_handle_open_receive_channel_ack(sccp_session_t * s, sccp_moo_t * r) {
 		if (c->rtp) {
 			sccp_channel_startmediatransmission(c);
 			sccp_log(10)(VERBOSE_PREFIX_3 "%s: Set the RTP media address to %s:%d\n", d->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-			cw_rtp_set_peer(c->rtp, &sin);
+			cw_rtp_set_peer(c->rtp, (struct sockaddr *)&sin);
 		} else {
 			cw_log(CW_LOG_ERROR,  "%s: Can't set the RTP media address to %s:%d, no callweaver rtp channel!\n", d->id, cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 		}

@@ -85,7 +85,7 @@ static int dtmftimeout = DEFAULT_DTMFTIMEOUT;
 static int rtpstart = 0;
 static int rtpend = 0;
 static int rtpdebug = 0;        /* Are we debugging? */
-static struct sockaddr_in rtpdebugaddr;    /* Debug packets to/from this host */
+static struct cw_sockaddr_net rtpdebugaddr;    /* Debug packets to/from this host */
 static int nochecksums = 0;
 
 #define NAT_STATE_INACTIVE           0
@@ -108,20 +108,20 @@ struct rtp_codec_table
     unsigned int flags;
 };
 
-struct rtp_codec_table RTP_CODEC_TABLE[] =
+static const struct rtp_codec_table RTP_CODEC_TABLE[] =
 {
     {CW_FORMAT_SLINEAR, 160, 20, 10, CW_SMOOTHER_FLAG_BE},
-    {CW_FORMAT_ULAW, 80, 20, 10},
-    {CW_FORMAT_G726, 40, 20, 10},
-    {CW_FORMAT_ILBC, 50, 30, 30},
-    {CW_FORMAT_G729A, 10, 20, 10, CW_SMOOTHER_FLAG_G729},
-    {CW_FORMAT_GSM, 33, 20, 20},
+    {CW_FORMAT_ULAW,     80, 20, 10},
+    {CW_FORMAT_G726,     40, 20, 10},
+    {CW_FORMAT_ILBC,     50, 30, 30},
+    {CW_FORMAT_G729A,    10, 20, 10, CW_SMOOTHER_FLAG_G729},
+    {CW_FORMAT_GSM,      33, 20, 20},
     {0,0,0,0,0}
 };
 
-static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, int *len)
+static const struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, int *len)
 {
-    struct rtp_codec_table *ent = NULL;
+    const struct rtp_codec_table *ent = NULL;
     int x;
 
     *len = 0;
@@ -144,51 +144,24 @@ static struct rtp_codec_table *lookup_rtp_smoother_codec(int format, int *ms, in
 
 int cw_rtp_fd(struct cw_rtp *rtp)
 {
-    return udp_socket_fd(rtp->rtp_sock_info);
+	return udp_socket_fd(&rtp->sock_info[0]);
 }
 
 int cw_rtcp_fd(struct cw_rtp *rtp)
 {
-    return udp_socket_fd(rtp->rtcp_sock_info);
+	return udp_socket_fd(&rtp->sock_info[1]);
 }
 
-udp_state_t *cw_rtp_udp_socket(struct cw_rtp *rtp,
-                                 udp_state_t *sock_info)
+struct sockaddr *cw_rtp_get_peer(struct cw_rtp *rtp)
 {
-    udp_state_t *old;
-    
-    old = rtp->rtp_sock_info;
-    if (sock_info)
-        rtp->rtp_sock_info = sock_info;
-    return old;
-}
-
-udp_state_t *cw_rtcp_udp_socket(struct cw_rtp *rtp,
-                                  udp_state_t *sock_info)
-{
-    udp_state_t *old;
-    
-    old = rtp->rtcp_sock_info;
-    if (sock_info)
-        rtp->rtcp_sock_info = sock_info;
-    return old;
-}
-
-void cw_rtp_set_data(struct cw_rtp *rtp, void *data)
-{
-    rtp->data = data;
-}
-
-void cw_rtp_set_callback(struct cw_rtp *rtp, cw_rtp_callback callback)
-{
-    rtp->callback = callback;
+	return &rtp->sock_info[0].peer.sa;
 }
 
 void cw_rtp_setnat(struct cw_rtp *rtp, int nat)
 {
     rtp->nat = nat;
-    udp_socket_set_nat(rtp->rtp_sock_info, nat);
-    udp_socket_set_nat(rtp->rtcp_sock_info, nat);
+    udp_socket_set_nat(&rtp->sock_info[0], nat);
+    udp_socket_set_nat(&rtp->sock_info[1], nat);
 }
 
 int cw_rtp_set_framems(struct cw_rtp *rtp, int ms) 
@@ -207,21 +180,16 @@ int cw_rtp_set_framems(struct cw_rtp *rtp, int ms)
 
 static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
 {
-    char iabuf[INET_ADDRSTRLEN];
-    const struct sockaddr_in *them;
-
-    them = option_debug ? udp_socket_get_far(rtp->rtp_sock_info) : NULL;
-
     if (cw_tvcmp(cw_tvnow(), rtp->dtmfmute) < 0)
     {
         if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+            cw_log(CW_LOG_DEBUG, "Ignore potential DTMF echo from %@\n", cw_rtp_get_peer(rtp));
         rtp->lastevent_code = 0;
         return &cw_null_frame;
     }
 
     if (option_debug)
-        cw_log(CW_LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->lastevent_code, rtp->lastevent_code, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr));
+        cw_log(CW_LOG_DEBUG, "Sending dtmf: %d (%c), to %@\n", rtp->lastevent_code, rtp->lastevent_code, cw_rtp_get_peer(rtp));
 
     cw_fr_init(&rtp->f);
     if (rtp->lastevent_code == 'X')
@@ -238,19 +206,11 @@ static struct cw_frame *send_dtmf(struct cw_rtp *rtp)
     return  &rtp->f;
 }
 
-static inline int rtp_debug_test_addr(const struct sockaddr_in *addr)
+static inline int rtp_debug_test_addr(const struct sockaddr *addr)
 {
-    if (rtpdebug == 0)
+    if (rtpdebug == 0 || cw_sockaddr_cmp(addr, &rtpdebugaddr.sa, -1, cw_sockaddr_get_port(&rtpdebugaddr.sa)))
         return 0;
-    if (rtpdebugaddr.sin_addr.s_addr)
-    {
-        if ((ntohs(rtpdebugaddr.sin_port) && (rtpdebugaddr.sin_port != addr->sin_port))
-            ||
-            (rtpdebugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-        {
-            return 0;
-        }
-    }
+
     return 1;
 }
 
@@ -371,10 +331,7 @@ static struct cw_frame *process_rfc3389(struct cw_rtp *rtp, unsigned char *data,
 
     if (!rtp->warn_3389)
     {
-        char iabuf[INET_ADDRSTRLEN];
-
-        cw_log(CW_LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
-                 cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtp_sock_info)->sin_addr));
+        cw_log(CW_LOG_NOTICE, "Comfort noise support incomplete in CallWeaver (RFC 3389). Please turn off on client if possible. Client IP: %@\n", cw_rtp_get_peer(rtp));
         rtp->warn_3389 = 1;
     }
 
@@ -402,12 +359,11 @@ static struct cw_frame *process_rfc3389(struct cw_rtp *rtp, unsigned char *data,
     return f;
 }
 
-static int rtp_recvfrom(struct cw_rtp *rtp, void *buf, size_t size,
-                        int flags, struct sockaddr *sa, socklen_t *salen, int *actions)
+static int rtp_recv(struct cw_rtp *rtp, void *buf, size_t size, int flags, int *actions)
 {
     int len;
 
-    len = udp_socket_recvfrom(rtp->rtp_sock_info, buf, size, flags, sa, salen, actions);
+    len = udp_socket_recv(&rtp->sock_info[0], buf, size, flags, actions);
     if (len < 0)
         return len;
 
@@ -436,7 +392,7 @@ static int rtp_sendto(struct cw_rtp *rtp, void *buf, size_t size, int flags)
     }
 #endif
 
-    return udp_socket_send(rtp->rtp_sock_info, buf, size, flags);
+    return udp_socket_send(&rtp->sock_info[0], buf, size, flags);
 }
 
 #ifdef ENABLE_SRTP
@@ -634,55 +590,27 @@ int cw_srtp_get_random(unsigned char *key, size_t len)
 }
 #endif
 
-static int rtpread(struct cw_io_rec *ior, int fd, short events, void *cbdata)
-{
-    struct cw_rtp *rtp = cbdata;
-    struct cw_frame *f;
-
-    CW_UNUSED(ior);
-    CW_UNUSED(fd);
-    CW_UNUSED(events);
-
-
-
-    if ((f = cw_rtp_read(rtp)))
-    {
-        if (rtp->callback)
-            rtp->callback(rtp, f, rtp->data);
-    }
-    return 1;
-}
 
 struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
 {
     uint32_t rtcpdata[1024];
-    char iabuf[INET_ADDRSTRLEN];
-    struct sockaddr_in sin;
-    socklen_t len;
     int res, pkt;
     int actions;
     
     if (rtp == NULL)
         return &cw_null_frame;
 
-    len = sizeof(sin);
-
-    res = udp_socket_recvfrom(rtp->rtcp_sock_info, rtcpdata, sizeof(rtcpdata), 0, (struct sockaddr *) &sin, &len, &actions);
+    res = udp_socket_recv(&rtp->sock_info[1], rtcpdata, sizeof(rtcpdata), 0, &actions);
     if (res < 0)
     {
-        if (errno == EBADF)
-        {
-            cw_log(CW_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
-            cw_rtp_set_active(rtp, 0);
-        }
-        else if (errno != EAGAIN)
+        if (errno != EAGAIN)
             cw_log(CW_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &cw_null_frame;
     }
     if ((actions & 1))
     {
         if (option_debug || rtpdebug)
-            cw_log(CW_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtcp_sock_info)->sin_addr), ntohs(udp_socket_get_far(rtp->rtcp_sock_info)->sin_port));
+            cw_log(CW_LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %l@\n", &rtp->sock_info[1].peer.sa);
     }
 
     if (res < 8)
@@ -708,14 +636,14 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
 
         if (pkt + l + 1 > res)
         {
-            if (rtpdebug || rtp_debug_test_addr(&sin))
+            if (rtpdebug || rtp_debug_test_addr(&rtp->sock_info[1].peer.sa))
                 cw_log(CW_LOG_DEBUG, "RTCP packet extends beyond received data. Ignored.\n");
             break;
         }
 
         if (version != 2)
         {
-            if (rtpdebug || rtp_debug_test_addr(&sin))
+            if (rtpdebug || rtp_debug_test_addr(&rtp->sock_info[1].peer.sa))
                 cw_log(CW_LOG_DEBUG, "RTCP packet version %d ignored. We only support version 2\n", version);
             goto next;
         }
@@ -752,7 +680,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
                     );
                     i += 6;
                 }
-                if (i <= pkt + l && (rtpdebug || rtp_debug_test_addr(&sin)))
+                if (i <= pkt + l && (rtpdebug || rtp_debug_test_addr(&rtp->sock_info[1].peer.sa)))
                     cw_log(CW_LOG_DEBUG, "RTCP SR/RR has %u words of profile-specific extension (ignored)\n", pkt+l+1 - i);
                 break;
         }
@@ -765,10 +693,9 @@ next:
 }
 
 
-static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_in *them, const struct cw_frame *f)
+static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct cw_frame *f)
 {
 	uint32_t pkt[4];
-	char iabuf[INET_ADDRSTRLEN];
 
 	rtp->dtmfmute = cw_tvadd(cw_tvnow(), cw_tv(0, 500000));
 
@@ -854,17 +781,12 @@ static void cw_rtp_senddigit_continue(struct cw_rtp *rtp, const struct sockaddr_
 
 	pkt[0] |= htonl(rtp->sendevent_seqno);
 
-	if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0) {
-		cw_log(CW_LOG_ERROR, "RTP Transmission error to %s:%hu: %s\n",
-			cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-			ntohs(them->sin_port),
-			strerror(errno));
-	}
+	if (rtp_sendto(rtp, (void *)pkt, sizeof(pkt), 0) < 0)
+		cw_log(CW_LOG_ERROR, "RTP Transmission error to %l@: %s\n", cw_rtp_get_peer(rtp), strerror(errno));
 
-	if (rtp_debug_test_addr(them)) {
-		cw_verbose("Sent RTP packet to %s:%hu (type %u, seq %hu, ts %u, len 4) - DTMF payload 0x%08x duration %u (%ums)\n",
-			cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-			ntohs(them->sin_port),
+	if (rtp_debug_test_addr(cw_rtp_get_peer(rtp))) {
+		cw_verbose("Sent RTP packet to %l@ (type %u, seq %hu, ts %u, len 4) - DTMF payload 0x%08x duration %u (%ums)\n",
+			cw_rtp_get_peer(rtp),
 			(rtp->sendevent_rtphdr & !(2 << 30)),
 			rtp->sendevent_seqno,
 			ntohl(pkt[1]),
@@ -910,10 +832,7 @@ static void calc_rxstamp(struct timeval *tv, struct cw_rtp *rtp, unsigned int ti
 
 struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
 {
-    char iabuf[INET_ADDRSTRLEN];
-    struct sockaddr_in sin;
     struct rtpPayloadType rtpPT;
-    socklen_t len;
     struct cw_frame *f;
     uint32_t *rtpheader;
     int res;
@@ -925,21 +844,12 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     uint32_t csrc_count;
     uint32_t timestamp;
 
-    len = sizeof(sin);
-
     /* Cache where the header will go */
-    res = rtp_recvfrom(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - CW_FRIENDLY_OFFSET,
-                       0, (struct sockaddr *) &sin, &len, &actions);
+    res = rtp_recv(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - CW_FRIENDLY_OFFSET, 0, &actions);
 
-    rtpheader = (uint32_t *)(rtp->rawdata + CW_FRIENDLY_OFFSET);
     if (res < 0)
     {
-        if (errno == EBADF)
-        {
-            cw_log(CW_LOG_ERROR, "RTP read error: %s\n", strerror(errno));
-            cw_rtp_set_active(rtp, 0);
-        }
-        else if (errno != EAGAIN)
+        if (errno != EAGAIN)
             cw_log(CW_LOG_WARNING, "RTP read error: %s\n", strerror(errno));
         return &cw_null_frame;
     }
@@ -952,7 +862,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     }
 
     /* Ignore if the other side hasn't been given an address yet. */
-    if (udp_socket_get_far(rtp->rtp_sock_info)->sin_addr.s_addr == 0  ||  udp_socket_get_far(rtp->rtp_sock_info)->sin_port == 0)
+    if (cw_rtp_get_peer(rtp)->sa_family == AF_UNSPEC)
         return &cw_null_frame;
 
     if (rtp->nat)
@@ -963,15 +873,12 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
             rtp->rxseqno = 0;
             rtp->nat_state = NAT_STATE_ACTIVE;
             if (option_debug  ||  rtpdebug)
-            {
-                cw_log(CW_LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%hu\n",
-                         cw_inet_ntoa(iabuf, sizeof(iabuf), udp_socket_get_far(rtp->rtp_sock_info)->sin_addr),
-                         ntohs(udp_socket_get_far(rtp->rtp_sock_info)->sin_port));
-            }
+                cw_log(CW_LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %l@\n", cw_rtp_get_peer(rtp));
         }
     }
 
     /* Get fields */
+    rtpheader = (uint32_t *)(rtp->rawdata + CW_FRIENDLY_OFFSET);
     seqno = ntohl(rtpheader[0]);
 
     /* Check RTP version */
@@ -998,9 +905,9 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     {
         /* RTP extension present. Skip over it. */
         hdrlen += sizeof(uint32_t);
-        if (len >= hdrlen)
+        if (res >= hdrlen)
             hdrlen += ((ntohl(rtpheader[hdrlen >> 2]) & 0xFFFF)*sizeof(uint32_t));
-        if (len < hdrlen)
+        if (res < hdrlen)
         {
             cw_log(CW_LOG_DEBUG, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
             return &cw_null_frame;
@@ -1011,11 +918,10 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
     seqno &= 0xFFFF;
     timestamp = ntohl(rtpheader[1]);
 
-    if (rtp_debug_test_addr(&sin))
+    if (rtp_debug_test_addr(cw_rtp_get_peer(rtp)))
     {
-        cw_verbose("Got RTP packet from %s:%hu (type %d, seq %u, ts %u, len %d)\n",
-                     cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr),
-                     ntohs(sin.sin_port),
+        cw_verbose("Got RTP packet from %l@ (type %d, seq %u, ts %u, len %d)\n",
+                     cw_rtp_get_peer(rtp),
                      payloadtype,
                      seqno,
                      timestamp,
@@ -1029,7 +935,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
         if (rtpPT.code == CW_RTP_DTMF)
         {
             /* It's special -- rfc2833 process it */
-            if (rtp_debug_test_addr(&sin))
+            if (rtp_debug_test_addr(cw_rtp_get_peer(rtp)))
             {
                 unsigned char *data;
                 unsigned int event;
@@ -1044,8 +950,8 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
                 event_end >>= 24;
                 duration = ntohl(*((unsigned int *) (data)));
                 duration &= 0xFFFF;
-                cw_verbose("Got rfc2833 RTP packet from %s:%hu (type %d, seq %u, ts %u, len %d, mark %d, event %08x, end %d, duration %u)\n",
-                    cw_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port),
+                cw_verbose("Got rfc2833 RTP packet from %l@ (type %d, seq %u, ts %u, len %d, mark %d, event %08x, end %d, duration %u)\n",
+                    cw_rtp_get_peer(rtp),
                     payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
             }
             f = process_rfc2833(rtp, rtp->rawdata + CW_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno, timestamp);
@@ -1398,106 +1304,54 @@ void cw_rtp_lookup_mime_multiple(struct cw_dynstr *result, const int capability,
     cw_dynstr_printf(result, (result->used != mark ? ")" : "nothing)"));
 }
 
-struct cw_rtp *cw_rtp_new_with_bindaddr(struct sched_context *sched, cw_io_context_t io, int rtcpenable, int callbackmode, struct in_addr addr)
+struct cw_rtp *cw_rtp_new_with_bindaddr(struct cw_sockaddr_net *addr)
 {
-    struct cw_rtp *rtp;
+	struct cw_rtp *rtp = NULL;
 
-    if ((rtp = calloc(1, sizeof(*rtp))) == NULL)
-        return NULL;
+	if ((rtp = calloc(1, sizeof(*rtp)))) {
+		if (!udp_socket_group_create_and_bind(rtp->sock_info, arraysize(rtp->sock_info), nochecksums, addr, rtpstart, rtpend)) {
+			rtp->ssrc = cw_random();
+			rtp->seqno = (uint16_t)(cw_random() & 0xFFFF);
+			cw_rtp_pt_default(rtp);
+		} else {
+			free(rtp);
+			rtp = NULL;
+		}
+	} else
+		cw_log(CW_LOG_ERROR, "Out of memory\n");
 
-    if (sched  &&  rtcpenable)
-        rtp->rtp_sock_info = udp_socket_group_create_and_bind(2, nochecksums, &addr, rtpstart, rtpend);
-    else
-        rtp->rtp_sock_info = udp_socket_group_create_and_bind(1, nochecksums, &addr, rtpstart, rtpend);
-
-    if (rtp->rtp_sock_info == NULL)
-    {
-        free(rtp);
-        return NULL;
-    }
-
-    rtp->ssrc = rand();
-    rtp->seqno = (uint16_t)(rand() & 0xFFFF);
-
-    if (sched  &&  rtcpenable)
-    {
-        rtp->sched = sched;
-        rtp->rtcp_sock_info = udp_socket_find_group_element(rtp->rtp_sock_info, 1);
-    }
-
-    cw_io_init(&rtp->ioid, rtpread, rtp);
-    if (io  &&  sched  &&  callbackmode)
-    {
-        /* Operate this one in a callback mode */
-        rtp->sched = sched;
-        rtp->io = io;
-        cw_io_add(rtp->io, &rtp->ioid, udp_socket_fd(rtp->rtp_sock_info), CW_IO_IN);
-    }
-
-    cw_rtp_pt_default(rtp);
-    return rtp;
-}
-
-int cw_rtp_set_active(struct cw_rtp *rtp, int active)
-{
-    if (rtp == NULL)
-       return 0;
-
-    if (rtp->sched  &&  rtp->io)
-    {
-        if (active)
-        {
-            if (!cw_io_isactive(&rtp->ioid))
-                cw_io_add(rtp->io, &rtp->ioid, udp_socket_fd(rtp->rtp_sock_info), CW_IO_IN);
-        }
-        else
-        {
-            if (cw_io_isactive(&rtp->ioid))
-                cw_io_remove(rtp->io, &rtp->ioid);
-        }
-    }
-    return 0;
+	return rtp;
 }
 
 int cw_rtp_settos(struct cw_rtp *rtp, int tos)
 {
-    return udp_socket_set_tos(rtp->rtp_sock_info, tos);
+    return udp_socket_set_tos(&rtp->sock_info[0], tos);
 }
 
-void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr_in *them)
+void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr *them)
 {
-    struct sockaddr_in them_rtcp;
-    
-    udp_socket_set_far(rtp->rtp_sock_info, them);
+    struct cw_sockaddr_net addr;
+
+    udp_socket_set_far(&rtp->sock_info[0], them);
+
     /* We need to cook up the RTCP address */
-    memcpy(&them_rtcp, them, sizeof(them_rtcp));
-    them_rtcp.sin_port = ntohs(them->sin_port);
-    them_rtcp.sin_port = htons(them_rtcp.sin_port + 1);
-    udp_socket_set_far(rtp->rtcp_sock_info, &them_rtcp);
+    cw_sockaddr_copy(&addr.sa, them);
+    cw_sockaddr_set_port(&addr.sa, cw_sockaddr_get_port(them) + 1);
+    udp_socket_set_far(&rtp->sock_info[1], &addr.sa);
+
     rtp->rxseqno = 0;
 }
 
-void cw_rtp_get_peer(struct cw_rtp *rtp, struct sockaddr_in *them)
+struct sockaddr *cw_rtp_get_us(struct cw_rtp *rtp)
 {
-    memcpy(them, udp_socket_get_far(rtp->rtp_sock_info), sizeof(*them));
+    return udp_socket_get_apparent_local(&rtp->sock_info[0]);
 }
 
-void cw_rtp_get_us(struct cw_rtp *rtp, struct sockaddr_in *us)
-{
-    memcpy(us, udp_socket_get_apparent_local(rtp->rtp_sock_info), sizeof(*us));
-}
-
-int cw_rtp_get_stunstate(struct cw_rtp *rtp)
-{
-    if (rtp)
-        return udp_socket_get_rfc3489_state(rtp->rtp_sock_info);
-    return 0;
-}
 
 void cw_rtp_stop(struct cw_rtp *rtp)
 {
-    udp_socket_restart(rtp->rtp_sock_info);
-    udp_socket_restart(rtp->rtcp_sock_info);
+    udp_socket_restart(&rtp->sock_info[0]);
+    udp_socket_restart(&rtp->sock_info[1]);
 }
 
 void cw_rtp_reset(struct cw_rtp *rtp)
@@ -1521,6 +1375,8 @@ void cw_rtp_reset(struct cw_rtp *rtp)
 
 void cw_rtp_destroy(struct cw_rtp *rtp)
 {
+    int i;
+
     if (rtp->smoother)
         cw_smoother_free(rtp->smoother);
 #ifdef ENABLE_SRTP
@@ -1529,9 +1385,10 @@ void cw_rtp_destroy(struct cw_rtp *rtp)
         rtp->srtp = NULL;
     }
 #endif
-    if (cw_io_isactive(&rtp->ioid))
-        cw_io_remove(rtp->io, &rtp->ioid);
-    udp_socket_destroy_group(rtp->rtp_sock_info);
+
+    for (i = 0; i < arraysize(rtp->sock_info); i++)
+        close(rtp->sock_info[i].fd);
+
     free(rtp);
 }
 
@@ -1556,62 +1413,54 @@ static uint32_t calc_txstamp(struct cw_rtp *rtp, struct timeval *delivery)
 
 int cw_rtp_sendcng(struct cw_rtp *rtp, int level)
 {
+    char data[256];
+    const struct sockaddr *them;
     uint32_t *rtpheader;
     int hdrlen = 12;
-    int res;
     int payload;
-    char data[256];
-    char iabuf[INET_ADDRSTRLEN];
-    const struct sockaddr_in *them;
+    int res;
 
-    level = 127 - (level & 0x7F);
-    payload = cw_rtp_lookup_code(rtp, 0, CW_RTP_CN);
+    them = cw_rtp_get_peer(rtp);
 
-    them = udp_socket_get_far(rtp->rtp_sock_info);
+    if (them->sa_family != AF_UNSPEC) {
+        level = 127 - (level & 0x7F);
+        payload = cw_rtp_lookup_code(rtp, 0, CW_RTP_CN);
 
-    /* If we have no peer, return immediately */    
-    if (them->sin_addr.s_addr == 0)
-        return 0;
+        rtp->dtmfmute = cw_tvadd(cw_tvnow(), cw_tv(0, 500000));
 
-    rtp->dtmfmute = cw_tvadd(cw_tvnow(), cw_tv(0, 500000));
+        /* Get a pointer to the header */
+        rtpheader = (uint32_t *) data;
+        rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
+        rtpheader[1] = htonl(rtp->lastts);
+        rtpheader[2] = htonl(rtp->ssrc);
+        data[12] = (char)level;
 
-    /* Get a pointer to the header */
-    rtpheader = (uint32_t *) data;
-    rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
-    rtpheader[1] = htonl(rtp->lastts);
-    rtpheader[2] = htonl(rtp->ssrc); 
-    data[12] = (char)level;
-    if (them->sin_port  &&  them->sin_addr.s_addr)
-    {
         res = rtp_sendto(rtp, (void *) rtpheader, hdrlen + 1, 0);
-        if (res <0) 
-            cw_log(CW_LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%hu: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
-        if (rtp_debug_test_addr(them))
-        {
-            cw_verbose("Sent Comfort Noise RTP packet to %s:%hu (type %d, seq %hu, ts %u, len %d)\n",
-                         cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                         ntohs(them->sin_port),
-                         payload,
-                         rtp->seqno,
-                         rtp->lastts,
-                         res - hdrlen);
-        }
+        if (res >= 0) {
+	    if (rtp_debug_test_addr(them)) {
+                cw_verbose("Sent Comfort Noise RTP packet to %l@ (type %d, seq %hu, ts %u, len %d)\n",
+                             them,
+                             payload,
+                             rtp->seqno,
+                             rtp->lastts,
+                             res - hdrlen);
+            }
+	} else
+            cw_log(CW_LOG_ERROR, "RTP Comfort Noise Transmission error to %l@: %s\n", them, strerror(errno));
     }
     return 0;
 }
 
 static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
 {
-    char iabuf[INET_ADDRSTRLEN];
+    const struct sockaddr *them;
     unsigned char *rtpheader;
-    const struct sockaddr_in *them;
     int hdrlen = 12;
     int res;
     int ms;
     int pred;
     int mark = 0;
 
-    them = udp_socket_get_far(rtp->rtp_sock_info);
     ms = calc_txstamp(rtp, &f->delivery);
     /* Default prediction */
     if (f->subclass < CW_FORMAT_MAX_AUDIO)
@@ -1663,7 +1512,9 @@ static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
     if (f->has_timing_info)
         rtp->lastts = f->ts*8;
 
-    if (them->sin_port  &&  them->sin_addr.s_addr)
+    them = cw_rtp_get_peer(rtp);
+
+    if (them->sa_family != AF_UNSPEC)
     {
         int in_event = 0;
 
@@ -1674,7 +1525,7 @@ static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
         if (rtp->sendevent_payload || rtp->sendevent)
         {
             in_event = !(rtp->sendevent_payload & (1 << 23));
-            cw_rtp_senddigit_continue(rtp, them, f);
+            cw_rtp_senddigit_continue(rtp, f);
         }
 
          /* Sonus RTP handling is seriously broken.
@@ -1698,22 +1549,21 @@ static int cw_rtp_raw_write(struct cw_rtp *rtp, struct cw_frame *f, int codec)
             {
                 if (!rtp->nat || rtp->nat_state == NAT_STATE_ACTIVE)
                 {
-                    cw_log(CW_LOG_WARNING, "RTP Transmission error of packet %d to %s:%hu: %s\n", rtp->seqno, cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port), strerror(errno));
+                    cw_log(CW_LOG_WARNING, "RTP Transmission error of packet %d to %l@: %s\n", rtp->seqno, them, strerror(errno));
                 }
                 else if (rtp->nat_state == NAT_STATE_INACTIVE || rtpdebug)
                 {
                     /* Only give this error message once if we are not RTP debugging */
                     if (option_debug  ||  rtpdebug)
-                        cw_log(CW_LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%hu, waiting for other end to send audio...\n", cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr), ntohs(them->sin_port));
+                        cw_log(CW_LOG_DEBUG, "RTP NAT: Can't write RTP to private address %l@, waiting for other end to send audio...\n", them);
                     rtp->nat_state = NAT_STATE_INACTIVE_NOWARN;
                 }
             }
 
             if (rtp_debug_test_addr(them))
             {
-                cw_verbose("Sent RTP packet to %s:%hu (type %d, seq %hu, ts %u, len %d)\n",
-                             cw_inet_ntoa(iabuf, sizeof(iabuf), them->sin_addr),
-                             ntohs(them->sin_port),
+                cw_verbose("Sent RTP packet to %l@ (type %d, seq %hu, ts %u, len %d)\n",
+                             them,
                              codec,
                              rtp->seqno,
                              rtp->lastts,
@@ -1738,7 +1588,7 @@ int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *_f)
         return 0;
     
     /* If we have no peer, return immediately */    
-    if (udp_socket_get_far(rtp->rtp_sock_info)->sin_addr.s_addr == 0)
+    if (cw_rtp_get_peer(rtp)->sa_family == AF_UNSPEC)
         return 0;
 
     /* Make sure we have enough space for RTP header */
@@ -1771,7 +1621,7 @@ int cw_rtp_write(struct cw_rtp *rtp, struct cw_frame *_f)
     
     if (!rtp->smoother)
     {
-        struct rtp_codec_table *ent;
+        const struct rtp_codec_table *ent;
         int ms = rtp->framems;
         int len;
 
@@ -1891,15 +1741,14 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     struct cw_rtp *vp1;        /* Video RTP channels */
     struct cw_rtp_protocol *pr0;
     struct cw_rtp_protocol *pr1;
-    struct sockaddr_in ac0;
-    struct sockaddr_in ac1;
-    struct sockaddr_in vac0;
-    struct sockaddr_in vac1;
-    struct sockaddr_in t0;
-    struct sockaddr_in t1;
-    struct sockaddr_in vt0;
-    struct sockaddr_in vt1;
-    char iabuf[INET_ADDRSTRLEN];
+    struct cw_sockaddr_net ac0;
+    struct cw_sockaddr_net ac1;
+    struct cw_sockaddr_net vac0;
+    struct cw_sockaddr_net vac1;
+    struct cw_sockaddr_net t0;
+    struct cw_sockaddr_net t1;
+    struct cw_sockaddr_net vt0;
+    struct cw_sockaddr_net vt1;
     void *pvt0;
     void *pvt1;
     int codec0;
@@ -1907,10 +1756,10 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     int oldcodec0;
     int oldcodec1;
     
-    memset(&vt0, 0, sizeof(vt0));
-    memset(&vt1, 0, sizeof(vt1));
-    memset(&vac0, 0, sizeof(vac0));
-    memset(&vac1, 0, sizeof(vac1));
+    vt0.sa.sa_family = AF_UNSPEC;
+    vt1.sa.sa_family = AF_UNSPEC;
+    vac0.sa.sa_family = AF_UNSPEC;
+    vac1.sa.sa_family = AF_UNSPEC;
 
     /* If we need DTMF, we can't do a native bridge */
     if ((flags & (CW_BRIDGE_DTMF_CHANNEL_0 | CW_BRIDGE_DTMF_CHANNEL_1)))
@@ -2007,9 +1856,9 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     else
     {
         /* Store RTP peer */
-        cw_rtp_get_peer(p1, &ac1);
+        cw_sockaddr_copy(&ac1.sa, cw_rtp_get_peer(p1));
         if (vp1)
-            cw_rtp_get_peer(vp1, &vac1);
+            cw_sockaddr_copy(&vac1.sa, cw_rtp_get_peer(vp1));
     }
     /* Then test the other channel */
     if (pr1->set_rtp_peer(c1, p0, vp0, codec0, (p0->nat_state != NAT_STATE_INACTIVE)))
@@ -2019,9 +1868,9 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
     else
     {
         /* Store RTP peer */
-        cw_rtp_get_peer(p0, &ac0);
+        cw_sockaddr_copy(&ac0.sa, cw_rtp_get_peer(p0));
         if (vp0)
-            cw_rtp_get_peer(vp0, &vac0);
+            cw_sockaddr_copy(&vac0.sa, cw_rtp_get_peer(vp0));
     }
     cw_channel_unlock(c0);
     cw_channel_unlock(c1);
@@ -2063,48 +1912,48 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
             return CW_BRIDGE_RETRY;
         }
         /* Now check if they have changed address */
-        cw_rtp_get_peer(p1, &t1);
-        cw_rtp_get_peer(p0, &t0);
+        t0.sa.sa_family = AF_UNSPEC;
+        t1.sa.sa_family = AF_UNSPEC;
+        vt0.sa.sa_family = AF_UNSPEC;
+        vt1.sa.sa_family = AF_UNSPEC;
+        codec0 = oldcodec0;
+        codec1 = oldcodec1;
+        cw_sockaddr_copy(&t0.sa, cw_rtp_get_peer(p0));
+        cw_sockaddr_copy(&t1.sa, cw_rtp_get_peer(p1));
         if (pr0->get_codec)
             codec0 = pr0->get_codec(c0);
         if (pr1->get_codec)
             codec1 = pr1->get_codec(c1);
-        if (vp1)
-            cw_rtp_get_peer(vp1, &vt1);
         if (vp0)
-            cw_rtp_get_peer(vp0, &vt0);
-        if (inaddrcmp(&t1, &ac1)  ||  (vp1  &&  inaddrcmp(&vt1, &vac1))  ||  (codec1 != oldcodec1))
+            cw_sockaddr_copy(&vt0.sa, cw_rtp_get_peer(vp0));
+        if (vp1)
+            cw_sockaddr_copy(&vt1.sa, cw_rtp_get_peer(vp1));
+        if (cw_sockaddr_cmp(&t1.sa, &ac1.sa, -1, 1) || (vp1 && cw_sockaddr_cmp(&vt1.sa, &vac1.sa, -1, 1))  ||  (codec1 != oldcodec1))
         {
             if (option_debug > 1)
             {
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu (format %d)\n",
-                    c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%hu (format %d)\n",
-                    c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu/(format %d)\n",
-                    c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu/(format %d)\n",
-                    c1->name, cw_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %l@ (format %d)\n", c1->name, &t1.sa, codec1);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end vaddress to %l@ (format %d)\n", c1->name, &vt1.sa, codec1);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %l@/(format %d)\n", c1->name, &ac1.sa, oldcodec1);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %l@/(format %d)\n", c1->name, &vac1.sa, oldcodec1);
             }
-            if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, (p1->nat_state != NAT_STATE_INACTIVE)))
+            if (pr0->set_rtp_peer(c0, (t1.sa.sa_family != AF_UNSPEC ? p1 : NULL), (vt1.sa.sa_family != AF_UNSPEC ? vp1 : NULL), codec1, (p1->nat_state != NAT_STATE_INACTIVE)))
                 cw_log(CW_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
-            memcpy(&ac1, &t1, sizeof(ac1));
-            memcpy(&vac1, &vt1, sizeof(vac1));
+            cw_sockaddr_copy(&ac1.sa, &t1.sa);
+            cw_sockaddr_copy(&vac1.sa, &vt1.sa);
             oldcodec1 = codec1;
         }
-        if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0)))
+        if (cw_sockaddr_cmp(&t0.sa, &ac0.sa, -1, 1) || (vp0 && cw_sockaddr_cmp(&vt0.sa, &vac0.sa, -1, 1)))
         {
             if (option_debug)
             {
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %s:%hu (format %d)\n",
-                    c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
-                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %s:%hu/(format %d)\n",
-                    c0->name, cw_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' changed end address to %l@ (format %d)\n", c0->name, &t0.sa, codec0);
+                cw_log(CW_LOG_DEBUG, "Oooh, '%s' was %l@/(format %d)\n", c0->name, &ac0.sa, oldcodec0);
             }
-            if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, (p0->nat_state != NAT_STATE_INACTIVE)))
+            if (pr1->set_rtp_peer(c1, (t0.sa.sa_family != AF_UNSPEC ? p0 : NULL), (vt0.sa.sa_family != AF_UNSPEC ? vp0 : NULL), codec0, (p0->nat_state != NAT_STATE_INACTIVE)))
                 cw_log(CW_LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
-            memcpy(&ac0, &t0, sizeof(ac0));
-            memcpy(&vac0, &vt0, sizeof(vac0));
+            cw_sockaddr_copy(&ac0.sa, &t0.sa);
+            cw_sockaddr_copy(&vac0.sa, &vt0.sa);
             oldcodec0 = codec0;
         }
         if ((who = cw_waitfor_n(cs, 2, &timeoutms)) == 0)
@@ -2126,56 +1975,38 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
         }
         f = cw_read(who);
         if (f == NULL
-            ||
-                ((f->frametype == CW_FRAME_DTMF)
-                &&
-                (((who == c0)  &&  (flags & CW_BRIDGE_DTMF_CHANNEL_0))
-            || 
-            ((who == c1)  &&  (flags & CW_BRIDGE_DTMF_CHANNEL_1)))))
+        || (f->frametype == CW_FRAME_DTMF
+            && ((who == c0 && (flags & CW_BRIDGE_DTMF_CHANNEL_0)) || (who == c1 && (flags & CW_BRIDGE_DTMF_CHANNEL_1)))))
         {
             *fo = f;
             *rc = who;
             if (option_debug)
                 cw_log(CW_LOG_DEBUG, "Oooh, got a %s\n", f  ?  "digit"  :  "hangup");
-            if ((c0->tech_pvt == pvt0)  &&  (!c0->_softhangup))
-            {
+            if (c0->tech_pvt == pvt0 && !c0->_softhangup) {
                 if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
                     cw_log(CW_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
             }
-            if ((c1->tech_pvt == pvt1)  &&  (!c1->_softhangup))
-            {
+            if (c1->tech_pvt == pvt1 && !c1->_softhangup) {
                 if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
                     cw_log(CW_LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
             }
             return CW_BRIDGE_COMPLETE;
-        }
-        else if ((f->frametype == CW_FRAME_CONTROL)  &&  !(flags & CW_BRIDGE_IGNORE_SIGS))
-        {
-            if ((f->subclass == CW_CONTROL_HOLD)
-                ||
-                (f->subclass == CW_CONTROL_UNHOLD)
-                ||
-                (f->subclass == CW_CONTROL_VIDUPDATE))
-            {
-                cw_indicate((who == c0)  ?  c1  :  c0, f->subclass);
+        } else if (f->frametype == CW_FRAME_CONTROL && !(flags & CW_BRIDGE_IGNORE_SIGS)) {
+            if (f->subclass == CW_CONTROL_HOLD
+            || f->subclass == CW_CONTROL_UNHOLD
+            || f->subclass == CW_CONTROL_VIDUPDATE) {
+                cw_indicate((who == c0 ? c1 : c0), f->subclass);
                 cw_fr_free(f);
-            }
-            else
-            {
+            } else {
                 *fo = f;
                 *rc = who;
                 cw_log(CW_LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
                 return CW_BRIDGE_COMPLETE;
             }
-        }
-        else
-        {
-            if ((f->frametype == CW_FRAME_DTMF)
-                ||
-                (f->frametype == CW_FRAME_VOICE)
-                ||
-                (f->frametype == CW_FRAME_VIDEO))
-            {
+        } else {
+            if (f->frametype == CW_FRAME_DTMF
+            || f->frametype == CW_FRAME_VOICE
+            || f->frametype == CW_FRAME_VIDEO) {
                 /* Forward voice or DTMF frames if they happen upon us */
                 if (who == c0)
                     cw_write(c1, &f);
@@ -2194,32 +2025,19 @@ enum cw_bridge_result cw_rtp_bridge(struct cw_channel *c0, struct cw_channel *c1
 
 static int rtp_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    struct hostent *hp;
-    struct cw_hostent ahp;
-    char iabuf[INET_ADDRSTRLEN];
-    int port = 0;
-    char *p;
-    char *arg;
+    struct addrinfo *addrs;
+    int err;
 
     if (argc != 4)
         return RESULT_SHOWUSAGE;
-    arg = argv[3];
-    if ((p = strstr(arg, ":")))
-    {
-        *p = '\0';
-        p++;
-        port = atoi(p);
-    }
-    if ((hp = cw_gethostbyname(arg, &ahp)) == NULL)
-        return RESULT_SHOWUSAGE;
-    rtpdebugaddr.sin_family = AF_INET;
-    memcpy(&rtpdebugaddr.sin_addr, hp->h_addr, sizeof(rtpdebugaddr.sin_addr));
-    rtpdebugaddr.sin_port = htons(port);
-    if (port == 0)
-        cw_dynstr_printf(ds_p, "RTP Debugging Enabled for IP: %s\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr));
-    else
-        cw_dynstr_printf(ds_p, "RTP Debugging Enabled for IP: %s:%hu\n", cw_inet_ntoa(iabuf, sizeof(iabuf), rtpdebugaddr.sin_addr), port);
-    rtpdebug = 1;
+
+    if (!(err = cw_getaddrinfo(argv[3], "0", NULL, &addrs, NULL))) {
+        memcpy(&rtpdebugaddr, addrs->ai_addr, addrs->ai_addrlen);
+        cw_dynstr_printf(ds_p, "RTP debugging enabled for IP: %l@\n", rtpdebugaddr);
+        rtpdebug = 1;
+    } else
+        cw_log(CW_LOG_WARNING, "%s: %s\n", argv[3], gai_strerror(err));
+
     return RESULT_SUCCESS;
 }
 
@@ -2233,7 +2051,7 @@ static int rtp_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
     }
     rtpdebug = 1;
     memset(&rtpdebugaddr, 0, sizeof(rtpdebugaddr));
-    cw_dynstr_printf(ds_p, "RTP Debugging Enabled\n");
+    cw_dynstr_printf(ds_p, "RTP debugging enabled for all IPs\n");
     return RESULT_SUCCESS;
 }
    

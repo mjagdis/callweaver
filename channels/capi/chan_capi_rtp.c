@@ -19,6 +19,7 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 
 #include "callweaver/lock.h"
 #include "callweaver/frame.h"
@@ -167,27 +168,21 @@ _cstruct capi_rtp_ncpi(struct capi_pvt *i)
  */
 int capi_alloc_rtp(struct capi_pvt *i)
 {
-	struct cw_hostent ahp;
-	struct hostent *hp;
-	struct in_addr addr;
-	struct sockaddr_in us;
-	char temp[MAXHOSTNAMELEN];
+	struct addrinfo *addrs;
+	int ret = 1;
 
-	hp = cw_gethostbyname("localhost", &ahp);
-	memcpy(&addr, hp->h_addr, sizeof(addr));
+	if (!getaddrinfo(NULL, "0", NULL, &addrs)) {
+		if ((i->rtp = cw_rtp_new_with_bindaddr(addrs[0].ai_addr))) {
+			cw_rtp_set_peer(i->rtp, cw_rtp_get_us(i->rtp));
+			cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: alloc rtp socket on %l@\n", i->vname, cw_rtp_get_us(i->rtp));
+			i->timestamp = 0;
+			ret = 0;
+		} else
+			cc_log(CW_LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
 
-	if (!(i->rtp = cw_rtp_new_with_bindaddr(NULL, CW_IO_CONTEXT_NONE, 0, 0, addr))) {
-		cc_log(CW_LOG_ERROR, "%s: unable to alloc rtp.\n", i->vname);
-		return 1;
+		freeaddrinfo(addrs);
 	}
-	cw_rtp_get_us(i->rtp, &us);
-	cw_rtp_set_peer(i->rtp, &us);
-	cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: alloc rtp socket on %s:%d\n",
-		i->vname,
-		cw_inet_ntoa(temp, sizeof(temp), us.sin_addr),
-		ntohs(us.sin_port));
-	i->timestamp = 0;
-	return 0;
+	return ret;
 }
 
 /*
@@ -197,21 +192,16 @@ int capi_write_rtp(struct cw_channel *c, struct cw_frame *f)
 {
 	struct capi_pvt *i = CC_CHANNEL_PVT(c);
 	_cmsg CMSG;
-	struct sockaddr_in us;
 	int len;
-	unsigned int uslen;
 	unsigned int *rtpheader;
 	unsigned char buf[256];
-
-	uslen = sizeof(us);
 
 	if (!(i->rtp)) {
 		cc_log(CW_LOG_ERROR, "rtp struct is NULL\n");
 		return -1;
 	}
 
-	cw_rtp_get_us(i->rtp, &us);
-	cw_rtp_set_peer(i->rtp, &us);
+	cw_rtp_set_peer(i->rtp, cw_rtp_get_us(i->rtp));
 	if (cw_rtp_write(i->rtp, f) != 0) {
 		cc_verbose(3, 0, VERBOSE_PREFIX_2 "%s: rtp_write error, dropping packet.\n",
 			i->vname);
@@ -219,8 +209,7 @@ int capi_write_rtp(struct cw_channel *c, struct cw_frame *f)
 	}
 
 	while(1) {
-		len = recvfrom(cw_rtp_fd(i->rtp), buf, sizeof(buf),
-			0, (struct sockaddr *)&us, &uslen);
+		len = recv(cw_rtp_fd(i->rtp), buf, sizeof(buf), 0);
 		if (len <= 0)
 			break;
 
@@ -267,8 +256,8 @@ int capi_write_rtp(struct cw_channel *c, struct cw_frame *f)
  */
 struct cw_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len)
 {
+	struct sockaddr *us;
 	struct cw_frame *f;
-	struct sockaddr_in us;
 
 	if (!(i->owner))
 		return NULL;
@@ -278,10 +267,10 @@ struct cw_frame *capi_read_rtp(struct capi_pvt *i, unsigned char *buf, int len)
 		return NULL;
 	}
 
-	cw_rtp_get_us(i->rtp, &us);
-	cw_rtp_set_peer(i->rtp, &us);
+	us = cw_rtp_get_us(i->rtp);
+	cw_rtp_set_peer(i->rtp, us);
 
-	if (len != sendto(cw_rtp_fd(i->rtp), buf, len, 0, (struct sockaddr *)&us, sizeof(us))) {
+	if (len != sendto(cw_rtp_fd(i->rtp), buf, len, 0, us, cw_sockaddr_len(us))) {
 		cc_verbose(4, 1, VERBOSE_PREFIX_3 "%s: RTP sendto error\n",
 			i->vname);
 		return NULL;

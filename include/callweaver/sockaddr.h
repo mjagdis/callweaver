@@ -29,6 +29,9 @@
 #include <string.h>
 
 
+#include "callweaver/utils.h"
+
+
 #ifndef AI_IDN
 #  define AI_IDN 0
 #endif
@@ -59,6 +62,10 @@ static inline __attribute__ (( __pure__, __nonnull__ (1) )) size_t cw_sockaddr_l
 	size_t ret = 0;
 
 	switch (addr->sa_family) {
+		case AF_UNSPEC:
+			ret = offsetof(struct sockaddr, sa_family) + sizeof(addr->sa_family);
+			break;
+
 		case AF_INET:
 			ret = sizeof(struct sockaddr_in);
 			break;
@@ -69,6 +76,12 @@ static inline __attribute__ (( __pure__, __nonnull__ (1) )) size_t cw_sockaddr_l
 	}
 
 	return ret;
+}
+
+
+static inline __attribute__ (( __nonnull__ (1,2) )) void cw_sockaddr_copy(struct sockaddr * __restrict__ dst, const struct sockaddr * __restrict__ src)
+{
+	memcpy(dst, src, cw_sockaddr_len(src));
 }
 
 
