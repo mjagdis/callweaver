@@ -1926,7 +1926,7 @@ static int retrans_pkt(void *data)
     {
         int reschedule;
 
-	if (msg->timer_a > 0) {
+	if (msg->timer_a >= 0) {
             /* Re-schedule using timer_a and timer_t1 */
             if (!msg->timer_a)
                 msg->timer_a = 2 ;
