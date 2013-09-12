@@ -1062,7 +1062,7 @@ struct sip_peer {
     int timer_t2;            /*!< SIP RFC timer T2, ms (maximum transmit interval for non-INVITES) */
     int maxms;            /*!<  Max ms we will accept for the host to be up, 0 to not monitor */
     int noanswer;         /*!<  How many noanswers we have had in a row */
-    struct timeval ps;        /*!<  Ping send time */
+    struct timespec ps;        /*!<  Ping send time */
     
     struct cw_sockaddr_net defaddr;    /*!<  Default IP address, used until registration */
     struct cw_acl *acl;        /*!<  Access control list */
@@ -11673,7 +11673,7 @@ destroy:
 /*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
 static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
 {
-    struct timeval tv;
+    struct timespec ts;
     struct sip_peer *peer;
     int pingtime;
 
@@ -11699,8 +11699,8 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_requ
 	cw_object_put(peer->dialogue);
 	peer->dialogue = NULL;
 
-        gettimeofday(&tv, NULL);
-        pingtime = cw_tvdiff_ms(tv, peer->ps);
+        cw_clock_gettime(global_clock_monotonic, &ts);
+        pingtime = cw_clock_diff_ms(&ts, &peer->ps);
         if (pingtime < 1)
             pingtime = 1;
         peer->noanswer = 0;
@@ -13942,7 +13942,7 @@ static void *sip_poke_peer_thread(void *data)
 #else
                     transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
-                    gettimeofday(&peer->ps, NULL);
+                    cw_clock_gettime(global_clock_monotonic, &peer->ps);
                     peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
                 } else {
                     dialogue_release(&p->obj);
