@@ -708,6 +708,9 @@ struct sip_request {
 	int retransid;                /*!< Retransmission ID */
 	int timer_a;                /*!< SIP timer A, retransmission timer */
 
+	struct timespec txtime;		/*!< Time this request was originally transmitted */
+	int txtime_i;			/*!< Offset to the timestamp header line in the pkt */
+
 	struct cw_connection *conn;
 	struct cw_sockaddr_net recvdaddr;
 	struct cw_sockaddr_net ouraddr;
@@ -831,10 +834,9 @@ struct sip_auth {
 #define SIP_PAGE2_DYNAMIC	     (1 << 5)	/*!< Is this a dynamic peer? */
 
 /* SIP request flags */
-#define SIP_PKT_DEBUG        (1 << 0)    /*!< Debug this request */
-#define SIP_PKT_WITH_TOTAG    (1 << 1)    /*!< This request has a to-tag */
-#define FLAG_RESPONSE (1 << 2)
-#define FLAG_FATAL (1 << 3)
+#define SIP_PKT_DEBUG             (1 << 0)    /*!< Debug this request */
+#define SIP_PKT_WITH_TOTAG        (1 << 1)    /*!< This request has a to-tag */
+#define FLAG_FATAL                (1 << 2)
 
 static int global_rtautoclear = 120;
 
@@ -1056,14 +1058,15 @@ struct sip_peer {
     struct cw_sockaddr_net addr;    /*!<  IP address of peer */
 
     /* Qualification */
-    struct sip_pvt *dialogue;        /*!<  Dialogue pointer */
     int pokeexpire;            /*!<  When to expire poke (qualify= checking) */
+    /* T1 & T2 are configurable per-peer because they are sometimes needed if
+     * paths via geostationary satellites, moonbases etc. are involved. In which
+     * case they need adjusting at both ends of course.
+     */
     int timer_t1;            /*!<  How long last response took (in ms), or -1 for no response */
     int timer_t2;            /*!< SIP RFC timer T2, ms (maximum transmit interval for non-INVITES) */
     int maxms;            /*!<  Max ms we will accept for the host to be up, 0 to not monitor */
-    int noanswer;         /*!<  How many noanswers we have had in a row */
-    struct timespec ps;        /*!<  Ping send time */
-    
+
     struct cw_sockaddr_net defaddr;    /*!<  Default IP address, used until registration */
     struct cw_acl *acl;        /*!<  Access control list */
     struct cw_variable *chanvars;    /*!<  Variables to set for     channel created by user */
@@ -1136,6 +1139,7 @@ struct cw_config *notify_types;
 
 static struct sip_auth *authl;          /*!< Authentication list */
 
+static char *get_header(const struct sip_request *req, const char *name, size_t name_len, const char *alias, size_t alias_len);
 static void transmit_error(struct sip_request *req, const char *status);
 static void transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req);
 static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, struct sip_request *req, int retrans);
@@ -1956,6 +1960,13 @@ static int retrans_pkt(void *data)
         if (sipdebug && option_debug > 3)
             cw_log(CW_LOG_DEBUG, "SIP TIMER: #%d: scheduling retransmission of %s for %d ms (t1 %d ms) \n", msg->retransid, sip_methods[msg->method].text, reschedule, msg->owner->timer_t1);
 
+	if (msg->txtime_i) {
+		int i;
+		cw_clock_gettime(global_clock_monotonic, &msg->txtime);
+		sprintf(&msg->pkt.data[msg->txtime_i], "Timestamp: %9lu.%09lu%n", msg->txtime.tv_sec, msg->txtime.tv_nsec, &i);
+		msg->pkt.data[msg->txtime_i + i] = '\r';
+	}
+
         __sip_xmit(msg->conn, &msg->ouraddr, &msg->recvdaddr, msg);
 
 	/* We reschedule ourself here rather than letting the scheduler do it
@@ -1972,11 +1983,6 @@ static int retrans_pkt(void *data)
         return 0;
     }
 
-    /* If the method is now SIP_UNKNOWN we processed a response while waiting
-     * for the lock so we just need to discard the message. Otherwise we've
-     * reached the maximum retries for this packet without getting any response.
-     */
-
     /* Dequeue the packet. It is then exclusively ours even if we drop the
      * lock thus allowing an attempt to ack a late reply.
      */
@@ -1989,12 +1995,26 @@ static int retrans_pkt(void *data)
         }
     }
 
+    /* If the method is now SIP_UNKNOWN we processed a response while waiting
+     * for the lock so we just need to discard the message. Otherwise we've
+     * reached the maximum retries for this packet without getting any response.
+     */
+
     if (msg->method != SIP_UNKNOWN)
     {
+        /* Whatever we thought we knew about this peer's RTT is clearly wrong.  */
+        if (msg->owner) {
+            msg->owner->timer_t1 = rfc_timer_t1;
+            if (msg->owner->peerpoke) {
+                msg->owner->peerpoke->timer_t1 = (msg->owner->peerpoke->maxms ? -1 : rfc_timer_t1);
+                cw_log(CW_LOG_NOTICE, "%s: RTT %d\n", msg->owner->peerpoke->name, rfc_timer_t1);
+            }
+	}
+
         if (msg->owner && msg->method != SIP_OPTIONS)
         {
             if (cw_test_flag(msg, FLAG_FATAL) || sipdebug)    /* Tell us if it's critical or if we're debugging */
-                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %u (%s %s) SIP Timer T1=%d\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL) ? "Critical" : "Non-critical"), (cw_test_flag(msg, FLAG_RESPONSE) ? "Response" : "Request"), msg->owner->timer_t1);
+                cw_log(CW_LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %u (%s %s) SIP Timer T1=%d\n", msg->owner->callid, msg->seqno, (cw_test_flag(msg, FLAG_FATAL) ? "Critical" : "Non-critical"), (msg->method == SIP_RESPONSE ? "Response" : "Request"), msg->owner->timer_t1);
         }
         else
         {
@@ -2020,9 +2040,7 @@ static int retrans_pkt(void *data)
             else
             {
                 /* If no channel owner, destroy now */
-	        /* Let the peerpoke system expire packets when the timer expires for poke_noanswer */
-	        if (msg->method != SIP_OPTIONS)
-                    sip_destroy(msg->owner);
+                sip_destroy(msg->owner);
             }
         }
     }
@@ -2036,13 +2054,11 @@ static int retrans_pkt(void *data)
 
 
 /*! \brief  __sip_reliable_xmit: transmit packet with retransmits */
-static void __sip_reliable_xmit(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int resp, int fatal)
+static void __sip_reliable_xmit(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int fatal)
 {
 	msg->next = p->retrans;
 	p->retrans = msg;
 
-	if (resp)
-		cw_set_flag(msg, FLAG_RESPONSE);
 	if (fatal)
 		cw_set_flag(msg, FLAG_FATAL);
 
@@ -2148,102 +2164,130 @@ static int sip_cancel_destroy(struct sip_pvt *dialogue)
 }
 
 
-/*! \brief  retrans_stop: Acknowledges receipt of a packet and stops retransmission */
-static void retrans_stop(struct sip_pvt *p, int seqno, int resp, enum sipmethod sipmethod, int final)
+/*! \brief  retrans_stop: stop retransmission of the message for which we have just received a reply */
+static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipmethod sipmethod, int final)
 {
-    struct sip_request **cur;
+	struct sip_request **cur;
 
-    cw_mutex_lock(&p->lock);
+	cw_mutex_lock(&p->lock);
 
-    for (cur = &p->retrans; *cur; cur = &(*cur)->next)
-    {
-        if (((*cur)->seqno == seqno)
-        && ((cw_test_flag(*cur, FLAG_RESPONSE)) == resp)
-        && ((cw_test_flag(*cur, FLAG_RESPONSE)) || (sipmethod >= 0 && (!strncasecmp(sip_methods[sipmethod].text, (*cur)->pkt.data, sip_methods[sipmethod].len)))))
-        {
-            cw_log(CW_LOG_DEBUG, "Stopping retransmission on '%s' of %s %d\n", p->callid, (resp ? "Response" : "Request"), seqno);
+	for (cur = &p->retrans; *cur; cur = &(*cur)->next) {
+		if (((*cur)->seqno == reply->seqno)
+		&& ((!strncasecmp(sip_methods[sipmethod].text, (*cur)->pkt.data, sip_methods[sipmethod].len)))) {
+			cw_log(CW_LOG_DEBUG, "%s: stopping retransmission of %s, seq %d\n", p->callid, sip_methods[sipmethod].text, reply->seqno);
 
-            if (final && !resp  &&  (seqno == p->pendinginvite))
-            {
-                cw_log(CW_LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
-                p->pendinginvite = 0;
-            }
+			if (final && reply->method != SIP_RESPONSE && reply->seqno == p->pendinginvite) {
+				cw_log(CW_LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
+				p->pendinginvite = 0;
+			}
 
-            /* If we can delete the scheduled retransmit we own the packet
-	     * and can go ahead and free it. Otherwise the scheduled retransmit
-	     * has already fired and is waiting on the lock. In this case we
-	     * just set the method to unknown so retrans_pkt will give up once
-	     * it acquires the lock.
-	     */
-            if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid))
-            {
-                if (!final && sipmethod == SIP_INVITE)
-                {
-                    /* As noted in RFC3581 the duration of an INVITE transaction is arbitrary
-                     * and may exceed the lifetime of an idle NAT mapping in the path. Therefore
-                     * INVITEs SHOULD be retransmitted periodically until a final response is
-                     * received - any provisional response serves only to halt the initial
-                     * fast retransmissions.
-                     */
-                    if (sipdebug && option_debug > 3)
-                        cw_log(CW_LOG_DEBUG, "** SIP TIMER: Changing to slow retransmit of %s - provisional reply received\n", sip_methods[sipmethod].text);
+			/* If we can delete the scheduled retransmit we own the packet
+			 * and can go ahead and free it. Otherwise the scheduled retransmit
+			 * has already fired and is waiting on the lock. In this case we
+			 * just set the method to unknown so retrans_pkt will give up once
+			 * it acquires the lock.
+			 */
+			if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid)) {
+				struct timespec ts = { 0, 0 };
+				char *s;
 
-		    (*cur)->timer_a = -1;
-                    (*cur)->retransid = cw_sched_modify(sched, (*cur)->retransid, SLOW_INVITE_RETRANS, retrans_pkt, *cur);
-                }
-                else
-                {
-                    struct sip_request *old = *cur;
+				/* If we have a timestamp header in the reply that's our transmit time
+				 * and, possibly, the peer's delay so we can use it to calculate RTO.
+				 * Otherwise we have to use our locally saved TX time.
+				 * RFC3261 8.2.6.1 says that timestamp headers are only echoed back
+				 * in provisional responses to INVITEs and the addition of a delay
+				 * to the timestamp is optional.
+				 */
+				if ((s = get_header(reply, SIP_HDR_NOSHORT("Timestamp")))
+				&& sscanf(s, "%*lu.%*lu %lu.%lu", &(*cur)->txtime.tv_sec, &(*cur)->txtime.tv_nsec, &ts.tv_sec, &ts.tv_nsec)) {
+					if (((*cur)->txtime.tv_nsec += ts.tv_nsec) > 1000000000UL) {
+						(*cur)->txtime.tv_sec++;
+						(*cur)->txtime.tv_nsec -= 1000000000UL;
+					}
+					(*cur)->txtime.tv_sec += ts.tv_sec;
+				} else if ((*cur)->timer_a != 0)
+					(*cur)->txtime.tv_sec = (*cur)->txtime.tv_nsec = 0;
 
-                    if (sipdebug && option_debug > 3)
-                        cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s - reply received\n", sip_methods[sipmethod].text);
-                    (*cur)->retransid = -1;
+				if ((*cur)->txtime.tv_sec || (*cur)->txtime.tv_nsec) {
+					cw_clock_gettime(global_clock_monotonic, &ts);
 
-                    *cur = (*cur)->next;
+					/* It's tempting to do something similar to TCP's retransmission timer
+					 * calulation (RFC6298) but SIP traffic is fairly sparse so we probably
+					 * don't have enough traffic to usefully converge on an RTO. So we
+					 * just use whatever the last measurement said.
+					 */
+					p->timer_t1 = cw_clock_diff_ms(&ts, &(*cur)->txtime);
+					if (p->timer_t1 < 1)
+						p->timer_t1 = 1;
 
-                    cw_object_put(old->owner);
-		    cw_dynstr_free(&old->pkt);
-                    free(old);
-                }
-                break;
-            }
+					if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", p->callid, p->timer_t1);
+					if (p->peerpoke) {
+						p->peerpoke->timer_t1 = p->timer_t1;
+						if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", p->peerpoke->name, p->timer_t1);
+					}
+				}
 
-            (*cur)->method = SIP_UNKNOWN;
-            break;
-        }
-    }
+				if (final || sipmethod != SIP_INVITE) {
+					struct sip_request *old = *cur;
 
-    cw_mutex_unlock(&p->lock);
+					if (sipdebug && option_debug > 3)
+						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s - reply received\n", sip_methods[sipmethod].text);
+
+					*cur = (*cur)->next;
+
+					cw_object_put(old->owner);
+					cw_dynstr_free(&old->pkt);
+					free(old);
+				} else {
+					/* As noted in RFC3581 the duration of an INVITE transaction is arbitrary
+					 * and may exceed the lifetime of an idle NAT mapping in the path. Therefore
+					 * INVITEs SHOULD be retransmitted periodically until a final response is
+					 * received - any provisional response serves only to halt the initial
+					 * fast retransmissions.
+					 */
+					if (sipdebug && option_debug > 3)
+						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Changing to slow retransmit of %s - provisional reply received\n", sip_methods[sipmethod].text);
+
+					(*cur)->timer_a = -1;
+					(*cur)->retransid = cw_sched_modify(sched, (*cur)->retransid, SLOW_INVITE_RETRANS, retrans_pkt, *cur);
+				}
+				break;
+			}
+
+			(*cur)->method = SIP_UNKNOWN;
+			break;
+		}
+	}
+
+	cw_mutex_unlock(&p->lock);
 }
 
-/* Pretend to ack all packets */
-static int __sip_pretend_ack(struct sip_pvt *p)
+/*! \brief retrans_stop_all: Stop any retransmits of outstanding reliable-delivery messages */
+static void retrans_stop_all(struct sip_pvt *p)
 {
-    struct sip_request *cur = NULL;
+	struct sip_request **cur;
 
-    while (p->retrans)
-    {
-        if (cur == p->retrans)
-        {
-            cw_log(CW_LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
-            return -1;
-        }
-        cur = p->retrans;
-        if (cur->method)
-            retrans_stop(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), cur->method, 1);
-        else
-        {
-            /* Unknown packet type */
-            char *c;
-            char method[128];
+	cur = &p->retrans;
+	while (*cur) {
+		/* If we can delete the scheduled retransmit we own the packet
+		 * and can go ahead and free it. Otherwise the scheduled retransmit
+		 * has already fired and is waiting on the lock. In this case we
+		 * just set the method to unknown so retrans_pkt will give up once
+		 * it acquires the lock.
+		 */
+		if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid)) {
+			struct sip_request *old = *cur;
 
-            cw_copy_string(method, p->retrans->pkt.data, sizeof(method));
-            c = cw_skip_blanks(method); /* XXX what ? */
-            *c = '\0';
-            retrans_stop(p, p->retrans->seqno, (cw_test_flag(p->retrans, FLAG_RESPONSE)), find_sip_method(method), 1);
-        }
-    }
-    return 0;
+			*cur = (*cur)->next;
+
+			cw_object_put(old->owner);
+			cw_dynstr_free(&old->pkt);
+			free(old);
+		} else {
+			(*cur)->method = SIP_UNKNOWN;
+			cur = &(*cur)->next;
+		}
+	}
 }
 
 
@@ -2291,8 +2335,8 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 				from, to,
 				msg->pkt.data);
 
-		if (reliable && !p->peerpoke) {
-			__sip_reliable_xmit(p, conn, from, to, msg, 0, (reliable > 1));
+		if (reliable) {
+			__sip_reliable_xmit(p, conn, from, to, msg, (reliable > 1));
 			res = 0;
 		} else {
 			res = __sip_xmit(conn, from, to, msg);
@@ -2437,13 +2481,6 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 static void sip_peer_release(struct cw_object *obj)
 {
 	struct sip_peer *peer = container_of(obj, struct sip_peer, obj);
-
-	if (peer->dialogue) {
-		cw_mutex_lock(&peer->dialogue->lock);
-		sip_destroy(peer->dialogue);
-		cw_mutex_unlock(&peer->dialogue->lock);
-		cw_object_put(peer->dialogue);
-	}
 
 	if (cw_test_flag(peer, SIP_SELFDESTRUCT))
 		apeerobjs--;
@@ -2684,9 +2721,6 @@ static int create_addr_from_peer(struct sip_pvt *dialogue, struct sip_peer *peer
 	char *callhost;
 	int ret = -1;
 
-	if (peer->maxms && (peer->timer_t1 < 0 || peer->timer_t1 > peer->maxms))
-		goto out;
-
 	/* If the peer is not dynamic we need to find it's address */
 	if (!cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC)) {
 		/* If we have a host find where to send traffic for it */
@@ -2748,7 +2782,7 @@ static int create_addr_from_peer(struct sip_pvt *dialogue, struct sip_peer *peer
 		dialogue->noncodeccapability &= ~CW_RTP_DTMF;
 	cw_copy_string(dialogue->context, peer->context, sizeof(dialogue->context));
 
-	dialogue->timer_t1 = peer->timer_t1;
+	dialogue->timer_t1 = (peer->timer_t1 > 0 ? peer->timer_t1 : rfc_timer_t1);
 	dialogue->timer_t2 = peer->timer_t2;
 
 	dialogue->rtptimeout = peer->rtptimeout;
@@ -2767,13 +2801,14 @@ out:
 /*! \brief  create_addr: create address structure from peer name
  *      Or, if peer not found, find it in the global DNS 
  *      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *dialogue, char *opeername, struct sip_peer *peer)
+static int create_addr(struct sip_pvt *dialogue, char *opeername, struct sip_peer *peer, int qualify)
 {
 	struct sip_peer *p;
 	int ret = -1;
 
 	if ((p = peer) || (p = find_peer(opeername, NULL, 1))) {
-		ret = create_addr_from_peer(dialogue, p);
+		if (qualify || !peer->maxms || (peer->timer_t1 > 0 && peer->timer_t1 <= peer->maxms))
+			ret = create_addr_from_peer(dialogue, p);
 		if (!peer)
 			cw_object_put(p);
 	} else if (opeername) {
@@ -3337,8 +3372,7 @@ static int sip_hangup(struct cw_channel *ast)
             /* Outgoing call, not up */
             if (cw_test_flag(p, SIP_OUTGOING))
             {
-		/* stop retransmitting an INVITE that has not received a response */
-		__sip_pretend_ack(p);
+		retrans_stop_all(p);
 
 		/* are we allowed to send CANCEL yet? if not, mark
 		   it pending */
@@ -5505,6 +5539,12 @@ static void __transmit_response(struct sip_pvt *p, const char *status, struct si
 			 */
 			if (p->owner && p->owner->hangupcause)
 				cw_dynstr_printf(&msg->pkt, "X-CallWeaver-HangupCause: %s\r\n", cw_cause2str(p->owner->hangupcause));
+
+			/* If reliable transmission is called for we note the time so that
+			 * we can determine the RTT if the first transmission is ACKed.
+			 */
+			if (reliable)
+				cw_clock_gettime(global_clock_monotonic, &msg->txtime);
 		} else if (!memcmp(status, "100 ", 4)) {
 			char *s;
 
@@ -5515,11 +5555,17 @@ static void __transmit_response(struct sip_pvt *p, const char *status, struct si
 			 * delay value into the Timestamp value in the response. This value MUST
 			 * contain the difference between the time of sending of the response and
 			 * receipt of the request, measured in seconds.
-			 *
-			 * Note: we do not add a delay value.
 			 */
-			if ((s = get_header(req, SIP_HDR_NOSHORT("Timestamp"))) && s[0])
-				cw_dynstr_printf(&msg->pkt, "Timestamp: %s\r\n", s);
+			if ((s = get_header(req, SIP_HDR_NOSHORT("Timestamp"))) && s[0]) {
+				if (req->txtime.tv_sec || req->txtime.tv_nsec) {
+					struct timespec ts;
+
+					cw_clock_gettime(global_clock_monotonic, &ts);
+					cw_dynstr_printf(&msg->pkt, "Timestamp: %s %lu.%09lu\r\n", s, ts.tv_sec, ts.tv_nsec);
+				} else {
+					cw_dynstr_printf(&msg->pkt, "Timestamp: %s\r\n", s);
+				}
+			}
 		}
 
 		cw_dynstr_printf(&msg->pkt, "\r\n");
@@ -5576,13 +5622,15 @@ static void append_date(struct sip_request *req)
 	struct tm tm;
 	size_t space = 32;
 	time_t t;
+	int n;
 
 	time(&t);
 	gmtime_r(&t, &tm);
 	cw_dynstr_printf(&req->pkt, "Date: ");
 	do {
 		cw_dynstr_need(&req->pkt, space);
-	} while (!strftime(req->pkt.data + req->pkt.used, req->pkt.size - req->pkt.used, "%a, %d %b %Y %T GMT", &tm) && !req->pkt.error);
+	} while (!(n = strftime(req->pkt.data + req->pkt.used, req->pkt.size - req->pkt.used, "%a, %d %b %Y %T GMT", &tm)) && !req->pkt.error);
+	req->pkt.used += n;
 	cw_dynstr_printf(&req->pkt, "\r\n");
 }
 
@@ -6005,6 +6053,12 @@ static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, st
 	struct sip_request tmpmsg, *msg;
 
 	if ((msg = respprep((reliable ? NULL : &tmpmsg), p, status, req))) {
+		/* If reliable transmission is called for we note the time so that
+		 * we can determine the RTT if the first transmission is ACKed.
+		 */
+		if (reliable)
+			cw_clock_gettime(global_clock_monotonic, &msg->txtime);
+
 		if (p->rtp) {
 			cw_rtp_offered_from_local(p->rtp, 0);
 			try_suggested_sip_codec(p);
@@ -6022,6 +6076,12 @@ static void transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status
 	struct sip_request tmpmsg, *msg;
 
 	if ((msg = respprep((reliable ? NULL : &tmpmsg), p, status, req))) {
+		/* If reliable transmission is called for we note the time so that
+		 * we can determine the RTT if the first transmission is ACKed.
+		 */
+		if (reliable)
+			cw_clock_gettime(global_clock_monotonic, &msg->txtime);
+
 		if (p->udptl) {
 			cw_udptl_offered_from_local(p->udptl, 0);
 			add_t38_sdp(msg, p);
@@ -6044,6 +6104,9 @@ static void transmit_reinvite_with_sdp(struct sip_pvt *p)
 	struct sip_request *msg;
 
 	if ((msg = reqprep(p, NULL, &p->initreq, (cw_test_flag(p, SIP_REINVITE_UPDATE) ? SIP_UPDATE : SIP_INVITE), 0, 1))) {
+		/* Note the time so that we can determine the RTT if the first transmission is ACKed. */
+		clock_gettime(global_clock_monotonic, &msg->txtime);
+
 		cw_dynstr_printf(&msg->pkt, "Allow: " ALLOWED_METHODS "\r\n");
 		if (sipdebug)
 			cw_dynstr_printf(&msg->pkt, "X-callweaver-info: SIP re-invite (RTP bridge)\r\n");
@@ -6077,6 +6140,9 @@ static void transmit_reinvite_with_t38_sdp(struct sip_pvt *p)
 	struct sip_request *msg;
 
 	if ((msg = reqprep(p, NULL, &p->initreq, (cw_test_flag(p, SIP_REINVITE_UPDATE) ? SIP_UPDATE : SIP_INVITE), 0, 1))) {
+		/* Note the time so that we can determine the RTT if the first transmission is ACKed. */
+		cw_clock_gettime(global_clock_monotonic, &msg->txtime);
+
 		cw_dynstr_printf(&msg->pkt, "Allow: " ALLOWED_METHODS "\r\n");
 		if (sipdebug)
 			cw_dynstr_printf(&msg->pkt, "X-callweaver-info: SIP re-invite (T38 switchover)\r\n");
@@ -6386,6 +6452,10 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 		cw_dynstr_printf(&msg->pkt, "Alert-Info: %s\r\n", p->options->distinctive_ring->value);
 
 	cw_dynstr_printf(&msg->pkt, "Allow: " ALLOWED_METHODS "\r\n");
+
+	cw_clock_gettime(global_clock_monotonic, &msg->txtime);
+	msg->txtime_i = msg->pkt.used;
+	cw_dynstr_printf(&msg->pkt, "Timestamp: %9lu.%09lu\r\n", msg->txtime.tv_sec, msg->txtime.tv_nsec);
 
 	if (p->owner) {
 		char buf[] = "SIPADDHEADER01";
@@ -6772,8 +6842,7 @@ static int sip_reg_timeout(void *data)
         if (p->registry)
             cw_object_put(p->registry);
         r->dialogue = NULL;
-        /* Pretend to ACK anything just in case */
-        __sip_pretend_ack(p);
+        retrans_stop_all(p);
         sip_destroy(p);
         cw_mutex_unlock(&p->lock);
         cw_object_put(p);
@@ -6853,7 +6922,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         }
 
         /* Find address to hostname */
-        if (create_addr(p, r->hostname, NULL))
+        if (create_addr(p, r->hostname, NULL, 0))
         {
             /* we have what we hope is a temporary network error,
              * probably DNS.  We need to reschedule a registration try */
@@ -7451,12 +7520,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     else
         p->username[0] = '\0';
 
-    /* If we are qualifying the RTT estimate starts at the default until we know better.
-     * N.B. Yes, we could use whatever we had previously but dynamic peers are likely
-     * to move elsewhere on the network. That's the point of dynamic peers!
-     */
-    if (p->maxms)
-        p->timer_t1 = rfc_timer_t1;
+    p->timer_t1 = pvt->timer_t1;
 
     /* Save SIP options profile */
     p->sipoptions = pvt->sipoptions;
@@ -9003,14 +9067,12 @@ static const char *peer_status(struct sip_peer *peer)
 
 	if (peer->addr.sa.sa_family == AF_UNSPEC)
 		status = "Unregistered";
-	else if (peer->maxms) {
-		if (peer->timer_t1 < 0)
-			status = "UNREACHABLE";
-		else if (peer->timer_t1 > peer->maxms)
-			status = "LAGGED";
-		else
-			status = "OK";
-	}
+	else if (peer->timer_t1 < 0)
+		status = "UNREACHABLE";
+	else if (peer->maxms && peer->timer_t1 > peer->maxms)
+		status = "LAGGED";
+	else
+		status = "OK";
 
 	return status;
 }
@@ -10543,7 +10605,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
 
         cw_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
 
-        if (create_addr(p, argv[i], NULL))
+        if (create_addr(p, argv[i], NULL, 0))
         {
             /* Maybe they're not registered, etc. */
             sip_destroy(p);
@@ -11673,88 +11735,19 @@ destroy:
 /*! \brief  handle_response_peerpoke: Handle qualification responses (OPTIONS) */
 static int handle_response_peerpoke(struct sip_pvt *p, int resp, struct sip_request *req, int ignore, int seqno, enum sipmethod sipmethod)
 {
-    struct timespec ts;
-    struct sip_peer *peer;
-    int pingtime;
+	CW_UNUSED(req);
+	CW_UNUSED(ignore);
+	CW_UNUSED(seqno);
+	CW_UNUSED(sipmethod);
 
-    CW_UNUSED(req);
-    CW_UNUSED(ignore);
-    CW_UNUSED(seqno);
-    CW_UNUSED(sipmethod);
-
-    if (resp != 100)
-    {
-        int statechanged = 0;
-        int newstate = 0;
-
-        peer = p->peerpoke;
-
-        /* There should be a noanswer timeout scheduled. If we can
-         * delete it we own the call and peer and can do what we
-         * like. If we can't we have to stop now.
-	 */
-        if (peer->pokeexpire == -1 || cw_sched_del(sched, peer->pokeexpire))
-            return 1;
-
-	cw_object_put(peer->dialogue);
-	peer->dialogue = NULL;
-
-        cw_clock_gettime(global_clock_monotonic, &ts);
-        pingtime = cw_clock_diff_ms(&ts, &peer->ps);
-        if (pingtime < 1)
-            pingtime = 1;
-        peer->noanswer = 0;
-        if ((peer->timer_t1 < 0)  || (peer->timer_t1 > peer->maxms))
-        {
-            if (pingtime <= peer->maxms)
-            {
-		if (option_verbose > 3)
-			cw_log(CW_LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-                statechanged = 1;
-                newstate = 1;
-            }
-        }
-        else if ((peer->timer_t1 > 0) && (peer->timer_t1 <= peer->maxms))
-        {
-            if (pingtime > peer->maxms)
-            {
-		if (option_verbose > 3)
-			cw_log(CW_LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-                statechanged = 1;
-                newstate = 2;
-            }
-        }
-        if (!peer->timer_t1)
-            statechanged = 1;
-        peer->timer_t1 = pingtime;
-        if (statechanged)
-        {
-            cw_device_state_changed("SIP/%s", peer->name);
-            if (option_verbose > 3) {
-                cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-                    3,
-                    cw_msg_tuple("Peer",       "SIP/%s", peer->name),
-                    cw_msg_tuple("PeerStatus", "%s",     (newstate == 2 ? "Lagged" : "Reachable")),
-                    cw_msg_tuple("Time",       "%d",     pingtime)
-                );
-	    }
-        }
-
+	if (resp != 100) {
 #ifdef VOCAL_DATA_HACK
-        if (sipmethod == SIP_INVITE)
-            transmit_ack(p, req, 0);
+		if (sipmethod == SIP_INVITE)
+			transmit_ack(p, req, 0);
 #endif
-        sip_destroy(p);
-
-        if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
-            /* Try again eventually */
-            peer->pokeexpire = cw_sched_add(sched,
-                ((peer->timer_t1 < 0 || peer->timer_t1 > peer->maxms) ? DEFAULT_FREQ_NOTOK : DEFAULT_FREQ_OK),
-                sip_poke_peer, peer);
-        } else
-            cw_object_put(peer);
-    }
-    return 1;
+		sip_destroy(p);
+	}
+	return 1;
 }
 
 /*! \brief  handle_response: Handle SIP response in dialogue */
@@ -11779,7 +11772,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
     }
 
     /* Cease retransmissions of whatever the response is to */
-    retrans_stop(p, req->seqno, 0, req->cseq_method, (*(req->pkt.data + req->uriresp) != '1'));
+    retrans_stop(p, req, req->cseq_method, (*(req->pkt.data + req->uriresp) != '1'));
 
     if (sscanf(req->pkt.data + req->uriresp, " %d", &resp) != 1)
     {
@@ -12365,6 +12358,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
     char *supported;
     char *required;
     unsigned int required_profile = 0;
+
+    /* Note the current time so we can add delay info to the timestamp header
+     * in the response.
+     */
+    cw_clock_gettime(global_clock_monotonic, &req->txtime);
 
     /* Find out what they support */
     if (!p->sipoptions)
@@ -13517,7 +13515,7 @@ static int handle_message(void *data)
 		 */
 		if (dialogue) {
 			if (req->method == SIP_ACK)
-				retrans_stop(dialogue, req->seqno, FLAG_RESPONSE, SIP_UNKNOWN, 1);
+				retrans_stop(dialogue, req, SIP_RESPONSE, 1);
 		} else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 
@@ -13738,7 +13736,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     }
     cw_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
     peer->lastmsgssent = ((newmsgs > 0x7fff ? 0x7fff0000 : (newmsgs << 16)) | (oldmsgs > 0xffff ? 0xffff : oldmsgs));
-    if (create_addr(p, NULL, peer))
+    if (create_addr(p, NULL, peer, 0))
     {
         /* Maybe they're not registered, etc. */
         sip_destroy(p);
@@ -13869,96 +13867,45 @@ static __attribute__((__noreturn__)) void *do_monitor(void *data)
 }
 
 
-/*! \brief  sip_poke_noanswer: No answer to Qualify poke */
-static int sip_poke_noanswer(void *data)
-{
-    struct sip_peer *peer = data;
-
-    /* Since we are now running we can't be unscheduled therefore
-     * even if we get a response handle_response_peerpoke will do
-     * nothing.
-     */
-
-    if (peer->dialogue) {
-        cw_mutex_lock(&peer->dialogue->lock);
-        sip_destroy(peer->dialogue);
-        cw_mutex_unlock(&peer->dialogue->lock);
-        cw_object_put(peer->dialogue);
-        peer->dialogue = NULL;
-    }
-
-    if (peer->noanswer < 3)
-        peer->noanswer++;
-
-    if (peer->noanswer == 3 && peer->timer_t1 > -1) {
-	if (option_verbose > 3)
-		cw_log(CW_LOG_NOTICE, "Peer '%s' is now UNREACHABLE!  Last qualify: %d\n", peer->name, peer->timer_t1);
-        cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
-                3,
-                cw_msg_tuple("Peer",       "SIP/%s", peer->name),
-                cw_msg_tuple("PeerStatus", "%s",     "Unreachable"),
-                cw_msg_tuple("Time",       "%d",     -1)
-        );
-        peer->timer_t1 = -1;
-        cw_device_state_changed("SIP/%s", peer->name);
-    }
-
-    if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
-        /* Try again quickly */
-        peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer, peer);
-    } else
-        cw_object_put(peer);
-
-    return 0;
-}
-
-
 /*! \brief  sip_poke_peer: Check availability of peer, also keep NAT open */
 /*    This is done with the interval in qualify= option in sip.conf */
 /*    Default is 2 seconds */
 static void *sip_poke_peer_thread(void *data)
 {
-    struct sip_peer *peer = data;
-    struct sip_pvt *p;
+	struct sip_peer *peer = data;
+	struct sip_pvt *p;
 
-    /* If we are no longer registered we have nothing to do but shut down */
-    if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
-        /* If we don't have a qualify timeout we don't need to poke the host */
-        if (peer->maxms) {
-            if ((p = sip_alloc())) {
-		create_addr(p, NULL, peer);
+	/* If we are no longer registered we have nothing to do but shut down */
+	if (!cw_test_flag(peer, SIP_ALREADYGONE)) {
+		if ((p = sip_alloc())) {
+			create_addr(p, NULL, peer, 1);
 
-                if (p->conn) {
-	            p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
+			if (p->conn) {
+				p->reg_entry = cw_registry_add(&dialogue_registry, dialogue_hash(p), &p->obj);
 
-	            peer->dialogue = cw_object_dup(p);
-                    p->peerpoke = peer;
+				p->peerpoke = peer;
+				p->timer_t1 = (peer->maxms ? peer->maxms : rfc_timer_t1);
 
-                    cw_set_flag(p, SIP_OUTGOING);
+				cw_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
-		    if (cw_strlen_zero(p->username))
-                        cw_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-                    transmit_invite(p, SIP_INVITE, 0, 2);
+				if (cw_strlen_zero(p->username))
+					cw_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
+				transmit_invite(p, SIP_INVITE, 0, 2);
 #else
-                    transmit_invite(p, SIP_OPTIONS, 0, 2);
+				transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
-                    cw_clock_gettime(global_clock_monotonic, &peer->ps);
-                    peer->pokeexpire = cw_sched_add(sched, peer->maxms * 2, sip_poke_noanswer, peer);
-                } else {
-                    dialogue_release(&p->obj);
-                    sip_poke_noanswer(peer);
-                }
-            } else {
-                cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-                peer->pokeexpire = cw_sched_add(sched, peer->timer_t1, sip_poke_peer, peer);
-	    }
-        } else {
-            peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
-        }
-    } else
-        cw_object_put(peer);
+				peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
+			} else {
+				dialogue_release(&p->obj);
+			}
+		} else {
+			cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
+			peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_F * peer->timer_t1, sip_poke_peer, peer);
+		}
+	} else
+		cw_object_put(peer);
 
-    return 0;
+	return 0;
 }
 
 static int sip_poke_peer(void *data)
@@ -14018,7 +13965,7 @@ static int sip_devicestate(void *data)
         {
             /* we have an address for the peer */
             /* if qualify is turned on, check the status */
-            if (p->maxms  &&  (p->timer_t1 > p->maxms))
+            if (p->maxms && (p->timer_t1 < 0 || p->timer_t1 > p->maxms))
             {
                 res = CW_DEVICE_UNAVAILABLE;
             }
@@ -14115,7 +14062,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
         }
     }
 
-    if (create_addr(p, host, NULL))
+    if (create_addr(p, host, NULL, 0))
     {
         *cause = CW_CAUSE_UNREGISTERED;
         sip_destroy(p);
@@ -14981,7 +14928,7 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
             }
             else if (!strcasecmp(v->value, "yes"))
             {
-                peer->maxms = DEFAULT_MAXMS;
+                peer->maxms = default_qualify;
             }
             else if (sscanf(v->value, "%d", &peer->maxms) != 1)
             {
@@ -15010,7 +14957,7 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     cw_copy_flags(peer, &peerflags, mask.flags);
 
     if (!peer->timer_t1)
-        peer->timer_t1 = rfc_timer_t1;
+        peer->timer_t1 = (peer->maxms ? peer->maxms : rfc_timer_t1);
 
     if (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) && !cw_test_flag(peer, SIP_REALTIME))
         reg_source_db(peer, sip_running);
@@ -15648,7 +15595,7 @@ static int sip_poke_peer_one(struct cw_object *obj, void *data)
 	CW_UNUSED(data);
 
 	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
-	if (peer->pokeexpire == -1)
+	if (peer->maxms && peer->pokeexpire == -1)
 		peer->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(peer));
 
 	return 0;
