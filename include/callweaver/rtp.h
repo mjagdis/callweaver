@@ -122,7 +122,7 @@ extern CW_API_PUBLIC int cw_rtcp_fd(struct cw_rtp *rtp) __attribute__ (( __nonnu
 
 extern CW_API_PUBLIC struct sockaddr *cw_rtp_get_peer(struct cw_rtp *rtp) __attribute__ (( __nonnull__ (1) ));
 
-extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct cw_sockaddr_net *addr);
+extern CW_API_PUBLIC struct cw_rtp *cw_rtp_new_with_bindaddr(struct sockaddr *addr);
 
 extern CW_API_PUBLIC void cw_rtp_set_peer(struct cw_rtp *rtp, struct sockaddr *them);
 

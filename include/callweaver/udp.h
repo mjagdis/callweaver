@@ -70,7 +70,7 @@ struct udp_state_s {
 typedef struct udp_state_s udp_state_t;
 
 
-extern CW_API_PUBLIC int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums, struct cw_sockaddr_net *addr, int lowest_port, int highest_port);
+extern CW_API_PUBLIC int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums, struct sockaddr *addr, int lowest_port, int highest_port);
 
 extern CW_API_PUBLIC int udp_socket_restart(udp_state_t *s);
 

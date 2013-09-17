@@ -680,7 +680,7 @@ void sccp_channel_start_rtp(sccp_channel_t * c) {
 	/* FIXME: sccp needs work to support IPv6 properly */
 	addr.sin.sin_family = AF_INET;
 	addr.sin.sin_addr = s->ourip;
-	c->rtp = cw_rtp_new_with_bindaddr(&addr);
+	c->rtp = cw_rtp_new_with_bindaddr(&addr.sa);
 	if (c->device->nat)
 		cw_rtp_setnat(c->rtp, 1);
 

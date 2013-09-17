@@ -1304,7 +1304,7 @@ void cw_rtp_lookup_mime_multiple(struct cw_dynstr *result, const int capability,
     cw_dynstr_printf(result, (result->used != mark ? ")" : "nothing)"));
 }
 
-struct cw_rtp *cw_rtp_new_with_bindaddr(struct cw_sockaddr_net *addr)
+struct cw_rtp *cw_rtp_new_with_bindaddr(struct sockaddr *addr)
 {
 	struct cw_rtp *rtp = NULL;
 

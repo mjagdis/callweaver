@@ -2545,7 +2545,7 @@ static void start_rtp(struct mgcp_subchannel *sub)
 		sub->rtp = NULL;
 	}
 	/* Allocate the RTP now */
-	sub->rtp = cw_rtp_new_with_bindaddr((struct cw_sockaddr_net *)&bindaddr);
+	sub->rtp = cw_rtp_new_with_bindaddr((struct sockaddr *)&bindaddr);
 	if (sub->rtp && sub->owner)
 		sub->owner->fds[0] = cw_rtp_fd(sub->rtp);
 	if (sub->rtp)

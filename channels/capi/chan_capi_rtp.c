@@ -171,7 +171,7 @@ int capi_alloc_rtp(struct capi_pvt *i)
 	struct addrinfo *addrs;
 	int ret = 1;
 
-	if (!getaddrinfo(NULL, "0", NULL, &addrs)) {
+	if (!cw_getaddrinfo(NULL, "0", NULL, &addrs, NULL)) {
 		if ((i->rtp = cw_rtp_new_with_bindaddr(addrs[0].ai_addr))) {
 			cw_rtp_set_peer(i->rtp, cw_rtp_get_us(i->rtp));
 			cc_verbose(2, 1, VERBOSE_PREFIX_4 "%s: alloc rtp socket on %l@\n", i->vname, cw_rtp_get_us(i->rtp));

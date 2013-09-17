@@ -72,7 +72,7 @@ static uint16_t make_mask16(uint16_t x)
 }
 /*- End of function --------------------------------------------------------*/
 
-int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums, struct cw_sockaddr_net *addr, int lowest_port, int highest_port)
+int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums, struct sockaddr *addr, int lowest_port, int highest_port)
 {
 	int i;
 	int base;
@@ -102,18 +102,18 @@ int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums,
 
 	for (;;) {
 		for (i = 0; i < nelem; i++) {
-			cw_sockaddr_set_port(&addr->sa, base + i);
-			if ((s[i].fd = socket(addr->sa.sa_family, SOCK_DGRAM, 0)) < 0)
+			cw_sockaddr_set_port(addr, base + i);
+			if ((s[i].fd = socket(addr->sa_family, SOCK_DGRAM, 0)) < 0)
 				break;
 			fcntl(s[i].fd, F_SETFL, fcntl(s[i].fd, F_GETFL) | O_NONBLOCK);
 #ifdef SO_NO_CHECK
 			if (nochecksums)
 				setsockopt(s[i].fd, SOL_SOCKET, SO_NO_CHECK, &nochecksums, sizeof(nochecksums));
 #endif
-			if (bind(s[i].fd, &addr->sa, sizeof(*addr)))
+			if (bind(s[i].fd, addr, cw_sockaddr_len(addr)))
 				break;
 
-			cw_sockaddr_copy(&s[i].local.sa, &addr->sa);
+			cw_sockaddr_copy(&s[i].local.sa, addr);
 		}
 		if (i >= nelem) {
 			/* We must have bound all ports OK. */

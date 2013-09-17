@@ -2316,8 +2316,6 @@ static inline void parse_request_init(struct parse_request_state *pstate, struct
 	req->callid = req->tag = req->taglen = 0;
 }
 
-static int parse_request(struct parse_request_state *state, struct sip_request *req);
-static void copy_and_parse_request(struct sip_request *dst,struct sip_request *src);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 
 static void build_callid(char *callid, int len, struct sockaddr *ouraddr, char *fromdomain);
@@ -2807,7 +2805,7 @@ static int create_addr(struct sip_pvt *dialogue, char *opeername, struct sip_pee
 	int ret = -1;
 
 	if ((p = peer) || (p = find_peer(opeername, NULL, 1))) {
-		if (qualify || !peer->maxms || (peer->timer_t1 > 0 && peer->timer_t1 <= peer->maxms))
+		if (qualify || !p->maxms || (p->timer_t1 > 0 && p->timer_t1 <= p->maxms))
 			ret = create_addr_from_peer(dialogue, p);
 		if (!peer)
 			cw_object_put(p);
@@ -4187,12 +4185,12 @@ static void sip_alloc_media(struct sip_pvt *dialogue)
 	dialogue->rtpholdtimeout = global_rtpholdtimeout;
 	dialogue->rtpkeepalive = global_rtpkeepalive;
 
-	if ((dialogue->rtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr))) {
+	if ((dialogue->rtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr.sa))) {
 		cw_rtp_settos(dialogue->rtp, tos);
 		cw_rtp_setnat(dialogue->rtp, natneeded);
 	}
 
-	if (videosupport && (dialogue->vrtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr))) {
+	if (videosupport && (dialogue->vrtp = cw_rtp_new_with_bindaddr(&dialogue->ouraddr.sa))) {
 		cw_rtp_settos(dialogue->vrtp, tos);
 		cw_rtp_setnat(dialogue->vrtp, natneeded);
 	}
