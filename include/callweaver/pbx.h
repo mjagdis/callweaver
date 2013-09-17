@@ -525,7 +525,7 @@ extern CW_API_PUBLIC struct cw_include *cw_walk_context_includes(struct cw_conte
 extern CW_API_PUBLIC struct cw_ignorepat *cw_walk_context_ignorepats(struct cw_context *con, struct cw_ignorepat *ip);
 extern CW_API_PUBLIC struct cw_sw *cw_walk_context_switches(struct cw_context *con, struct cw_sw *sw);
 
-extern CW_API_PUBLIC int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size);
+extern CW_API_PUBLIC int pbx_builtin_serialize_variables(struct cw_channel *chan, struct cw_dynstr *ds_p);
 extern CW_API_PUBLIC struct cw_var_t *pbx_builtin_getvar_helper(struct cw_channel *chan, unsigned int hash, const char *name);
 extern CW_API_PUBLIC void pbx_builtin_pushvar_helper(struct cw_channel *chan, const char *name, const char *value);
 extern CW_API_PUBLIC void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const char *value);

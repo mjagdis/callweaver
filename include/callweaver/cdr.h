@@ -136,7 +136,7 @@ extern CW_API_PUBLIC struct cw_registry cdrbe_registry;
 extern CW_API_PUBLIC void cw_cdr_getvar(struct cw_cdr *cdr, const char *name, struct cw_dynstr *workspace, int recur);
 extern CW_API_PUBLIC int cw_cdr_setvar(struct cw_cdr *cdr, const char *name, const char *value, int recur);
 
-extern int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur);
+extern int cw_cdr_serialize_variables(struct cw_cdr *cdr, struct cw_dynstr *ds_p, char delim, char sep, int recur);
 
 /*! \brief Allocate a CDR record 
  * \param chan Channel to bind CDR with

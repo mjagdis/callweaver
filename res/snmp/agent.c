@@ -467,13 +467,16 @@ static int channels_table_one(struct cw_object *obj, void *data)
         long_ret = chan->hangupcause;
         args->ret = (u_char *)&long_ret;
         break;
-    case CWCHANVARIABLES:
-        if (pbx_builtin_serialize_variables(chan, string_ret, sizeof(string_ret)))
-        {
-            *args->var_len = strlen(string_ret);
-            args->ret = (u_char *)string_ret;
-        }
+    case CWCHANVARIABLES: {
+        struct cw_dynstr ds;
+
+        cw_dynstr_init(&ds, 512, CW_DYNSTR_DEFAULT_CHUNK);
+        pbx_builtin_serialize_variables(chan, &ds);
+        *args->var_len = ds.used;
+        memcpy(string_ret, ds.data. ds.used);
+        cw_dynstr_free(&ds);
         break;
+    }
     case CWCHANFLAGS:
         bits_ret[0] = 0;
         for (bit = 0;  bit < 8;  bit++)

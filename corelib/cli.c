@@ -609,11 +609,8 @@ static int handle_nodebugchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    char buf[2048];
-    char cdrtime[256];
-    struct timeval now;
     struct cw_channel *chan, *bchan;
-    long secs;
+    long secs = 0;
 
     if (argc != 3)
         return RESULT_SHOWUSAGE;
@@ -624,75 +621,58 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
     }
 
     if (chan->cdr) {
-        now = cw_tvnow();
+	struct timeval now;
+        gettimeofday(&now, NULL);
         secs = now.tv_sec - chan->cdr->start.tv_sec;
-        snprintf(cdrtime, sizeof(cdrtime), "%ldh%ldm%lds", secs / 3600, (secs % 3600) / 60, secs % 60);
-    } else
-        strcpy(cdrtime, "N/A");
+    }
 
     bchan = cw_bridged_channel(chan);
 
-    cw_dynstr_printf(ds_p,
-        " -- General --\n"
-        "           Name: %s\n"
-        "           Type: %s\n"
-        "       UniqueID: %s\n"
-        "      Caller ID: %s\n"
-        " Caller ID Name: %s\n"
-        "    DNID Digits: %s\n"
-        "          State: %s (%d)\n"
-        "          Rings: %d\n"
-        "   NativeFormat: %d\n"
-        "    WriteFormat: %d\n"
-        "     ReadFormat: %d\n"
-        "1st File Descriptor: %d\n"
-        "      Frames in: %d%s\n"
-        "     Frames out: %d%s\n"
-        " Time to Hangup: %ld\n"
-        "   Elapsed Time: %s\n"
-        "  Direct Bridge: %s\n"
-        "Indirect Bridge: %s\n"
-        " -- Jitterbuffer --\n"
-        " Implementation: %s\n"
-        "    Conf. Flags: 0x%x\n"
-        "       Max Size: %ld\n"
-        "  Resync Thresh: %ld\n"
-        "   Timing Comp.: %ld\n"
-        "    State Flags: 0x%x\n"        
-        " --   PBX   --\n"
-        "        Context: %s\n"
-        "      Extension: %s\n"
-        "       Priority: %d\n"
-        "     Call Group: %d\n"
-        "   Pickup Group: %d\n"
-        "    Application: %s\n"
-        "    Blocking in: %s\n"
-        "    T38 mode on: %d\n",
-        chan->name, chan->type, chan->uniqueid,
-        (chan->cid.cid_num ? chan->cid.cid_num : "(N/A)"),
-        (chan->cid.cid_name ? chan->cid.cid_name : "(N/A)"),
-        (chan->cid.cid_dnid ? chan->cid.cid_dnid : "(N/A)" ), cw_state2str(chan->_state), chan->_state, chan->rings, chan->nativeformats, chan->writeformat, chan->readformat,
-        chan->fds[0],
-        chan->fin, (cw_test_flag(chan, CW_FLAG_DEBUG_IN) ? " (DEBUGGED)" : ""),
-        chan->fout, (cw_test_flag(chan, CW_FLAG_DEBUG_OUT) ? " (DEBUGGED)" : ""),
-        (long)chan->whentohangup,
-        cdrtime, (chan->_bridge ? chan->_bridge->name : "<none>"), (bchan ? bchan->name : "<none>"),
-        chan->jb.conf.impl,
-        chan->jb.conf.flags,
-        chan->jb.conf.max_size,
-        chan->jb.conf.resync_threshold,
-        chan->jb.conf.timing_compensation,
-        chan->jb.flags,
-        chan->context, chan->exten, chan->priority, (int)chan->callgroup,
-        (int)chan->pickupgroup, ( chan->appl ? chan->appl : "(N/A)" ),
-        (cw_test_flag(chan, CW_FLAG_BLOCKING) ? chan->blockproc : "(Not Blocking)"),
-        chan->t38_status
-        );
+    cw_dynstr_tprintf(ds_p, 35,
+        cw_fmtval(" -- General --\n"),
+        cw_fmtval("           Name: %s\n",           chan->name),
+        cw_fmtval("           Type: %s\n",           chan->type),
+        cw_fmtval("       UniqueID: %s\n",           chan->uniqueid),
+        cw_fmtval("      Caller ID: %s\n",           (chan->cid.cid_num ? chan->cid.cid_num : "(N/A)")),
+        cw_fmtval(" Caller ID Name: %s\n",           (chan->cid.cid_name ? chan->cid.cid_name : "(N/A)")),
+        cw_fmtval("    DNID Digits: %s\n",           (chan->cid.cid_dnid ? chan->cid.cid_dnid : "(N/A)" )),
+        cw_fmtval("          State: %s (%d)\n",      cw_state2str(chan->_state), chan->_state),
+        cw_fmtval("          Rings: %d\n",           chan->rings),
+        cw_fmtval("   NativeFormat: %d\n",           chan->nativeformats),
+        cw_fmtval("    WriteFormat: %d\n",           chan->writeformat),
+        cw_fmtval("     ReadFormat: %d\n",           chan->readformat),
+        cw_fmtval("1st File Descriptor: %d\n",       chan->fds[0]),
+        cw_fmtval("      Frames in: %d%s\n",         chan->fin, (cw_test_flag(chan, CW_FLAG_DEBUG_IN) ? " (DEBUGGED)" : "")),
+        cw_fmtval("     Frames out: %d%s\n",         chan->fout, (cw_test_flag(chan, CW_FLAG_DEBUG_OUT) ? " (DEBUGGED)" : "")),
+        cw_fmtval(" Time to Hangup: %ld\n",          (long)chan->whentohangup),
+        cw_fmtval("   Elapsed Time: %ldh%ldm%lds\n", secs / 3600, (secs % 3600) / 60, secs % 60),
+        cw_fmtval("  Direct Bridge: %s\n",           (chan->_bridge ? chan->_bridge->name : "<none>")),
+        cw_fmtval("Indirect Bridge: %s\n",           (bchan ? bchan->name : "<none>")),
+        cw_fmtval(" -- Jitterbuffer --\n"),
+        cw_fmtval(" Implementation: %s\n",           chan->jb.conf.impl),
+        cw_fmtval("    Conf. Flags: 0x%x\n",         chan->jb.conf.flags),
+        cw_fmtval("       Max Size: %ld\n",          chan->jb.conf.max_size),
+        cw_fmtval("  Resync Thresh: %ld\n",          chan->jb.conf.resync_threshold),
+        cw_fmtval("   Timing Comp.: %ld\n",          chan->jb.conf.timing_compensation),
+        cw_fmtval("    State Flags: 0x%x\n",         chan->jb.flags),
+        cw_fmtval(" --   PBX   --\n"),
+        cw_fmtval("        Context: %s\n",           chan->context),
+        cw_fmtval("      Extension: %s\n",           chan->exten),
+        cw_fmtval("       Priority: %d\n",           chan->priority),
+        cw_fmtval("     Call Group: %d\n",           (int)chan->callgroup),
+        cw_fmtval("   Pickup Group: %d\n",           (int)chan->pickupgroup),
+        cw_fmtval("    Application: %s\n",           (chan->appl ? chan->appl : "(N/A)")),
+        cw_fmtval("    Blocking in: %s\n",           (cw_test_flag(chan, CW_FLAG_BLOCKING) ? chan->blockproc : "(Not Blocking)")),
+        cw_fmtval("    T38 mode on: %d\n",           chan->t38_status)
+    );
 
-    if (pbx_builtin_serialize_variables(chan, buf, sizeof(buf)))
-        cw_dynstr_printf(ds_p, "      Variables:\n%s\n", buf);
-    if (chan->cdr && cw_cdr_serialize_variables(chan->cdr, buf, sizeof(buf), '=', '\n', 1))
-        cw_dynstr_printf(ds_p, "  CDR Variables:\n%s\n", buf);
+    cw_dynstr_printf(ds_p, "      Variables:\n");
+    pbx_builtin_serialize_variables(chan, ds_p);
+
+    if (chan->cdr) {
+        cw_dynstr_printf(ds_p, "  CDR Variables:\n");
+        cw_cdr_serialize_variables(chan->cdr, ds_p, '=', '\n', 1);
+    }
     
     cw_channel_unlock(chan);
     if (bchan)

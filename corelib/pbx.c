@@ -4806,8 +4806,7 @@ void cw_merge_contexts_and_delete(struct cw_context **extcontexts, const char *r
 
 
 struct pbx_builtin_serialize_variables_args {
-	char **buf_p;
-	size_t *size_p;
+	struct cw_dynstr *ds_p;
 	int total;
 };
 
@@ -4816,25 +4815,19 @@ static int pbx_builtin_serialize_variables_one(struct cw_object *obj, void *data
 	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct pbx_builtin_serialize_variables_args *args = data;
 
+	cw_dynstr_printf(args->ds_p, "%s=%s\n", cw_var_name(var), var->value);
 	args->total++;
-
-	if (!cw_build_string(args->buf_p, args->size_p, "%s=%s\n", cw_var_name(var), var->value))
-		return 0;
-
-	cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
-	return 1;
+	return 0;
 }
 
-int pbx_builtin_serialize_variables(struct cw_channel *chan, char *buf, size_t size)
+int pbx_builtin_serialize_variables(struct cw_channel *chan, struct cw_dynstr *ds_p)
 {
 	struct pbx_builtin_serialize_variables_args args = {
-		.buf_p = &buf,
-		.size_p = &size,
+		.ds_p = ds_p,
 		.total = 0,
 	};
 
 	if (chan) {
-		memset(buf, 0, size);
 		cw_registry_iterate_ordered(&chan->vars, pbx_builtin_serialize_variables_one, &args);
 	}
 

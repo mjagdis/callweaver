@@ -237,8 +237,7 @@ int cw_cdr_setvar(struct cw_cdr *cdr, const char *name, const char *value, int r
 
 
 struct cdr_serialize_args {
-	char **buf_p;
-	size_t *size_p;
+	struct cw_dynstr *ds_p;
 	char delim;
 	char sep;
 	int x, total;
@@ -248,19 +247,14 @@ static int cdr_serialize_one(struct cw_object *obj, void *data)
 {
 	struct cw_var_t *var = container_of(obj, struct cw_var_t, obj);
 	struct cdr_serialize_args *args = data;
-	int ret = 0;
 
-	if (!cw_build_string(args->buf_p, args->size_p, "level %d: %s%c%s%c", args->x, cw_var_name(var), args->delim, var->value, args->sep))
-		args->total++;
-	else {
-		cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
-		ret = 1;
-	}
+	cw_dynstr_printf(args->ds_p, "level %d: %s%c%s%c", args->x, cw_var_name(var), args->delim, var->value, args->sep);
+	args->total++;
 
-	return ret;
+	return 0;
 }
 
-int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
+int cw_cdr_serialize_variables(struct cw_cdr *cdr, struct cw_dynstr *ds_p, char delim, char sep, int recur)
 {
 	static const char *cdrcols[] = {
 		"clid",
@@ -284,8 +278,7 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 	};
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
 	struct cdr_serialize_args args = {
-		.buf_p = &buf,
-		.size_p = &size,
+		.ds_p = ds_p,
 		.delim = delim,
 		.sep = sep,
 		.x = 0,
@@ -293,25 +286,16 @@ int cw_cdr_serialize_variables(struct cw_cdr *cdr, char *buf, size_t size, char 
 	};
 	int i;
 
-	memset(buf, 0, size);
-
 	for (; cdr; cdr = (recur ? cdr->next : NULL)) {
 		if (++args.x > 1)
-			cw_build_string(&buf, &size, "\n");
+			cw_dynstr_printf(ds_p, "\n");
 
 		cw_registry_iterate_ordered(&cdr->vars, cdr_serialize_one, &args);
 
 		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
 			cw_cdr_getvar(cdr, cdrcols[i], &ds, 0);
-			if (!ds.error) {
-				if (!cw_build_string(&buf, &size, "level %d: %s%c%s%c", args.x, cdrcols[i], delim, ds.data, sep))
-					args.total++;
-				else {
-					cw_log(CW_LOG_ERROR, "Data Buffer Size Exceeded!\n");
-					break;
-				}
-			} else
-				break;
+			ds_p->error |= ds.error;
+			cw_dynstr_printf(ds_p, "level %d: %s%c%s%c", args.x, cdrcols[i], delim, ds.data, sep);
 			cw_dynstr_reset(&ds);
 		}
 	}

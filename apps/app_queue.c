@@ -3696,10 +3696,6 @@ static int __queues_show(int manager, struct cw_dynstr *ds_p, int argc, char **a
     struct member *mem;
     int pos;
     time_t now;
-    char max_buf[80];
-    char *max;
-    size_t max_left;
-    float sl = 0;
     const char *term = manager ? "\r\n" : "\n";
 
     time(&now);
@@ -3733,41 +3729,38 @@ static int __queues_show(int manager, struct cw_dynstr *ds_p, int argc, char **a
                 continue;
             }
         }
-        max_buf[0] = '\0';
-        max = max_buf;
-        max_left = sizeof(max_buf);
-        if (q->maxlen)
-            cw_build_string(&max, &max_left, "%d", q->maxlen);
-        else
-            cw_build_string(&max, &max_left, "unlimited");
-        sl = 0;
-        if(q->callscompleted > 0)
-            sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-        cw_dynstr_printf(ds_p, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
-            q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
+        cw_dynstr_tprintf(ds_p, 11,
+            cw_fmtval("%-12.12s",          q->name),
+            cw_fmtval(" has %d calls",     q->count),
+            cw_fmtval(" (max %d%s)",       q->maxlen, (q->maxlen ? "" : "/unlimited")),
+            cw_fmtval(" in '%s' strategy", int2strat(q->strategy)),
+            cw_fmtval(" (%ds holdtime),",  q->holdtime),
+            cw_fmtval(" W:%d,",            q->weight),
+            cw_fmtval(" C:%d,",            q->callscompleted),
+            cw_fmtval(" A:%d,",            q->callsabandoned),
+            cw_fmtval(" SL:%2.1f%%",       (q->callscompleted > 0 ? 100 * ((double)q->callscompletedinsl / (double)q->callscompleted) : 0)),
+            cw_fmtval(" within %ds",       q->servicelevel),
+	    cw_fmtval("%s",                term)
+        );
+
         if (q->members)
         {
             cw_dynstr_printf(ds_p, "   Members: %s", term);
             for (mem = q->members; mem; mem = mem->next)
             {
-                max_buf[0] = '\0';
-                max = max_buf;
-                max_left = sizeof(max_buf);
+                cw_dynstr_printf(ds_p, "      %-30s", mem->interface);
                 if (mem->penalty)
-                    cw_build_string(&max, &max_left, " with penalty %d", mem->penalty);
+                    cw_dynstr_printf(ds_p, " with penalty %d", mem->penalty);
                 if (mem->dynamic)
-                    cw_build_string(&max, &max_left, " (dynamic)");
+                    cw_dynstr_printf(ds_p, " (dynamic)");
                 if (mem->paused)
-                    cw_build_string(&max, &max_left, " (paused)");
-                cw_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
+                    cw_dynstr_printf(ds_p, " (paused)");
+                cw_dynstr_printf(ds_p, " (%s)", devstate2str(mem->status));
                 if (mem->calls)
-                {
-                    cw_build_string(&max, &max_left, " has taken %d calls (last was %ld secs ago)",
-                             mem->calls, (long)(time(NULL) - mem->lastcall));
-                }
+                    cw_dynstr_printf(ds_p, " has taken %d calls (last was %ld secs ago)", mem->calls, (long)(time(NULL) - mem->lastcall));
                 else
-                    cw_build_string(&max, &max_left, " has taken no calls yet");
-                cw_dynstr_printf(ds_p, "      %s%s%s", mem->interface, max_buf, term);
+                    cw_dynstr_printf(ds_p, " has taken no calls yet");
+                cw_dynstr_printf(ds_p, "%s", term);
             }
         }
         else

@@ -920,37 +920,6 @@ int cw_cond_timedwait_debug(cw_cond_t *cond, cw_mutex_t *t, const struct timespe
 #endif /* DEBUG_MUTEX */
 
 
-int cw_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
-{
-	int result;
-
-	if (!buffer || !*buffer || !space || !*space)
-		return -1;
-
-	result = vsnprintf(*buffer, *space, fmt, ap);
-
-	if (result < 0)
-		return -1;
-	else if (result > *space)
-		result = *space;
-
-	*buffer += result;
-	*space -= result;
-	return 0;
-}
-
-int cw_build_string(char **buffer, size_t *space, const char *fmt, ...)
-{
-	va_list ap;
-	int result;
-
-	va_start(ap, fmt);
-	result = cw_build_string_va(buffer, space, fmt, ap);
-	va_end(ap);
-
-	return result;
-}
-
 int cw_true(const char *s)
 {
 	if (cw_strlen_zero(s))
