@@ -198,8 +198,8 @@ int cw_mainpid;
 
 int cw_cpu0_governor_fd;
 
-time_t cw_startuptime;
-time_t cw_lastreloadtime;
+struct timespec cw_startuptime;
+struct timespec cw_lastreloadtime;
 
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
@@ -1203,7 +1203,9 @@ static void boot(void)
 		cw_log(CW_LOG_PROGRESS, "\n");
 	}
 
-	time(&cw_startuptime);
+	cw_clock_gettime(global_clock_monotonic, &cw_startuptime);
+	cw_lastreloadtime = cw_startuptime;
+
 	if (option_verbose || option_console || option_nofork)
 		cw_verbose("CallWeaver Ready\n");
 

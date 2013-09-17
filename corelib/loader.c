@@ -239,7 +239,7 @@ int cw_module_reconfigure(const char *name)
 
 	pthread_mutex_lock(&modlock);
 
-	time(&cw_lastreloadtime);
+	cw_clock_gettime(global_clock_monotonic, &cw_lastreloadtime);
 
 	if (!name || !strcasecmp(name, "manager")) {
 		manager_reload();

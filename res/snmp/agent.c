@@ -21,6 +21,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 
+#include "callweaver/time.h"
 #include "callweaver/channel.h"
 #include "callweaver/logger.h"
 #include "callweaver/options.h"
@@ -615,7 +616,7 @@ static u_char *cw_var_Config(struct variable *vp, oid *name, size_t *length,
                                int exact, size_t *var_len, WriteMethod **write_method)
 {
     static unsigned long long_ret;
-    struct timeval tval;
+    struct timespec now;
 
     if (header_generic(vp, name, length, exact, var_len, write_method))
         return NULL;
@@ -623,15 +624,15 @@ static u_char *cw_var_Config(struct variable *vp, oid *name, size_t *length,
     switch (vp->magic)
     {
     case CWCONFUPTIME:
-        gettimeofday(&tval, NULL);
-        long_ret = difftime(tval.tv_sec, cw_startuptime) * 100 + tval.tv_usec / 10000;
+        cw_clock_gettime(global_clock_monotonic, &now);
+        long_ret = cw_clock_diff_ms(&now, &cw_startuptime) / 10;
         return (u_char *) &long_ret;
     case CWCONFRELOADTIME:
-        gettimeofday(&tval, NULL);
-        if (cw_lastreloadtime)
-            long_ret = difftime(tval.tv_sec, cw_lastreloadtime) * 100 + tval.tv_usec / 10000;
+        cw_clock_gettime(global_clock_monotonic, &now);
+        if (cw_lastreloadtime.tv_sec)
+            long_ret = cw_clock_diff_ms(&now, &cw_lastreloadtime) / 10;
         else
-            long_ret = difftime(tval.tv_sec, cw_startuptime) * 100 + tval.tv_usec / 10000;
+            long_ret = cw_clock_diff_ms(&now, &cw_startuptime) / 10;
         return (u_char *) &long_ret;
     case CWCONFPID:
         long_ret = getpid();

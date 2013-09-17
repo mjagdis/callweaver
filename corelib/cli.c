@@ -224,119 +224,59 @@ static const char uptime_help[] =
 "       Shows CallWeaver uptime information.\n"
 "       The seconds word returns the uptime in seconds only.\n";
 
-static char *format_uptimestr(time_t timeval)
+static void handle_showuptime_printf(struct cw_dynstr *ds_p, int printsec, const char *text, time_t nsecs)
 {
-    int years = 0, weeks = 0, days = 0, hours = 0, mins = 0, secs = 0;
-    char timestr[256]="";
-    int bytes = 0;
-    int maxbytes = 0;
-    int offset = 0;
-#define SECOND (1)
-#define MINUTE (SECOND*60)
-#define HOUR (MINUTE*60)
-#define DAY (HOUR*24)
-#define WEEK (DAY*7)
-#define YEAR (DAY*365)
-#define ESS(x) ((x == 1) ? "" : "s")
+	static const struct {
+		const char *text;
+		time_t secs;
+	} step[] = {
+		{ "year",   52 * 7 * 24 * 60 * 60 },
+		{ "week",   7 * 24 * 60 * 60 },
+		{ "day",    24 * 60 * 60 },
+		{ "hour",   60 * 60 },
+		{ "minute", 60 },
+		{ "second", 1 },
+	};
+	int i;
 
-    maxbytes = sizeof(timestr);
-    if (timeval < 0)
-        return NULL;
-    if (timeval > YEAR) {
-        years = (timeval / YEAR);
-        timeval -= (years * YEAR);
-        if (years > 0) {
-            snprintf(timestr + offset, maxbytes, "%d year%s, ", years, ESS(years));
-            bytes = strlen(timestr + offset);
-            offset += bytes;
-            maxbytes -= bytes;
-        }
-    }
-    if (timeval > WEEK) {
-        weeks = (timeval / WEEK);
-        timeval -= (weeks * WEEK);
-        if (weeks > 0) {
-            snprintf(timestr + offset, maxbytes, "%d week%s, ", weeks, ESS(weeks));
-            bytes = strlen(timestr + offset);
-            offset += bytes;
-            maxbytes -= bytes;
-        }
-    }
-    if (timeval > DAY) {
-        days = (timeval / DAY);
-        timeval -= (days * DAY);
-        if (days > 0) {
-            snprintf(timestr + offset, maxbytes, "%d day%s, ", days, ESS(days));
-            bytes = strlen(timestr + offset);
-            offset += bytes;
-            maxbytes -= bytes;
-        }
-    }
-    if (timeval > HOUR) {
-        hours = (timeval / HOUR);
-        timeval -= (hours * HOUR);
-        if (hours > 0) {
-            snprintf(timestr + offset, maxbytes, "%d hour%s, ", hours, ESS(hours));
-            bytes = strlen(timestr + offset);
-            offset += bytes;
-            maxbytes -= bytes;
-        }
-    }
-    if (timeval > MINUTE) {
-        mins = (timeval / MINUTE);
-        timeval -= (mins * MINUTE);
-        if (mins > 0) {
-            snprintf(timestr + offset, maxbytes, "%d minute%s, ", mins, ESS(mins));
-            bytes = strlen(timestr + offset);
-            offset += bytes;
-            maxbytes -= bytes;
-        }
-    }
-    secs = timeval;
+	if (printsec)
+		cw_dynstr_printf(ds_p, "%s%lu\n", text, nsecs);
+	else {
+		cw_dynstr_printf(ds_p, "%s", text);
 
-    if (secs > 0) {
-        snprintf(timestr + offset, maxbytes, "%d second%s", secs, ESS(secs));
-    }
+		for (i = 0; i < arraysize(step); i++) {
+			if (nsecs >= step[i].secs) {
+				time_t n = nsecs / step[i].secs;
+				nsecs %= step[i].secs;
+				cw_dynstr_printf(ds_p, "%lu %s%s, ", n, step[i].text, (n > 1 ? "s" : ""));
+			}
+		}
 
-    return strlen(timestr) ? strdup(timestr) : NULL;
+		/* Lose the trailing comma and space */
+		if (ds_p->used) {
+			ds_p->used -= 2;
+			ds_p->data[ds_p->used] = '\0';
+		}
+
+		cw_dynstr_printf(ds_p, "\n");
+	}
 }
 
 static int handle_showuptime(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    time_t curtime, tmptime;
-    char *timestr;
-    int printsec;
+	struct timespec now;
+	int printsec;
 
-    printsec = ((argc == 3) && (!strcasecmp(argv[2],"seconds")));
-    if ((argc != 2) && (!printsec))
-        return RESULT_SHOWUSAGE;
+	printsec = ((argc == 3) && (!strcasecmp(argv[2],"seconds")));
+	if ((argc != 2) && (!printsec))
+		return RESULT_SHOWUSAGE;
 
-    time(&curtime);
-    if (cw_startuptime) {
-        tmptime = curtime - cw_startuptime;
-        if (printsec) {
-            cw_dynstr_printf(ds_p, "System uptime: %lu\n",tmptime);
-        } else {
-            timestr = format_uptimestr(tmptime);
-            if (timestr) {
-                cw_dynstr_printf(ds_p, "System uptime: %s\n", timestr);
-                free(timestr);
-            }
-        }
-    }       
-    if (cw_lastreloadtime) {
-        tmptime = curtime - cw_lastreloadtime;
-        if (printsec) {
-            cw_dynstr_printf(ds_p, "Last reload: %lu\n", tmptime);
-        } else {
-            timestr = format_uptimestr(tmptime);
-            if ((timestr) && (!printsec)) {
-                cw_dynstr_printf(ds_p, "Last reload: %s\n", timestr);
-                free(timestr);
-            } 
-        }
-    }
-    return RESULT_SUCCESS;
+	cw_clock_gettime(global_clock_monotonic, &now);
+
+	handle_showuptime_printf(ds_p, printsec, "System uptime: ", now.tv_sec - cw_startuptime.tv_sec);
+	handle_showuptime_printf(ds_p, printsec, "Last reload:   ", now.tv_sec - cw_lastreloadtime.tv_sec);
+
+	return RESULT_SUCCESS;
 }
 
 static int handle_version(struct cw_dynstr *ds_p, int argc, char *argv[])
