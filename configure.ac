@@ -2445,15 +2445,6 @@ AM_CONDITIONAL([WANT_RES_ODBC],[test "${enable_odbc}" = "yes" -a "${with_res_odb
 
 dnl ###########################################################################
 
-AC_ARG_WITH([debug_malloc],
-	[AC_HELP_STRING([--with-debug_malloc],[Enable debug malloc (default=no)])],,[with_debug_malloc="no"])
-
-if test "$with_debug_malloc" = "yes" ; then
-    AC_DEFINE([__CW_DEBUG_MALLOC], [1], [We want malloc debug ...])
-fi
-
-dnl ###########################################################################
-
 dnl res_osp ... open settlement protocol handling
 dnl look for Transnexus OSP Toolkit (stolen from the OpenH323 configure.ac)
 
@@ -2598,7 +2589,6 @@ AC_SUBST(SOLINK)
 AC_SUBST(ASTLINK)
 AC_SUBST(CPU_OPTIONS)
 AC_SUBST(all_debug)
-AC_SUBST(DEBUG_MALLOC)
 AC_SUBST(LOW_MEMORY)
 AC_SUBST(prefix)
 

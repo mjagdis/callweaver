@@ -38,7 +38,6 @@ CORE_SRC = \
     autoservice.c \
     db.c \
     privacy.c \
-	callweaver_mm.c \
     enum.c \
     srv.c \
     dns.c \

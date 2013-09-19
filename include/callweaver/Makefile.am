@@ -10,7 +10,6 @@ cwinclude_HEADERS = acl.h \
                       callweaver_db.h \
                       callweaver_expr.h \
                       callweaver_hash.h \
-                      callweaver_mm.h \
                       callweaver_pcm.h \
                       causes.h \
                       cdr.h \

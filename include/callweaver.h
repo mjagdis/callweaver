@@ -98,8 +98,4 @@ extern int cw_channels_init(void);
 #  define CALLWEAVER_FILE_VERSION(file, x)
 #endif
 
-#if defined(__CW_DEBUG_MALLOC)  &&  !defined(_CALLWEAVER_CALLWEAVER_MM_H)
-#include "callweaver/callweaver_mm.h"
-#endif
-
 #endif
