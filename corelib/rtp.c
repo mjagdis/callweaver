@@ -1050,7 +1050,7 @@ struct cw_frame *cw_rtp_read(struct cw_rtp *rtp)
             rtp->f.subclass |= 0x1;
     }
     rtp->f.seq_no = seqno;
-	rtp->f.tx_copies = 0;
+    rtp->f.tx_copies = 0;
     return &rtp->f;
 }
 

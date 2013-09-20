@@ -334,7 +334,6 @@ int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
     uint8_t buf[LOCAL_FAX_MAX_DATAGRAM];
     const struct sockaddr *them;
     int len;
-    int copies;
     int i;
 
     them = &s->udptl_sock_info->peer.sa;
@@ -358,10 +357,9 @@ int cw_udptl_write(cw_udptl_t *s, struct cw_frame *f)
     if (len > 0)
     {
 #if 0
-        printf("Sending %d copies of %d bytes of UDPTL data to %l@\n", f->state.tx_copies, len, them);
+        printf("Sending %d copies of %d bytes of UDPTL data to %l@\n", f->tx_copies, len, them);
 #endif
-        copies = (f->tx_copies > 0)  ?  f->tx_copies  :  1;
-        for (i = 0;  i < copies;  i++)
+        for (i = 0;  i < f->tx_copies;  i++)
         {
             if (udp_socket_send(s->udptl_sock_info, buf, len, 0) < 0)
                 cw_log(CW_LOG_NOTICE, "UDPTL Transmission error to %l@: %s\n", them, strerror(errno));

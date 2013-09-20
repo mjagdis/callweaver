@@ -161,8 +161,6 @@ static int cw_bridge_frames(struct cw_channel *chan, struct cw_channel *peer)
                 else
                     fr2 = NULL;
 
-                f->tx_copies = 1; /* TODO: this is only needed because not everything sets the tx_copies field properly */
-
                 if ((chan->t38_status == T38_NEGOTIATING) || (peer->t38_status == T38_NEGOTIATING))
                 {
                     /*  TODO
