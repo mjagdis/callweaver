@@ -261,6 +261,12 @@ static const char sipbuilddial_func_synopsis[] = "Build SIP Dial String using <r
 static const char sipbuilddial_func_syntax[] = "SIP_BUILD_DIAL(<regex peer>)";
 static const char sipbuilddial_func_desc[] = "";
 
+static void *sipblacklist_function;
+static const char sipblacklist_func_name[] = "SIPBLACKLIST";
+static const char sipblacklist_func_synopsis[] = "Blacklist the peer for this channel";
+static const char sipblacklist_func_syntax[] = "SIPBLACKLIST()";
+static const char sipblacklist_func_desc[] = "";
+
 
 #define RTP     1
 #define NO_RTP    0
@@ -10937,6 +10943,21 @@ static const char show_settings_usage[] =
 "       Provides detailed list of the configuration of the SIP channel.\n";
 
 
+static int func_sipblacklist(struct cw_channel *chan, int argc, char **argv, struct cw_dynstr *result)
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+	CW_UNUSED(result);
+
+	if (chan->type == channeltype) {
+		struct sip_pvt *p = chan->tech_pvt;
+		cw_blacklist_add(&p->peeraddr.sa);
+	}
+
+	return 0;
+}
+
+
 struct func_sipbuilddial_args {
 	regex_t preg;
 	struct cw_dynstr *result;
@@ -16462,6 +16483,7 @@ static int load_module(void)
     sipchaninfo_function = cw_register_function(sipchaninfo_func_name, function_sipchaninfo_read, sipchaninfo_func_synopsis, sipchaninfo_func_syntax, sipchaninfo_func_desc);
     checksipdomain_function = cw_register_function(checksipdomain_func_name, func_check_sipdomain, checksipdomain_func_synopsis, checksipdomain_func_syntax, checksipdomain_func_desc);
     sipbuilddial_function = cw_register_function(sipbuilddial_func_name, func_sipbuilddial, sipbuilddial_func_synopsis, sipbuilddial_func_syntax, sipbuilddial_func_desc);
+    sipblacklist_function = cw_register_function(sipblacklist_func_name, func_sipblacklist, sipblacklist_func_synopsis, sipblacklist_func_syntax, sipblacklist_func_desc);
 
     /* These will be removed soon */
     sipaddheader_app = cw_register_function(sipaddheader_name, sip_addheader, sipaddheader_synopsis, sipaddheader_syntax, sipaddheader_description);
@@ -16483,6 +16505,7 @@ static int unload_module(void)
 	/* First, take us out of the channel type list */
 	cw_channel_unregister(&sip_tech);
 
+	res |= cw_unregister_function(sipblacklist_function);
 	res |= cw_unregister_function(sipbuilddial_function);
 	res |= cw_unregister_function(checksipdomain_function);
 	res |= cw_unregister_function(sipchaninfo_function);
