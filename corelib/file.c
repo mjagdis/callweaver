@@ -712,22 +712,21 @@ int cw_filecopy(const char *filename, const char *filename2, const char *fmt)
 int cw_streamfile(struct cw_channel *chan, const char *filename, const char *preflang)
 {
 	struct cw_filestream *fs;
+	int ret = -1;
 
-	fs = cw_openstream(chan, filename, preflang);
-	fs->vfs = cw_openvstream(chan, filename, preflang);
-	if (fs->vfs)
-		cw_log(CW_LOG_DEBUG, "Ooh, found a video stream, too\n");
-	if (fs){
-		if (cw_playstream(fs))
-			return -1;
-#if 1
-		if (option_verbose > 2)
-			cw_verbose(VERBOSE_PREFIX_3 "Playing '%s' (language '%s')\n", filename, preflang ? preflang : "default");
-#endif
-		return 0;
-	}
-	cw_log(CW_LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, cw_getformatname(chan->nativeformats), strerror(errno));
-	return -1;
+	if ((fs = cw_openstream(chan, filename, preflang))) {
+		if ((fs->vfs = cw_openvstream(chan, filename, preflang)))
+			cw_log(CW_LOG_DEBUG, "Ooh, found a video stream, too\n");
+
+		if (!cw_playstream(fs)) {
+			if (option_verbose > 2)
+				cw_verbose(VERBOSE_PREFIX_3 "Playing '%s' (language '%s')\n", filename, preflang ? preflang : "default");
+			ret = 0;
+		}
+	} else
+		cw_log(CW_LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, cw_getformatname(chan->nativeformats), strerror(errno));
+
+	return ret;
 }
 
 
