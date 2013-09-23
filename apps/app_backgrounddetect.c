@@ -167,7 +167,6 @@ static int background_detect_exec(struct cw_channel *chan, int argc, char **argv
 	}
 
 	if (!res) {
-		cw_stopstream(chan);
 		res = cw_streamfile(chan, argv[0], chan->language);
 		if (!res) {
 			while(chan->stream) {

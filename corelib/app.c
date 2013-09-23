@@ -306,8 +306,6 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 	for (;;) {
 		struct timeval started = cw_tvnow();
 
-		if (chan)
-			cw_stopstream(chan);
 		res = cw_streamfile(chan, file, chan->language);
 		if (!res) {
 			if (end) {

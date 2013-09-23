@@ -1179,7 +1179,6 @@ static int play_file(struct cw_channel *chan, char *filename)
 
     if (!cw_strlen_zero(filename))
     {
-        cw_stopstream(chan);
         res = cw_streamfile(chan, filename, chan->language);
 
         if (!res)
@@ -1758,7 +1757,6 @@ static int background_file(struct queue_ent *qe, struct cw_channel *chan, char *
 {
     int res;
 
-    cw_stopstream(chan);
     res = cw_streamfile(chan, filename, chan->language);
 
     if (!res)
