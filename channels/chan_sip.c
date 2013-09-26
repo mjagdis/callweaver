@@ -1147,7 +1147,7 @@ static struct sip_auth *authl;          /*!< Authentication list */
 
 static char *get_header(const struct sip_request *req, const char *name, size_t name_len, const char *alias, size_t alias_len);
 static void transmit_error(struct sip_request *req, const char *status);
-static void transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req);
+static void transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req, int reliable);
 static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, struct sip_request *req, int retrans);
 static void transmit_response_with_unsupported(struct sip_pvt *p, const char *status, struct sip_request *req, char *unsupported);
 static void transmit_response_with_auth(struct sip_pvt *p, const char *status, struct sip_request *req, const char *rand, int reliable, const char *header, int stale);
@@ -2060,13 +2060,10 @@ static int retrans_pkt(void *data)
 
 
 /*! \brief  __sip_reliable_xmit: transmit packet with retransmits */
-static void __sip_reliable_xmit(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg, int fatal)
+static void __sip_reliable_xmit(struct sip_pvt *p, struct cw_connection *conn, struct cw_sockaddr_net *from, struct cw_sockaddr_net *to, struct sip_request *msg)
 {
 	msg->next = p->retrans;
 	p->retrans = msg;
-
-	if (fatal)
-		cw_set_flag(msg, FLAG_FATAL);
 
 	msg->timer_a = 0;
 
@@ -2171,7 +2168,7 @@ static int sip_cancel_destroy(struct sip_pvt *dialogue)
 
 
 /*! \brief  retrans_stop: stop retransmission of the message for which we have just received a reply */
-static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipmethod sipmethod, int final)
+static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipmethod sipmethod)
 {
 	struct sip_request **cur;
 
@@ -2179,11 +2176,6 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 		if (((*cur)->seqno == reply->seqno)
 		&& ((!strncasecmp(sip_methods[sipmethod].text, (*cur)->pkt.data, sip_methods[sipmethod].len)))) {
 			cw_log(CW_LOG_DEBUG, "%s: stopping retransmission of %s, seq %d\n", p->callid, sip_methods[sipmethod].text, reply->seqno);
-
-			if (final && reply->method != SIP_RESPONSE && reply->seqno == p->pendinginvite) {
-				cw_log(CW_LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
-				p->pendinginvite = 0;
-			}
 
 			/* If we can delete the scheduled retransmit we own the packet
 			 * and can go ahead and free it. Otherwise the scheduled retransmit
@@ -2231,7 +2223,7 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 					}
 				}
 
-				if (final || sipmethod != SIP_INVITE) {
+				if (sipmethod != SIP_INVITE || (*(reply->pkt.data + reply->uriresp) != '1')) {
 					struct sip_request *old = *cur;
 
 					if (sipdebug && option_debug > 3)
@@ -2336,7 +2328,7 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 				msg->pkt.data);
 
 		if (reliable) {
-			__sip_reliable_xmit(p, conn, from, to, msg, (reliable > 1));
+			__sip_reliable_xmit(p, conn, from, to, msg);
 			res = 0;
 		} else {
 			res = __sip_xmit(conn, from, to, msg);
@@ -3157,8 +3149,6 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 }
 
 
-static void transmit_response_reliable(struct sip_pvt *p, const char *msg, struct sip_request *req, int fatal);
-
 /*! \brief  hangup_sip2cause: Convert SIP hangup causes to CallWeaver hangup causes */
 static int hangup_sip2cause(int cause)
 {
@@ -3397,10 +3387,11 @@ static int sip_hangup(struct cw_channel *ast)
                 /* Incoming call, not up */
                 const char *res;
             
+		cw_set_flag(&p->initreq, FLAG_FATAL);
                 if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause))))
-                    transmit_response_reliable(p, res, &p->initreq, 1);
+                    transmit_response(p, res, &p->initreq, 1);
                 else 
-                    transmit_response_reliable(p, "603 Declined", &p->initreq, 1);
+                    transmit_response(p, "603 Declined", &p->initreq, 1);
             }
         }
         else
@@ -3666,7 +3657,7 @@ static int sip_indicate(struct cw_channel *ast, int condition)
                 (cw_test_flag(p, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER))
             {
                 /* Send 180 ringing if out-of-band seems reasonable */
-                transmit_response(p, "180 Ringing", &p->initreq);
+                transmit_response(p, "180 Ringing", &p->initreq, 0);
                 cw_set_flag(p, SIP_RINGING);
                 if (cw_test_flag(p, SIP_PROG_INBAND) != SIP_PROG_INBAND_YES)
                     break;
@@ -3681,7 +3672,7 @@ static int sip_indicate(struct cw_channel *ast, int condition)
     case CW_CONTROL_BUSY:
         if (ast->_state != CW_STATE_UP)
         {
-            transmit_response(p, "486 Busy Here", &p->initreq);
+            transmit_response(p, "486 Busy Here", &p->initreq, 0);
             cw_set_flag(p, SIP_ALREADYGONE);    
             cw_softhangup_nolock(ast, CW_SOFTHANGUP_DEV);
             break;
@@ -3691,7 +3682,7 @@ static int sip_indicate(struct cw_channel *ast, int condition)
     case CW_CONTROL_CONGESTION:
         if (ast->_state != CW_STATE_UP)
         {
-            transmit_response(p, "503 Service Unavailable", &p->initreq);
+            transmit_response(p, "503 Service Unavailable", &p->initreq, 0);
             cw_set_flag(p, SIP_ALREADYGONE);    
             cw_softhangup_nolock(ast, CW_SOFTHANGUP_DEV);
             break;
@@ -3701,7 +3692,7 @@ static int sip_indicate(struct cw_channel *ast, int condition)
     case CW_CONTROL_PROCEEDING:
         if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING))
         {
-            transmit_response(p, "100 Trying", &p->initreq);
+            transmit_response(p, "100 Trying", &p->initreq, 0);
             break;
         }
         res = -1;
@@ -5525,8 +5516,8 @@ out:
 }
 
 
-/*! \brief  __transmit_response: Base transmit response function */
-static void __transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req, int reliable)
+/*! \brief  transmit_response: Base transmit response function */
+static void transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req, int reliable)
 {
 	struct sip_request tmpmsg, *msg;
 
@@ -5589,15 +5580,9 @@ static void transmit_error(struct sip_request *req, const char *status)
 
 	cw_copy_flags(&dialogue, &global_flags, SIP_NAT);
 
-	__transmit_response(&dialogue, status, req, 0);
+	transmit_response(&dialogue, status, req, 0);
 }
 
-
-/*! \brief  transmit_response: Transmit response, no retransmits */
-static void transmit_response(struct sip_pvt *p, const char *status, struct sip_request *req)
-{
-	__transmit_response(p, status, req, 0);
-}
 
 /*! \brief  transmit_response_with_unsupported: Transmit response, no retransmits */
 static void transmit_response_with_unsupported(struct sip_pvt *p, const char *status, struct sip_request *req, char *unsupported)
@@ -5608,12 +5593,6 @@ static void transmit_response_with_unsupported(struct sip_pvt *p, const char *st
 	append_date(&msg);
 	cw_dynstr_printf(&msg.pkt, "Unsupported: %s\r\n", unsupported);
 	send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, &msg, 0);
-}
-
-/*! \brief  transmit_response_reliable: Transmit response, Make sure you get a reply */
-static void transmit_response_reliable(struct sip_pvt *p, const char *status, struct sip_request *req, int fatal)
-{
-	__transmit_response(p, status, req, fatal ? 2 : 1);
 }
 
 /*! \brief  append_date: Append date to SIP message */
@@ -7082,6 +7061,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 
 	msg->free = 1;
 
+	cw_set_flag(msg, FLAG_FATAL);
+
         res = send_message(p, p->conn, &p->ouraddr, &p->peeraddr, msg, 2);
     }
 
@@ -8048,7 +8029,7 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
         {
             if (!check_sip_domain(domain, NULL, 0))
             {
-                transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
+                transmit_response(p, "404 Not found (unknown domain)", &p->initreq, 0);
                 return -3;
             }
         }
@@ -8072,7 +8053,7 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
         else
         {
             cw_copy_flags(p, peer, SIP_NAT);
-            transmit_response(p, "100 Trying", req);
+            transmit_response(p, "100 Trying", req, 0);
             if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore)))
             {
                 sip_cancel_destroy(p);
@@ -8144,21 +8125,21 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
         {
         case -1:
             /* Wrong password in authentication. Go away, don't try again until you fixed it */
-            transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
+            transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq, 0);
             break;
         case -2:
             /* Username and digest username does not match. 
                CallWeaver uses the From: username for authentication. We need the
                users to use the same authentication user name until we support
                proper authentication by digest auth name */
-            transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
+            transmit_response(p, "403 Authentication user name does not match account name", &p->initreq, 0);
             break;
         case -3:
 	    if (global_alwaysauthreject) {
 		transmit_fake_auth_response(p, &p->initreq, p->randdata, sizeof(p->randdata), 1);
 	    } else {
 		/* URI not found */
-		transmit_response(p, "404 Not found", &p->initreq);
+		transmit_response(p, "404 Not found", &p->initreq, 0);
 	    }
             res = -2;
             break;
@@ -8954,7 +8935,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	/* We want text/plain. It may have a charset specifier after it but we don't want text/plainfoo[;charset=...] */
 	if (strncmp(content_type, "text/plain", 10) || (content_type[10] && !(content_type[10] == ' ' || content_type[10] == ';'))) {
 		/* No text/plain attachment */
-		transmit_response(p, "415 Unsupported Media Type", req); /* Good enough, or? */
+		transmit_response(p, "415 Unsupported Media Type", req, 0); /* Good enough, or? */
 		sip_destroy(p);
 		return;
 	}
@@ -8970,10 +8951,10 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		f.data = &req->pkt.data[req->body_start];
 		f.datalen = req->pkt.used - req->body_start;
 		cw_queue_frame(p->owner, &f);
-		transmit_response(p, "202 Accepted", req); /* We respond 202 accepted, since we relay the message */
+		transmit_response(p, "202 Accepted", req, 0); /* We respond 202 accepted, since we relay the message */
 	} else { /* Message outside of a call, we do not support that */
 		cw_log(CW_LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req, SIP_HDR_TO), get_header(req, SIP_HDR_FROM), content_type, &req->pkt.data[req->body_start]);
-		transmit_response(p, "405 Method Not Allowed", req); /* Good enough, or? */
+		transmit_response(p, "405 Method Not Allowed", req, 0); /* Good enough, or? */
 	}
 	sip_destroy(p);
 	return;
@@ -10462,16 +10443,16 @@ static void handle_request_info(struct sip_pvt *dialogue, struct sip_request *re
 					cw_object_put(bchan);
 				}
 			}
-			transmit_response(dialogue, "200 OK", req);
+			transmit_response(dialogue, "200 OK", req, 0);
 		} else
-			transmit_response(dialogue, "403 Unauthorized", req);
+			transmit_response(dialogue, "403 Unauthorized", req, 0);
 	} else if ((processed = mime_process(dialogue, req, ignore, actions, arraysize(actions))) >= 0)
-		transmit_response(dialogue, "200 OK", req);
+		transmit_response(dialogue, "200 OK", req, 0);
 	else {
 		if (!ignore)
 			cw_log(CW_LOG_WARNING, "Unable to parse INFO message from %s.\n", dialogue->callid);
 
-		transmit_response(dialogue, "415 Unsupported media type", req);
+		transmit_response(dialogue, "415 Unsupported media type", req, 0);
 	}
 }
 
@@ -10483,7 +10464,7 @@ static void handle_request_publish(struct sip_pvt *dialogue, struct sip_request 
 	/* We don't currently parse publish messages but regardless
 	 * of what they were trying to tell us - we heard them.
 	 */
-	transmit_response(dialogue, "200 OK", req);
+	transmit_response(dialogue, "200 OK", req, 0);
 }
 
 
@@ -11786,9 +11767,6 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req, int igno
         return;
     }
 
-    /* Cease retransmissions of whatever the response is to */
-    retrans_stop(p, req, req->cseq_method, (*(req->pkt.data + req->uriresp) != '1'));
-
     if (sscanf(req->pkt.data + req->uriresp, " %d", &resp) != 1)
     {
         cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->pkt.data + req->uriresp);
@@ -12409,7 +12387,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         /* This is a call to ourself.  Send ourselves an error code and stop
            processing immediately, as SIP really has no good mechanism for
            being able to call yourself */
-        transmit_response(p, "482 Loop Detected", req);
+        transmit_response(p, "482 Loop Detected", req, 0);
         /* We do NOT destroy p here, so that our response will be accepted */
         return 0;
     }
@@ -12429,7 +12407,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             /* Handle SDP here if we already have an owner */
             if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
             {
-                transmit_response(p, "488 Not acceptable here", req);
+                transmit_response(p, "488 Not acceptable here", req, 0);
                 if (!p->lastinvite)
                     sip_destroy(p);
                 return -1;
@@ -12459,7 +12437,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
 	    } else {
 		cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, SIP_HDR_FROM));
-		transmit_response_reliable(p, "403 Forbidden", req, 1);
+		cw_set_flag(req, FLAG_FATAL);
+		transmit_response(p, "403 Forbidden", req, 1);
 	    }
 	    sip_destroy(p);
 	    return 0;
@@ -12467,7 +12446,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         /* Process the SDP portion */
         if (mime_process(p, req, ignore, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
         {
-            transmit_response(p, "488 Not acceptable here", req);
+            transmit_response(p, "488 Not acceptable here", req, 0);
             sip_destroy(p);
             return -1;
         }
@@ -12490,7 +12469,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             if (res < 0)
             {
                 cw_log(CW_LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
-                transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
+		cw_set_flag(req, FLAG_FATAL);
+                transmit_response(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
                 sip_destroy(p);
             }
             return 0;
@@ -12504,14 +12484,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
         if (gotdest)
         {
+            cw_set_flag(req, FLAG_FATAL);
             if (gotdest < 0)
-            {
-                transmit_response_reliable(p, "404 Not Found", req, 1);
-            }
+                transmit_response(p, "404 Not Found", req, 1);
             else
-            {
-                transmit_response_reliable(p, "484 Address Incomplete", req, 1);
-            }
+                transmit_response(p, "484 Address Incomplete", req, 1);
             update_call_counter(p, DEC_CALL_LIMIT);
 	    sip_destroy(p);
 	    return 0;
@@ -12543,7 +12520,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
         switch (c->_state)
         {
         case CW_STATE_DOWN:
-            transmit_response(p, "100 Trying", req);
+            transmit_response(p, "100 Trying", req, 0);
             cw_setstate(c, CW_STATE_RING);
             if (strcmp(p->exten, cw_pickup_ext()))
             {
@@ -12556,16 +12533,20 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     case CW_PBX_FAILED:
                         cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
                         if (ignore)
-                            transmit_response(p, "503 Unavailable", req);
-                        else
-                            transmit_response_reliable(p, "503 Unavailable", req, 1);
+                            transmit_response(p, "503 Unavailable", req, 0);
+                        else {
+                            cw_set_flag(req, FLAG_FATAL);
+                            transmit_response(p, "503 Unavailable", req, 1);
+                        }
                         break;
                     case CW_PBX_CALL_LIMIT:
                         cw_log(CW_LOG_WARNING, "Failed to start PBX (call limit reached) \n");
                         if (ignore)
-                            transmit_response(p, "480 Temporarily Unavailable", req);
-                        else
-                            transmit_response_reliable(p, "480 Temporarily Unavailable", req, 1);
+                            transmit_response(p, "480 Temporarily Unavailable", req, 0);
+                        else {
+                            cw_set_flag(req, FLAG_FATAL);
+                            transmit_response(p, "480 Temporarily Unavailable", req, 1);
+                        }
                         break;
                     case CW_PBX_SUCCESS:
                         /* nothing to do */
@@ -12588,9 +12569,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                 {
                     cw_log(CW_LOG_NOTICE, "Nothing to pick up\n");
                     if (ignore)
-                        transmit_response(p, "503 Unavailable", req);
-                    else
-                        transmit_response_reliable(p, "503 Unavailable", req, 1);
+                        transmit_response(p, "503 Unavailable", req, 0);
+                    else {
+                        cw_set_flag(req, FLAG_FATAL);
+                        transmit_response(p, "503 Unavailable", req, 1);
+                    }
                     cw_set_flag(p, SIP_ALREADYGONE);    
                     /* Unlock locks so cw_hangup can do its magic */
                     cw_mutex_unlock(&p->lock);
@@ -12609,10 +12592,10 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             }
             break;
         case CW_STATE_RING:
-            transmit_response(p, "100 Trying", req);
+            transmit_response(p, "100 Trying", req, 0);
             break;
         case CW_STATE_RINGING:
-            transmit_response(p, "180 Ringing", req);
+            transmit_response(p, "180 Ringing", req, 0);
             break;
         case CW_STATE_UP:
             if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
@@ -12648,10 +12631,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                                     cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
                                     p->t38state = SIP_T38_STATUS_UNKNOWN;
                                     cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                                        if (ignore)
-                                        transmit_response(p, "415 Unsupported Media Type", req);
-                                    else
-                                        transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
+                                    if (ignore)
+                                        transmit_response(p, "415 Unsupported Media Type", req, 0);
+                                    else {
+                                        cw_set_flag(req, FLAG_FATAL);
+                                        transmit_response(p, "415 Unsupported Media Type", req, 1);
+                                    }
                                     sip_destroy(p);
                                 } 
                             }
@@ -12665,9 +12650,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                     {
                         /* Other side is not a SIP channel */
                         if (ignore)
-                            transmit_response(p, "415 Unsupported Media Type", req);
-                        else 
-                                transmit_response_reliable(p, "415 Unsupported Media Type", req, 1);
+                            transmit_response(p, "415 Unsupported Media Type", req, 0);
+                        else {
+                                cw_set_flag(req, FLAG_FATAL);
+                                transmit_response(p, "415 Unsupported Media Type", req, 1);
+                        }
                         p->t38state = SIP_T38_STATUS_UNKNOWN;
                         cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
                         sip_destroy(p);
@@ -12704,9 +12691,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
                             cw_log(CW_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
                             /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
                             if (ignore)
-                                transmit_response(p, "488 Not Acceptable Here (unsupported)", req);
-                            else
-                                transmit_response_reliable(p, "488 Not Acceptable Here (unsupported)", req, 1);
+                                transmit_response(p, "488 Not Acceptable Here (unsupported)", req, 0);
+                            else {
+                                cw_set_flag(req, FLAG_FATAL);
+                                transmit_response(p, "488 Not Acceptable Here (unsupported)", req, 1);
+                            }
                             sip_destroy(p);
                         }
                         else
@@ -12723,21 +12712,20 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
             break;
         default:
             cw_log(CW_LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
-            transmit_response(p, "100 Trying", req);
+            transmit_response(p, "100 Trying", req, 0);
         }
     }
     else
     {
         if (p && !ignore)
         {
+            cw_set_flag(req, FLAG_FATAL);
             if (!p->jointcapability)
-            {
-                transmit_response_reliable(p, "488 Not Acceptable Here (codec error)", req, 1);
-            }
+                transmit_response(p, "488 Not Acceptable Here (codec error)", req, 1);
             else
             {
                 cw_log(CW_LOG_NOTICE, "Unable to create/find channel\n");
-                transmit_response_reliable(p, "503 Unavailable", req, 1);
+                transmit_response(p, "503 Unavailable", req, 1);
             }
             sip_destroy(p);
         }
@@ -12765,9 +12753,9 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
         strcpy(p->context, default_context);
 
     if (res < 0)
-        transmit_response(p, "603 Declined", req);
+        transmit_response(p, "603 Declined", req, 0);
     else if (res > 0)
-        transmit_response(p, "484 Address Incomplete", req);
+        transmit_response(p, "484 Address Incomplete", req, 0);
     else
     {
         int nobye = 0;
@@ -12821,7 +12809,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
                 }
                 cw_set_flag(p, SIP_GOTREFER);    
             }
-            transmit_response(p, "202 Accepted", req);
+            transmit_response(p, "202 Accepted", req, 0);
             transmit_notify_with_sipfrag(p, req->seqno);
             /* Always increment on a BYE */
             if (!nobye)
@@ -12862,14 +12850,16 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
     }
     if (p->initreq.pkt.used > 0)
     {
-        if (!ignore)
-            transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
-        transmit_response(p, "200 OK", req);
+        if (!ignore) {
+            cw_set_flag(&p->initreq, FLAG_FATAL);
+            transmit_response(p, "487 Request Terminated", &p->initreq, 1);
+        }
+        transmit_response(p, "200 OK", req, 0);
         ret = 1;
     }
     else
     {
-        transmit_response(p, "481 Call Leg Does Not Exist", req);
+        transmit_response(p, "481 Call Leg Does Not Exist", req, 0);
         ret = 0;
     }
 
@@ -12890,8 +12880,10 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 
     CW_UNUSED(debug);
 
-    if (p->pendinginvite && !cw_test_flag(p, SIP_OUTGOING) && !ignore && !p->owner)
-        transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
+    if (p->pendinginvite && !cw_test_flag(p, SIP_OUTGOING) && !ignore && !p->owner) {
+        cw_set_flag(&p->initreq, FLAG_FATAL);
+        transmit_response(p, "487 Request Terminated", &p->initreq, 1);
+    }
 
     copy_request(&p->initreq, req);
     cw_set_flag(p, SIP_ALREADYGONE);    
@@ -12942,7 +12934,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
         cw_queue_hangup(p->owner);
     else
         sip_destroy(p);
-    transmit_response(p, "200 OK", req);
+    transmit_response(p, "200 OK", req, 0);
 
     return 1;
 }
@@ -12958,7 +12950,7 @@ static int handle_request_message(struct sip_pvt *p, struct sip_request *req, in
     }
     else
     {
-        transmit_response(p, "202 Accepted", req);
+        transmit_response(p, "202 Accepted", req, 0);
     }
     return 1;
 }
@@ -12999,7 +12991,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         {
             /* This is a SUBSCRIBE within another SIP dialog, which we do not support */
             /* For transfers, this could happen, but since we haven't seen it happening, let us just refuse this */
-             transmit_response(p, "403 Forbidden (within dialog)", req);
+             transmit_response(p, "403 Forbidden (within dialog)", req, 0);
             /* Do not destroy session, since we will break the call if we do */
             cw_log(CW_LOG_DEBUG, "Got a subscription within the context of another call, can't handle that - %s (Method %s)\n", p->callid, sip_methods[p->initreq.method].text);
             return 0;
@@ -13058,9 +13050,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		} else {
 			cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, SIP_HDR_FROM));
 			if (ignore)
-				transmit_response(p, "403 Forbidden", req);
-			else
-				transmit_response_reliable(p, "403 Forbidden", req, 1);
+				transmit_response(p, "403 Forbidden", req, 0);
+			else {
+				cw_set_flag(req, FLAG_FATAL);
+				transmit_response(p, "403 Forbidden", req, 1);
+			}
 		}
 		sip_destroy(p);
 		return 0;
@@ -13081,9 +13075,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         if (gotdest)
         {
             if (gotdest < 0)
-                transmit_response(p, "404 Not Found", req);
+                transmit_response(p, "404 Not Found", req, 0);
             else
-                transmit_response(p, "484 Address Incomplete", req);    /* Overlap dialing on SUBSCRIBE?? */
+                transmit_response(p, "484 Address Incomplete", req, 0);    /* Overlap dialing on SUBSCRIBE?? */
             sip_destroy(p);
         }
         else
@@ -13119,7 +13113,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		} else if (cw_strlen_zero(hdr_accept)) {
 		    if (p->subscribed == NONE) { 
 			/* if the subscribed field is not already set, and there is no accept header... */
-			transmit_response(p, "489 Bad Event", req);
+			transmit_response(p, "489 Bad Event", req, 0);
 			cw_log(CW_LOG_WARNING,"SUBSCRIBE failure: no Accept header: pvt: stateid: %d, laststate: %d, dialogver: %d, subscribecont: '%s'\n",
 					p->stateid, p->laststate, p->dialogver, p->subscribecontext);
 			sip_destroy(p);
@@ -13133,7 +13127,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                     /* Can't find a format for events that we know about */
 		    char mybuf[200];
 		    snprintf(mybuf,sizeof(mybuf),"489 Bad Event (format %s)", hdr_accept);
-		    transmit_response(p, mybuf, req);
+		    transmit_response(p, mybuf, req, 0);
 		    sip_destroy(p);
                     return 0;
                 }
@@ -13166,16 +13160,16 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
                 }
 
                 if (found)
-                    transmit_response(p, "200 OK", req);
+                    transmit_response(p, "200 OK", req, 0);
                 else
-                    transmit_response(p, "404 Not found", req);
+                    transmit_response(p, "404 Not found", req, 0);
                 sip_destroy(p);
                 return 0;
             }
             else
             {
                 /* At this point, CallWeaver does not understand the specified event */
-                transmit_response(p, "489 Bad Event", req);
+                transmit_response(p, "489 Bad Event", req, 0);
                 if (option_debug > 1)
                     cw_log(CW_LOG_DEBUG, "Received SIP subscribe for unknown event package: %s\n", event);
                 sip_destroy(p);
@@ -13206,13 +13200,13 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
         if ((firststate = cw_extension_state(NULL, p->context, p->exten)) < 0)
         {
             cw_log(CW_LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
-            transmit_response(p, "404 Not found", req);
+            transmit_response(p, "404 Not found", req, 0);
             sip_destroy(p);
             return 0;
         }
         else
         {
-            transmit_response(p, "200 OK", req);
+            transmit_response(p, "200 OK", req, 0);
             transmit_state_notify(p, firststate, 1, 1, 0);    /* Send first notification */
 
 	    /* remove any old subscription from this peer for the same exten/context,
@@ -13301,7 +13295,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
             {
 	        if (option_debug)
                     cw_log(CW_LOG_DEBUG, "Ignoring too old SIP packet packet %u (expecting >= %u)\n", req->seqno, p->icseq);
-                transmit_response(p, "500 Server Internal Error", req);
+                transmit_response(p, "500 Server Internal Error", req, 0);
                 return -1;
             }
         }
@@ -13341,19 +13335,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
             /* If this is a first request and it got a to-tag, it is not for us */
             if (!ignore && req->method == SIP_INVITE)
             {
-                transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req, 1);
+		cw_set_flag(req, FLAG_FATAL);
+                transmit_response(p, "481 Call/Transaction Does Not Exist", req, 1);
                 /* Will cease to exist after ACK */
             }
 	    else if (req->method != SIP_ACK)
             {
-                transmit_response(p, "481 Call/Transaction Does Not Exist", req);
+                transmit_response(p, "481 Call/Transaction Does Not Exist", req, 0);
                 sip_destroy(p);
             }
             return res;
         }
     }
     if (!req->pkt.data[req->uriresp] && (req->method == SIP_INVITE || req->method == SIP_SUBSCRIBE || req->method == SIP_REGISTER)) {
-        transmit_response(p, "400 Bad request", req);
+        transmit_response(p, "400 Bad request", req, 0);
         sip_destroy(p);
         return -1;
     }
@@ -13407,7 +13402,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
     case SIP_NOTIFY:
         /* XXX we get NOTIFY's from some servers. WHY?? Maybe we should
             look into this someday XXX */
-        transmit_response(p, "200 OK", req);
+        transmit_response(p, "200 OK", req, 0);
         if (!p->lastinvite) 
             sip_destroy(p);
         break;
@@ -13514,8 +13509,11 @@ static int handle_message(void *data)
 				}
 			}
 
-			if (dialogue)
+			if (dialogue) {
+				/* Cease retransmissions of whatever the response is to */
+				retrans_stop(dialogue, req, req->cseq_method);
 				handle_response(dialogue, req, (dialogue->ocseq && (dialogue->ocseq != req->seqno)));
+			}
 		} else if (found) {
 			/* We found the call ID but the tags didn't match. Maybe there's a
 			 * forking proxy in the way and the call has already been claimed
@@ -13525,13 +13523,9 @@ static int handle_message(void *data)
 			transmit_error(req, "481 Call leg/transaction does not exist");
 		}
 	} else {
-		/* If we found a dialogue and this is an ACK we stop retransmissions of the
-		 * relevant non-provisional response
-		 */
-		if (dialogue) {
-			if (req->method == SIP_ACK)
-				retrans_stop(dialogue, req, SIP_RESPONSE, 1);
-		} else if (!found) {
+		if (dialogue && req->method == SIP_ACK)
+			retrans_stop(dialogue, req, SIP_RESPONSE);
+		else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 
 			if (!cw_blacklist_check(&req->recvdaddr.sa)) {
@@ -15561,7 +15555,8 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 
     cw_dynstr_free(&ds);
 
-    transmit_response_reliable(p, "302 Moved Temporarily", &p->initreq, 1);
+    cw_set_flag(&p->initreq, FLAG_FATAL);
+    transmit_response(p, "302 Moved Temporarily", &p->initreq, 1);
 
     /* this is all that we want to send to that SIP device */
     cw_set_flag(p, SIP_ALREADYGONE);
