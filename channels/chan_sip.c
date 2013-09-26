@@ -2175,8 +2175,6 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 {
 	struct sip_request **cur;
 
-	cw_mutex_lock(&p->lock);
-
 	for (cur = &p->retrans; *cur; cur = &(*cur)->next) {
 		if (((*cur)->seqno == reply->seqno)
 		&& ((!strncasecmp(sip_methods[sipmethod].text, (*cur)->pkt.data, sip_methods[sipmethod].len)))) {
@@ -2264,8 +2262,6 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 			break;
 		}
 	}
-
-	cw_mutex_unlock(&p->lock);
 }
 
 /*! \brief retrans_stop_all: Stop any retransmits of outstanding reliable-delivery messages */
