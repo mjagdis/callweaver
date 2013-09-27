@@ -1611,6 +1611,8 @@ static void dialogue_release(struct cw_object *obj)
 	cw_object_put(dialogue->conn);
 
 	cw_mutex_destroy(&dialogue->lock);
+
+	cw_object_destroy(dialogue);
 	free(dialogue);
 }
 
@@ -1919,7 +1921,6 @@ static int retrans_pkt(void *data)
 {
     struct sip_request *msg = data, **prev;
 
-    /* Lock channel */
     cw_mutex_lock(&msg->owner->lock);
 
     /* It's possible we just waited while an ack was sent for a reply
@@ -3027,16 +3028,7 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
 		cw_object_put(dialogue);
 
-	while (dialogue->retrans) {
-		struct sip_request *msg = dialogue->retrans;
-		dialogue->retrans = dialogue->retrans->next;
-		if (msg->retransid > -1 && !cw_sched_del(sched, msg->retransid)) {
-			cw_object_put(dialogue);
-			cw_dynstr_free(&msg->pkt);
-			free(msg);
-		} else
-			msg->method = SIP_UNKNOWN;
-	}
+	retrans_stop_all(dialogue);
 
 	if (dialogue->registry) {
 		if (dialogue->registry->dialogue == dialogue) {
@@ -4128,7 +4120,7 @@ static struct sip_pvt *sip_alloc(void)
     if ((p = calloc(1, sizeof(struct sip_pvt))) == NULL)
         return NULL;
 
-    cw_object_init(p, CW_OBJECT_CURRENT_MODULE, 0);
+    cw_object_init(p, CW_OBJECT_CURRENT_MODULE, 1);
     p->obj.release = dialogue_release;
 
     cw_mutex_init(&p->lock);
@@ -6821,7 +6813,6 @@ static int sip_reg_timeout(void *data)
         if (p->registry)
             cw_object_put(p->registry);
         r->dialogue = NULL;
-        retrans_stop_all(p);
         sip_destroy(p);
         cw_mutex_unlock(&p->lock);
         cw_object_put(p);
@@ -6878,7 +6869,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             cw_log(CW_LOG_WARNING, "Already have a REGISTER going on to %s@%s?? \n", r->username, r->hostname);
             return 0;
         }
-        p = r->dialogue;
+        p = cw_object_dup(r->dialogue);
 #if 0
 	/* Forget their old tag, so we don't match tags when getting response.
 	 * This is strictly incorrect since the tag should be constant throughout
@@ -6905,8 +6896,6 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         {
             /* we have what we hope is a temporary network error,
              * probably DNS.  We need to reschedule a registration try */
-            sip_destroy(p);
-            p->obj.release(&p->obj);
             r->regattempts++;
             if (r->timeout > -1)
             {
@@ -6920,6 +6909,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
                 cw_log(CW_LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
                 r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
             }
+            sip_destroy(p);
+            cw_object_put(p);
             return 0;
         }
 
@@ -7076,6 +7067,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     } else
         cw_object_put(r);
 
+    cw_object_put(p);
     return res;
 }
 
@@ -10590,7 +10582,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
         {
             /* Maybe they're not registered, etc. */
             sip_destroy(p);
-            p->obj.release(&p->obj);
+            cw_object_put(p);
             cw_dynstr_printf(ds_p, "Could not create address for '%s'\n", argv[i]);
             continue;
         }
@@ -10607,6 +10599,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
         cw_dynstr_printf(ds_p, "Sending NOTIFY of type '%s' to '%s'\n", argv[2], argv[i]);
         transmit_sip_request(p, &req);
         sip_scheddestroy(p, -1);
+        cw_object_put(p);
     }
 
     return RESULT_SUCCESS;
@@ -13560,11 +13553,10 @@ static int handle_message(void *data)
 
 								dialogue->reg_entry = cw_registry_add(&dialogue_registry, hash, &dialogue->obj);
 
-								cw_object_dup(dialogue);
 								cw_mutex_lock(&dialogue->lock);
 							} else {
 								/* Huh? They can talk to us but we can't talk to them?!? */
-								dialogue_release(&dialogue->obj);
+								cw_object_put(dialogue);
 								dialogue = NULL;
 							}
 						} else {
@@ -13749,7 +13741,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     {
         /* Maybe they're not registered, etc. */
         sip_destroy(p);
-        p->obj.release(&p->obj);
+        cw_object_put(p);
         return 0;
     }
 
@@ -13759,6 +13751,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     cw_set_flag(p, SIP_OUTGOING);
     transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
     sip_scheddestroy(p, -1);
+    cw_object_put(p);
     return 0;
 }
 #endif
@@ -13901,9 +13894,9 @@ static void *sip_poke_peer_thread(void *data)
 				transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
 				peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
-			} else {
-				dialogue_release(&p->obj);
 			}
+
+			cw_object_put(p);
 		} else {
 			cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
 			peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_F * peer->timer_t1, sip_poke_peer, peer);
@@ -14039,7 +14032,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     if (!p->options)
     {
 	sip_destroy(p);
-        p->obj.release(&p->obj);
+        cw_object_put(p);
 	cw_log(CW_LOG_ERROR, "Unable to build option SIP data structure - Out of memory\n");
 	*cause = CW_CAUSE_SWITCH_CONGESTION;
         return NULL;
@@ -14083,7 +14076,7 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     {
         *cause = CW_CAUSE_NORMAL_TEMPORARY_FAILURE;
         sip_destroy(p);
-        p->obj.release(&p->obj);
+        cw_object_put(p);
         return NULL;
     }
 
@@ -14099,25 +14092,23 @@ static struct cw_channel *sip_request_call(const char *type, int format, void *d
     if (ext)
     {
         cw_copy_string(p->username, ext, sizeof(p->username));
-        p->fullcontact[0] = 0;    
+        p->fullcontact[0] = 0;
     }
-#if 0
-    printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
-#endif
     p->prefcodec = format;
+
     cw_mutex_lock(&p->lock);
+
     tmpc = sip_new(p, CW_STATE_DOWN, host);    /* Place the call */
     if (!tmpc)
-    {
         sip_destroy(p);
-        /* We don't need to call the destructor explicitly here because we had
-         * added the dialogue to the registry already so sip_destroy will have
-         * done a final "put" when removing the dialogue from the registry.
-         */
-    }
+    else
+        cw_channel_unlock(tmpc);
+
     cw_mutex_unlock(&p->lock);
-    cw_channel_unlock(tmpc);
+    cw_object_put(p);
+
     pthread_kill(monitor_thread, SIGURG);
+
     return tmpc;
 }
 
