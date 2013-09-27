@@ -13825,22 +13825,19 @@ static __attribute__((__noreturn__)) void *do_monitor(void *data)
 
     CW_UNUSED(data);
 
-    args.fastrestart = 0;
-
     for (;;)
     {
         /* Check for interfaces needing to be killed */
         time(&args.t);
-        if (!args.fastrestart)
-            cw_registry_iterate(&dialogue_registry, do_monitor_dialogue_one, &args);
+        args.fastrestart = 0;
+        cw_registry_iterate(&dialogue_registry, do_monitor_dialogue_one, &args);
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
         pthread_testcancel();
 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
-        /* If we might need to send more mailboxes, don't wait long at all.*/
+        /* If we have work to do don't wait long at all.*/
         res = (args.fastrestart ? 1 : 1000);
-            res = 1;
         cw_io_run(io, res);
 
 #if 0
