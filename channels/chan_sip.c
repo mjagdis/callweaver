@@ -2169,66 +2169,69 @@ static int sip_cancel_destroy(struct sip_pvt *dialogue)
 
 
 /*! \brief  retrans_stop: stop retransmission of the message for which we have just received a reply */
-static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipmethod sipmethod)
+static void retrans_stop(struct sip_request **retrans_list, struct sip_request *reply, int stop_response)
 {
 	struct sip_request **cur;
 
-	for (cur = &p->retrans; *cur; cur = &(*cur)->next) {
-		if (((*cur)->seqno == reply->seqno)
-		&& ((!strncasecmp(sip_methods[sipmethod].text, (*cur)->pkt.data, sip_methods[sipmethod].len)))) {
-			cw_log(CW_LOG_DEBUG, "%s: stopping retransmission of %s, seq %d\n", p->callid, sip_methods[sipmethod].text, reply->seqno);
+	for (cur = retrans_list; *cur; cur = &(*cur)->next) {
+		if (((*cur)->seqno == reply->seqno) && ((!stop_response && (*cur)->method != SIP_RESPONSE) || (stop_response && (*cur)->method == SIP_RESPONSE))) {
+			struct timespec ts = { 0, 0 };
+			char *s;
+
+			cw_log(CW_LOG_DEBUG, "%s: stopping retransmission of %s%s, seq %d\n", ((*cur)->owner ? (*cur)->owner->callid : "(null)"), ((*cur)->method ==SIP_RESPONSE ? " response to " : ""), sip_methods[((*cur)->method == SIP_RESPONSE ? (*cur)->cseq_method : (*cur)->method)].text, reply->seqno);
+
+			/* If we have a timestamp header in the reply that's our transmit time
+			 * and, possibly, the peer's delay so we can use it to calculate RTO.
+			 * Otherwise we have to use our locally saved TX time.
+			 * RFC3261 8.2.6.1 says that timestamp headers are only echoed back
+			 * in provisional responses to INVITEs and the addition of a delay
+			 * to the timestamp is optional.
+			 */
+			if ((s = get_header(reply, SIP_HDR_NOSHORT("Timestamp")))
+			&& sscanf(s, "%*lu.%*lu %lu.%lu", &(*cur)->txtime.tv_sec, &(*cur)->txtime.tv_nsec, &ts.tv_sec, &ts.tv_nsec)) {
+				if (((*cur)->txtime.tv_nsec += ts.tv_nsec) > 1000000000UL) {
+					(*cur)->txtime.tv_sec++;
+					(*cur)->txtime.tv_nsec -= 1000000000UL;
+				}
+				(*cur)->txtime.tv_sec += ts.tv_sec;
+			} else if ((*cur)->timer_a != 0)
+				(*cur)->txtime.tv_sec = (*cur)->txtime.tv_nsec = 0;
+
+			if ((*cur)->txtime.tv_sec || (*cur)->txtime.tv_nsec) {
+				int rtt;
+				cw_clock_gettime(global_clock_monotonic, &ts);
+
+				/* It's tempting to do something similar to TCP's retransmission timer
+				 * calulation (RFC6298) but SIP traffic is fairly sparse so we probably
+				 * don't have enough traffic to usefully converge on an RTO. So we
+				 * just use whatever the last measurement said.
+				 */
+				rtt = cw_clock_diff_ms(&ts, &(*cur)->txtime);
+				if (rtt < 1)
+					rtt = 1;
+
+				if ((*cur)->owner) {
+					(*cur)->owner->timer_t1 = rtt;
+					if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", (*cur)->owner->callid, (*cur)->owner->timer_t1);
+				}
+				if ((*cur)->owner->peerpoke) {
+					(*cur)->owner->peerpoke->timer_t1 = rtt;
+					if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", (*cur)->owner->peerpoke->name, (*cur)->owner->peerpoke->timer_t1);
+				}
+			}
 
 			/* If we can delete the scheduled retransmit we own the packet
 			 * and can go ahead and free it. Otherwise the scheduled retransmit
 			 * has already fired and is waiting on the lock. In this case we
-			 * just set the method to unknown so retrans_pkt will give up once
-			 * it acquires the lock.
+			 * have to let the retransmit go ahead and we'll try and do this
+			 * when we get the resend of the reply.
 			 */
 			if ((*cur)->retransid == -1 || !cw_sched_del(sched, (*cur)->retransid)) {
-				struct timespec ts = { 0, 0 };
-				char *s;
-
-				/* If we have a timestamp header in the reply that's our transmit time
-				 * and, possibly, the peer's delay so we can use it to calculate RTO.
-				 * Otherwise we have to use our locally saved TX time.
-				 * RFC3261 8.2.6.1 says that timestamp headers are only echoed back
-				 * in provisional responses to INVITEs and the addition of a delay
-				 * to the timestamp is optional.
-				 */
-				if ((s = get_header(reply, SIP_HDR_NOSHORT("Timestamp")))
-				&& sscanf(s, "%*lu.%*lu %lu.%lu", &(*cur)->txtime.tv_sec, &(*cur)->txtime.tv_nsec, &ts.tv_sec, &ts.tv_nsec)) {
-					if (((*cur)->txtime.tv_nsec += ts.tv_nsec) > 1000000000UL) {
-						(*cur)->txtime.tv_sec++;
-						(*cur)->txtime.tv_nsec -= 1000000000UL;
-					}
-					(*cur)->txtime.tv_sec += ts.tv_sec;
-				} else if ((*cur)->timer_a != 0)
-					(*cur)->txtime.tv_sec = (*cur)->txtime.tv_nsec = 0;
-
-				if ((*cur)->txtime.tv_sec || (*cur)->txtime.tv_nsec) {
-					cw_clock_gettime(global_clock_monotonic, &ts);
-
-					/* It's tempting to do something similar to TCP's retransmission timer
-					 * calulation (RFC6298) but SIP traffic is fairly sparse so we probably
-					 * don't have enough traffic to usefully converge on an RTO. So we
-					 * just use whatever the last measurement said.
-					 */
-					p->timer_t1 = cw_clock_diff_ms(&ts, &(*cur)->txtime);
-					if (p->timer_t1 < 1)
-						p->timer_t1 = 1;
-
-					if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", p->callid, p->timer_t1);
-					if (p->peerpoke) {
-						p->peerpoke->timer_t1 = p->timer_t1;
-						if (sipdebug) cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", p->peerpoke->name, p->timer_t1);
-					}
-				}
-
-				if (sipmethod != SIP_INVITE || (*(reply->pkt.data + reply->uriresp) != '1')) {
+				if ((*cur)->method != SIP_INVITE || (*(reply->pkt.data + reply->uriresp) != '1')) {
 					struct sip_request *old = *cur;
 
 					if (sipdebug && option_debug > 3)
-						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s - reply received\n", sip_methods[sipmethod].text);
+						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of %s%s - reply received\n", ((*cur)->method == SIP_RESPONSE ? " response to " : ""), sip_methods[((*cur)->method == SIP_RESPONSE ? (*cur)->cseq_method : (*cur)->method)].text);
 
 					*cur = (*cur)->next;
 
@@ -2243,7 +2246,7 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 					 * fast retransmissions.
 					 */
 					if (sipdebug && option_debug > 3)
-						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Changing to slow retransmit of %s - provisional reply received\n", sip_methods[sipmethod].text);
+						cw_log(CW_LOG_DEBUG, "** SIP TIMER: Changing to slow retransmit of %s%s - provisional reply received\n", ((*cur)->method == SIP_RESPONSE ? " response to " : ""), sip_methods[((*cur)->method == SIP_RESPONSE ? (*cur)->cseq_method : (*cur)->method)].text);
 
 					(*cur)->timer_a = -1;
 					(*cur)->retransid = cw_sched_modify(sched, (*cur)->retransid, SLOW_INVITE_RETRANS, retrans_pkt, *cur);
@@ -2251,18 +2254,18 @@ static void retrans_stop(struct sip_pvt *p, struct sip_request *reply, enum sipm
 				break;
 			}
 
-			(*cur)->method = SIP_UNKNOWN;
 			break;
 		}
 	}
 }
 
+
 /*! \brief retrans_stop_all: Stop any retransmits of outstanding reliable-delivery messages */
-static void retrans_stop_all(struct sip_pvt *p)
+static void retrans_stop_all(struct sip_request **retrans_list)
 {
 	struct sip_request **cur;
 
-	cur = &p->retrans;
+	cur = retrans_list;
 	while (*cur) {
 		/* If we can delete the scheduled retransmit we own the packet
 		 * and can go ahead and free it. Otherwise the scheduled retransmit
@@ -3028,7 +3031,7 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
 		cw_object_put(dialogue);
 
-	retrans_stop_all(dialogue);
+	retrans_stop_all(&dialogue->retrans);
 
 	if (dialogue->registry) {
 		if (dialogue->registry->dialogue == dialogue) {
@@ -3354,7 +3357,7 @@ static int sip_hangup(struct cw_channel *ast)
             /* Outgoing call, not up */
             if (cw_test_flag(p, SIP_OUTGOING))
             {
-		retrans_stop_all(p);
+		retrans_stop_all(&p->retrans);
 
 		/* are we allowed to send CANCEL yet? if not, mark
 		   it pending */
@@ -13504,7 +13507,7 @@ static int handle_message(void *data)
 
 			if (dialogue) {
 				/* Cease retransmissions of whatever the response is to */
-				retrans_stop(dialogue, req, req->cseq_method);
+				retrans_stop(&dialogue->retrans, req, 0);
 				handle_response(dialogue, req, (dialogue->ocseq && (dialogue->ocseq != req->seqno)));
 			}
 		} else if (found) {
@@ -13517,7 +13520,7 @@ static int handle_message(void *data)
 		}
 	} else {
 		if (dialogue && req->method == SIP_ACK)
-			retrans_stop(dialogue, req, SIP_RESPONSE);
+			retrans_stop(&dialogue->retrans, req, 1);
 		else if (!found) {
 			/* Nothing is known about this call so we create it if it makes sense */
 
