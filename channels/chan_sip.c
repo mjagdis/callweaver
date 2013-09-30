@@ -8917,45 +8917,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
 }
 
 
-/*! \brief  receive_message: Receive SIP MESSAGE method messages */
-/*    We only handle messages within current calls currently */
-/*    Reference: RFC 3428 */
-static void receive_message(struct sip_pvt *p, struct sip_request *req)
-{
-	struct cw_frame f;
-	char *content_type;
-
-	content_type = get_header(req, SIP_HDR_CONTENT_TYPE);
-
-	/* We want text/plain. It may have a charset specifier after it but we don't want text/plainfoo[;charset=...] */
-	if (strncmp(content_type, "text/plain", 10) || (content_type[10] && !(content_type[10] == ' ' || content_type[10] == ';'))) {
-		/* No text/plain attachment */
-		transmit_response(p, "415 Unsupported Media Type", req, 0); /* Good enough, or? */
-		sip_destroy(p);
-		return;
-	}
-
-	if (p->owner) {
-		if (sip_debug_test_pvt(p))
-			cw_verbose("Message received: '%s'\n", &req->pkt.data[req->body_start]);
-
-		memset(&f, 0, sizeof(f));
-		f.frametype = CW_FRAME_TEXT;
-		f.subclass = 0;
-		f.offset = 0;
-		f.data = &req->pkt.data[req->body_start];
-		f.datalen = req->pkt.used - req->body_start;
-		cw_queue_frame(p->owner, &f);
-		transmit_response(p, "202 Accepted", req, 0); /* We respond 202 accepted, since we relay the message */
-	} else { /* Message outside of a call, we do not support that */
-		cw_log(CW_LOG_WARNING,"Received message to %s from %s, dropped it...\n  Content-Type:%s\n  Message: %s\n", get_header(req, SIP_HDR_TO), get_header(req, SIP_HDR_FROM), content_type, &req->pkt.data[req->body_start]);
-		transmit_response(p, "405 Method Not Allowed", req, 0); /* Good enough, or? */
-	}
-	sip_destroy(p);
-	return;
-}
-
-
 #define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
 #define FORMAT2 "%-25.25s %15d %15d \n"
 #define FORMAT3 "%-25.25s %15d %-15.15s \n"
@@ -12935,20 +12896,61 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
     return 1;
 }
 
-/*! \brief  handle_request_message: Handle incoming MESSAGE request */
-static int handle_request_message(struct sip_pvt *p, struct sip_request *req, int debug, int ignore)
+
+/*! \brief  handle_request_message: Handle incoming MESSAGE request
+ *  We only handle messages within current calls currently
+ *  Reference: RFC 3428
+ */
+static int message_text_plain(struct sip_pvt *dialogue, struct sip_request *req, int ignore, int start, int end)
 {
-    if (!ignore)
-    {
-        if (debug)
-            cw_verbose("Receiving message!\n");
-        receive_message(p, req);
-    }
-    else
-    {
-        transmit_response(p, "202 Accepted", req, 0);
-    }
-    return 1;
+	if (!ignore) {
+		struct cw_frame f;
+
+		memset(&f, 0, sizeof(f));
+		f.frametype = CW_FRAME_TEXT;
+		f.subclass = 0;
+		f.offset = 0;
+		f.data = &req->pkt.data[start];
+		f.datalen = end - start;
+		cw_queue_frame(dialogue->owner, &f);
+	}
+
+	return 0;
+}
+
+static int handle_request_message(struct sip_pvt *dialogue, struct sip_request *req, int debug, int ignore)
+{
+	CW_UNUSED(debug);
+
+	if (dialogue && dialogue->owner) {
+		static const struct cw_mime_process_action actions[] = {
+			{ "text/plain", sizeof("text/plain") - 1, message_text_plain },
+		};
+
+		if (mime_process(dialogue, req, ignore, actions, arraysize(actions)) >= 0) {
+			/* RFC3428 7.:
+			 * A UAS which is, in fact, a message relay, storing the message and
+			 * forwarding it later on, or forwarding it into a non-SIP domain,
+			 * SHOULD return a 202 (Accepted) response indicating that the
+			 * message was accepted, but end to end delivery has not been
+			 * guaranteed.
+			 */
+			transmit_response(dialogue, "202 Accepted", req, 0);
+		} else {
+			transmit_response(dialogue, "415 Unsupported Media Type", req, 0);
+		}
+	} else {
+		/* Message outside of a call, we do not support that */
+		if (!ignore)
+			cw_log(CW_LOG_WARNING, "Dropped message from %s to %s, message: %s\n", get_header(req, SIP_HDR_FROM), get_header(req, SIP_HDR_TO), &req->pkt.data[req->body_start]);
+		transmit_response(dialogue, "405 Method Not Allowed", req, 0); /* Good enough, or? */
+	}
+
+	/* Only destroy the dialogue if it was created in response to this message request */
+	if (dialogue->ocseq == 1)
+		sip_destroy(dialogue);
+
+	return 1;
 }
 
 
