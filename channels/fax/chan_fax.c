@@ -20,6 +20,11 @@
  * the GNU General Public License Version 2. See the LICENSE file
  * at the top of the source tree.
  */
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -74,6 +79,8 @@ static char *cfg_context;
 static int cfg_vblevel;
 static char *cfg_cid_name;
 static char *cfg_cid_num;
+
+static pid_t faxgetty_monitor_pid;
 
 
 typedef enum {
@@ -1112,6 +1119,102 @@ static struct cw_clicmd  cli_chan_fax[] = {
 /* \} */
 
 
+static void null_handler(int sig)
+{
+	CW_UNUSED(sig);
+}
+
+static __attribute__ (( __noreturn__ )) void faxgetty_monitor(void)
+{
+	static const time_t TICK = 10;
+	static const time_t TESTTIME = 120;
+	static const time_t SLEEPTIME = 300;
+	static const int MAXSPAWN = 5;
+	struct rlimit rlim;
+	struct sigaction sa;
+	struct {
+		pid_t pid;
+		int count;
+		time_t t;
+	} *faxgetty = alloca(cfg_modems * sizeof(faxgetty[0]));
+	time_t now;
+	int i;
+
+	if (!getrlimit(RLIMIT_NOFILE, &rlim)) {
+		for (i = 0; i < rlim.rlim_cur; i++)
+			close(i);
+	}
+	if ((i = open("/dev/null", O_RDWR)) >= 0) {
+		dup2(i, 0);
+		dup2(i, 1);
+		dup2(i, 2);
+	}
+
+	setsid();
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sa.sa_handler = SIG_DFL;
+	sigaction(SIGTERM, &sa, NULL);
+	sa.sa_handler = &null_handler;
+	sigaction(SIGALRM, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+	sa.sa_flags = SA_NOCLDSTOP;
+	sigaction(SIGCHLD, &sa, NULL);
+	sigprocmask(SIG_SETMASK, &sa.sa_mask, NULL);
+
+	time(&now);
+	for (i = 0; i < cfg_modems; i++) {
+		faxgetty[i].pid = faxgetty[i].count = 0;
+		faxgetty[i].t = now - TESTTIME;
+	}
+
+	for (;;) {
+		pid_t pid;
+
+		for (i = 0; i < cfg_modems; i++) {
+			if (faxgetty[i].count >= MAXSPAWN && now - faxgetty[i].t > SLEEPTIME)
+				faxgetty[i].count = 0;
+
+			if (faxgetty[i].pid <= 0 && faxgetty[i].count < MAXSPAWN) {
+				if (now - faxgetty[i].t < TESTTIME)
+					faxgetty[i].count++;
+				else {
+					faxgetty[i].count = 0;
+					faxgetty[i].t = now;
+				}
+
+				switch (faxgetty[i].pid = fork()) {
+					case 0:
+						execl("/usr/bin/sudo", "sudo", "-n", "/usr/lib/fax/faxgetty", FAXMODEM_POOL[i].devlink, NULL);
+						_exit(1);
+
+					case -1:
+						break;
+				}
+			}
+		}
+
+		alarm(TICK);
+		pid = waitpid(0, &i, 0);
+		alarm(0);
+		time(&now);
+
+		if (pid > 0) {
+			do {
+				for (i = 0; i < cfg_modems; i++) {
+					if (faxgetty[i].pid == pid) {
+						faxgetty[i].pid = 0;
+						break;
+					}
+				}
+			} while ((pid = waitpid(0, &i, WNOHANG)) > 0);
+		} else
+			sleep(TESTTIME);
+	}
+}
+
+
 /*! \defgroup module Module Interface
  * \{
  */
@@ -1139,6 +1242,16 @@ static void activate_fax_modems(void)
 
 			cw_pthread_create(&FAXMODEM_POOL[x].thread, &global_attr_default, faxmodem_thread, &FAXMODEM_POOL[x]);
 		}
+
+		switch (faxgetty_monitor_pid = fork()) {
+			case -1:
+				cw_log(CW_LOG_ERROR, "fork failed: %s\n", strerror(errno));
+				break;
+
+			case 0:
+				faxgetty_monitor();
+				break;
+		}
 	}
 
 	cw_mutex_unlock(&control_lock);
@@ -1150,6 +1263,11 @@ static void deactivate_fax_modems(void)
 	int x;
 	
 	cw_mutex_lock(&control_lock);
+
+	/* Take the faxgettys down */
+	kill(-faxgetty_monitor_pid, SIGTERM);
+	waitpid(faxgetty_monitor_pid, NULL, 0);
+	faxgetty_monitor_pid = 0;
 
 	/* Tell the threads to die */
 	for (x = 0; x < cfg_modems; x++) {
