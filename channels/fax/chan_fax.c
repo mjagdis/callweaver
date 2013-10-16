@@ -1124,6 +1124,28 @@ static void null_handler(int sig)
 	CW_UNUSED(sig);
 }
 
+static void faxgetty_monitor_term(int sig)
+{
+	int i;
+
+	CW_UNUSED(sig);
+
+	for (i = 0; i < cfg_modems; i++) {
+		switch (fork()) {
+			case 0:
+				execl("/usr/bin/sudo", "sudo", "-n", "/usr/sbin/faxquit", FAXMODEM_POOL[i].devlink + sizeof("/dev/") - 1, NULL);
+				_exit(1);
+
+			case -1:
+				break;
+		}
+	}
+
+	while (waitpid(0, NULL, 0) > 0);
+
+	_exit(0);
+}
+
 static __attribute__ (( __noreturn__ )) void faxgetty_monitor(void)
 {
 	static const time_t TICK = 10;
@@ -1154,7 +1176,7 @@ static __attribute__ (( __noreturn__ )) void faxgetty_monitor(void)
 
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
-	sa.sa_handler = SIG_DFL;
+	sa.sa_handler = &faxgetty_monitor_term;
 	sigaction(SIGTERM, &sa, NULL);
 	sa.sa_handler = &null_handler;
 	sigaction(SIGALRM, &sa, NULL);
@@ -1196,7 +1218,7 @@ static __attribute__ (( __noreturn__ )) void faxgetty_monitor(void)
 		}
 
 		alarm(TICK);
-		pid = waitpid(0, &i, 0);
+		pid = waitpid(0, NULL, 0);
 		alarm(0);
 		time(&now);
 
@@ -1208,7 +1230,7 @@ static __attribute__ (( __noreturn__ )) void faxgetty_monitor(void)
 						break;
 					}
 				}
-			} while ((pid = waitpid(0, &i, WNOHANG)) > 0);
+			} while ((pid = waitpid(0, NULL, WNOHANG)) > 0);
 		} else
 			sleep(TESTTIME);
 	}
