@@ -540,7 +540,7 @@ extern CW_API_PUBLIC void pbx_substitute_variables(struct cw_channel *chan, stru
  *
  * \param args     The args struct to be filled in with pointers to the separated arguments
  * \param buf      The string to be parsed (this must be a writable copy, as it will be modified)
- * \param delim    List of characters to be used to delimit arguments
+ * \param delim    List of characters to be used to delimit arguments or NULL to split on whitespace
  * \param stop     Stop when we see this (unquoted, unescaped) character
  * \param tail     If non-NULL and we stop before end-of-string then *tail is set to point to the first unparsed character
  *

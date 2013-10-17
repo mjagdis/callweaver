@@ -696,7 +696,7 @@ void cw_cli_generator(struct cw_dynstr *ds_p, char *cmd)
 		.ds_p = ds_p,
 	};
 
-	if (!cw_split_args(&args.av, cmd, " \t", '\0', NULL)) {
+	if (!cw_split_args(&args.av, cmd, NULL, '\0', NULL)) {
 		if (args.av.used == 0)
 			args.av.data[0] = (char *)"";
 		else
@@ -716,10 +716,7 @@ void cw_cli_command(struct cw_dynstr *ds_p, char *cmd)
 	struct cw_dynargs args = CW_DYNARRAY_INIT;
 	struct cw_clicmd *clicmd;
 
-	if (!cw_split_args(&args, cmd, " \t", '\0', NULL) && args.used > 0) {
-		if (args.used && !args.data[args.used - 1][0])
-			args.data[--args.used] = NULL;
-
+	if (!cw_split_args(&args, cmd, NULL, '\0', NULL) && args.used > 0) {
 		clicmd = find_cli(args.data, 0);
 		if (clicmd) {
 			switch (clicmd->handler(ds_p, args.used, args.data)) {
