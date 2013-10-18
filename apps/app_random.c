@@ -69,7 +69,7 @@ static int random_exec(struct cw_channel *chan, int argc, char **argv, struct cw
 	}
 
 	/* FIXME: is this really what was intended? */
-	if ((random() % 100) + probint > 100) {
+	if ((cw_random() % 100) + probint > 100) {
 		exten = (argc > 1 ? argv[argc-2] : NULL);
 		context = (argc > 2 ? argv[argc-3] : NULL);
 		res = cw_explicit_goto(chan, context, exten, argv[argc-1]);
