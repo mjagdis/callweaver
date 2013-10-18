@@ -332,11 +332,7 @@ extern CW_API_PUBLIC pthread_attr_t global_attr_rr;
 extern CW_API_PUBLIC int cw_pthread_create_module(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, struct cw_module *module, const char *description)
 	__attribute__ ((nonnull (1,2,3)));
 
-#ifdef linux
-#define cw_random random
-#else
 extern CW_API_PUBLIC long int cw_random(void);
-#endif
 
 /*!
   \brief Disable PMTU discovery on a socket
