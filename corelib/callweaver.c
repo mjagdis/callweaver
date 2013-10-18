@@ -1169,8 +1169,7 @@ static void boot(void)
 	 * CallWeaver is started
 	 */
 	cw_clock_gettime(CLOCK_REALTIME, &ts);
-	srand((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
-	srandom((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
+	srandom_nodeprecate((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
 	if (cw_blacklist_init()
 	|| cw_loader_cli_init()

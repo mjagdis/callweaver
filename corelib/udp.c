@@ -90,7 +90,7 @@ int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums,
 	highest_port &= ~port_mask;
 	base = lowest_port;
 	if (highest_port != lowest_port)
-		base += ((rand()%(highest_port - lowest_port + 1)) & ~port_mask);
+		base += ((cw_random()%(highest_port - lowest_port + 1)) & ~port_mask);
 	starting_point = base;
 
 	for (i = 0; i < nelem; i++) {

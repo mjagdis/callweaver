@@ -118,7 +118,7 @@ static int page_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 	char nconferenceopts[80];
 	struct localuser *u;
 	char *tech, *resource;
-	unsigned int confid = rand();
+	unsigned int confid = cw_random();
 	int res=0;
 	unsigned char flags;
 

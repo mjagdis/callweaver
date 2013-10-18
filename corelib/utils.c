@@ -1257,7 +1257,7 @@ long int cw_random(void)
 		 * other libc's do not have an internal lock so...
 		 */
 		pthread_mutex_lock(&lock);
-		res = random();
+		res = random_nodeprecate();
 		pthread_mutex_unlock(&lock);
 	}
 

@@ -1,14 +1,23 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
- * General Definitions for CallWeaver top level program
- * 
- * Copyright (C) 1999-2005, Mark Spencer
+ * Copyright (C) 2007 - 2013, Eris Associates Limited, UK
  *
- * Mark Spencer <markster@digium.com>
+ * Mike Jagdis <mjagdis@eris-associates.co.uk>
+ *
+ * See http://www.callweaver.org for more information about
+ * the CallWeaver project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ * Based on Asterisk written by Mark Spencer <markster@digium.com>
+ *  Copyright (C) 1999 - 2005, Digium, Inc.
+ * Asterisk is a trade mark registered by Digium, Inc.
  */
 
 /*! \file
@@ -16,6 +25,18 @@
 */
 #if !defined(_CALLWEAVER_H)
 #define _CALLWEAVER_H
+
+
+#include <stdlib.h>
+
+
+/* The following should not normally be used in callweaver code for various reasons. */
+static inline long int random_nodeprecate(void) { return random(); }
+static inline void srandom_nodeprecate(unsigned int seed) { srandom(seed); }
+long int random(void)           __attribute__(( __deprecated__("Use cw_random() instead") ));
+void srandom(unsigned int seed) __attribute__(( __deprecated__("Use cw_random() instead") ));
+int rand(void)                  __attribute__(( __deprecated__("Use cw_random() instead") ));
+void srand(unsigned int seed)   __attribute__(( __deprecated__("Use cw_random() instead") ));
 
 
 #ifdef CW_API_IMPLEMENTATION

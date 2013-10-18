@@ -292,7 +292,7 @@ static void *ogg_vorbis_rewrite(FILE *fp, const char *comment)
         vorbis_analysis_init(&tmp->vd, &tmp->vi);
         vorbis_block_init(&tmp->vd, &tmp->vb);
 
-        ogg_stream_init(&tmp->os, rand());
+        ogg_stream_init(&tmp->os, cw_random());
 
         vorbis_analysis_headerout(&tmp->vd, &tmp->vc, &header, &header_comm, &header_code);
         ogg_stream_packetin(&tmp->os, &header);
