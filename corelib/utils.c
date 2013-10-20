@@ -536,6 +536,32 @@ struct cw_pthread_info {
 };
 
 
+static pthread_mutex_t cw_random_lock = PTHREAD_MUTEX_INITIALIZER;
+
+long int cw_random(void)
+{
+	int32_t res;
+#ifdef HAVE_RANDOM_R
+	struct cw_pthread_info *thread_info;
+
+	if ((thread_info = pthread_getspecific(global_pthread_key_thread_info)))
+		random_r(&thread_info->rand, &res);
+	else
+#endif
+	{
+		/* N.B. glibc puts a lock inside random(3), so that the results are thread-safe.
+		 * However the docs say random(3) should not be used in multi-threaded code and
+		 * other libc's do not have an internal lock so...
+		 */
+		pthread_mutex_lock(&cw_random_lock);
+		res = random_nodeprecate();
+		pthread_mutex_unlock(&cw_random_lock);
+	}
+
+	return res;
+}
+
+
 static void cw_pthread_wrapper_cleanup(void *data)
 {
 	struct cw_pthread_info *thread_info = data;
@@ -554,9 +580,17 @@ static void *cw_pthread_wrapper(void *data)
 #ifdef HAVE_RANDOM_R
 	do {
 		struct timespec ts;
+		unsigned int seed;
+
+		/* This makes the randomness of threads depend on the randomness of the
+		 * main process which should have been set from /dev/random if available.
+		 */
+		pthread_mutex_lock(&cw_random_lock);
+		seed = random_nodeprecate();
+		pthread_mutex_unlock(&cw_random_lock);
 
 		cw_clock_gettime(CLOCK_MONOTONIC, &ts);
-		initstate_r((((getppid() << 16) + getpid()) + ts.tv_sec + ts.tv_nsec + (unsigned int)pthread_self()) % RAND_MAX,
+		initstate_r(seed + (getppid() << 16) + getpid() + ts.tv_sec + ts.tv_nsec + (unsigned int)pthread_self(),
 			thread_info->random_state, sizeof(thread_info->random_state), &thread_info->rand);
 	} while (0);
 #endif
@@ -1237,32 +1271,6 @@ int getloadavg(double *list, int nelem)
 }
 #endif /* linux */
 #endif /* !defined(getloadavg) */
-
-
-long int cw_random(void)
-{
-	int32_t res;
-#ifdef HAVE_RANDOM_R
-	struct cw_pthread_info *thread_info;
-
-	if ((thread_info = pthread_getspecific(global_pthread_key_thread_info)))
-		random_r(&thread_info->rand, &res);
-	else
-#endif
-	{
-		static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-		/* N.B. glibc puts a lock inside random(3), so that the results are thread-safe.
-		 * However the docs say random(3) should not be used in multi-threaded code and
-		 * other libc's do not have an internal lock so...
-		 */
-		pthread_mutex_lock(&lock);
-		res = random_nodeprecate();
-		pthread_mutex_unlock(&lock);
-	}
-
-	return res;
-}
 
 
 void cw_enable_packet_fragmentation(int sock)

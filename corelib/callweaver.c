@@ -1161,6 +1161,8 @@ static struct cw_clicmd core_cli[] = {
 static void boot(void)
 {
 	struct timespec ts;
+	unsigned int seed;
+	int d;
 
 	if ((option_console || option_nofork) && !option_verbose) 
 		cw_log(CW_LOG_PROGRESS, "[ Booting...");
@@ -1168,8 +1170,13 @@ static void boot(void)
 	/* Ensure that the random number generators are seeded with a different value every time
 	 * CallWeaver is started
 	 */
+	seed = 0;
+	if ((d = open("/dev/random", O_RDONLY)) >= 0) {
+		read(d, &seed, sizeof(seed));
+		close(d);
+	}
 	cw_clock_gettime(CLOCK_REALTIME, &ts);
-	srandom_nodeprecate((unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
+	srandom_nodeprecate(seed + (unsigned int) getpid() + ts.tv_sec + ts.tv_nsec);
 
 	if (cw_blacklist_init()
 	|| cw_loader_cli_init()
