@@ -867,7 +867,7 @@ int icd_list_iterator__has_more(icd_list_iterator * that)
         return 0;
     }
     cw_mutex_lock(&that->parent->lock);
-    if (that && that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
+    if (that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
         && that->curr->state && that->curr->state == ICD_NODE_STATE_USED) {
         that->next = that->curr->next;
     }
@@ -882,7 +882,7 @@ int icd_list_iterator__has_more_nolock(icd_list_iterator * that)
     if (!that->next || !that->parent) {
         return 0;
     }
-    if (that && that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
+    if (that->next && that->next->state && that->next->state != ICD_NODE_STATE_USED && that->curr
         && that->curr->state && that->curr->state == ICD_NODE_STATE_USED) {
         that->next = that->curr->next;
     }

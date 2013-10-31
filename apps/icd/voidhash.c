@@ -123,7 +123,7 @@ int vh_destroy(void_hash_table ** hash)
         *hash = NULL;
     }
 
-    if (hash) {
+    if (!*hash) {
         ret = 0;
     }
     return ret;

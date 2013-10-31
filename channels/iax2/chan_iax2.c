@@ -2739,67 +2739,63 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 /*--- cw_iax2_new: Create new call, interface with the PBX core */
 static struct cw_channel *cw_iax2_new(int callno, int state, int capability)
 {
-	struct cw_channel *tmp;
+	struct cw_channel *tmp = NULL;
 	struct chan_iax2_pvt *i;
 	struct cw_variable *v = NULL;
 
 	/* Don't hold call lock */
-	i = iaxs[callno];
-	cw_mutex_unlock(&iaxsl[callno]);
-	tmp = cw_channel_alloc(1, "IAX2/%s-%d", i->host, i->callno);
-	cw_mutex_lock(&iaxsl[callno]);
-	if (i && tmp) {
-		tmp->tech = &iax2_tech;
-		tmp->type = channeltype;
-		/* We can support any format by default, until we get restricted */
-		tmp->nativeformats = capability;
-		tmp->readformat = cw_best_codec(capability);
-		tmp->writeformat = cw_best_codec(capability);
-		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
+	if ((i = iaxs[callno])) {
+		cw_mutex_unlock(&iaxsl[callno]);
+		tmp = cw_channel_alloc(1, "IAX2/%s-%d", i->host, i->callno);
+		cw_mutex_lock(&iaxsl[callno]);
+		if (tmp) {
+			tmp->tech = &iax2_tech;
+			tmp->type = channeltype;
+			/* We can support any format by default, until we get restricted */
+			tmp->nativeformats = capability;
+			tmp->readformat = cw_best_codec(capability);
+			tmp->writeformat = cw_best_codec(capability);
+			tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 /*
-		if (!cw_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
-		if (!cw_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
-		if (!cw_strlen_zero(i->ani))
-			tmp->cid.cid_ani = strdup(i->ani);
+			if (!cw_strlen_zero(i->cid_num))
+				tmp->cid.cid_num = strdup(i->cid_num);
+			if (!cw_strlen_zero(i->cid_name))
+				tmp->cid.cid_name = strdup(i->cid_name);
+			if (!cw_strlen_zero(i->ani))
+				tmp->cid.cid_ani = strdup(i->ani);
 */
-		cw_set_callerid(tmp, i->cid_num, i->cid_name,
-				  i->ani ? i->ani : i->cid_num);
-		if (!cw_strlen_zero(i->language))
-			cw_copy_string(tmp->language, i->language, sizeof(tmp->language));
-		if (!cw_strlen_zero(i->dnid))
-			tmp->cid.cid_dnid = strdup(i->dnid);
-		if (!cw_strlen_zero(i->rdnis))
-			tmp->cid.cid_rdnis = strdup(i->rdnis);
-		tmp->cid.cid_pres = i->calling_pres;
-		tmp->cid.cid_ton = i->calling_ton;
-		tmp->cid.cid_tns = i->calling_tns;
-		if (!cw_strlen_zero(i->accountcode))
-			cw_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
-		if (i->amaflags)
-			tmp->amaflags = i->amaflags;
-		cw_copy_string(tmp->context, i->context, sizeof(tmp->context));
-		cw_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
-		tmp->adsicpe = i->peeradsicpe;
-		i->owner = tmp;
-		i->capability = capability;
-		cw_setstate(tmp, state);
-		if (state != CW_STATE_DOWN) {
-			if (cw_pbx_start(tmp)) {
-				cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				cw_hangup(tmp);
-				tmp = NULL;
+			cw_set_callerid(tmp, i->cid_num, i->cid_name,
+					i->ani ? i->ani : i->cid_num);
+			if (!cw_strlen_zero(i->language))
+				cw_copy_string(tmp->language, i->language, sizeof(tmp->language));
+			if (!cw_strlen_zero(i->dnid))
+				tmp->cid.cid_dnid = strdup(i->dnid);
+			if (!cw_strlen_zero(i->rdnis))
+				tmp->cid.cid_rdnis = strdup(i->rdnis);
+			tmp->cid.cid_pres = i->calling_pres;
+			tmp->cid.cid_ton = i->calling_ton;
+			tmp->cid.cid_tns = i->calling_tns;
+			if (!cw_strlen_zero(i->accountcode))
+				cw_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
+			if (i->amaflags)
+				tmp->amaflags = i->amaflags;
+			cw_copy_string(tmp->context, i->context, sizeof(tmp->context));
+			cw_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
+			tmp->adsicpe = i->peeradsicpe;
+			i->owner = tmp;
+			i->capability = capability;
+			cw_jb_configure(tmp, &i->jbconf);
+			cw_setstate(tmp, state);
+			if (state != CW_STATE_DOWN) {
+				if (cw_pbx_start(tmp)) {
+					cw_log(CW_LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
+					cw_hangup(tmp);
+					tmp = NULL;
+				}
 			}
+			for (v = i->vars ; v ; v = v->next)
+				pbx_builtin_setvar_helper(tmp,v->name,v->value);
 		}
-		for (v = i->vars ; v ; v = v->next)
-			pbx_builtin_setvar_helper(tmp,v->name,v->value);
-	}
-
-	/* Configure the new channel jb */
-	if(tmp != NULL && i != NULL)
-	{
-		cw_jb_configure(tmp, &i->jbconf);
 	}
 
 	return tmp;

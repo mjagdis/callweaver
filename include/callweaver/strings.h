@@ -93,9 +93,10 @@ static inline char *cw_skip_nonblanks(char *str)
 */
 static inline char *cw_strip(char *s)
 {
-	s = cw_skip_blanks(s);
-	if (s)
+	if (s) {
+		s = cw_skip_blanks(s);
 		cw_trim_blanks(s);
+	}
 	return s;
 }
 

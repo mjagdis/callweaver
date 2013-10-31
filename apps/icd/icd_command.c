@@ -1912,7 +1912,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 	if((context = strchr(exten,'@'))) {
 		*context = 0;
 		context++;
-		if(!(context && exten)) {
+		if(!*context) {
 			cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
             cw_manager_event(EVENT_FLAG_USER, "icd_command",
                 4,

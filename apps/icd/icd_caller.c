@@ -2094,12 +2094,12 @@ int icd_caller__deldist_notify_hook(icd_event * event, void *extra)
     assert(event != NULL);
     that = (icd_caller *) icd_event__get_source(event);
 
-    cw_log(CW_LOG_WARNING, "Caller %d [%s] is hung up. \n", icd_caller__get_id(that), icd_caller__get_name(that));
-
     if (that == NULL || icd_caller__get_state(that) == ICD_CALLER_STATE_CALL_END) {
         /* Nothing to be done. */
         return 0;
     }
+
+    cw_log(CW_LOG_WARNING, "Caller %d [%s] is hung up. \n", icd_caller__get_id(that), icd_caller__get_name(that));
 
     /* If the caller is in an initialized state like ICD_CALLER_STATE_READY or
        ICD_CALLER_STATE_DISTRIBUTING cleaning up is to be done?

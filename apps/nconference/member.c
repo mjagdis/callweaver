@@ -433,13 +433,6 @@ int member_exec( struct cw_channel* chan, int argc, char **argv ) {
     {
 	usleep(1000);
 
-	// make sure we have a channel to process
-	if ( chan == NULL )
-	{
-	    cw_log(CW_LOG_NOTICE, "member channel has closed\n" ) ;
-	    break ;
-	}
-
 	//-----------------//
 	// INCOMING FRAMES //
 	//-----------------//

@@ -981,7 +981,7 @@ static int core_dump(struct cw_dynstr *ds_p, int argc, char *argv[])
 	res = RESULT_FAILURE;
 
 	if (!strcmp(argv[3], "halt")) {
-		*(int *)0 = 1;
+		kill(getpid(), SIGABRT);
 	} else {
 		cw_dynstr_printf(&ds, "gdb $( type -p \"%s\" ) %u <<EOF\n"
 			"generate-core-file\n"

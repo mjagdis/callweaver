@@ -233,10 +233,11 @@ static struct logchannel *make_logchannel(char *channel, char *components)
 		* syntax is:
 		*  syslog.facility => level,level,level
 		*/
-		facility = strchr(channel, '.');
-		if(!facility++ || !facility) {
+		if ((facility = strchr(channel, '.')))
+			facility++;
+
+		if (!facility || !facility[0])
 			facility = "local0";
-		}
 
 #ifndef SOLARIS
 		/*

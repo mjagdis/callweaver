@@ -584,7 +584,7 @@ static int jabber_message_parse(struct jabber_message_node *node, struct jabber_
 		if ((cr = strstr(cur, JABBER_LINE_SEPERATOR))) {
 			*cr = '\0';
 			next = cr + (sizeof(JABBER_LINE_SEPERATOR) - 1);
-			if (!next) {
+			if (!*next) {
 				break;
 			}
 		}

@@ -501,7 +501,7 @@ icd_status icd_conference__join(icd_caller * that)
 //        }
         /* reasons to exit the conference */
 	/* owner is no more in the conference */
-        if (!that || (that->state != ICD_CALLER_STATE_CONFERENCED) || !that->conference
+        if (that->state != ICD_CALLER_STATE_CONFERENCED || !that->conference
             || !that->conference->owner || (that->conference->owner->state != ICD_CALLER_STATE_CONFERENCED)
             ){
             break;

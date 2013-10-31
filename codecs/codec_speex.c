@@ -455,7 +455,7 @@ static void parse_config(void)
             {
                 if (!strcasecmp(var->name, "quality"))
                 {
-                    res = abs(atoi(var->value));
+                    res = atoi(var->value);
                     if (res > -1 && res < 11)
                     {
                         if (option_verbose > 2)
@@ -467,7 +467,7 @@ static void parse_config(void)
                 }
                 else if (!strcasecmp(var->name, "complexity"))
                 {
-                    res = abs(atoi(var->value));
+                    res = atoi(var->value);
                     if (res > -1 && res < 11)
                     {
                         if (option_verbose > 2)
@@ -506,7 +506,7 @@ static void parse_config(void)
                 }
                 else if (!strcasecmp(var->name, "abr"))
                 {
-                    res = abs(atoi(var->value));
+                    res = atoi(var->value);
                     if (res >= 0)
                     {
                         if (option_verbose > 2)

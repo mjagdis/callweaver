@@ -1114,7 +1114,7 @@ icd_status destroy_icd_queue_holdannounce(icd_queue_holdannounce * that)
     that->frequency = 0;
     that->cycle = 0;
     that->holdtime = 0;
-    if (that && that->allocated)
+    if (that->allocated)
         ICD_STD_FREE(that);
 
     return ICD_SUCCESS;

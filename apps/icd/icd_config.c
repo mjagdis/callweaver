@@ -115,11 +115,11 @@ icd_config *create_icd_config(icd_config_registry * registry, const char *name)
 
     /* make a new config from scratch */
     ICD_MALLOC(config, sizeof(icd_config));
-    config->allocated = 1;
     if (config == NULL) {
         cw_log(CW_LOG_ERROR, "No memory available to create a new ICD config\n");
         return NULL;
     }
+    config->allocated = 1;
     config->state = ICD_CONFIG_STATE_CREATED;
     result = init_icd_config(config, registry, name);
     if (result != ICD_SUCCESS) {

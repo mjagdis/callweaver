@@ -453,28 +453,28 @@ static int builtin_automonitor(struct cw_channel *chan, struct cw_channel *peer,
 		return -1;
 	}
 
-	if (!cw_strlen_zero(courtesytone)) {
-		if (cw_autoservice_start(callee_chan))
-			return -1;
-		if (!cw_streamfile(caller_chan, courtesytone, caller_chan->language)) {
-			if (cw_waitstream(caller_chan, "") < 0) {
-				cw_log(CW_LOG_WARNING, "Failed to play courtesy tone!\n");
-				cw_autoservice_stop(callee_chan);
-				return -1;
-			}
-		}
-		if (cw_autoservice_stop(callee_chan))
-			return -1;
-	}
-	
-	if (callee_chan->monitor) {
-		if (option_verbose > 3)
-			cw_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
-		cw_monitor_stop(callee_chan, 1);
-		return FEATURE_RETURN_SUCCESS;
-	}
-
 	if (caller_chan && callee_chan) {
+		if (!cw_strlen_zero(courtesytone)) {
+			if (cw_autoservice_start(callee_chan))
+				return -1;
+			if (!cw_streamfile(caller_chan, courtesytone, caller_chan->language)) {
+				if (cw_waitstream(caller_chan, "") < 0) {
+					cw_log(CW_LOG_WARNING, "Failed to play courtesy tone!\n");
+					cw_autoservice_stop(callee_chan);
+					return -1;
+				}
+			}
+			if (cw_autoservice_stop(callee_chan))
+				return -1;
+		}
+	
+		if (callee_chan->monitor) {
+			if (option_verbose > 3)
+				cw_verbose(VERBOSE_PREFIX_3 "User hit '%s' to stop recording call.\n", code);
+			cw_monitor_stop(callee_chan, 1);
+			return FEATURE_RETURN_SUCCESS;
+		}
+
 		touch_format = pbx_builtin_getvar_helper(caller_chan, CW_KEYWORD_TOUCH_MONITOR_FORMAT, "TOUCH_MONITOR_FORMAT");
 		if (!touch_format)
 			touch_format = pbx_builtin_getvar_helper(callee_chan, CW_KEYWORD_TOUCH_MONITOR_FORMAT, "TOUCH_MONITOR_FORMAT");
@@ -1265,14 +1265,13 @@ static struct cw_channel *cw_feature_request_and_dial(struct cw_channel *caller,
 					
 					if (f->frametype == CW_FRAME_DTMF) {
 						dialed_code[x++] = f->subclass;
+						if (x == len)
+							x = 0;
+
 						dialed_code[x] = '\0';
-						if (strlen(dialed_code) == len) {
+						if (strncmp(dialed_code, disconnect_code, x)) {
 							x = 0;
-						} else if (x && strncmp(dialed_code, disconnect_code, x)) {
-							x = 0;
-							dialed_code[x] = '\0';
-						}
-						if (*dialed_code && !strcmp(dialed_code, disconnect_code)) {
+						} else if (!strcmp(dialed_code, disconnect_code)) {
 							/* Caller Canceled the call */
 							state = CW_CONTROL_UNHOLD;
 							cw_fr_free(f);

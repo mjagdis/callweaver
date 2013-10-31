@@ -5153,6 +5153,8 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
 #endif
+		cw_jb_configure(tmp, &i->jbconf);
+
 		/* clear the fake event in case we posted one before we had cw_channel */
 		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
@@ -5167,12 +5169,6 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 		}
 	} else
 		cw_log(CW_LOG_WARNING, "Unable to allocate channel structure\n");
-
-	/* Configure the new channel jb */
-	if(tmp != NULL && i != NULL)
-	{
-		cw_jb_configure(tmp, &i->jbconf);
-	}
 
 	return tmp;
 }

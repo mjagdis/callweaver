@@ -750,12 +750,14 @@ static struct pval *npval(pvaltype type, int first_line, int last_line,
 	int first_column, int last_column)
 {
 	struct pval *z = calloc(1, sizeof(struct pval));
-	z->type = type;
-	z->startline = first_line;
-	z->endline = last_line;
-	z->startcol = first_column;
-	z->endcol = last_column;
-	z->filename = strdup(my_file);
+	if (z) {
+		z->type = type;
+		z->startline = first_line;
+		z->endline = last_line;
+		z->startcol = first_column;
+		z->endcol = last_column;
+		z->filename = strdup(my_file);
+	}
 	return z;
 }
 

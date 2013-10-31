@@ -291,8 +291,7 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 	if (chan->_state != CW_STATE_UP)
 		res = cw_answer(chan);
 
-	if (chan)
-		cw_stopstream(chan);
+	cw_stopstream(chan);
 
 	if (file) {
 		if ((end = strchr(file,':'))) {
@@ -336,8 +335,7 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 		if (pausestream != NULL && strchr(pausestream, res)) {
 			elapsed = cw_tvdiff_ms(cw_tvnow(), started) + last_elapsed;
 			for(;;) {
-				if (chan)
-					cw_stopstream(chan);
+				cw_stopstream(chan);
 				res = cw_waitfordigit(chan, 1000);
 				if (res == 0)
 					continue;
@@ -358,8 +356,8 @@ int cw_control_streamfile(struct cw_channel *chan, const char *file,
 			break;
 		}
 	}
-	if (chan)
-		cw_stopstream(chan);
+
+	cw_stopstream(chan);
 
 	return res;
 }
