@@ -5201,7 +5201,7 @@ static int add_header_contentLength(struct sip_request *req, int content_len)
 static void update_header_contentLength(struct sip_request *req, int offset, int len)
 {
 	if (offset >= 0 && !req->pkt.error)
-		snprintf(req->pkt.data + offset, req->pkt.size - offset - 1, "%-10d", len);
+		snprintf(req->pkt.data + offset, 10, "%-10d", len);
 }
 
 
