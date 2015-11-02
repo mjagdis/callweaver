@@ -589,6 +589,7 @@ static void *cw_pthread_wrapper(void *data)
 		seed = random_nodeprecate();
 		pthread_mutex_unlock(&cw_random_lock);
 
+		memset(&thread_info->rand, 0, sizeof(thread_info->rand));
 		cw_clock_gettime(CLOCK_MONOTONIC, &ts);
 		initstate_r(seed + (getppid() << 16) + getpid() + ts.tv_sec + ts.tv_nsec + (unsigned int)pthread_self(),
 			thread_info->random_state, sizeof(thread_info->random_state), &thread_info->rand);
