@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # We grep error messages so we need to be in a suitable default locale. Sorry!
-export LANG=C
+export LANG=C LC_CTYPE=C
 
 tmpfile="/tmp/$$"
 trap "rm -f '$tmpfile'*" 0
