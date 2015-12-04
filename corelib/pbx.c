@@ -972,9 +972,8 @@ void pbx_substitute_variables(struct cw_channel *chan, struct cw_registry *vars,
 }
 
 
-int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim_arg, char stop, char **tail)
+int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim, char stop, char **tail)
 {
-	const char *delim = (delim_arg ? delim_arg : " \t");
 	int res;
 
 	if (option_debug && option_verbose > 6)
@@ -987,9 +986,9 @@ int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim_arg, cha
 
 	if (buf) {
 		char *start, *next;
-		char c = '\0';
+		char c;
 
-		start = next = buf;
+		start = buf;
 		do {
 			char *end;
 			int inquote, tws;
@@ -997,13 +996,6 @@ int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim_arg, cha
 			/* Skip leading white space */
 			while (isblank(start[0]))
 				start++;
-
-			/* If we have no more data and we are using whitespace delimiters
-			 * we stop here rather than going on to add an empty argument.
-			 * i.e. trailing whitespace does not imply an blank final argument.
-			 */
-			if (!start[0] && !delim_arg)
-				break;
 
 			/* Find the end of this arg. Backslash removes any special
 			 * meaning from the next character and quotes enclose strings.
@@ -1062,7 +1054,6 @@ int cw_split_args(struct cw_dynargs *args, char *buf, const char *delim_arg, cha
 				c = *next;
 
 				/* Terminate and backtrack trimming off trailing whitespace */
-				/* FIXME: quoted trailing space should be allowed. Do we ever actually need to do this? */
 				*end = '\0';
 				while (tws-- && isblank(end[-1]))
 					*(--end) = '\0';
