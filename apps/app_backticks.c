@@ -103,13 +103,12 @@ static int do_backticks(char *command, struct cw_dynstr *result)
 				while (read(fds[0], buf, sizeof(buf)) > 0);
 			}
 
+                        close(fds[0]);
 			waitpid(pid, &ret, 0);
                 } else { /* child */
                         close(fds[0]);
                         dup2(fds[1], STDOUT_FILENO);
-
-                        close(fds[0]);
-                        dup2(fds[1], STDOUT_FILENO);
+                        close(fds[1]);
 
                         system(command);
                         cw_log(CW_LOG_ERROR, "system(\"%s\") failed\n", command);
