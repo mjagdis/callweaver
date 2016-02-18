@@ -3920,8 +3920,8 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 				if ((cw->_state == CW_STATE_DOWN) || (cw->_state == CW_STATE_RING)) {
 					if (option_debug)
 						cw_log(CW_LOG_DEBUG, "Ring detected\n");
-					p->subs[curindex].f.frametype = CW_FRAME_CONTROL;
-					p->subs[curindex].f.subclass = CW_CONTROL_RING;
+					p->subs[curindex].f.frametype = CW_FRAME_NULL;
+					p->subs[curindex].f.subclass = 0;
 				} else if (p->outgoing && ((cw->_state == CW_STATE_RINGING) || (cw->_state == CW_STATE_DIALING))) {
 					if (option_debug)
 						cw_log(CW_LOG_DEBUG, "Line answered\n");
