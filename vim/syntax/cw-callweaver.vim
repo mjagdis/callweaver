@@ -76,7 +76,6 @@ syn keyword cwCWOptionKeys contained
  \ initcrypto
  \ maxcalls
  \ maxload
- \ nocolor
  \ nofork
  \ quiet
  \ record_cache_dir
@@ -84,7 +83,7 @@ syn keyword cwCWOptionKeys contained
  \ transcode_via_slin
  \ verbose
 
-syn match   cwCWOptions     "^\s*\%(cache_record_files\|console\|dontwarn\|dumpcore\|enableunsafeunload\|execincludes\|highpriority\|initcrypto\|nocolor\|nofork\|quiet\|transcode_via_slin\)\s*=>\?" contained contains=cwCWOptionKeys,cwMapTo,cwError skipwhite nextgroup=cwBoolean
+syn match   cwCWOptions     "^\s*\%(cache_record_files\|console\|dontwarn\|dumpcore\|enableunsafeunload\|execincludes\|highpriority\|initcrypto\|nofork\|quiet\|transcode_via_slin\)\s*=>\?" contained contains=cwCWOptionKeys,cwMapTo,cwError skipwhite nextgroup=cwBoolean
 
 syn match   cwCWOptions     "^\s*\%(debug\)\s*=>\?" contained contains=cwCWOptionKeys,cwMapTo,cwError skipwhite nextgroup=cwBoolean,cwInt
 

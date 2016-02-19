@@ -45,7 +45,6 @@ extern CW_API_PUBLIC int option_nofork;
 extern CW_API_PUBLIC int option_quiet;
 extern CW_API_PUBLIC int option_console;
 extern CW_API_PUBLIC int option_initcrypto;
-extern CW_API_PUBLIC int option_nocolor;
 extern CW_API_PUBLIC int option_remote;
 extern CW_API_PUBLIC int option_reconnect;
 extern CW_API_PUBLIC int fully_booted;

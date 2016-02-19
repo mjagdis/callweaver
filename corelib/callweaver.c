@@ -180,7 +180,6 @@ int option_highpriority=0;
 int option_remote=0;
 int option_exec=0;
 int option_initcrypto=0;
-int option_nocolor = 0;
 int option_dumpcore = 0;
 int option_cache_record_files = 0;
 int option_reconnect = 0;
@@ -1365,9 +1364,6 @@ static void cw_readconfig(const char *config)
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
 			option_initcrypto = cw_true(v->value);
-		/* Disable ANSI colors for console (-c at startup) */
-		} else if (!strcasecmp(v->name, "nocolor")) {
-			option_nocolor = cw_true(v->value);
 		/* Disable some usage warnings for picky people :p */
 		} else if (!strcasecmp(v->name, "dontwarn")) {
 			option_dontwarn = cw_true(v->value);
@@ -1459,7 +1455,7 @@ int callweaver_main(int argc, char *argv[])
 	cw_utils_init();
 
 	/* Check for options */
-	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:L:M:")) != -1) {
+	while((c=getopt(argc, argv, "tThfdvVqprRgcix:U:G:C:L:M:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1470,9 +1466,6 @@ int callweaver_main(int argc, char *argv[])
 			break;
 		case 'f':
 			option_nofork++;
-			break;
-		case 'n':
-			option_nocolor++;
 			break;
 		case 'r':
 			option_remote++;

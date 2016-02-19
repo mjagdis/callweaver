@@ -772,14 +772,12 @@ void *console(void *data)
 
 	terminal_init();
 
-	if (!option_nocolor) {
-		terminal_highlight(&level_attr[CW_LOG_DEBUG].on, &level_attr[CW_LOG_DEBUG].off, "fg=blue,bold");
-		terminal_highlight(&level_attr[CW_LOG_NOTICE].on, &level_attr[CW_LOG_NOTICE].off, "fg=green,bold");
-		terminal_highlight(&level_attr[CW_LOG_WARNING].on, &level_attr[CW_LOG_WARNING].off, "fg=yellow,bold");
-		terminal_highlight(&level_attr[CW_LOG_ERROR].on, &level_attr[CW_LOG_ERROR].off, "fg=red,bold");
+	terminal_highlight(&level_attr[CW_LOG_DEBUG].on, &level_attr[CW_LOG_DEBUG].off, "fg=blue,bold");
+	terminal_highlight(&level_attr[CW_LOG_NOTICE].on, &level_attr[CW_LOG_NOTICE].off, "fg=green,bold");
+	terminal_highlight(&level_attr[CW_LOG_WARNING].on, &level_attr[CW_LOG_WARNING].off, "fg=yellow,bold");
+	terminal_highlight(&level_attr[CW_LOG_ERROR].on, &level_attr[CW_LOG_ERROR].off, "fg=red,bold");
 
-		terminal_highlight(&bold_on, &bold_off, "bold");
-	}
+	terminal_highlight(&bold_on, &bold_off, "bold");
 
 	terminal_set_icon("Callweaver");
 
