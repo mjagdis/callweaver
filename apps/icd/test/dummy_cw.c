@@ -28,7 +28,7 @@ int icd_verbose;
 icd_config_registry *app_icd_config_registry;
 
 
-void cw_log(int level, const char *file, int line, const char *function, const char *fmt, ...) {
+void cw_log(const char *file, int line, const char *function, int level, const char *fmt, ...) {
     va_list ap;
 
     fprintf(stdout, "File %s, Line %d (%s): ", file, line, function);

@@ -99,20 +99,20 @@ static struct {
 	int len;
 } perms[] = {
 #define STR_LEN(s)	{ s, sizeof(s) - 1 }
-	[CW_EVENT_NUM_ERROR]	= STR_LEN("error"),
-	[CW_EVENT_NUM_WARNING]	= STR_LEN("warning"),
-	[CW_EVENT_NUM_NOTICE]	= STR_LEN("notice"),
-	[CW_EVENT_NUM_VERBOSE]	= STR_LEN("verbose"),
-	[CW_EVENT_NUM_EVENT]	= STR_LEN("event"),
-	[CW_EVENT_NUM_DTMF]	= STR_LEN("dtmf"),
-	[CW_EVENT_NUM_DEBUG]	= STR_LEN("debug"),
-	[CW_EVENT_NUM_PROGRESS]	= STR_LEN("progress"),
+	[CW_LOG_ERROR]    = STR_LEN("error"),
+	[CW_LOG_WARNING]  = STR_LEN("warning"),
+	[CW_LOG_NOTICE]   = STR_LEN("notice"),
+	[CW_LOG_VERBOSE]  = STR_LEN("verbose"),
+	[CW_LOG_EVENT]    = STR_LEN("event"),
+	[CW_LOG_DTMF]     = STR_LEN("dtmf"),
+	[CW_LOG_DEBUG]    = STR_LEN("debug"),
+	[CW_LOG_PROGRESS] = STR_LEN("progress"),
 
-	[CW_EVENT_NUM_SYSTEM]	= STR_LEN("system"),
-	[CW_EVENT_NUM_CALL]	= STR_LEN("call"),
-	[CW_EVENT_NUM_COMMAND]	= STR_LEN("command"),
-	[CW_EVENT_NUM_AGENT]	= STR_LEN("agent"),
-	[CW_EVENT_NUM_USER]	= STR_LEN("user"),
+	[CW_EVENT_NUM_SYSTEM]  = STR_LEN("system"),
+	[CW_EVENT_NUM_CALL]    = STR_LEN("call"),
+	[CW_EVENT_NUM_COMMAND] = STR_LEN("command"),
+	[CW_EVENT_NUM_AGENT]   = STR_LEN("agent"),
+	[CW_EVENT_NUM_USER]    = STR_LEN("user"),
 #undef STR_LEN
 };
 

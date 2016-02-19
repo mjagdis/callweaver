@@ -45,7 +45,7 @@
 #  define OBJECT_TRACING_FIELD			int trace;
 #  define OBJECT_TRACING_PARAMS			const char *file, int line, const char *function,
 #  define OBJECT_TRACING_ARGS			__FILE__, __LINE__, __PRETTY_FUNCTION__,
-#  define OBJECT_TRACING_PRINT(fmt, ...)	if (obj->trace) cw_log(__CW_LOG_DEBUG, file, line, function, (fmt), ## __VA_ARGS__)
+#  define OBJECT_TRACING_PRINT(fmt, ...)	if (obj->trace) cw_log_internal(file, line, function, CW_LOG_DEBUG, (fmt), ## __VA_ARGS__)
 #  define cw_object_init_obj(obj, module, refs) do { \
 		struct cw_object *__obj = (obj); \
 		__obj->trace = 0; \

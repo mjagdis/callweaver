@@ -63,13 +63,13 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 static struct {
 	const char *on, *off;
 } level_attr[] = {
-	[__CW_LOG_DEBUG] = { NULL, NULL },
-	[__CW_LOG_EVENT] = { NULL, NULL },
-	[__CW_LOG_NOTICE] = { NULL, NULL },
-	[__CW_LOG_WARNING] = { NULL, NULL },
-	[__CW_LOG_ERROR] = { NULL, NULL },
-	[__CW_LOG_VERBOSE] = { NULL, NULL },
-	[__CW_LOG_DTMF] = { NULL, NULL },
+	[CW_LOG_DEBUG]   = { NULL, NULL },
+	[CW_LOG_EVENT]   = { NULL, NULL },
+	[CW_LOG_NOTICE]  = { NULL, NULL },
+	[CW_LOG_WARNING] = { NULL, NULL },
+	[CW_LOG_ERROR]   = { NULL, NULL },
+	[CW_LOG_VERBOSE] = { NULL, NULL },
+	[CW_LOG_DTMF]    = { NULL, NULL },
 };
 
 static const char *bold_on, *bold_off;
@@ -465,7 +465,7 @@ static int read_message(int s, int nresp)
 							if (lval != sizeof("--END MESSAGE--") - 1 || memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1)) {
 								exit_prompt();
 
-								if (level == CW_EVENT_NUM_PROGRESS) {
+								if (level == CW_LOG_PROGRESS) {
 									/* Progress messages suppress input handling until
 									 * we get a null progress message to signify the end
 									 */
@@ -483,7 +483,7 @@ static int read_message(int s, int nresp)
 									}
 
 									key[lval++] = '\n';
-									if (level != CW_EVENT_NUM_VERBOSE) {
+									if (level != CW_LOG_VERBOSE) {
 										fwrite(field[F_DATE].buf, 1, field_len[F_DATE], stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].on)
 											terminal_write_attr(level_attr[level].on, putchar);
@@ -773,10 +773,10 @@ void *console(void *data)
 	terminal_init();
 
 	if (!option_nocolor) {
-		terminal_highlight(&level_attr[__CW_LOG_DEBUG].on, &level_attr[__CW_LOG_DEBUG].off, "fg=blue,bold");
-		terminal_highlight(&level_attr[__CW_LOG_NOTICE].on, &level_attr[__CW_LOG_NOTICE].off, "fg=green,bold");
-		terminal_highlight(&level_attr[__CW_LOG_WARNING].on, &level_attr[__CW_LOG_WARNING].off, "fg=yellow,bold");
-		terminal_highlight(&level_attr[__CW_LOG_ERROR].on, &level_attr[__CW_LOG_ERROR].off, "fg=red,bold");
+		terminal_highlight(&level_attr[CW_LOG_DEBUG].on, &level_attr[CW_LOG_DEBUG].off, "fg=blue,bold");
+		terminal_highlight(&level_attr[CW_LOG_NOTICE].on, &level_attr[CW_LOG_NOTICE].off, "fg=green,bold");
+		terminal_highlight(&level_attr[CW_LOG_WARNING].on, &level_attr[CW_LOG_WARNING].off, "fg=yellow,bold");
+		terminal_highlight(&level_attr[CW_LOG_ERROR].on, &level_attr[CW_LOG_ERROR].off, "fg=red,bold");
 
 		terminal_highlight(&bold_on, &bold_off, "bold");
 	}

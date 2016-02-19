@@ -57,6 +57,8 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 
 
+#define EVENTLOG "event_log"
+
 #define MAX_MSG_QUEUE 200
 
 
@@ -88,27 +90,27 @@ static FILE *eventlog = NULL;
 
 
 static const char *levels[] = {
-	[CW_EVENT_NUM_ERROR]	= "ERROR",
-	[CW_EVENT_NUM_WARNING]	= "WARNING",
-	[CW_EVENT_NUM_NOTICE]	= "NOTICE",
-	[CW_EVENT_NUM_VERBOSE]	= "VERBOSE",
-	[CW_EVENT_NUM_EVENT]	= "EVENT",
-	[CW_EVENT_NUM_DTMF]	= "DTMF",
-	[CW_EVENT_NUM_DEBUG]	= "DEBUG",
-	[CW_EVENT_NUM_PROGRESS]	= "PROGRESS",
+	[CW_LOG_ERROR]    = "ERROR",
+	[CW_LOG_WARNING]  = "WARNING",
+	[CW_LOG_NOTICE]   = "NOTICE",
+	[CW_LOG_VERBOSE]  = "VERBOSE",
+	[CW_LOG_EVENT]    = "EVENT",
+	[CW_LOG_DTMF]     = "DTMF",
+	[CW_LOG_DEBUG]    = "DEBUG",
+	[CW_LOG_PROGRESS] = "PROGRESS",
 };
 
 
 static int logger_manager_session(struct mansession *sess, const struct cw_manager_message *event)
 {
 	static const int priorities[] = {
-		[CW_EVENT_NUM_ERROR]	= LOG_ERR,
-		[CW_EVENT_NUM_WARNING]	= LOG_WARNING,
-		[CW_EVENT_NUM_NOTICE]	= LOG_NOTICE,
-		[CW_EVENT_NUM_VERBOSE]	= LOG_INFO,
-		[CW_EVENT_NUM_EVENT]	= LOG_INFO,
-		[CW_EVENT_NUM_DTMF]	= LOG_INFO,
-		[CW_EVENT_NUM_DEBUG]	= LOG_DEBUG,
+		[CW_LOG_ERROR]   = LOG_ERR,
+		[CW_LOG_WARNING] = LOG_WARNING,
+		[CW_LOG_NOTICE]  = LOG_NOTICE,
+		[CW_LOG_VERBOSE] = LOG_INFO,
+		[CW_LOG_EVENT]   = LOG_INFO,
+		[CW_LOG_DTMF]    = LOG_INFO,
+		[CW_LOG_DEBUG]   = LOG_DEBUG,
 	};
 	static const struct {
 		int i_iov;
@@ -463,13 +465,13 @@ int reload_logger(int rotate)
 	if (logfiles.event_log) {
 		struct cw_dynstr old = CW_DYNSTR_INIT;
 
-		cw_dynstr_printf(&old, "%s/%s", cw_config[CW_LOG_DIR], EVENTLOG);
+		cw_dynstr_printf(&old, "%s/" EVENTLOG, cw_config[CW_LOG_DIR]);
 
 		if (rotate) {
 			struct cw_dynstr new = CW_DYNSTR_INIT;
 			size_t mark;
 
-			cw_dynstr_printf(&new, "%s/%s.", cw_config[CW_LOG_DIR], EVENTLOG);
+			cw_dynstr_printf(&new, "%s/." EVENTLOG, cw_config[CW_LOG_DIR]);
 			mark = new.used;
 
 			for (x = 0; ; x++) {
@@ -556,19 +558,19 @@ static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *a
 
 	for (chan = logchannels; chan; chan = chan->next) {
 		cw_dynstr_printf(ds_p, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"));
-		if (chan->sess->send_events & (1 << __CW_LOG_DEBUG)) 
+		if (chan->sess->send_events & EVENT_FLAG_DEBUG)
 			cw_dynstr_printf(ds_p, "Debug ");
-		if (chan->sess->send_events & (1 << __CW_LOG_DTMF)) 
+		if (chan->sess->send_events & EVENT_FLAG_DTMF)
 			cw_dynstr_printf(ds_p, "DTMF ");
-		if (chan->sess->send_events & (1 << __CW_LOG_VERBOSE)) 
+		if (chan->sess->send_events & EVENT_FLAG_VERBOSE)
 			cw_dynstr_printf(ds_p, "Verbose ");
-		if (chan->sess->send_events & (1 << __CW_LOG_WARNING)) 
+		if (chan->sess->send_events & EVENT_FLAG_WARNING)
 			cw_dynstr_printf(ds_p, "Warning ");
-		if (chan->sess->send_events & (1 << __CW_LOG_NOTICE)) 
+		if (chan->sess->send_events & EVENT_FLAG_NOTICE)
 			cw_dynstr_printf(ds_p, "Notice ");
-		if (chan->sess->send_events & (1 << __CW_LOG_ERROR)) 
+		if (chan->sess->send_events & EVENT_FLAG_ERROR)
 			cw_dynstr_printf(ds_p, "Error ");
-		if (chan->sess->send_events & (1 << __CW_LOG_EVENT)) 
+		if (chan->sess->send_events & EVENT_FLAG_EVENT)
 			cw_dynstr_printf(ds_p, "Event ");
 		cw_dynstr_printf(ds_p, "\n");
 	}
@@ -636,7 +638,7 @@ int init_logger(void)
 
 		mkdir(cw_config[CW_LOG_DIR], 0755);
 
-		cw_dynstr_printf(&fname, "%s/%s", cw_config[CW_LOG_DIR], EVENTLOG);
+		cw_dynstr_printf(&fname, "%s/" EVENTLOG, cw_config[CW_LOG_DIR]);
 
 		if (!fname.error && (eventlog = fopen(fname.data, "a"))) {
 			cw_log(CW_LOG_EVENT, "Started CallWeaver Event Logger\n");
@@ -657,7 +659,7 @@ int init_logger(void)
 /*
  * send log messages to syslog and/or the console
  */
-void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
+void cw_log_internal(const char *file, int line, const char *function, cw_log_level level, const char *fmt, ...)
 {
 	char buf[BUFSIZ];
 	char date[256];
@@ -673,7 +675,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	   LOG_DEBUG messages to be displayed, if the logmask on any channel
 	   allows it)
 	*/
-	if (!option_verbose && !option_debug && (level == __CW_LOG_DEBUG))
+	if (!option_verbose && !option_debug && (level == CW_LOG_DEBUG))
 		return;
 
 	/* We only want the base name... */
@@ -681,7 +683,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		file = msg + 1;
 
 	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == __CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
+	if ((level == CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
 		return;
 
 	cw_clock_gettime(CLOCK_REALTIME, &now);
@@ -698,7 +700,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 	for (msg = buf; *msg == '\n' || *msg == '\r'; msg++,msglen--);
 	while (msglen > 0 && (msg[msglen - 1] == '\n' || msg[msglen - 1] == '\r')) msg[--msglen] = '\0';
 
-	if (level == __CW_LOG_EVENT) {
+	if (level == CW_LOG_EVENT) {
 		cw_mutex_lock(&loglock);
 		if (logfiles.event_log) {
 			fprintf(eventlog, "%s callweaver[%d]: %s\n", date, getpid(), msg);
@@ -724,7 +726,7 @@ void cw_log(cw_log_level level, const char *file, int line, const char *function
 		 * we don't have the logger chain configured yet,
 		 * so just log to stdout 
 		*/
-		if (level != __CW_LOG_VERBOSE)
+		if (level != CW_LOG_VERBOSE)
 			fprintf(stdout, "%s %s[" TIDFMT "]: %s:%d %s: %s\n", date, levels[level], GETTID(), file, line, function, msg);
 	}
 }

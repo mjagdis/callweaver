@@ -3217,21 +3217,21 @@ static enum cw_bridge_result cw_generic_bridge(struct cw_channel *c0,
         int res1,res2;
         res1 = cw_channel_get_t38_status(c0);
         res2 = cw_channel_get_t38_status(c1);
-        //cw_log(LOG_DEBUG,"genbridge res t38 = %d:%d [%d %d]\n",res1, res2, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
+        //cw_log(CW_LOG_DEBUG,"genbridge res t38 = %d:%d [%d %d]\n",res1, res2, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
 
         if ( res1!=res2 ) {
-            //cw_log(LOG_DEBUG,"Stopping generic bridge because channels have different modes\n");
+            //cw_log(CW_LOG_DEBUG,"Stopping generic bridge because channels have different modes\n");
             usleep(100);
             return CW_BRIDGE_RETRY;
         }
 
 /*
         if ( res1==T38_NEGOTIATED ) {
-            cw_log(LOG_DEBUG,"Stopping generic bridge because channel 0 is t38 enabled ( %d != [%d,%d])\n", res1, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
+            cw_log(CW_LOG_DEBUG,"Stopping generic bridge because channel 0 is t38 enabled ( %d != [%d,%d])\n", res1, T38_STATUS_UNKNOWN, T38_OFFER_REJECTED);
             return CW_BRIDGE_RETRY;
         }
         if ( res2==T38_NEGOTIATED ) {
-            cw_log(LOG_DEBUG,"Stopping generic bridge because channel 1 is t38 enabled\n");
+            cw_log(CW_LOG_DEBUG,"Stopping generic bridge because channel 1 is t38 enabled\n");
             return CW_BRIDGE_RETRY;
         }
 */

@@ -33,56 +33,45 @@ extern "C" {
 #endif
 
 
-#define CW_EVENT_NUM_ERROR		0
-#define CW_EVENT_NUM_WARNING		1
-#define CW_EVENT_NUM_NOTICE		2
-#define CW_EVENT_NUM_VERBOSE		3
-#define CW_EVENT_NUM_EVENT		4
-#define CW_EVENT_NUM_DTMF		5
-#define CW_EVENT_NUM_DEBUG		6
-#define CW_EVENT_NUM_PROGRESS		7
+typedef enum {
+	CW_LOG_ERROR    = 0,
+	CW_LOG_WARNING,
+	CW_LOG_NOTICE,
+	CW_LOG_VERBOSE,
+	CW_LOG_EVENT,
+	CW_LOG_DTMF,
+	CW_LOG_DEBUG,
+	CW_LOG_PROGRESS,
+} cw_log_level;
 
-#define CW_EVENT_NUM_SYSTEM 		8 	/* System events such as module load/unload */
-#define CW_EVENT_NUM_CALL		9 	/* Call event, such as state change, etc */
-#define CW_EVENT_NUM_COMMAND		10 	/* Ability to read/set commands */
-#define CW_EVENT_NUM_AGENT		11 	/* Ability to read/set agent info */
-#define CW_EVENT_NUM_USER		12 	/* Ability to read/set user info */
-
-
-#define EVENT_FLAG_SYSTEM 		(1 << CW_EVENT_NUM_SYSTEM) 	/* System events such as module load/unload */
-#define EVENT_FLAG_CALL			(1 << CW_EVENT_NUM_CALL) 	/* Call event, such as state change, etc */
-#define EVENT_FLAG_COMMAND		(1 << CW_EVENT_NUM_COMMAND) 	/* Ability to read/set commands */
-#define EVENT_FLAG_AGENT		(1 << CW_EVENT_NUM_AGENT) 	/* Ability to read/set agent info */
-#define EVENT_FLAG_USER			(1 << CW_EVENT_NUM_USER) 	/* Ability to read/set user info */
-
-#define EVENT_FLAG_ERROR		(1 << CW_EVENT_NUM_ERROR)
-#define EVENT_FLAG_WARNING		(1 << CW_EVENT_NUM_WARNING)
-#define EVENT_FLAG_NOTICE		(1 << CW_EVENT_NUM_NOTICE)
-#define EVENT_FLAG_VERBOSE		(1 << CW_EVENT_NUM_VERBOSE)
-#define EVENT_FLAG_EVENT		(1 << CW_EVENT_NUM_EVENT)
-#define EVENT_FLAG_DTMF			(1 << CW_EVENT_NUM_DTMF)
-#define EVENT_FLAG_DEBUG		(1 << CW_EVENT_NUM_DEBUG)
-#define EVENT_FLAG_PROGRESS		(1 << CW_EVENT_NUM_PROGRESS)
-
-#define EVENT_FLAG_LOG_ALL		(EVENT_FLAG_ERROR | EVENT_FLAG_WARNING | EVENT_FLAG_NOTICE | EVENT_FLAG_VERBOSE | EVENT_FLAG_EVENT | EVENT_FLAG_DTMF | EVENT_FLAG_DEBUG)
+typedef enum {
+	CW_EVENT_NUM_SYSTEM  = CW_LOG_PROGRESS + 1, /* System events such as module load/unload */
+	CW_EVENT_NUM_CALL,                          /* Call event, such as state change, etc */
+	CW_EVENT_NUM_COMMAND,                       /* Commands */
+	CW_EVENT_NUM_AGENT,                         /* Read/set agent info */
+	CW_EVENT_NUM_USER,                          /* Read/set user info */
+} cw_event_num;
 
 
 typedef enum {
-	__CW_LOG_ERROR    = CW_EVENT_NUM_ERROR,
-	__CW_LOG_WARNING  = CW_EVENT_NUM_WARNING,
-	__CW_LOG_NOTICE   = CW_EVENT_NUM_NOTICE,
-	__CW_LOG_VERBOSE  = CW_EVENT_NUM_VERBOSE,
-	__CW_LOG_EVENT    = CW_EVENT_NUM_EVENT,
-	__CW_LOG_DTMF     = CW_EVENT_NUM_DTMF,
-	__CW_LOG_DEBUG    = CW_EVENT_NUM_DEBUG,
-	__CW_LOG_PROGRESS = CW_EVENT_NUM_PROGRESS,
-} cw_log_level;
+	EVENT_FLAG_ERROR    = (1 << CW_LOG_ERROR),
+	EVENT_FLAG_WARNING  = (1 << CW_LOG_WARNING),
+	EVENT_FLAG_NOTICE   = (1 << CW_LOG_NOTICE),
+	EVENT_FLAG_VERBOSE  = (1 << CW_LOG_VERBOSE),
+	EVENT_FLAG_EVENT    = (1 << CW_LOG_EVENT),
+	EVENT_FLAG_DTMF     = (1 << CW_LOG_DTMF),
+	EVENT_FLAG_DEBUG    = (1 << CW_LOG_DEBUG),
+	EVENT_FLAG_PROGRESS = (1 << CW_LOG_PROGRESS),
 
-#define EVENTLOG "event_log"
+	EVENT_FLAG_SYSTEM   = (1 << CW_EVENT_NUM_SYSTEM) , /* System events such as module load/unload */
+	EVENT_FLAG_CALL	    = (1 << CW_EVENT_NUM_CALL),    /* Call event, such as state change, etc */
+	EVENT_FLAG_COMMAND  = (1 << CW_EVENT_NUM_COMMAND), /* Ability to read/set commands */
+	EVENT_FLAG_AGENT    = (1 << CW_EVENT_NUM_AGENT),   /* Ability to read/set agent info */
+	EVENT_FLAG_USER	    = (1 << CW_EVENT_NUM_USER),    /* Ability to read/set user info */
 
-#define DEBUG_M(a) { \
-	a; \
-}
+	EVENT_FLAG_LOG_ALL  = (EVENT_FLAG_ERROR | EVENT_FLAG_WARNING | EVENT_FLAG_NOTICE | EVENT_FLAG_VERBOSE | EVENT_FLAG_EVENT | EVENT_FLAG_DTMF | EVENT_FLAG_DEBUG),
+} cw_event_flag;
+
 
 /*! Used for sending a log message */
 /*!
@@ -92,14 +81,15 @@ typedef enum {
 	on which log you wish to output to. These are implemented as macros, that
 	will provide the function with the needed arguments.
 
- 	\param level	Type of log event
 	\param file	Will be provided by the LOG_* macro
 	\param line	Will be provided by the LOG_* macro
 	\param function	Will be provided by the LOG_* macro
+ 	\param level	Type of log event
 	\param fmt	This is what is important.  The format is the same as your favorite breed of printf.  You know how that works, right? :-)
  */
-extern CW_API_PUBLIC void cw_log(cw_log_level level, const char *file, int line, const char *function, const char *fmt, ...)
+extern CW_API_PUBLIC void cw_log_internal(const char *file, int line, const char *function, cw_log_level level, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
+#define cw_log(level, fmt, ...)	cw_log_internal(__FILE__, __LINE__, __PRETTY_FUNCTION__, level, fmt, ## __VA_ARGS__)
 
 extern CW_API_PUBLIC void cw_queue_log(const char *queuename, const char *callid, const char *agent, const char *event, const char *fmt, ...)
 	__attribute__ ((format (printf, 5, 6)));
@@ -113,17 +103,6 @@ extern CW_API_PUBLIC void cw_queue_log(const char *queuename, const char *callid
  */
 #define cw_verbose(...)		cw_log(CW_LOG_VERBOSE, __VA_ARGS__)
 
-
-#define _A_ __FILE__, __LINE__, __PRETTY_FUNCTION__
-
-#define CW_LOG_PROGRESS   __CW_LOG_PROGRESS, _A_
-#define CW_LOG_DEBUG      __CW_LOG_DEBUG,    _A_
-#define CW_LOG_EVENT      __CW_LOG_EVENT,    _A_
-#define CW_LOG_NOTICE     __CW_LOG_NOTICE,   _A_
-#define CW_LOG_WARNING    __CW_LOG_WARNING,  _A_
-#define CW_LOG_ERROR      __CW_LOG_ERROR,    _A_
-#define CW_LOG_VERBOSE    __CW_LOG_VERBOSE,  _A_
-#define CW_LOG_DTMF       __CW_LOG_DTMF,     _A_
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

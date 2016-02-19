@@ -73,16 +73,14 @@ static int cw_check_hangup_locked(struct cw_channel *chan)
 
 static void span_message(int level, const char *msg)
 {
-    cw_log_level cw_level;
+    cw_log_level cw_level = CW_LOG_DEBUG;
     
     if (level == SPAN_LOG_ERROR)
-        cw_level = __CW_LOG_ERROR;
+        cw_level = CW_LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
-        cw_level = __CW_LOG_WARNING;
-    else
-        cw_level = __CW_LOG_DEBUG;
-    //cw_level = __CW_LOG_WARNING;
-    cw_log(cw_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
+        cw_level = CW_LOG_WARNING;
+
+    cw_log(cw_level, "%s", msg);
 }
 
 static void request_t38(struct cw_channel *chan, struct cw_channel *peer)

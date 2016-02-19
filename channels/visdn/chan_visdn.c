@@ -4171,18 +4171,18 @@ static void visdn_logger(int level, const char *format, ...)
 	break;
 
 	case Q931_LOG_NOTICE:
-		cw_log(__LOG_NOTICE, "libq931", 0, "", "%s", msg);
+		cw_log(CW_LOG_NOTICE, "libq931", 0, "", "%s", msg);
 	break;
 
 	case Q931_LOG_WARNING:
-		cw_log(__LOG_WARNING, "libq931", 0, "", "%s", msg);
+		cw_log(CW_LOG_WARNING, "libq931", 0, "", "%s", msg);
 	break;
 
 	case Q931_LOG_ERR:
 	case Q931_LOG_CRIT:
 	case Q931_LOG_ALERT:
 	case Q931_LOG_EMERG:
-		cw_log(__LOG_ERROR, "libq931", 0, "", "%s", msg);
+		cw_log(CW_LOG_ERROR, "libq931", 0, "", "%s", msg);
 	break;
 	}
 }

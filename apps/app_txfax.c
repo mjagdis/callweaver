@@ -69,16 +69,14 @@ static const char txfax_descrip[] =
 
 static void span_message(int level, const char *msg)
 {
-    cw_log_level cw_level;
+    cw_log_level cw_level = CW_LOG_DEBUG;
     
     if (level == SPAN_LOG_ERROR)
-        cw_level = __CW_LOG_ERROR;
+        cw_level = CW_LOG_ERROR;
     else if (level == SPAN_LOG_WARNING)
-        cw_level = __CW_LOG_WARNING;
-    else
-        cw_level = __CW_LOG_DEBUG;
-    //cw_level = __CW_LOG_WARNING;
-    cw_log(cw_level, __FILE__, __LINE__, __PRETTY_FUNCTION__, "%s", msg);
+        cw_level = CW_LOG_WARNING;
+
+    cw_log(cw_level, "%s", msg);
 }
 /*- End of function --------------------------------------------------------*/
 
@@ -427,7 +425,7 @@ static int txfax_audio(struct cw_channel *chan, fax_state_t *fax, const char *so
         /* Initializing the DSP */
         if ((dsp = cw_dsp_new()) = NULL)
         {
-            cw_log(cw_LOG_WARNING, "Unable to allocate DSP!\n");
+            cw_log(CW_LOG_WARNING, "Unable to allocate DSP!\n");
         }
         else
         {
