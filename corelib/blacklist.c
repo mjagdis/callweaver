@@ -214,7 +214,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 
 	if (entry && mode != BLACKLIST_DELETE) {
 		if (entry->duration) {
-			cw_log(CW_LOG_WARNING, "Blacklisting %@ for %us\n", addr, entry->duration);
+			cw_log((entry->duration == duration ? CW_LOG_NOTICE : CW_LOG_DEBUG), "Blacklisting %@ for %us\n", addr, entry->duration);
 			cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Blacklist",
 				3,
 				cw_msg_tuple("Address",  "%@", addr),
