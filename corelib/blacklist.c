@@ -199,8 +199,8 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 	}
 
 	/* At this stage we own two counted references, either because we created a new
-	 * entry with two or because we found and entry (1 ref) and removed the expire
-	 * job (which owned the second ref), so we have one to hand off when scheduling
+	 * entry with two or because we found an entry (1 ref) and removed the expire
+	 * job (which gave us the second ref), so we have one to hand off when scheduling
 	 * the expire job and one to release after we're done.
 	 */
 	if (entry) {
