@@ -615,7 +615,7 @@ static void quit_handler(void *data)
 	if (option_debug)
 		cw_log(CW_LOG_DEBUG, "CallWeaver ending.\n");
 
-	cw_manager_event(EVENT_FLAG_SYSTEM, "Shutdown",
+	cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Shutdown",
 		2,
 		cw_msg_tuple("Shutdown", "%s", (cw_active_channels() ? "Uncleanly" : "Cleanly")),
 		cw_msg_tuple("Restart", "%s", (local_restart ? "True" : "False"))

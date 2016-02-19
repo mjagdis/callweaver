@@ -3247,7 +3247,7 @@ static int notify_new_message(struct cw_channel *chan, struct cw_vm_user *vmu, i
 		cw_app_messagecount(ext_context, &newmsgs, &oldmsgs);
 	}
 
-	cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "MessageWaiting",
 		4,
 		cw_msg_tuple("Mailbox", "%s@%s", vmu->mailbox, vmu->context),
 		cw_msg_tuple("Waiting", "%d",    cw_app_has_voicemail(ext_context, NULL)),
@@ -3465,7 +3465,7 @@ static int forward_message(struct cw_channel *chan, char *context, char *dir, in
 					cw_config_destroy(mif); /* or here */
 				}
 				/* Leave voicemail for someone */
-				cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
+				cw_manager_event(CW_EVENT_FLAG_CALL, "MessageWaiting",
 					2,
 					cw_msg_tuple("Mailbox", "%s", ext_context),
 					cw_msg_tuple("Waiting", "%d", has_voicemail(ext_context, NULL))
@@ -5395,7 +5395,7 @@ out:
 		close_mailbox(&vms, vmu);
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
-		cw_manager_event(EVENT_FLAG_CALL, "MessageWaiting",
+		cw_manager_event(CW_EVENT_FLAG_CALL, "MessageWaiting",
 			2,
 			cw_msg_tuple("Mailbox", "%s", ext_context),
 			cw_msg_tuple("Waiting", "%d", has_voicemail(ext_context, NULL))

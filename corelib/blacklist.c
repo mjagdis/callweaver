@@ -128,7 +128,7 @@ static int blacklist_entry_remove(void *data)
 	entry->expire = -1;
 
 	cw_log(CW_LOG_NOTICE, "Blacklist of %@ removed\n", &entry->addr);
-	cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+	cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Blacklist",
 		2,
 		cw_msg_tuple("Address", "%@", &entry->addr),
 		cw_msg_tuple("State",   "%s", "Removed")
@@ -215,7 +215,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 	if (entry && mode != BLACKLIST_DELETE) {
 		if (entry->duration) {
 			cw_log(CW_LOG_WARNING, "Blacklisting %@ for %us\n", addr, entry->duration);
-			cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+			cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Blacklist",
 				3,
 				cw_msg_tuple("Address",  "%@", addr),
 				cw_msg_tuple("State",    "%s", "Blocked"),
@@ -223,7 +223,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 			);
 		} else {
 			cw_log(CW_LOG_WARNING, "Blacklisting %@ permanently\n", addr);
-			cw_manager_event(EVENT_FLAG_SYSTEM, "Blacklist",
+			cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Blacklist",
 				3,
 				cw_msg_tuple("Address",  "%@", addr),
 				cw_msg_tuple("State",    "%s", "Blocked"),

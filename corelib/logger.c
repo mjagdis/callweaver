@@ -558,19 +558,19 @@ static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *a
 
 	for (chan = logchannels; chan; chan = chan->next) {
 		cw_dynstr_printf(ds_p, FORMATL, chan->filename, (chan->facility == -1 ? "File" : "Syslog"));
-		if (chan->sess->send_events & EVENT_FLAG_DEBUG)
+		if (chan->sess->send_events & CW_EVENT_FLAG_DEBUG)
 			cw_dynstr_printf(ds_p, "Debug ");
-		if (chan->sess->send_events & EVENT_FLAG_DTMF)
+		if (chan->sess->send_events & CW_EVENT_FLAG_DTMF)
 			cw_dynstr_printf(ds_p, "DTMF ");
-		if (chan->sess->send_events & EVENT_FLAG_VERBOSE)
+		if (chan->sess->send_events & CW_EVENT_FLAG_VERBOSE)
 			cw_dynstr_printf(ds_p, "Verbose ");
-		if (chan->sess->send_events & EVENT_FLAG_WARNING)
+		if (chan->sess->send_events & CW_EVENT_FLAG_WARNING)
 			cw_dynstr_printf(ds_p, "Warning ");
-		if (chan->sess->send_events & EVENT_FLAG_NOTICE)
+		if (chan->sess->send_events & CW_EVENT_FLAG_NOTICE)
 			cw_dynstr_printf(ds_p, "Notice ");
-		if (chan->sess->send_events & EVENT_FLAG_ERROR)
+		if (chan->sess->send_events & CW_EVENT_FLAG_ERROR)
 			cw_dynstr_printf(ds_p, "Error ");
-		if (chan->sess->send_events & EVENT_FLAG_EVENT)
+		if (chan->sess->send_events & CW_EVENT_FLAG_EVENT)
 			cw_dynstr_printf(ds_p, "Event ");
 		cw_dynstr_printf(ds_p, "\n");
 	}

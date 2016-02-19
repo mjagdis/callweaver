@@ -305,7 +305,7 @@ static int cw_valetpark_call(struct cw_channel *chan, int timeout, int *extout,c
 				cw_verbose(VERBOSE_PREFIX_2 "Valet Parked %s on slot %d\n", pu->chan->name, pu->valetparkingnum);
 
 			pbx_builtin_setvar_helper(pu->chan,"Parker","Yes");
-			cw_manager_event(EVENT_FLAG_CALL, "VirtualValetparkedCall",
+			cw_manager_event(CW_EVENT_FLAG_CALL, "VirtualValetparkedCall",
 				6,
 				cw_msg_tuple("Exten",        "%d",  pu->valetparkingnum),
 				cw_msg_tuple("Channel",      "%s",  pu->chan->name),

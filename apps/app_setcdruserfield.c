@@ -142,7 +142,7 @@ static int appendcdruserfield_exec(struct cw_channel *chan, int argc, char **arg
 static struct manager_action manager_actions[] = {
 	{
 		.action = "SetCDRUserField",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_setcdruserfield,
 		.synopsis = "Set the CDR UserField",
 	},

@@ -115,7 +115,7 @@ static int manager_log(struct cw_cdr *batch)
 			localtime_r(&t, &timeresult);
 			strftime(strEndTime, sizeof(strEndTime), DATE_FORMAT, &timeresult);
 
-			cw_manager_event(EVENT_FLAG_CALL, "Cdr",
+			cw_manager_event(CW_EVENT_FLAG_CALL, "Cdr",
 			    18,
 			    cw_msg_tuple("AccountCode",        "%s", cdr->accountcode),
 			    cw_msg_tuple("Source",             "%s", cdr->src),

@@ -1138,7 +1138,7 @@ static int pbx_extension_helper(struct cw_channel *c, struct cw_context *con, co
             cw_dynstr_reset(&data);
             pbx_substitute_variables(c, NULL, e->data, &data);
             if (!data.error) {
-                cw_manager_event(EVENT_FLAG_CALL, "Newexten",
+                cw_manager_event(CW_EVENT_FLAG_CALL, "Newexten",
                     7,
                     cw_msg_tuple("Channel",     "%s", c->name),
                     cw_msg_tuple("Context",     "%s", c->context),

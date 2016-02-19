@@ -88,7 +88,7 @@ static int userevent_exec(struct cw_channel *chan, int argc, char **argv, struct
 			argv[1 + argc * 2 + 1] = (char *)"";
 		}
 
-		cw_manager_event(EVENT_FLAG_USER, eventname.data,
+		cw_manager_event(CW_EVENT_FLAG_USER, eventname.data,
 			22, /* MAX_KEY_VAL_PAIRS + 2 */
 			cw_msg_tuple("Channel",  "%s", chan->name),
 			cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),

@@ -184,7 +184,7 @@ int manager_str_to_eventmask(char *instr)
 	 * late to risk changing it now.
 	 */
 	if (!instr || !*instr || cw_true(instr) || !strcasecmp(instr, "all") || (instr[0] == '-' && instr[1] == '1'))
-		ret = -1 & (~EVENT_FLAG_LOG_ALL);
+		ret = -1 & (~CW_EVENT_FLAG_LOG_ALL);
 	else if (cw_false(instr))
 		ret = 0;
 	else if (isdigit(*instr))
@@ -201,7 +201,7 @@ int manager_str_to_eventmask(char *instr)
 			n = q - p;
 
 			if (n == sizeof("log") - 1 && !memcmp(p, "log", sizeof("log") - 1)) {
-				ret |= EVENT_FLAG_LOG_ALL;
+				ret |= CW_EVENT_FLAG_LOG_ALL;
 			} else {
 				for (i = 0; i < arraysize(perms) && (!perms[i].label || strncmp(p, perms[i].label, n)); i++);
 				if (i < arraysize(perms))
@@ -1162,7 +1162,7 @@ static void *fast_originate(void *data)
 			&in->vars, &chan);
 	}
 
-	cw_manager_event(EVENT_FLAG_CALL, (res ? "OriginateFailure" : "OriginateSuccess"),
+	cw_manager_event(CW_EVENT_FLAG_CALL, (res ? "OriginateFailure" : "OriginateSuccess"),
 		6,
 		cw_msg_tuple("ActionID", "%s",    in->actionid),
 		cw_msg_tuple("Channel",  "%s/%s", in->tech, in->data),
@@ -1917,7 +1917,7 @@ static int manager_event_print(struct cw_object *obj, void *data)
 	return 0;
 }
 
-void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
+void cw_manager_event_func(cw_event_flag category, size_t count, int map[], const char *fmt, ...)
 {
 	struct manager_event_args args = {
 		.count = count,
@@ -1942,7 +1942,7 @@ static int manager_state_cb(char *context, char *exten, int state, void *data)
 	CW_UNUSED(data);
 
 	/* Notify managers of change */
-	cw_manager_event(EVENT_FLAG_CALL, "ExtensionStatus",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "ExtensionStatus",
 		3,
 		cw_msg_tuple("Exten",   "%s", exten),
 		cw_msg_tuple("Context", "%s", context),
@@ -1983,83 +1983,83 @@ static struct manager_action manager_actions[] = {
 	},
 	{
 		.action = "Hangup",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_hangup,
 		.synopsis = "Hangup Channel",
 		.description = mandescr_hangup,
 	},
 	{
 		.action = "Status",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_status,
 		.synopsis = "Lists channel status",
 	},
 	{
 		.action = "Setvar",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_setvar,
 		.synopsis = "Set Channel Variable",
 		.description = mandescr_setvar,
 	},
 	{
 		.action = "Getvar",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_getvar,
 		.synopsis = "Gets a Channel Variable",
 		.description = mandescr_getvar,
 	},
 	{
 		.action = "Redirect",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_redirect,
 		.synopsis = "Redirect (transfer) a call",
 		.description = mandescr_redirect,
 	},
 	{
 		.action = "Originate",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_originate,
 		.synopsis = "Originate Call",
 		.description = mandescr_originate,
 	},
 	{
 		.action = "Command",
-		.authority = EVENT_FLAG_COMMAND,
+		.authority = CW_EVENT_FLAG_COMMAND,
 		.func = action_command,
 		.synopsis = "Execute CallWeaver CLI Command",
 		.description = mandescr_command,
 	},
 	{
 		.action = "Complete",
-		.authority = EVENT_FLAG_COMMAND,
+		.authority = CW_EVENT_FLAG_COMMAND,
 		.func = action_complete,
 		.synopsis = "Return possible completions for a CallWeaver CLI Command",
 		.description = mandescr_complete,
 	},
 	{
 		.action = "ExtensionState",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_extensionstate,
 		.synopsis = "Check Extension Status",
 		.description = mandescr_extensionstate,
 	},
 	{
 		.action = "AbsoluteTimeout",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_timeout,
 		.synopsis = "Set Absolute Timeout",
 		.description = mandescr_timeout,
 	},
 	{
 		.action = "MailboxStatus",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_mailboxstatus,
 		.synopsis = "Check Mailbox",
 		.description = mandescr_mailboxstatus,
 	},
 	{
 		.action = "MailboxCount",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_mailboxcount,
 		.synopsis = "Check Mailbox Message Count",
 		.description = mandescr_mailboxcount,
@@ -2249,7 +2249,7 @@ int manager_reload(void)
 			if (!strcmp(v->name, "displayconnects"))
 				displayconnects = cw_true(v->value);
 			else if (!strcmp(v->name, "listen"))
-				manager_listen(v->value, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
+				manager_listen(v->value, manager_session_ami, 0, 0, CW_EVENT_FLAG_CALL | CW_EVENT_FLAG_SYSTEM);
 			else if (!strcmp(v->name, "queuesize"))
 				queuesize = atol(v->value);
 
@@ -2281,7 +2281,7 @@ int manager_reload(void)
 	}
 
 	/* Start the listener for pre-authenticated consoles */
-	manager_listen(cw_config[CW_SOCKET], manager_session_ami, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, EVENT_FLAG_COMMAND, 0);
+	manager_listen(cw_config[CW_SOCKET], manager_session_ami, CW_EVENT_FLAG_LOG_ALL | CW_EVENT_FLAG_PROGRESS, CW_EVENT_FLAG_COMMAND, 0);
 
 	if (!cw_strlen_zero(cw_config[CW_CTL_PERMISSIONS])) {
 		mode_t p;
@@ -2303,7 +2303,7 @@ int manager_reload(void)
 		char buf[256];
 
 		snprintf(buf, sizeof(buf), "%s:%s", bindaddr, portno);
-		manager_listen(buf, manager_session_ami, 0, 0, EVENT_FLAG_CALL | EVENT_FLAG_SYSTEM);
+		manager_listen(buf, manager_session_ami, 0, 0, CW_EVENT_FLAG_CALL | CW_EVENT_FLAG_SYSTEM);
 	}
 
 	if (cfg)

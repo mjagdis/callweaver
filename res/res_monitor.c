@@ -550,21 +550,21 @@ static void __cw_monitor_setjoinfiles(struct cw_channel *chan, int turnon)
 static struct manager_action manager_actions[] = {
 	{
 		.action = "Monitor",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = start_monitor_action,
 		.synopsis = monitor_synopsis,
 		.description = start_monitor_action_help,
 	},
 	{
 		.action = "StopMonitor",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = stop_monitor_action,
 		.synopsis = stopmonitor_synopsis,
 		.description = stop_monitor_action_help,
 	},
 	{
 		.action = "ChangeMonitor",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = change_monitor_action,
 		.synopsis = changemonitor_synopsis,
 		.description = change_monitor_action_help,

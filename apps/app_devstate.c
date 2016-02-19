@@ -160,7 +160,7 @@ static struct cw_manager_message *action_devstate(struct mansession *sess, const
 static struct manager_action manager_actions[] = {
 	{
 		.action = "Devstate",
-		.authority = EVENT_FLAG_CALL,
+		.authority = CW_EVENT_FLAG_CALL,
 		.func = action_devstate,
 		.synopsis = "Change a device state",
 		.description = mandescr_devstate,

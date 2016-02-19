@@ -347,7 +347,7 @@ int cw_park_call(struct cw_channel *chan, struct cw_channel *peer, int timeout, 
 	if (option_verbose > 1) 
 		cw_verbose(VERBOSE_PREFIX_2 "Parked %s on %d. Will timeout back to extension [%s] %s, %d in %d seconds\n", pu->chan->name, pu->parkingnum, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
-	cw_manager_event(EVENT_FLAG_CALL, "ParkedCall",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "ParkedCall",
 		6,
 		cw_msg_tuple("Exten",        "%d",  pu->parkingnum),
 		cw_msg_tuple("Channel",      "%s",  pu->chan->name),
@@ -1641,7 +1641,7 @@ static __attribute__((__noreturn__)) void *do_parking_thread(void *ignore)
 					pu->chan->priority = pu->priority;
 				}
 
-				cw_manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
+				cw_manager_event(CW_EVENT_FLAG_CALL, "ParkedCallTimeOut",
 					4,
 					cw_msg_tuple("Exten",        "%d", pu->parkingnum),
 					cw_msg_tuple("Channel",      "%s", pu->chan->name),
@@ -1683,7 +1683,7 @@ static __attribute__((__noreturn__)) void *do_parking_thread(void *ignore)
 						f = cw_read(pu->chan);
 						if (!f || ((f->frametype == CW_FRAME_CONTROL) && (f->subclass ==  CW_CONTROL_HANGUP))) {
 
-							cw_manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
+							cw_manager_event(CW_EVENT_FLAG_CALL, "ParkedCallGiveUp",
 								4,
 								cw_msg_tuple("Exten",        "%d", pu->parkingnum),
 								cw_msg_tuple("Channel",      "%s", pu->chan->name),
@@ -1831,7 +1831,7 @@ static int park_exec(struct cw_channel *chan, int argc, char **argv, struct cw_d
 		} else
 			cw_log(CW_LOG_WARNING, "Whoa, no parking context?\n");
 
-		cw_manager_event(EVENT_FLAG_CALL, "UnParkedCall",
+		cw_manager_event(CW_EVENT_FLAG_CALL, "UnParkedCall",
 			5,
 			cw_msg_tuple("Exten",        "%d", pu->parkingnum),
 			cw_msg_tuple("Channel",      "%s", pu->chan->name),

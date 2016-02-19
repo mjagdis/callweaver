@@ -103,7 +103,7 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
   	        conf = icd_caller__get_conference(caller);		
             if(conf != NULL)
 	           confnr = conf->ztc.confno;            
-            cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
+            cw_manager_event(CW_EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
                 10,
                 cw_msg_tuple("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
                 cw_msg_tuple("ICD_ID", "%d", icd_caller__get_id(caller)),
@@ -119,7 +119,7 @@ static int icd_module__event_cwmgr(void *listener, icd_event * factory_event, vo
             break;
         default:
             if (smsg)
-                cw_manager_event(EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
+                cw_manager_event(CW_EVENT_FLAG_USER, icd_event_strings[icd_event__get_event_id(event)],
                     3,
                     cw_msg_tuple("Module", "%s", icd_module_strings[icd_event__get_module_id(event)]),
                     cw_msg_tuple("Source", "%s", (icd_event__get_name(event) ? icd_event__get_name(event) : "unknown")),

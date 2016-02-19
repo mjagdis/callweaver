@@ -965,7 +965,7 @@ int icd_command_ack (struct cw_dynstr *ds_p, int argc, char **argv)
 
   if(argc != 2) {
         cw_dynstr_printf(ds_p, "icd ack: Bad number of parameters\n");
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "Ack"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -977,7 +977,7 @@ int icd_command_ack (struct cw_dynstr *ds_p, int argc, char **argv)
   agent = (icd_agent *) icd_fieldset__get_value(agents, agent_id);
   if (!agent) {
         cw_dynstr_printf(ds_p, "icd ack failed. Agent [%s] could not be found.\n", agent_id);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Ack"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -990,7 +990,7 @@ int icd_command_ack (struct cw_dynstr *ds_p, int argc, char **argv)
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_DISTRIBUTING ||
      icd_caller__get_state((icd_caller *) agent) == ICD_CALLER_STATE_GET_CHANNELS_AND_BRIDGE) {
      	icd_caller__add_flag((icd_caller *)agent, ICD_ACK_EXTERN_FLAG);
-     cw_manager_event(EVENT_FLAG_USER, "icd_command",
+     cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
          4,
          cw_msg_tuple("Command", "%s", "Ack"),
          cw_msg_tuple("Result", "%s", "OK"),
@@ -1001,7 +1001,7 @@ int icd_command_ack (struct cw_dynstr *ds_p, int argc, char **argv)
      return 0;
   }
   cw_log(CW_LOG_WARNING, "Function Ack failed, Agent [%s] is not in appropriate state [%s]\n", agent_id, icd_caller__get_state_string((icd_caller *) agent));
-  cw_manager_event(EVENT_FLAG_USER, "icd_command",
+  cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
       5,
       cw_msg_tuple("Command", "%s", "Ack"),
       cw_msg_tuple("Result", "%s", "Fail"),
@@ -1019,7 +1019,7 @@ int icd_command_hang_up (struct cw_dynstr *ds_p, int argc, char **argv)
     
     if (argc != 2) {
         cw_dynstr_printf(ds_p, "Function Hang up failed- bad number of parameters [%d]\n", argc);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "Hangup"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1031,7 +1031,7 @@ int icd_command_hang_up (struct cw_dynstr *ds_p, int argc, char **argv)
     agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);
     if (!agent) {
         cw_dynstr_printf(ds_p, "Function Hang up failed. Agent '%s' could not be found.\n", agent_id);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Hangup"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1044,7 +1044,7 @@ int icd_command_hang_up (struct cw_dynstr *ds_p, int argc, char **argv)
        icd_caller__get_state(agent) != ICD_CALLER_STATE_CONFERENCED){
        cw_dynstr_printf(ds_p, "Function Hang up failed. Agent '%s' in state [%s].\n", agent_id,
 		    icd_caller__get_state_string(agent));        
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             5,
             cw_msg_tuple("Command", "%s", "Hangup"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1056,7 +1056,7 @@ int icd_command_hang_up (struct cw_dynstr *ds_p, int argc, char **argv)
     }    
     if(icd_caller__set_state(agent, ICD_CALLER_STATE_CALL_END)!=ICD_SUCCESS){    	     
        cw_dynstr_printf(ds_p, "Function Hang up failed. Agent [%s] can not change state to CALL_END\n", agent_id);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
            5,
            cw_msg_tuple("Command", "%s", "Hangup"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1067,7 +1067,7 @@ int icd_command_hang_up (struct cw_dynstr *ds_p, int argc, char **argv)
     	return -1;
     }
     cw_log(CW_LOG_NOTICE, "Function Hang up for agent [%s] executed OK.\n", agent_id);
-    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+    cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
         3,
         cw_msg_tuple("Command", "%s", "Hangup"),
         cw_msg_tuple("Result", "%s", "OK"),
@@ -1093,7 +1093,7 @@ static void *icd_command_login_thread(void *arg)
     icd_caller__set_channel(agent, NULL);
     if (res != CW_CONTROL_ANSWER){
         cw_log(CW_LOG_WARNING, "Login of agent [%s] failed - unable to get answer from channel [%s] .\n", agent_id, channelstring);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Login"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1141,7 +1141,7 @@ int icd_command_login (struct cw_dynstr *ds_p, int argc, char **argv)
     CW_UNUSED(ds_p);
 
     if ((argc != 3) && (argc !=4)){
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
            3,
            cw_msg_tuple("Command", "%s", "Login"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1158,7 +1158,7 @@ int icd_command_login (struct cw_dynstr *ds_p, int argc, char **argv)
         cw_log(CW_LOG_WARNING,
                     "AGENT LOGIN Fail!  Agent '%s' could not be found.\n"
                     "Please correct the 'agent' argument in the extensions.conf file\n", agent_id);        
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Login"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1170,7 +1170,7 @@ int icd_command_login (struct cw_dynstr *ds_p, int argc, char **argv)
     if (icd_caller__get_state(agent) != ICD_CALLER_STATE_SUSPEND &&
       icd_caller__get_state(agent) != ICD_CALLER_STATE_INITIALIZED) {
         cw_log(CW_LOG_WARNING, "Login - Agent '%s' already logged in nothing to do\n", agent_id);        
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Login"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1184,7 +1184,7 @@ int icd_command_login (struct cw_dynstr *ds_p, int argc, char **argv)
     }
 	if(icd_caller__get_param(agent, "LogInProgress")){ 
 	    cw_log(CW_LOG_WARNING, "Login - Agent '%s' previous login try not finished yet.\n", agent_id);         
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Login"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1201,7 +1201,7 @@ int icd_command_login (struct cw_dynstr *ds_p, int argc, char **argv)
     icd_caller__set_param_string(agent, "channel", channelstring);
     if(!icd_caller__create_channel(agent) ) {
         cw_log(CW_LOG_WARNING,"Not avaliable channel [%s] \n", channelstring);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Login"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1236,7 +1236,7 @@ int icd_command_logout (struct cw_dynstr *ds_p, int argc, char **argv)
     /* Identify agent just like app_icd__agent_exec, only this time we skip
        dynamically creating an agent. */
     if (argc != 3) {
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "Logout"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1250,7 +1250,7 @@ int icd_command_logout (struct cw_dynstr *ds_p, int argc, char **argv)
     if (agent == NULL) {
         cw_log(CW_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent '%s' could not be found.\n", agent_id);
-          cw_manager_event(EVENT_FLAG_USER, "icd_command",
+          cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
               4,
               cw_msg_tuple("Command", "%s", "Logout"),
               cw_msg_tuple("Result", "%s", "Fail"),
@@ -1265,7 +1265,7 @@ int icd_command_logout (struct cw_dynstr *ds_p, int argc, char **argv)
           if(strcmp(passwd, passwd_to_check)){
           cw_log(CW_LOG_WARNING,
                  "LOGOUT FAILURE! Wrong password for Agent '%s'.\n", agent_id);
-          cw_manager_event(EVENT_FLAG_USER, "icd_command",
+          cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
               7,
               cw_msg_tuple("Command", "%s", "Logout"),
               cw_msg_tuple("Result", "%s", "Fail"),
@@ -1287,7 +1287,7 @@ int icd_command_logout (struct cw_dynstr *ds_p, int argc, char **argv)
      if (icd_caller__set_state(agent, ICD_CALLER_STATE_SUSPEND)  != ICD_SUCCESS){
         cw_log(CW_LOG_WARNING,
                     "LOGOUT FAILURE!  Agent [%s] vetoed or ivalid state change, state [%s].\n", agent_id,icd_caller__get_state_string(agent));
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Logout"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1301,7 +1301,7 @@ int icd_command_logout (struct cw_dynstr *ds_p, int argc, char **argv)
 	} 
 	else {	    
         cw_log(CW_LOG_WARNING, "LOGOUT OK!  Agent [%s] logged out.\n", agent_id);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             6,
             cw_msg_tuple("Command", "%s", "Logout"),
             cw_msg_tuple("Result", "%s", "OK"),
@@ -1320,7 +1320,7 @@ int icd_command_hangup_channel (struct cw_dynstr *ds_p, int argc, char **argv)
 
    if (argc != 2) {
        cw_dynstr_printf(ds_p, "Function Hang up channel failed - bad number of parameters [%d]\n", argc);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
            3,
            cw_msg_tuple("Command", "%s", "HangupChannel"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1333,7 +1333,7 @@ int icd_command_hangup_channel (struct cw_dynstr *ds_p, int argc, char **argv)
        cw_softhangup(chan, CW_SOFTHANGUP_EXPLICIT);
        cw_channel_unlock(chan);
        cw_dynstr_printf(ds_p, "Function Hang Up succeed - channel[%s]\n", argv[1]);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
           3,
           cw_msg_tuple("Command", "%s", "HangupChannel"),
           cw_msg_tuple("Result", "%s", "OK"),
@@ -1344,7 +1344,7 @@ int icd_command_hangup_channel (struct cw_dynstr *ds_p, int argc, char **argv)
    }
 
    cw_dynstr_printf(ds_p, "Function Hang up channel failed - channel not found [%s]\n", argv[1]);
-   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+   cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
        4,
        cw_msg_tuple("Command", "%s", "HangupChannel"),
        cw_msg_tuple("Result", "%s", "Fail"),
@@ -1369,7 +1369,7 @@ int icd_command_playback_channel (struct cw_dynstr *ds_p, int argc, char **argv)
 
    if (argc != 3){
        cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - bad number of parameters [%d]\n", argc);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "PlaybackChannel"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1386,7 +1386,7 @@ int icd_command_playback_channel (struct cw_dynstr *ds_p, int argc, char **argv)
 
    if (agent == NULL) {
        cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - agent not found [%s]\n", agent_id);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
            cw_msg_tuple("Command", "%s", "PlaybackChannel"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1455,7 +1455,7 @@ int icd_command_playback_channel (struct cw_dynstr *ds_p, int argc, char **argv)
 
         if (!conf) {
             cw_dynstr_printf(ds_p, "Function Playback_chan (play_dtmf) failed - agent conference not found [%s]\n", agent_id);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "PlaybackChannel"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1478,7 +1478,7 @@ int icd_command_playback_channel (struct cw_dynstr *ds_p, int argc, char **argv)
         }
 
     cw_dynstr_printf(ds_p, "Function Playback succeed - agent[%s]\n", agent_id);
-    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+    cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
         3,
         cw_msg_tuple("Command", "%s", "PlaybackChannel (play_dtmf)"),
         cw_msg_tuple("Result", "%s", "OK"),
@@ -1517,7 +1517,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
 
   if (argc != 3  && argc != 4 ) {
        cw_dynstr_printf(ds_p, "Function record bad no of parameters [%d]\n", argc);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Record"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1532,7 +1532,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
         record_start = 0;
    if (record_start == -1) {
        cw_dynstr_printf(ds_p, "Function record first parameter [%s] start/stop allowed\n", argv[1]);
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Record"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1554,7 +1554,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
 
    if (customer == NULL) {
             cw_dynstr_printf(ds_p, "Record FAILURE! Customer [%s] not found\n", customer_source);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1566,7 +1566,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
    chan = icd_caller__get_channel(customer);
    if (chan == NULL) {
             cw_dynstr_printf(ds_p, "Record FAILURE! Channel for customer [%s] not found\n", customer_source);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1577,7 +1577,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
    }
    if (chan->name == NULL) {
             cw_dynstr_printf(ds_p,  "Record FAILURE! Channel name for customer [%s] not found\n", customer_source);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Record"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1589,14 +1589,14 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
    strncpy(buf + strlen(buf), chan->name, sizeof(buf) - strlen(buf));
    if (!record_start){
    		cw_log(CW_LOG_NOTICE, "Stop of recording for customer [%s] \n", customer_source);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Record"),
             cw_msg_tuple("SubCommand", "%s", "Stop"),
             cw_msg_tuple("Result", "%s", "OK"),
             cw_msg_tuple("CallerID", "%s", customer_source)
         );
-        cw_manager_event(EVENT_FLAG_USER, "icd_event",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
             2,
             cw_msg_tuple("Event", "%s", "RecordStop"),
             cw_msg_tuple("CallerID", "%s", customer_source)
@@ -1606,7 +1606,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
    }
    if(chan->spies != NULL){
    	cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] failed - already recording \n", customer_source);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             5,
             cw_msg_tuple("Command", "%s", "Record"),
             cw_msg_tuple("SubCommand", "%s", "Start"),
@@ -1641,7 +1641,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
 //   muxmon <start|stop> <chan_name> <args>cw_cli_command(fd, command);fd can be like fileno(stderr)
    cw_cli_command(ds_p, buf);
    cw_log(CW_LOG_NOTICE, "Start of recording for customer [%s] \n", customer_source);
-   cw_manager_event(EVENT_FLAG_USER, "icd_command",
+   cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
         5,
        cw_msg_tuple("Command", "%s", "Record"),
        cw_msg_tuple("SubCommand", "%s", "Start"),
@@ -1649,7 +1649,7 @@ int icd_command_record(struct cw_dynstr *ds_p, int argc, char **argv)
        cw_msg_tuple("CallerID", "%s", customer_source),
        cw_msg_tuple("FileName", "%s", RecFile)
    );
-   cw_manager_event(EVENT_FLAG_USER, "icd_event",
+   cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
        3,
        cw_msg_tuple("Command", "%s", "RecordStart"),
        cw_msg_tuple("CallerID", "%s", customer_source),
@@ -1677,7 +1677,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
 	 
 	    if ((argc != 3) && (argc !=4)) { 
             cw_dynstr_printf(ds_p, "icd queue FAILURE! bad parameters\n");
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 3,
                 cw_msg_tuple("Command", "%s", "Queue"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1690,7 +1690,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
 	    agent = (icd_caller *) icd_fieldset__get_value(agents, agent_id);    
 	    if (agent == NULL) { 
             cw_dynstr_printf(ds_p, "icd queue FAILURE! Agent [%s] not found\n", agent_id);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Queue"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1708,7 +1708,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
 	      queue = (icd_queue *) icd_fieldset__get_value(queues, queuename);
 	      if (queue == NULL) {
                 cw_dynstr_printf(ds_p,"icd queue FAILURE! Queue not found[%s], Agent [%s]\n", queuename, agent_id);
-                cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                     5,
                     cw_msg_tuple("Command", "%s", "Queue"),
                     cw_msg_tuple("Result", "%s", "Fail"),
@@ -1730,7 +1730,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
                     }
                 }
                 cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] added to queue[%s]\n", agent_id, queuename);
-                cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                        5,
                        cw_msg_tuple("Command", "%s", "Queue"),
                        cw_msg_tuple("SubCommand", "%s", "Add"),
@@ -1751,7 +1751,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
 	                }   
                     icd_caller__remove_from_queue(agent, queue); 
                     cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] removed from queue[%s]\n", agent_id, queuename);
-                    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+                    cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                        5,
                        cw_msg_tuple("Command", "%s", "Queue"),
                        cw_msg_tuple("SubCommand", "%s", "Remove"),
@@ -1765,7 +1765,7 @@ int icd_command_join_queue (struct cw_dynstr *ds_p, int argc, char **argv)
                icd_caller__set_active_member (agent, NULL); 
                icd_caller__remove_from_all_queues(agent); 
                cw_dynstr_printf(ds_p,"icd queue OK! Agent[%s] removed from all queues\n", agent_id);
-               cw_manager_event(EVENT_FLAG_USER, "icd_command",
+               cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                     4,
                     cw_msg_tuple("Command", "%s", "Queue"),
                     cw_msg_tuple("SubCommand", "%s", "RemoveAll"),
@@ -1793,7 +1793,7 @@ int icd_command_control_playback(struct cw_dynstr *ds_p, int argc, char **argv) 
 
     if (argc < 3){
         cw_dynstr_printf(ds_p, "Function control_playback failed - bad number of parameters [%d]\n", argc);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
             cw_msg_tuple("Command", "%s", "control_playback"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1816,7 +1816,7 @@ int icd_command_control_playback(struct cw_dynstr *ds_p, int argc, char **argv) 
 
     if (agent == NULL) {
         cw_dynstr_printf(ds_p, "Function control_playback failed - agent not found [%s]\n", agent_id);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "control_playback"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1830,7 +1830,7 @@ int icd_command_control_playback(struct cw_dynstr *ds_p, int argc, char **argv) 
 
     if (!conf) {
         cw_dynstr_printf(ds_p, "Function control_playback failed - agent conference not found [%s]\n", agent_id);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "control_playback"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1865,7 +1865,7 @@ int icd_command_control_playback(struct cw_dynstr *ds_p, int argc, char **argv) 
     }
 
     cw_dynstr_printf(ds_p, "Function control_playback succeed - agent[%s]\n", agent_id);
-    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+    cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
         3,
         cw_msg_tuple("Command", "%s", "control_playback"),
         cw_msg_tuple("Result", "%s", "OK"),
@@ -1885,7 +1885,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 
   if (argc != 3) {
        cw_dynstr_printf(ds_p, "Transfer FAILURE! bad parameters\n");
-       cw_manager_event(EVENT_FLAG_USER, "icd_command",
+       cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             3,
            cw_msg_tuple("Command", "%s", "Transfer"),
            cw_msg_tuple("Result", "%s", "Fail"),
@@ -1899,7 +1899,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
    cw_mutex_unlock(&customers_lock);
    if (customer == NULL) {
             cw_dynstr_printf(ds_p,"Transfer FAILURE! Customer [%s] not found\n", customer_source);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Transfer"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1914,7 +1914,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 		context++;
 		if(!*context) {
 			cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
-            cw_manager_event(EVENT_FLAG_USER, "icd_command",
+            cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
                 4,
                 cw_msg_tuple("Command", "%s", "Transfer"),
                 cw_msg_tuple("Result", "%s", "Fail"),
@@ -1931,7 +1931,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 	}
 	else {		
 		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no context\n", customer_source);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             4,
             cw_msg_tuple("Command", "%s", "Transfer"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1943,7 +1943,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 	chan = icd_caller__get_channel(customer);
     if(!chan){
 		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : no channel\n", customer_source);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1956,7 +1956,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
     }	 	
     if(!cw_findlabel_extension(chan, context, exten, pria, NULL)){
 		cw_dynstr_printf(ds_p,"Transfer failure, customer[%s] : not correct context-extension\n", customer_source);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1970,7 +1970,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
     }	 	
 	if(cw_goto_if_exists(chan, context, exten, pria)){
 		cw_dynstr_printf(ds_p,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             7,
             cw_msg_tuple("Command", "%s", "Transfer"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1984,7 +1984,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
 	};
  	if(icd_caller__set_state(customer, ICD_CALLER_STATE_CALL_END) != ICD_SUCCESS){
 		cw_dynstr_printf(ds_p,"Transfer failed customer[%s] to context[%s], extension[%s], priority [%s]\n", customer_source, context, exten, pria);
-        cw_manager_event(EVENT_FLAG_USER, "icd_command",
+        cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
             8,
             cw_msg_tuple("Command", "%s", "Transfer"),
             cw_msg_tuple("Result", "%s", "Fail"),
@@ -1997,7 +1997,7 @@ int icd_command_transfer (struct cw_dynstr *ds_p, int argc, char **argv)
         );
 		return 1;
  	}; 
-    cw_manager_event(EVENT_FLAG_USER, "icd_command",
+    cw_manager_event(CW_EVENT_FLAG_USER, "icd_command",
         6,
         cw_msg_tuple("Command", "%s", "Transfer"),
         cw_msg_tuple("Result", "%s", "OK"),
@@ -2017,7 +2017,7 @@ void icd_manager_send_message( const char *format, ...)
    va_start(args, format);
    vsnprintf(message, sizeof(message)-1, format, args);
    va_end(args);	
-   cw_manager_event(EVENT_FLAG_USER, "icd_message",
+   cw_manager_event(CW_EVENT_FLAG_USER, "icd_message",
        1,
        cw_msg_tuple("Message", "%s", message)
    );

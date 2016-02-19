@@ -306,7 +306,7 @@ static char *get_cid_name(struct cw_dynstr *name, struct cw_channel *chan)
 
 static void senddialevent(struct cw_channel *src, struct cw_channel *dst)
 {
-	cw_manager_event(EVENT_FLAG_CALL, "Dial",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Dial",
 		6,
 		cw_msg_tuple("Source",       "%s", src->name),
 		cw_msg_tuple("Destination",  "%s", dst->name),

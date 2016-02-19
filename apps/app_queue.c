@@ -505,7 +505,7 @@ static void *changethread(void *data)
                     cur->status = sc->state;
                     if (!q->maskmemberstatus)
                     {
-                        cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+                        cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberStatus",
                             8,
                             cw_msg_tuple("Queue",      "%s",  q->name),
                             cw_msg_tuple("Location",   "%s",  cur->interface),
@@ -1105,7 +1105,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
         cw_copy_string(qe->context, q->context, sizeof(qe->context));
         q->count++;
         res = 0;
-        cw_manager_event(EVENT_FLAG_CALL, "Join",
+        cw_manager_event(CW_EVENT_FLAG_CALL, "Join",
             6,
             cw_msg_tuple("Channel",      "%s", qe->chan->name),
             cw_msg_tuple("CallerID",     "%s", (qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown")),
@@ -1394,7 +1394,7 @@ static void leave_queue(struct queue_ent *qe)
             q->count--;
 
             /* Take us out of the queue */
-            cw_manager_event(EVENT_FLAG_CALL, "Leave",
+            cw_manager_event(CW_EVENT_FLAG_CALL, "Leave",
                 3,
                 cw_msg_tuple("Channel", "%s", qe->chan->name),
                 cw_msg_tuple("Queue",   "%s", q->name),
@@ -1456,7 +1456,7 @@ static int update_status(struct cw_call_queue *q, struct member *member, cw_devi
             cur->status = status;
             if (!q->maskmemberstatus)
             {
-                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+                cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberStatus",
                     8,
                     cw_msg_tuple("Queue",      "%s",  q->name),
                     cw_msg_tuple("Location",   "%s",  cur->interface),
@@ -1635,7 +1635,7 @@ static int ring_entry(struct queue_ent *qe, struct outchan *tmp, int *busies)
     {
         if (qe->parent->eventwhencalled)
         {
-            cw_manager_event(EVENT_FLAG_AGENT, "AgentCalled",
+            cw_manager_event(CW_EVENT_FLAG_AGENT, "AgentCalled",
                 7,
                 cw_msg_tuple("AgentCalled",    "%s", tmp->interface),
                 cw_msg_tuple("ChannelCalling", "%s", qe->chan->name),
@@ -2550,7 +2550,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                 record_abandoned(qe);
                 if (qe->parent->eventwhencalled)
                 {
-                    cw_manager_event(EVENT_FLAG_AGENT, "AgentDump",
+                    cw_manager_event(CW_EVENT_FLAG_AGENT, "AgentDump",
                         4,
                         cw_msg_tuple("Queue",    "%s", queuename),
                         cw_msg_tuple("Uniqueid", "%s", qe->chan->uniqueid),
@@ -2630,7 +2630,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         }
         cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
         if (qe->parent->eventwhencalled)
-            cw_manager_event(EVENT_FLAG_AGENT, "AgentConnect",
+            cw_manager_event(CW_EVENT_FLAG_AGENT, "AgentConnect",
                 5,
                 cw_msg_tuple("Queue",    "%s", queuename),
                 cw_msg_tuple("Uniqueid", "%s", qe->chan->uniqueid),
@@ -2654,7 +2654,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
                            (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
-                cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+                cw_manager_event(CW_EVENT_FLAG_AGENT, "AgentComplete",
                     7,
                     cw_msg_tuple("Queue",    "%s",  queuename),
                     cw_msg_tuple("Uniqueid", "%s",  qe->chan->uniqueid),
@@ -2671,7 +2671,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
             cw_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
             if (qe->parent->eventwhencalled)
             {
-                cw_manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+                cw_manager_event(CW_EVENT_FLAG_AGENT, "AgentComplete",
                     6,
                     cw_msg_tuple("Queue",    "%s",  queuename),
                     cw_msg_tuple("Uniqueid", "%s",  qe->chan->uniqueid),
@@ -2795,7 +2795,7 @@ static int remove_from_queue(char *queuename, char *interface, time_t *added)
                         look = look->next;
                     }
                 }
-                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberRemoved",
+                cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberRemoved",
                     2,
                     cw_msg_tuple("Queue",    "%s", q->name),
                     cw_msg_tuple("Location", "%s", last_member->interface)
@@ -2835,7 +2835,7 @@ static int update_queue_member(char *queuename, char *interface, int penalty, in
 			if ((last_member = interface_exists(q, interface)) != NULL) {
 				last_member->penalty = penalty;
 				last_member->paused = paused;
-				cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberUpdated",
+				cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberUpdated",
 					8,
 					cw_msg_tuple("Queue",      "%s",  q->name),
 					cw_msg_tuple("Location",   "%s",  last_member->interface),
@@ -2884,7 +2884,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
                     new_member->dynamic = 1;
                     new_member->next = q->members;
                     q->members = new_member;
-                    cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberAdded",
+                    cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberAdded",
                         8,
                         cw_msg_tuple("Queue",      "%s",  q->name),
                         cw_msg_tuple("Location",   "%s", new_member->interface),
@@ -2948,7 +2948,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 
                 cw_queue_log(q->name, "NONE", interface, (paused ? "PAUSE" : "UNPAUSE"), "%s", "");
 
-                cw_manager_event(EVENT_FLAG_AGENT, "QueueMemberPaused",
+                cw_manager_event(CW_EVENT_FLAG_AGENT, "QueueMemberPaused",
                     3,
                     cw_msg_tuple("Queue",    "%s", q->name),
                     cw_msg_tuple("Location", "%s", mem->interface),
@@ -4300,25 +4300,25 @@ static struct manager_action manager_actions[] = {
     },
     {
 	    .action = "QueueAdd",
-	    .authority = EVENT_FLAG_AGENT,
+	    .authority = CW_EVENT_FLAG_AGENT,
 	    .func = manager_add_queue_member,
 	    .synopsis = "Add interface to queue.",
     },
     {
 	    .action = "QueueRemove",
-	    .authority = EVENT_FLAG_AGENT,
+	    .authority = CW_EVENT_FLAG_AGENT,
 	    .func = manager_remove_queue_member,
 	    .synopsis = "Remove interface from queue.",
     },
     {
 	    .action = "QueuePause",
-	    .authority = EVENT_FLAG_AGENT,
+	    .authority = CW_EVENT_FLAG_AGENT,
 	    .func = manager_pause_queue_member,
 	    .synopsis = "Makes a queue member temporarily unavailable",
     },
     {
 	    .action = "QueueMemberUpdate",
-	    .authority = EVENT_FLAG_AGENT,
+	    .authority = CW_EVENT_FLAG_AGENT,
 	    .func = manager_update_queue_member,
 	    .synopsis = "Update Member on queue.",
     },

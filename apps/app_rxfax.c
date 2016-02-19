@@ -208,7 +208,7 @@ static void phase_e_handler(t30_state_t *s, void *user_data, int result)
         cw_log(CW_LOG_DEBUG, "Pages transferred: %i\n", t.pages_rx);
         cw_log(CW_LOG_DEBUG, "Image resolution:  %i x %i\n", t.x_resolution, t.y_resolution);
         cw_log(CW_LOG_DEBUG, "Transfer Rate:     %i\n", t.bit_rate);
-        cw_manager_event(EVENT_FLAG_CALL, "FaxSent",
+        cw_manager_event(CW_EVENT_FLAG_CALL, "FaxSent",
 		9,
 		cw_msg_tuple("Channel",          "%s", chan->name),
 		cw_msg_tuple("Exten",            "%s", chan->exten),

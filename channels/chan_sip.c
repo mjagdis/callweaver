@@ -5030,7 +5030,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
     {
         if (callevents && cw_test_flag(p, SIP_CALL_ONHOLD))
         {
-            cw_manager_event(EVENT_FLAG_CALL, "Unhold",
+            cw_manager_event(CW_EVENT_FLAG_CALL, "Unhold",
                 2,
                 cw_msg_tuple("Channel",  "%s", p->owner->name),
                 cw_msg_tuple("Uniqueid", "%s", p->owner->uniqueid)
@@ -5043,7 +5043,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int ignore, i
         /* No address for RTP, we're on hold */
         if (callevents && !cw_test_flag(p, SIP_CALL_ONHOLD))
         {
-            cw_manager_event(EVENT_FLAG_CALL, "Hold",
+            cw_manager_event(CW_EVENT_FLAG_CALL, "Hold",
                 2,
                 cw_msg_tuple("Channel",  "%s", p->owner->name),
                 cw_msg_tuple("Uniqueid", "%s", p->owner->uniqueid)
@@ -6830,7 +6830,7 @@ static int sip_reg_timeout(void *data)
         } else
             r->regstate=REG_STATE_UNREGISTERED;
 
-        cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+        cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Registry",
 		4,
 		cw_msg_tuple("Channel",  "%s", "SIP"),
 		cw_msg_tuple("Username", "%s", r->username),
@@ -7269,7 +7269,7 @@ static int expire_register(void *data)
 	destroy_association(peer);
 	cw_device_state_changed("SIP/%s", peer->name);
 
-	cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+	cw_manager_event(CW_EVENT_FLAG_SYSTEM, "PeerStatus",
 		3,
 		cw_msg_tuple("Peer",       "SIP/%s", peer->name),
 		cw_msg_tuple("PeerStatus", "%s",     "Unregistered"),
@@ -7514,7 +7514,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (!cw_test_flag((&p->flags_page2), SIP_PAGE2_RT_FROMCONTACT) && !cw_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))
         cw_db_put("SIP/Registry", p->name, data);
 
-    cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+    cw_manager_event(CW_EVENT_FLAG_SYSTEM, "PeerStatus",
         2,
         cw_msg_tuple("Peer",       "SIP/%s", p->name),
         cw_msg_tuple("PeerStatus", "%s",     "Registered")
@@ -8099,7 +8099,7 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
             case PARSE_REGISTER_UPDATE:
                 /* Say OK and ask subsystem to retransmit msg counter */
                 transmit_response_with_date(p, "200 OK", req);
-                cw_manager_event(EVENT_FLAG_SYSTEM, "PeerStatus",
+                cw_manager_event(CW_EVENT_FLAG_SYSTEM, "PeerStatus",
                         2,
                         cw_msg_tuple("Peer",       "SIP/%s", peer->name),
                         cw_msg_tuple("PeerStatus", "%s",     "Registered")
@@ -11596,7 +11596,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         }
 
         r->regstate = REG_STATE_REGISTERED;
-        cw_manager_event(EVENT_FLAG_SYSTEM, "Registry",
+        cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Registry",
               4,
               cw_msg_tuple("Channel",  "%s", "SIP"),
               cw_msg_tuple("Username", "%s", r->username),
@@ -16402,14 +16402,14 @@ static struct cw_clicmd  my_clis[] = {
 static struct manager_action manager_actions[] = {
 	{
 		.action = "SIPpeers",
-		.authority = EVENT_FLAG_SYSTEM,
+		.authority = CW_EVENT_FLAG_SYSTEM,
 		.func = manager_sip_show_peers,
 		.synopsis = "List SIP peers (text format)",
 		.description = mandescr_show_peers,
 	},
 	{
 		.action = "SIPshowpeer",
-		.authority = EVENT_FLAG_SYSTEM,
+		.authority = CW_EVENT_FLAG_SYSTEM,
 		.func = manager_sip_show_peer,
 		.synopsis = "Show SIP peer (text format)",
 		.description = mandescr_show_peer,

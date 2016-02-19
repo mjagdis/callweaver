@@ -276,7 +276,7 @@ static void add_member( struct cw_conference *conf, struct cw_conf_member *membe
 
     cw_log( CW_CONF_DEBUG, "member added to conference, name => %s\n", conf->name ) ;	
 
-	cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Join",
+	cw_manager_event(CW_EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Join",
 		1,
 		cw_msg_tuple("Channel", "%s", member->channel_name)
 	);
@@ -324,7 +324,7 @@ static int remove_member(struct cw_conference* conf, struct cw_conf_member* memb
 	    else 
 		member_temp->next = member->next ;
 
-	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Leave",
+	    cw_manager_event(CW_EVENT_FLAG_CALL, APP_CONFERENCE_MANID"Leave",
 		1,
 		cw_msg_tuple("Channel", "%s", member->channel_name)
 	    );
@@ -575,7 +575,7 @@ static struct cw_conference* create_conf( char* name, struct cw_conf_member* mem
 	// release conference mutexes
 	cw_mutex_unlock( &conf->lock ) ;
 	cw_log( CW_CONF_DEBUG, "started conference thread for conference, name => %s\n", conf->name ) ;
-	cw_manager_event( EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfCreate",
+	cw_manager_event( CW_EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfCreate",
 	    2,
 	    cw_msg_tuple("Channel", "%s", member->channel_name),
 	    cw_msg_tuple("ConfNo", "%s", name)
@@ -641,7 +641,7 @@ void remove_conf( struct cw_conference *conf )
 
 	    // calculate time in conference
 	    cw_log( CW_CONF_DEBUG, "removed conference, name => %s\n", conf_current->name ) ;
-	    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfRemove",
+	    cw_manager_event(CW_EVENT_FLAG_CALL, APP_CONFERENCE_MANID"ConfRemove",
 		1,
 		cw_msg_tuple("ConfNo", "%s", conf_current->name)
 	    );
@@ -886,7 +886,7 @@ static int conference_set_pin(struct cw_conf_member *member, char *pin) {
     cw_log( CW_CONF_DEBUG, "Conference %s: PIN Set to %s\n",member->conf->name, member->conf->pin ) ;
     conference_queue_number( member, member->conf->pin );
 
-    cw_manager_event(EVENT_FLAG_CALL, APP_CONFERENCE_MANID"SetPIN",
+    cw_manager_event(CW_EVENT_FLAG_CALL, APP_CONFERENCE_MANID"SetPIN",
 	2,
 	cw_msg_tuple("Channel", "%s", member->channel_name),
 	cw_msg_tuple("PIN", "%s", member->conf->pin)

@@ -1,8 +1,10 @@
 /*
  * CallWeaver -- An open source telephony toolkit.
  *
+ * Copyright (C) 2007 - 2016, Eris Associates Ltd
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
+ * Mike Jagdis  <mjagdis@eris-associates.co.uk>
  * Mark Spencer <markster@digium.com>
  *
  * See http://www.callweaver.org for more information about
@@ -54,23 +56,23 @@ typedef enum {
 
 
 typedef enum {
-	EVENT_FLAG_ERROR    = (1 << CW_LOG_ERROR),
-	EVENT_FLAG_WARNING  = (1 << CW_LOG_WARNING),
-	EVENT_FLAG_NOTICE   = (1 << CW_LOG_NOTICE),
-	EVENT_FLAG_VERBOSE  = (1 << CW_LOG_VERBOSE),
-	EVENT_FLAG_EVENT    = (1 << CW_LOG_EVENT),
-	EVENT_FLAG_DTMF     = (1 << CW_LOG_DTMF),
-	EVENT_FLAG_DEBUG    = (1 << CW_LOG_DEBUG),
-	EVENT_FLAG_PROGRESS = (1 << CW_LOG_PROGRESS),
+	CW_EVENT_FLAG_ERROR    = (1 << CW_LOG_ERROR),
+	CW_EVENT_FLAG_WARNING  = (1 << CW_LOG_WARNING),
+	CW_EVENT_FLAG_NOTICE   = (1 << CW_LOG_NOTICE),
+	CW_EVENT_FLAG_VERBOSE  = (1 << CW_LOG_VERBOSE),
+	CW_EVENT_FLAG_EVENT    = (1 << CW_LOG_EVENT),
+	CW_EVENT_FLAG_DTMF     = (1 << CW_LOG_DTMF),
+	CW_EVENT_FLAG_DEBUG    = (1 << CW_LOG_DEBUG),
+	CW_EVENT_FLAG_PROGRESS = (1 << CW_LOG_PROGRESS),
 
-	EVENT_FLAG_SYSTEM   = (1 << CW_EVENT_NUM_SYSTEM) , /* System events such as module load/unload */
-	EVENT_FLAG_CALL	    = (1 << CW_EVENT_NUM_CALL),    /* Call event, such as state change, etc */
-	EVENT_FLAG_COMMAND  = (1 << CW_EVENT_NUM_COMMAND), /* Ability to read/set commands */
-	EVENT_FLAG_AGENT    = (1 << CW_EVENT_NUM_AGENT),   /* Ability to read/set agent info */
-	EVENT_FLAG_USER	    = (1 << CW_EVENT_NUM_USER),    /* Ability to read/set user info */
-
-	EVENT_FLAG_LOG_ALL  = (EVENT_FLAG_ERROR | EVENT_FLAG_WARNING | EVENT_FLAG_NOTICE | EVENT_FLAG_VERBOSE | EVENT_FLAG_EVENT | EVENT_FLAG_DTMF | EVENT_FLAG_DEBUG),
+	CW_EVENT_FLAG_SYSTEM   = (1 << CW_EVENT_NUM_SYSTEM) , /* System events such as module load/unload */
+	CW_EVENT_FLAG_CALL	    = (1 << CW_EVENT_NUM_CALL),    /* Call event, such as state change, etc */
+	CW_EVENT_FLAG_COMMAND  = (1 << CW_EVENT_NUM_COMMAND), /* Ability to read/set commands */
+	CW_EVENT_FLAG_AGENT    = (1 << CW_EVENT_NUM_AGENT),   /* Ability to read/set agent info */
+	CW_EVENT_FLAG_USER	    = (1 << CW_EVENT_NUM_USER),    /* Ability to read/set user info */
 } cw_event_flag;
+
+#define CW_EVENT_FLAG_LOG_ALL  (CW_EVENT_FLAG_ERROR | CW_EVENT_FLAG_WARNING | CW_EVENT_FLAG_NOTICE | CW_EVENT_FLAG_VERBOSE | CW_EVENT_FLAG_EVENT | CW_EVENT_FLAG_DTMF | CW_EVENT_FLAG_DEBUG)
 
 
 /*! Used for sending a log message */

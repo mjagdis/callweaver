@@ -1422,7 +1422,7 @@ int cw_hangup(struct cw_channel *chan)
 
 	cw_channel_unlock(chan);
 
-	cw_manager_event(EVENT_FLAG_CALL, "Hangup",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Hangup",
 		4,
 		cw_msg_tuple("Channel",   "%s", chan->name),
 		cw_msg_tuple("Uniqueid",  "%s", chan->uniqueid),
@@ -2516,7 +2516,7 @@ struct cw_channel *cw_request(const char *type, int format, void *data, int *cau
 				c = chan->tech->requester(type, capabilities, data, cause);
 			if (c) {
 				if (c->_state == CW_STATE_DOWN) {
-					cw_manager_event(EVENT_FLAG_CALL, "Newchannel",
+					cw_manager_event(CW_EVENT_FLAG_CALL, "Newchannel",
 						7,
 						cw_msg_tuple("Channel",      "%s", c->name),
 						cw_msg_tuple("State",        "%s", cw_state2str(c->_state)),
@@ -2793,7 +2793,7 @@ void cw_change_name(struct cw_channel *chan, const char *fmt, ...)
 
 	cw_channel_unlock(chan);
 
-	cw_manager_event(EVENT_FLAG_CALL, "Rename",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Rename",
 		3,
 		cw_msg_tuple("Oldname",  "%s", oldname),
 		cw_msg_tuple("Newname",  "%s", chan->name),
@@ -3038,7 +3038,7 @@ int cw_do_masquerade(struct cw_channel *original)
 		cw_log(CW_LOG_DEBUG, "Destroying channel oldchan '%s'\n", oldchan->name);
 		cw_channel_unlock(oldchan);
 		cw_channel_free(oldchan);
-		cw_manager_event(EVENT_FLAG_CALL, "Hangup",
+		cw_manager_event(CW_EVENT_FLAG_CALL, "Hangup",
 			4,
 			cw_msg_tuple("Channel",   "%s", oldchan->name),
 			cw_msg_tuple("Uniqueid",  "%s", oldchan->uniqueid),
@@ -3084,7 +3084,7 @@ void cw_set_callerid(struct cw_channel *chan, const char *callerid, const char *
 	}
 	if (chan->cdr)
 		cw_cdr_setcid(chan->cdr, chan);
-	cw_manager_event(EVENT_FLAG_CALL, "Newcallerid",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Newcallerid",
 		5,
 		cw_msg_tuple("Channel",         "%s",      chan->name),
 		cw_msg_tuple("CallerID",        "%s",      (chan->cid.cid_num ? chan->cid.cid_num : "<Unknown>")),
@@ -3103,7 +3103,7 @@ int cw_setstate(struct cw_channel *chan, int state)
 
 	chan->_state = state;
 	cw_device_state_changed_literal(chan->name);
-	cw_manager_event(EVENT_FLAG_CALL, (oldstate == CW_STATE_DOWN ? "Newchannel" : "Newstate"),
+	cw_manager_event(CW_EVENT_FLAG_CALL, (oldstate == CW_STATE_DOWN ? "Newchannel" : "Newstate"),
 		5,
 		cw_msg_tuple("Channel",      "%s", chan->name),
 		cw_msg_tuple("State",        "%s", cw_state2str(chan->_state)),
@@ -3427,7 +3427,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 			bridge_playfile(c1, c0, config->start_sound, time_left_ms / 1000);
 	}
 
-	cw_manager_event(EVENT_FLAG_CALL, "Link",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Link",
 		6,
 		cw_msg_tuple("Channel1",  "%s", c0->name),
 		cw_msg_tuple("Channel2",  "%s", c1->name),
@@ -3552,7 +3552,7 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	c1->_bridge = NULL;
 	cw_channel_unlock(c1);
 
-	cw_manager_event(EVENT_FLAG_CALL, "Unlink",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Unlink",
 		6,
 		cw_msg_tuple("Channel1",  "%s", c0->name),
 		cw_msg_tuple("Channel2",  "%s", c1->name),

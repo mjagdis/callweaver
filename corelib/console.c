@@ -703,7 +703,7 @@ static int console_connect(const char *spec, int events, time_t timelimit)
 		memcpy(addr->sun_path, "console", sizeof("console"));
 
 		if (!socketpair_cloexec(AF_LOCAL, SOCK_STREAM, 0, sv)
-		&& (sess = manager_session_start(manager_session_ami, sv[0], (struct sockaddr *)addr, addrlen, NULL, events, EVENT_FLAG_COMMAND, events))) {
+		&& (sess = manager_session_start(manager_session_ami, sv[0], (struct sockaddr *)addr, addrlen, NULL, events, CW_EVENT_FLAG_COMMAND, events))) {
 			s = sv[1];
 			cw_object_put(sess);
 		}
@@ -811,7 +811,7 @@ void *console(void *data)
 		if (console_address && !option_quiet)
 			fprintf(stderr, "Connecting to Callweaver at %s...\n", console_address);
 
-		if ((console_sock = console_connect(console_address, EVENT_FLAG_LOG_ALL | EVENT_FLAG_PROGRESS, reconnect_time)) < 0)
+		if ((console_sock = console_connect(console_address, CW_EVENT_FLAG_LOG_ALL | CW_EVENT_FLAG_PROGRESS, reconnect_time)) < 0)
 			break;
 
 		reconnect_time = 30;

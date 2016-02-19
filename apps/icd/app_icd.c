@@ -781,7 +781,7 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, struc
     } else {
         if(icd_list__size((icd_list *)icd_queue__get_customers(queue)) <= icd_list__count((icd_list *)icd_queue__get_customers(queue))){
            cw_log(CW_LOG_ERROR, "No room in a queue [%s]\n", icd_queue__get_name(queue));
-	   cw_manager_event(EVENT_FLAG_USER, "icd_event",
+	   cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
            8,
            cw_msg_tuple("CustomerCall", "%s", "NoRoomInAQueue"),
 	       cw_msg_tuple("ID", "%d", icd_caller__get_id((icd_caller *)customer)),
@@ -815,7 +815,7 @@ int app_icd__customer_exec(struct cw_channel *chan, int argc, char **argv, struc
     cw_mutex_unlock(&customers_lock);
 	icd_caller__set_caller_id((icd_caller *)customer, cust_uniq_name);
 	if(queue){
-		cw_manager_event(EVENT_FLAG_USER, "icd_event",
+		cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
             1,
             cw_msg_tuple("Event", "Approx. wait time for customer[%s] UniqueID[%s] in queue[%s] position [%d] is [%d] minutes",
                 custname, (cust_uniq_name ? cust_uniq_name : "nochan"), icd_queue__get_name(queue), icd_queue__get_customer_position(queue, customer), icd_queue__get_holdannounce_holdtime(queue)));
@@ -1235,7 +1235,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, struct c
     }
     icd_caller__set_param_string((icd_caller *) agent, "identifier", identifier);
     ((icd_caller *)agent)->thread_state = ICD_THREAD_STATE_UNINITIALIZED;
-	cw_manager_event(EVENT_FLAG_USER, "icd_event",
+	cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
         6,
         cw_msg_tuple("AgentLogin", "%s", "OK"),
 	    cw_msg_tuple("ID", "%d", icd_caller__get_id((icd_caller *)agent)),
@@ -1261,7 +1261,7 @@ int app_icd__agent_exec(struct cw_channel *chan, int argc, char **argv, struct c
         /* This becomes the thread to manage agent state and incoming stream */
         icd_caller__loop((icd_caller *) agent, 0);
         /* Once we hit here, the call is finished */
-		cw_manager_event(EVENT_FLAG_USER, "icd_event",
+		cw_manager_event(CW_EVENT_FLAG_USER, "icd_event",
             4,
             cw_msg_tuple("AgentLogin", "%s", "END"),
 		    cw_msg_tuple("ID", "%d", icd_caller__get_id((icd_caller *)agent)),

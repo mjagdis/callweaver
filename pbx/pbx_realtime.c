@@ -212,7 +212,7 @@ static int realtime_exec(struct cw_channel *chan, const char *context, const cha
 						chan->name,
 						appdata.data
 					);
-				cw_manager_event(EVENT_FLAG_CALL, "Newexten",
+				cw_manager_event(CW_EVENT_FLAG_CALL, "Newexten",
 					7,
 					cw_msg_tuple("Channel",     "%s\r\n", chan->name),
 					cw_msg_tuple("Context",     "%s\r\n", chan->context),

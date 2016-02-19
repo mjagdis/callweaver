@@ -328,7 +328,7 @@ static void *originate(void *arg) {
 
 	res = cw_pbx_outgoing_exten(in->tech, CW_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, !cw_strlen_zero(in->cid_num) ? in->cid_num : NULL, !cw_strlen_zero(in->cid_name) ? in->cid_name : NULL, NULL, &chan);
 
-	cw_manager_event(EVENT_FLAG_CALL, "Originate",
+	cw_manager_event(CW_EVENT_FLAG_CALL, "Originate",
 			7,
 			cw_msg_tuple("ChannelRequested", "%s/%s", in->tech, in->data),
 			cw_msg_tuple("Context",          "%s", in->context),

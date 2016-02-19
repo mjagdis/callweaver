@@ -773,7 +773,7 @@ static int agent_hangup(struct cw_channel *ast)
 				long logintime = time(NULL) - p->loginstart;
 				p->loginstart = 0;
 				cw_log(CW_LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
-				cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+				cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 					5,
 					cw_msg_tuple("Agent",     "%s",  p->agent),
 					cw_msg_tuple("Loginchan", "%s",  p->loginchan),
@@ -1482,7 +1482,7 @@ static int agent_logoff(char *agent, int soft)
 			logintime = time(NULL) - p->loginstart;
 			p->loginstart = 0;
 			
-			cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+			cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 				3,
 				cw_msg_tuple("Agent",     "%s", p->agent),
 				cw_msg_tuple("Loginchan", "%s", p->loginchan),
@@ -1911,7 +1911,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						if (!cw_strlen_zero(p->loginchan)) {
 							if (p->loginstart == 0)
 								time(&p->loginstart);
-							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+							cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentcallbacklogin",
 								3,
 								cw_msg_tuple("Agent",     "%s", p->agent),
 								cw_msg_tuple("Loginchan", "%s", p->loginchan),
@@ -1924,7 +1924,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						} else {
 							logintime = time(NULL) - p->loginstart;
 							p->loginstart = 0;
-							cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+							cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentcallbacklogoff",
 								4,
 								cw_msg_tuple("Agent",     "%s",  p->agent),
 								cw_msg_tuple("Loginchan", "%s",  last_loginchan),
@@ -1951,7 +1951,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						cw_moh_start(chan, p->moh);
 						if (p->loginstart == 0)
 							time(&p->loginstart);
-						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogin",
+						cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentlogin",
 							3,
 							cw_msg_tuple("Agent",    "%s", p->agent),
 							cw_msg_tuple("Channel",  "%s", chan->name),
@@ -2029,7 +2029,7 @@ static int __login_exec(struct cw_channel *chan, int argc, char **argv, struct c
 						logintime = time(NULL) - p->loginstart;
 						p->loginstart = 0;
 						cw_mutex_unlock(&p->lock);
-						cw_manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
+						cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentlogoff",
 							3,
 							cw_msg_tuple("Agent",     "%s",  p->agent),
 							cw_msg_tuple("Logintime", "%ld", logintime),
@@ -2197,7 +2197,7 @@ static struct cw_manager_message *action_agent_callback_login(struct mansession 
 				if (p->loginstart == 0)
 					time(&p->loginstart);
 
-				cw_manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogin",
+				cw_manager_event(CW_EVENT_FLAG_AGENT, "Agentcallbacklogin",
 					2,
 					cw_msg_tuple("Agent",     "%s", p->agent),
 					cw_msg_tuple("Loginchan", "%s", p->loginchan)
@@ -2446,21 +2446,21 @@ static int agent_devicestate(void *data)
 static struct manager_action manager_actions[] = {
 	{
 		.action = "Agents",
-		.authority = EVENT_FLAG_AGENT,
+		.authority = CW_EVENT_FLAG_AGENT,
 		.func = action_agents,
 		.synopsis = "Lists agents and their status",
 		.description = mandescr_agents,
 	},
 	{
 		.action = "AgentLogoff",
-		.authority = EVENT_FLAG_AGENT,
+		.authority = CW_EVENT_FLAG_AGENT,
 		.func = action_agent_logoff,
 		.synopsis = "Sets an agent as no longer logged in",
 		.description = mandescr_agent_logoff,
 	},
 	{
 		.action = "AgentCallbackLogin",
-		.authority = EVENT_FLAG_AGENT,
+		.authority = CW_EVENT_FLAG_AGENT,
 		.func = action_agent_callback_login,
 		.synopsis = "Sets an agent as logged in by callback",
 		.description = mandescr_agent_callback_login,

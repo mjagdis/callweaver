@@ -3664,7 +3664,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 			p->inalarm = 1;
 			res = get_alarms(p);
 			cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", p->channel, alarm2str(res));
-			cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+			cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Alarm",
 				2,
 				cw_msg_tuple("Alarm",   "%s", alarm2str(res)),
 				cw_msg_tuple("Channel", "%d", p->channel)
@@ -3977,7 +3977,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 				p->bearer->inalarm = 0;
 #endif				
 			cw_log(CW_LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
-			cw_manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
+			cw_manager_event(CW_EVENT_FLAG_SYSTEM, "AlarmClear",
 				1,
 				cw_msg_tuple("Channel", "%d", p->channel)
 			);
@@ -5681,7 +5681,7 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2) {
 					cw_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %d\n", p->channel);
-					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+					cw_manager_event(CW_EVENT_FLAG_SYSTEM, "DNDState",
 						2,
 						cw_msg_tuple("Channel", "DAHDI/%d", p->channel),
 						cw_msg_tuple("Status",  "%s",       "enabled")
@@ -5696,7 +5696,7 @@ static void *ss_thread(void *data)
 				/* Do not disturb */
 				if (option_verbose > 2) {
 					cw_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %d\n", p->channel);
-					cw_manager_event(EVENT_FLAG_SYSTEM, "DNDState",
+					cw_manager_event(CW_EVENT_FLAG_SYSTEM, "DNDState",
 						2,
 						cw_msg_tuple("Channel", "DAHDI/%d", p->channel),
 						cw_msg_tuple("Status",  "%s",       "disabled")
@@ -6149,7 +6149,7 @@ static int handle_init_event(struct dahdi_pvt *i, int event)
 		i->inalarm = 1;
 		res = get_alarms(i);
 		cw_log(CW_LOG_WARNING, "Detected alarm on channel %d: %s\n", i->channel, alarm2str(res));
-		cw_manager_event(EVENT_FLAG_SYSTEM, "Alarm",
+		cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Alarm",
 			2,
 			cw_msg_tuple("Alarm",   "%s", alarm2str(res)),
 			cw_msg_tuple("Channel", "%d", i->channel)

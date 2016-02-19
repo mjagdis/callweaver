@@ -1127,7 +1127,7 @@ dahdiretry:
     }
     cw_log(CW_LOG_DEBUG, "Placed channel %s in DAHDI conf %d\n", chan->name, conf->dahdiconf);
 
-    cw_manager_event(EVENT_FLAG_CALL, "MeetmeJoin",
+    cw_manager_event(CW_EVENT_FLAG_CALL, "MeetmeJoin",
 		  4,
                   cw_msg_tuple("Channel",  "%s", chan->name),
                   cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),
@@ -1402,7 +1402,7 @@ dahdiretry:
                         if (!user->talking && totalsilence < MEETME_DELAYDETECTTALK)
                         {
                             user->talking = 1;
-                            cw_manager_event(EVENT_FLAG_CALL, "MeetmeTalking",
+                            cw_manager_event(CW_EVENT_FLAG_CALL, "MeetmeTalking",
 					  4,
                                           cw_msg_tuple("Channel",  "%s\r\n", chan->name),
                                           cw_msg_tuple("Uniqueid", "%s\r\n", chan->uniqueid),
@@ -1413,7 +1413,7 @@ dahdiretry:
                         if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK)
                         {
                             user->talking = 0;
-                            cw_manager_event(EVENT_FLAG_CALL, "MeetmeStopTalking",
+                            cw_manager_event(CW_EVENT_FLAG_CALL, "MeetmeStopTalking",
 					  4,
                                           cw_msg_tuple("Channel",  "%s\r\n", chan->name),
                                           cw_msg_tuple("Uniqueid", "%s\r\n", chan->uniqueid),
@@ -1734,7 +1734,7 @@ outrun:
 
     if (user->user_no)
     { /* Only cleanup users who really joined! */
-        cw_manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
+        cw_manager_event(CW_EVENT_FLAG_CALL, "MeetmeLeave",
 		4,
                       cw_msg_tuple("Channel", "%s", chan->name),
                       cw_msg_tuple("Uniqueid", "%s", chan->uniqueid),

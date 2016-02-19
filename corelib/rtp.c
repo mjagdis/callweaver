@@ -653,7 +653,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
         switch (PT)
         {
             case 200: /* Sender Report */
-                cw_manager_event(EVENT_FLAG_CALL, "RTCP-SR",
+                cw_manager_event(CW_EVENT_FLAG_CALL, "RTCP-SR",
                     6,
                     cw_msg_tuple("Channel",  "%s",    chan->name),
                     cw_msg_tuple("Uniqueid", "%s",    chan->uniqueid),
@@ -667,7 +667,7 @@ struct cw_frame *cw_rtcp_read(struct cw_channel *chan, struct cw_rtp *rtp)
             case 201: /* Reception Report(s) */
                 while (RC--)
                 {
-                    cw_manager_event(EVENT_FLAG_CALL, "RTCP-RR",
+                    cw_manager_event(CW_EVENT_FLAG_CALL, "RTCP-RR",
                         8,
                         cw_msg_tuple("Channel",    "%s",     chan->name),
                         cw_msg_tuple("Uniqueid",   "%s",     chan->uniqueid),

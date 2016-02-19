@@ -109,7 +109,7 @@ struct manager_action {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	const char *action;		/*!< Name of the action */
-	int authority;			/*!< Permission required for action.  EVENT_FLAG_* */
+	cw_event_flag authority;	/*!< Permission required for action.  CW_EVENT_FLAG_* */
 	struct cw_manager_message *(*func)(struct mansession *sess, const struct message *req); /*!< Function to be called */
 	const char *synopsis;		/*!< Short description of the action */
 	const char *description;	/*!< Detailed description of the action */
@@ -240,7 +240,7 @@ extern CW_API_PUBLIC int cw_manager_msg_func(struct cw_manager_message **msg_p, 
  *      \param map		Map of offsets for keys and values
  *      \param fmt		printf style format string
  */
-extern CW_API_PUBLIC void cw_manager_event_func(int category, size_t count, int map[], const char *fmt, ...)
+extern CW_API_PUBLIC void cw_manager_event_func(cw_event_flag category, size_t count, int map[], const char *fmt, ...)
 	__attribute__ ((format (printf, 4,5)));
 
 
@@ -263,9 +263,9 @@ static __inline__ int cw_manager_msg(struct cw_manager_message **msg __attribute
 {
 	return 0;
 }
-static __inline__ void cw_manager_event(int category, const char *event, size_t count, ...)
+static __inline__ void cw_manager_event(cw_event_flag category, const char *event, size_t count, ...)
 	__attribute__ ((always_inline, const, unused, no_instrument_function, nonnull (2)));
-static __inline__ void cw_manager_event(int category __attribute__((unused)), const char *event __attribute__((unused)), size_t count __attribute__((unused)), ...)
+static __inline__ void cw_manager_event(cw_event_flag category __attribute__((unused)), const char *event __attribute__((unused)), size_t count __attribute__((unused)), ...)
 {
 }
 static __inline__ char *cw_msg_tuple(const char *key, const char *fmt, ...)
@@ -322,7 +322,7 @@ static __inline__ char *cw_msg_vtuple(const char *key __attribute__((unused)), c
  */
 extern int cw_manager_msg(struct cw_manager_message **msg, size_t count, ...)
 	__attribute__ ((nonnull (1)));
-extern void cw_manager_event(int category, const char *event, size_t count, ...)
+extern void cw_manager_event(cw_event_flag category, const char *event, size_t count, ...)
 	__attribute__ ((nonnull (2)));
 
 extern char *cw_msg_tuple(const char *key, const char *fmt, ...)
