@@ -633,7 +633,7 @@ static const char *token_equivs1[] =
 	"KW_IFTIME",
 	"KW_IF",
 	"KW_IGNOREPAT",
-	"KW_INCLUDES"
+	"KW_INCLUDES",
 	"KW_JUMP",
 	"KW_PROC",
 	"KW_PATTERN",
