@@ -723,6 +723,7 @@ struct sip_request {
 
 	unsigned int body_start;
 	unsigned int hdr_start;
+	unsigned int branch, branch_len;
 
 	/* sipsock_read() only clears request packets down to here */
 	struct cw_dynstr pkt;
@@ -871,7 +872,6 @@ struct sip_pvt {
     int callingpres;            /*!< Calling presentation */
     int authtries;                /*!< Times we've tried to authenticate */
     int expiry;                /*!< How long we take to expire */
-    int branch;                /*!< One random number */
     char tag[sizeof("01234567")]; /*!< Our tag */
     int tag_len;
     int sessionid;                /*!< SDP Session ID */
@@ -1139,6 +1139,7 @@ static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
 static int externrefresh = 10;
 static struct cw_acl *localaddr;
+static atomic_t branch;
 
 /* The list of manual NOTIFY types we know how to send */
 struct cw_config *notify_types;
@@ -4144,7 +4145,6 @@ static struct sip_pvt *sip_alloc(void)
 
     init_msg(&p->initreq, 0);
 
-    p->branch = cw_random();
     make_our_tag(p);
     p->ocseq = 1;
 
@@ -4385,7 +4385,22 @@ static int parse_request(struct parse_request_state *state, struct sip_request *
 					req->pkt.data[state->i - 1] = '\0';
 				req->pkt.data[state->i] = '\0';
 				state->state = 3;
-				if (CW_HDRCMP(&req->pkt.data[state->key], SIP_HDR_CALL_ID)) {
+				if (CW_HDRCMP(&req->pkt.data[state->key], SIP_HDR_VIA)) {
+					int i = state->value;
+					while (req->pkt.data[i]) {
+						while (req->pkt.data[i] && req->pkt.data[i++] != ';');
+						while (req->pkt.data[i] == ' ' || req->pkt.data[i] == '\t')
+							i++;
+						if (!strncmp(&req->pkt.data[i], "branch=", 7)) {
+							i += 7;
+							req->branch = i;
+							while (req->pkt.data[i] && req->pkt.data[i] != ';')
+								i++;
+							req->branch_len = i - req->branch;
+							break;
+						}
+					}
+				} else if (CW_HDRCMP(&req->pkt.data[state->key], SIP_HDR_CALL_ID)) {
 					req->callid = state->value;
 				} else if (CW_HDRCMP(&req->pkt.data[state->key], SIP_HDR_NOSHORT("CSeq"))) {
 					if (sscanf(&req->pkt.data[state->value], "%u %n", &req->seqno, &j)) {
@@ -5424,9 +5439,6 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Tx: %s", sip_methods[sipmethod].text);
     
-	if (newbranch)
-		p->branch ^= cw_random();
-
 	/* Check for strict or loose router */
 	if (p->route && !cw_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL)
 		is_strict = 1;
@@ -5464,7 +5476,21 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	/* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
-	cw_dynstr_printf(&req->pkt, "%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : ""));
+	if (newbranch) {
+		cw_dynstr_tprintf(&req->pkt, 4,
+			cw_fmtval("%s: SIP/2.0/UDP %#l@", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa),
+			cw_fmtval(";branch=z9hG4bK%08x", (cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff)),
+			cw_fmtval("%s", ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
+			cw_fmtval("\r\n")
+		);
+	} else {
+		cw_dynstr_tprintf(&req->pkt, 4,
+			cw_fmtval("%s: SIP/2.0/UDP %#l@", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa),
+			cw_fmtval(";branch=z9hG4bK%.*s", orig->branch_len, orig->branch),
+			cw_fmtval("%s", ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
+			cw_fmtval("\r\n")
+		);
+	}
 
 	if (p->route) {
 		if (is_strict)
@@ -5560,7 +5586,6 @@ static void transmit_response(struct sip_pvt *p, const char *status, struct sip_
 	}
 }
 
-//TODO
 /*! \brief  transmit_error: Transmit response, no retransmits, using temporary pvt */
 static void transmit_error(struct sip_request *req, const char *status)
 {
@@ -5568,7 +5593,6 @@ static void transmit_error(struct sip_request *req, const char *status)
 
 	memset(&dialogue, 0, sizeof(dialogue));
 
-	dialogue.branch = cw_random();
 	/* FIXME: do we _need_ to add a tag in error responses? */
 	make_our_tag(&dialogue);
 	dialogue.ocseq = 1;
@@ -6360,7 +6384,12 @@ static struct sip_request *initreqprep(struct sip_request *req, struct sip_pvt *
 
     /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
     /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
-    cw_dynstr_printf(&req->pkt, "%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : ""));
+    cw_dynstr_tprintf(&req->pkt, 4,
+        cw_fmtval("%s: SIP/2.0/UDP %#l@", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa),
+        cw_fmtval(";branch=z9hG4bK%08x", (cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff)),
+        cw_fmtval("%s", ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
+        cw_fmtval("\r\n")
+    );
 
     /* Build Remote Party-ID and From */
     if (cw_test_flag(p, SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
@@ -6391,11 +6420,6 @@ static int transmit_invite(struct sip_pvt *p, enum sipmethod sipmethod, int sdp,
 {
 	struct sip_request *msg;
 	int res = -1;
-
-	if (init) {
-		/* Bump branch even on initial requests */
-		p->branch ^= cw_random();
-	}
 
 	if (init > 1) {
 		if (!(msg = initreqprep(NULL, p, sipmethod)))
@@ -6983,8 +7007,6 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
 	    snprintf(p->uri, sizeof(p->uri), "sip:%s", r->hostname);
     }
 
-    p->branch ^= cw_random();
-
     if ((msg = malloc(sizeof(*msg)))) {
         init_req(msg, sipmethod, p->uri);
 
@@ -6996,7 +7018,10 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
             /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
             cw_fmtval("%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n",
-                sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa, p->branch, ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
+                sip_hdr_name[SIP_NHDR_VIA],
+		&p->stunaddr.sa,
+		(cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff),
+		((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
             cw_fmtval("%s: <sip:%s%s%s>;tag=%s\r\n",
                 sip_hdr_name[SIP_NHDR_FROM], r->username, (has_at ? "" : "@"), (has_at ? "" : p->tohost), p->tag),
             cw_fmtval("%s: <sip:%s%s%s>%s%s\r\n",
@@ -16428,6 +16453,8 @@ static int load_module(void)
     pthread_rwlock_init(&sip_reload_lock, NULL);
     pthread_rwlock_init(&debugacl.lock, NULL);
 
+    atomic_set(&branch, 0);
+
     if ((sched = sched_context_create(1)) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
 
@@ -16536,6 +16563,7 @@ static void release_module(void)
 	cw_io_context_destroy(io);
 	sched_context_destroy(sched);
 
+	atomic_destroy(&branch);
 	pthread_rwlock_destroy(&debugacl.lock);
 	pthread_rwlock_destroy(&sip_reload_lock);
 
