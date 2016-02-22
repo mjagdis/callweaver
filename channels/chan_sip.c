@@ -16537,6 +16537,7 @@ static void release_module(void)
 	sched_context_destroy(sched);
 
 	pthread_rwlock_destroy(&debugacl.lock);
+	pthread_rwlock_destroy(&sip_reload_lock);
 
 	cw_registry_destroy(&dialogue_registry);
 	cw_registry_destroy(&peerbyname_registry);
