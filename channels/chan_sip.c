@@ -1139,7 +1139,7 @@ static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
 static int externrefresh = 10;
 static struct cw_acl *localaddr;
-static atomic_t branch;
+static atomic_t uniqueno;
 
 /* The list of manual NOTIFY types we know how to send */
 struct cw_config *notify_types;
@@ -3806,14 +3806,12 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
     struct cw_channel *tmp;
     struct cw_variable *v = NULL;
+    char *p;
     int fmt;
 
-    if (title)
-        tmp = cw_channel_alloc(1, "SIP/%s-%04x", title, cw_random() & 0xffff);
-    else if (strchr(i->fromdomain, ':'))
-        tmp = cw_channel_alloc(1, "SIP/%s-%08x", strchr(i->fromdomain, ':') + 1, (int)(long)(i));
-    else
-        tmp = cw_channel_alloc(1, "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
+    tmp = cw_channel_alloc(1, "SIP/%s-%08x",
+        (title ? title : ((p = strchr(i->fromdomain, ':')) ? p + 1 : i->fromdomain)),
+        atomic_fetch_and_add(&uniqueno, 1));
 
     if (tmp == NULL)
     {
@@ -4085,27 +4083,23 @@ static struct cw_frame *sip_read(struct cw_channel *ast)
 /*! \brief  build_callid: Build SIP CALLID header */
 static void build_callid(char *callid, int len, struct sockaddr *oursa, char *fromdomain)
 {
-	int x, res;
+	int n;
 
-	for (x = 0;  x < 4;  x++) {
-		int val = cw_random();
-		res = snprintf(callid, len, "%08x", val);
-		len -= res;
-		callid += res;
-	}
+	n = snprintf(callid, len, "%08x%08x%08x%08x", cw_random(), cw_random(), cw_random(), atomic_fetch_and_add(&uniqueno, 1));
+
 	if (!cw_strlen_zero(fromdomain))
-		snprintf(callid, len, "@%s", fromdomain);
+		snprintf(callid + n, len - n, "@%s", fromdomain);
 	else {
 		/* It's not really important that we really use our right address
 		 * here but it's supposed to be an address specific to us.
 		 */
-		cw_snprintf(callid, len, "@%#@", oursa);
+		cw_snprintf(callid + n, len - n, "@%#@", oursa);
 	}
 }
 
 static void make_our_tag(struct sip_pvt *p)
 {
-    p->tag_len = snprintf(p->tag, sizeof(p->tag), "%08lx", cw_random());
+    p->tag_len = snprintf(p->tag, sizeof(p->tag), "%08lx", atomic_fetch_and_add(&uniqueno, 1));
 }
 
 
@@ -5479,7 +5473,7 @@ static struct sip_request *reqprep(struct sip_pvt *p, struct sip_request *req, c
 	if (newbranch) {
 		cw_dynstr_tprintf(&req->pkt, 4,
 			cw_fmtval("%s: SIP/2.0/UDP %#l@", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa),
-			cw_fmtval(";branch=z9hG4bK%08x", (cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff)),
+			cw_fmtval(";branch=z9hG4bK%08x%08x", cw_random(), atomic_fetch_and_add(&uniqueno, 1)),
 			cw_fmtval("%s", ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
 			cw_fmtval("\r\n")
 		);
@@ -6386,7 +6380,7 @@ static struct sip_request *initreqprep(struct sip_request *req, struct sip_pvt *
     /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
     cw_dynstr_tprintf(&req->pkt, 4,
         cw_fmtval("%s: SIP/2.0/UDP %#l@", sip_hdr_name[SIP_NHDR_VIA], &p->stunaddr.sa),
-        cw_fmtval(";branch=z9hG4bK%08x", (cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff)),
+        cw_fmtval(";branch=z9hG4bK%08x%08x", cw_random(), atomic_fetch_and_add(&uniqueno, 1)),
         cw_fmtval("%s", ((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
         cw_fmtval("\r\n")
     );
@@ -7017,10 +7011,10 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         cw_dynstr_tprintf(&msg->pkt, 7,
             /* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
             /* Work around buggy UNIDEN UIP200 firmware by not asking for rport unnecessarily */
-            cw_fmtval("%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%s\r\n",
+            cw_fmtval("%s: SIP/2.0/UDP %#l@;branch=z9hG4bK%08x%08x%s\r\n",
                 sip_hdr_name[SIP_NHDR_VIA],
 		&p->stunaddr.sa,
-		(cw_random() << 16) | (atomic_fetch_and_add(&branch, 1) & 0xffff),
+		cw_random(), atomic_fetch_and_add(&uniqueno, 1),
 		((cw_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581) ? ";rport" : "")),
             cw_fmtval("%s: <sip:%s%s%s>;tag=%s\r\n",
                 sip_hdr_name[SIP_NHDR_FROM], r->username, (has_at ? "" : "@"), (has_at ? "" : p->tohost), p->tag),
@@ -16453,7 +16447,7 @@ static int load_module(void)
     pthread_rwlock_init(&sip_reload_lock, NULL);
     pthread_rwlock_init(&debugacl.lock, NULL);
 
-    atomic_set(&branch, 0);
+    atomic_set(&uniqueno, cw_random());
 
     if ((sched = sched_context_create(1)) == NULL)
         cw_log(CW_LOG_WARNING, "Unable to create schedule context\n");
@@ -16563,7 +16557,7 @@ static void release_module(void)
 	cw_io_context_destroy(io);
 	sched_context_destroy(sched);
 
-	atomic_destroy(&branch);
+	atomic_destroy(&uniqueno);
 	pthread_rwlock_destroy(&debugacl.lock);
 	pthread_rwlock_destroy(&sip_reload_lock);
 
