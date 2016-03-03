@@ -92,33 +92,6 @@ static inline void cw_dynstr_init_fixed(struct cw_dynstr *ds_p, char *buffer, si
 }
 
 
-/* \brief Clone a dynamic string.
- * The destination dynamic string MUST be of the malloc'd * variety. It may or
- * may not be initialized but MUST NOT already contain data (if it does the
- * storage will be leaked).
- *
- *	\param dst_p	destination dynamic string to clone into
- *	\param src_p	source dynamic string to clone from
- */
-static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
-	__attribute__ ((nonnull (1,2)));
-
-static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
-{
-	dst_p->chunk = src_p->chunk;
-	if (src_p->size && (dst_p->data = malloc(src_p->used + 1))) {
-		dst_p->used = src_p->used;
-		dst_p->size = src_p->used + 1;
-		dst_p->error = src_p->error;
-		memcpy(dst_p->data, src_p->data, src_p->used + 1);
-	} else {
-		dst_p->used = dst_p->size = 0;
-		dst_p->error = src_p->size;
-		dst_p->data = (char *)"";
-	}
-}
-
-
 /* \brief Reset a dynamic string to contain nothing but do NOT release
  * the memory associated with it.
  *
@@ -237,6 +210,29 @@ static inline void cw_dynstr_free(struct cw_dynstr *ds_p)
 
 	/* Dynamic strings NEVER have a NULL data pointer */
 	ds_p->data = (char *)"";
+}
+
+
+/* \brief Clone a dynamic string.
+ * The destination dynamic string MUST be of the malloc'd * variety. It may or
+ * may not be initialized but MUST NOT already contain data (if it does the
+ * storage will be leaked).
+ *
+ *	\param dst_p	destination dynamic string to clone into
+ *	\param src_p	source dynamic string to clone from
+ */
+static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
+	__attribute__ ((nonnull (1,2)));
+
+static inline void cw_dynstr_clone(struct cw_dynstr *dst_p, struct cw_dynstr *src_p)
+{
+	dst_p->error = src_p->error;
+	if (src_p->used >= dst_p->size)
+		cw_dynstr_need(dst_p, src_p->used - dst_p->used);
+	if (!dst_p->error) {
+		dst_p->used = src_p->used;
+		memcpy(dst_p->data, src_p->data, src_p->used + 1);
+	}
 }
 
 
