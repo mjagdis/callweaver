@@ -46,6 +46,7 @@ struct cw_connection {
 	struct cw_object obj;
 	struct cw_registry_entry *reg_entry;
 	enum cw_connection_state state;
+	unsigned int reliable:1;
 	int sock;
 	pthread_t tid;
 	const struct cw_connection_tech *tech;

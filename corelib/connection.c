@@ -181,6 +181,7 @@ struct cw_connection *cw_connection_listen(int type, struct sockaddr *addr, sock
 
 	cw_object_init(conn, NULL, 1);
 	conn->obj.release = cw_connection_release;
+	conn->reliable = (type == SOCK_STREAM || type == SOCK_SEQPACKET)
 	conn->state = LISTENING;
 	conn->sock = sock;
 	conn->tech = tech;
