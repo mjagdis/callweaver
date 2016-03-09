@@ -5231,7 +5231,7 @@ static void copy_all_header(struct sip_request *req, const struct sip_request *o
 {
 	const char *dstname = ((sip_hdr_name == sip_hdr_fullname || !alias_len) ? name : alias);
 	char *p;
-	int start = req->hdr_start;
+	int start = orig->hdr_start;
     
 	while ((p = __get_header(orig, name, name_len, alias, alias_len, &start)) && p[0])
 		cw_dynstr_printf(&req->pkt, "%s: %s\r\n", dstname, p);
