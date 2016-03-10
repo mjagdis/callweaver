@@ -9937,8 +9937,8 @@ struct sip_show_channels_args {
 	int numchans;
 };
 
-#define SHOW_CHANNELS_FORMAT_HEADER "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
-#define SHOW_CHANNELS_FORMAT_DETAIL  "%-15l@  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-7.7s  %-15.15s\n"
+#define SHOW_CHANNELS_FORMAT_HEADER "%-30.30s  %-10.10s  %-11.11s  %-11.11s  %-4.4s  %-7.7s  %-15.15s\n"
+#define SHOW_CHANNELS_FORMAT_DETAIL  "%-30l@  %-10.10s  %-11.11s  %5.5d/%5.5d  %-4.4s  %-7.7s  %-15.15s\n"
 
 static int sip_show_channels_one(struct cw_object *obj, void *data)
 {
