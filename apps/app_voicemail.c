@@ -3836,9 +3836,9 @@ static int close_mailbox(struct vm_state *vms, struct cw_vm_user *vmu)
 
 done:
 	if (vms->deleted)
-		memset(vms->deleted, 0, sizeof(vms->deleted)); 
+		memset(vms->deleted, 0, vmu->maxmsg * sizeof(vms->deleted[0])); 
 	if (vms->heard)
-		memset(vms->heard, 0, sizeof(vms->heard)); 
+		memset(vms->heard, 0, vmu->maxmsg * sizeof(vms->heard[0])); 
 
 	return 0;
 }
