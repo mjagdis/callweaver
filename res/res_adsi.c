@@ -565,7 +565,7 @@ static int __adsi_read_encoded_dtmf(struct cw_channel *chan, unsigned char *buf,
 	unsigned char current = 0;
 	int gotstar = 0;
 	int pos = 0;
-	memset(buf, 0, sizeof(buf));
+	memset(buf, 0, maxlen * sizeof(buf[0]));
 	while(bytes <= maxlen) {
 		/* Wait up to a second for a digit */
 		res = cw_waitfordigit(chan, 1000);
