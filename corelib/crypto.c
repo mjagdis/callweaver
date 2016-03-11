@@ -141,7 +141,6 @@ static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 		snprintf(prompt, sizeof(prompt), ">>>> passcode for %s key '%s': ",
 			 key->ktype == CW_KEY_PRIVATE ? "PRIVATE" : "PUBLIC", key->name);
 		write(key->outfd, prompt, strlen(prompt));
-		memset(buf, 0, sizeof(buf));
 		tmp = noecho(key->infd);
 		memset(buf, 0, size);
 		read(key->infd, buf, size);
