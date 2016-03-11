@@ -2170,7 +2170,6 @@ static void manager_listen(const char *spec, int (* const handler)(struct manses
 			.ai_socktype = SOCK_STREAM,
 			.ai_protocol = 0,
 		};
-		int err;
 
 		if ((err = cw_getaddrinfo(spec, "0", &hints, &addrs, NULL)))
 			cw_log(CW_LOG_ERROR, "%s: %s\n", spec, gai_strerror(err));
