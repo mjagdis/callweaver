@@ -1860,6 +1860,9 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 		   into the readq for the next cw_read call */
 		if (f->next) {
 			/* We can safely assume the read queue is empty, or we wouldn't be here */
+			/* FIXME: that's not true. cw_queue_{frame,control} could have added something
+			 * while we were waiting.
+			 */
 			chan->readq = f->next;
 			f->next = NULL;
 		}
