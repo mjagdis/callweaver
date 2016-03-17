@@ -740,7 +740,7 @@ blt_call(struct cw_channel *chan, const char *dest)
   /* connect to to headset ... */
   if (dev->role == BLT_ROLE_HS) {
     send_atcmd(dev, "+CIEV: 3,1");
-    dev->ring_timer = cw_sched_add(sched, 5000, CW_SCHED_CB(ring_hs), dev);
+    cw_sched_add(sched, &dev->ring_timer, 5000, CW_SCHED_CB(ring_hs), dev);
     ring_hs(dev);
 
     cw_setstate(chan, CW_STATE_RINGING);
@@ -797,10 +797,8 @@ blt_hangup(struct cw_channel *chan)
       if (dev->role == BLT_ROLE_HS)
         send_atcmd(dev, "+CIEV: 3,0");
 
-      if (dev->ring_timer >= 0)
-        cw_sched_del(sched, dev->ring_timer);
+      cw_sched_del(sched, &dev->ring_timer);
 
-      dev->ring_timer = -1;
       dev->ringing = 0;
     } /* if dev->ringing */
 
@@ -1285,10 +1283,7 @@ atcmd_answer_execute(blt_dev_t * dev, const char * data)
 
   dev->ringing = 0;
 
-  if (dev->ring_timer >= 0)
-    cw_sched_del(sched, dev->ring_timer);
-
-  dev->ring_timer = -1;
+  cw_sched_del(sched, &dev->ring_timer);
 
   send_atcmd(dev, "+CIEV: 2,1");
   send_atcmd(dev, "+CIEV: 3,0");
@@ -1845,7 +1840,7 @@ try_connect(blt_dev_t * dev)
       close(dev->rd);
       dev->rd = -1;
       dev->status = BLT_STATUS_DOWN;
-      dev->outgoing_id = cw_sched_add(sched, 1000, CW_SCHED_CB(try_connect), dev);
+      cw_sched_add(sched, &dev->outgoing_id, 1000, CW_SCHED_CB(try_connect), dev);
       cw_mutex_unlock(&(dev->lock));
       return 0;
     }
@@ -1880,7 +1875,7 @@ try_connect(blt_dev_t * dev)
         close(dev->rd);
         dev->rd = -1;
         dev->status = BLT_STATUS_DOWN;
-        dev->outgoing_id = cw_sched_add(sched, (ret == EHOSTDOWN) ? 10000 : 2500, CW_SCHED_CB(try_connect), dev);
+        cw_sched_add(sched, &outgoing_id, (ret == EHOSTDOWN) ? 10000 : 2500, CW_SCHED_CB(try_connect), dev);
         cw_mutex_unlock(&(dev->lock));
         return 0;
 
@@ -1888,7 +1883,7 @@ try_connect(blt_dev_t * dev)
 
     }
 
-    dev->outgoing_id = cw_sched_add(sched, 100, CW_SCHED_CB(try_connect), dev);
+    cw_sched_add(sched, &dev->outgoing_id, 100, CW_SCHED_CB(try_connect), dev);
     cw_mutex_unlock(&(dev->lock));
     return 0;
   }
@@ -1897,14 +1892,14 @@ try_connect(blt_dev_t * dev)
 
   if (fd == -1) {
     cw_log(CW_LOG_WARNING, "NBIO connect() to %s returned %d: %s\n", dev->name, errno, strerror(errno));
-    dev->outgoing_id = cw_sched_add(sched, 5000, CW_SCHED_CB(try_connect), dev);
+    cw_sched_add(sched, &dev->outgoing_id, 5000, CW_SCHED_CB(try_connect), dev);
     cw_mutex_unlock(&(dev->lock));
     return 0;
   }
 
   dev->rd = fd;
   dev->status = BLT_STATUS_CONNECTING;
-  dev->outgoing_id = cw_sched_add(sched, 100, CW_SCHED_CB(try_connect), dev);
+  cw_sched_add(sched, &dev->outgoing_id, 100, CW_SCHED_CB(try_connect), dev);
   cw_mutex_unlock(&(dev->lock));
   return 0;
 }
@@ -2018,10 +2013,7 @@ handle_incoming(int fd, blt_role_t role)
       cw_log(CW_LOG_DEBUG, "Connect from %s\n", dev->name);
       cw_mutex_lock(&(dev->lock));
       /* Kill any outstanding connect attempt. */
-      if (dev->outgoing_id > -1) {
-        cw_sched_del(sched, dev->outgoing_id);
-        dev->outgoing_id = -1;
-      }
+      cw_sched_del(sched, &dev->outgoing_id);
 
       rd_close(dev, 0, 0);
 
@@ -2269,7 +2261,7 @@ rd_close(blt_dev_t * dev, int reconnect, int e)
 
   /* Schedule a reconnect */
   if (reconnect && dev->autoconnect) {
-    dev->outgoing_id = cw_sched_add(sched, 5000, CW_SCHED_CB(try_connect), dev);
+    cw_sched_add(sched, &dev->outgoing_id, 5000, CW_SCHED_CB(try_connect), dev);
 
     if (pthread_equal(monitor_thread, pthread_self())) {
       // Because we're not the monitor thread, we needd to inturrupt poll().
@@ -2328,7 +2320,7 @@ do_monitor(void * data)
     }
 
     if (dev->autoconnect && dev->status == BLT_STATUS_DOWN)
-      dev->outgoing_id = cw_sched_add(sched, 1500, CW_SCHED_CB(try_connect), dev);
+      cw_sched_add(sched, &dev->outgoing_id, 1500, CW_SCHED_CB(try_connect), dev);
     dev = dev->next;
   }
   cw_mutex_unlock(&iface_lock);

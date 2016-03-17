@@ -713,7 +713,7 @@ struct sip_request {
 	unsigned int fatal:1;	/*!< If this transaction fails we hang up */
 
 	struct sip_pvt *owner;            /*!< Owner call */
-	int retransid;                /*!< Retransmission ID */
+	struct sched_state retransid;                /*!< Retransmission ID */
 	int timer_a;                /*!< SIP timer A, retransmission timer */
 
 	struct timespec txtime;		/*!< Time this request was originally transmitted */
@@ -943,8 +943,8 @@ struct sip_pvt {
     struct sip_request *initreq;        /*!< Initial request */
     
     int maxtime;                /*!< Max time for first response */
-    int initid;                /*!< Auto-congest ID if appropriate */
-    int autokillid;                /*!< Auto-kill ID */
+    struct sched_state initid;                /*!< Auto-congest ID if appropriate */
+    struct sched_state autokillid;                /*!< Auto-kill ID */
     time_t lastrtprx;            /*!< Last RTP received */
     time_t lastrtptx;            /*!< Last RTP sent */
     int rtptimeout;                /*!< RTP timeout time */
@@ -1057,7 +1057,7 @@ struct sip_peer {
     unsigned int flags;        /*!<  SIP flags */    
     unsigned int sipoptions;    /*!<  Supported SIP options */
     struct cw_flags flags_page2;    /*!<  SIP_PAGE2 flags */
-    int expire;            /*!<  When to expire this peer registration */
+    struct sched_state expire;            /*!<  When to expire this peer registration */
     int capability;            /*!<  Codec capability */
     int rtptimeout;            /*!<  RTP timeout */
     int rtpholdtimeout;        /*!<  RTP Hold Timeout */
@@ -1067,7 +1067,7 @@ struct sip_peer {
     struct cw_sockaddr_net addr;    /*!<  IP address of peer */
 
     /* Qualification */
-    int pokeexpire;            /*!<  When to expire poke (qualify= checking) */
+    struct sched_state pokeexpire;            /*!<  When to expire poke (qualify= checking) */
     /* T1 & T2 are configurable per-peer because they are sometimes needed if
      * paths via geostationary satellites, moonbases etc. are involved. In which
      * case they need adjusting at both ends of course.
@@ -1107,9 +1107,9 @@ struct sip_registry {
     char md5secret[80];        /*!< Password in md5 */
     char contact[256];        /*!< Contact extension */
     char random[80];
-    int expire;            /*!< Sched ID of expiration */
+    struct sched_state expire;            /*!< Sched ID of expiration */
     int regattempts;        /*!< Number of attempts (since the last success) */
-    int timeout;             /*!< sched id of sip_reg_timeout */
+    struct sched_state timeout;             /*!< sched id of sip_reg_timeout */
     int refresh;            /*!< How often to refresh */
     struct sip_pvt *dialogue;        /*!< create a sip_pvt structure for each outbound "registration call" in progress */
     int regstate;            /*!< Registration state (see above) */
@@ -2019,7 +2019,7 @@ static int message_retransmit(void *data)
 
         sip_xmit(msg->conn, &msg->ouraddr, &msg->recvdaddr, msg);
 
-	msg->retransid = cw_sched_add(sched, reschedule, message_retransmit, msg);
+	cw_sched_add(sched, &msg->retransid, reschedule, message_retransmit, msg);
 
         return 0;
     }
@@ -2096,8 +2096,6 @@ static int __sip_autodestruct(void *data)
 
 	cw_mutex_lock(&dialogue->lock);
 
-	dialogue->autokillid = -1;
-
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (dialogue->subscribed) {
 		transmit_state_notify(dialogue, CW_EXTENSION_DEACTIVATED, 1, 1, 1);    /* Send first notification */
@@ -2146,11 +2144,7 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 	if (sip_debug_test_pvt(dialogue))
 		cw_verbose("Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
 
-	if (dialogue->autokillid > -1) {
-		if (!cw_sched_del(sched, dialogue->autokillid))
-			dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, dialogue);
-	} else
-		dialogue->autokillid = cw_sched_add(sched, ms, __sip_autodestruct, cw_object_dup(dialogue));
+	cw_sched_add(sched, &dialogue->autokillid, ms, __sip_autodestruct, cw_object_dup(dialogue));
 
 	return 0;
 }
@@ -2159,10 +2153,8 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 /*! \brief  sip_cancel_destroy: Cancel destruction of SIP call */
 static int sip_cancel_destroy(struct sip_pvt *dialogue)
 {
-	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid)) {
+	if (!cw_sched_del(sched, &dialogue->autokillid))
 		cw_object_put(dialogue);
-		dialogue->autokillid = -1;
-	}
 
 	return 0;
 }
@@ -2222,7 +2214,7 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 				struct sip_request *trans = container_of(obj, struct sip_request, obj);
 
 				/* RFC 3261 17.2 Server Transaction */
-				cw_sched_del(sched, trans->retransid);
+				cw_sched_del(sched, &trans->retransid);
 				msg->state = (msg->pkt.data[msg->uriresp] == '1' ? 1 : 2);
 
 				if (msg->cseq_method != SIP_INVITE || msg->pkt.data[msg->uriresp] != '2') {
@@ -2290,7 +2282,7 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 		/* Schedule retransmission. */
 		if (next_tick) {
 			msg->timer_a = 0;
-			msg->retransid = cw_sched_add(sched, next_tick, message_retransmit, msg);
+			cw_sched_add(sched, &msg->retransid, next_tick, message_retransmit, msg);
 		} else
 			cw_object_put(msg);
 
@@ -2536,11 +2528,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr *sa)
         /* Cache peer */
         cw_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
         if (cw_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR))
-        {
-            if (peer->expire > -1)
-                cw_sched_del(sched, peer->expire);
-            peer->expire = cw_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
-        }
+            cw_sched_modify(sched, &peer->expire, (global_rtautoclear) * 1000, expire_register, (void *)peer);
     }
     else
     {
@@ -2853,8 +2841,6 @@ static int auto_congest(void *data)
 
 	cw_mutex_lock(&dialogue->lock);
 
-	dialogue->initid = -1;
-
 	if (dialogue->owner && !cw_channel_trylock(dialogue->owner)) {
 		cw_log(CW_LOG_NOTICE, "Auto-congesting %s\n", dialogue->owner->name);
 		cw_queue_control(dialogue->owner, CW_CONTROL_CONGESTION);
@@ -2956,7 +2942,7 @@ static int sip_call(struct cw_channel *ast, const char *dest)
         if (p->maxtime)
         {
             /* Initialize auto-congest time */
-            p->initid = cw_sched_add(sched, p->maxtime * 4, auto_congest, cw_object_dup(p));
+            cw_sched_add(sched, &p->initid, p->maxtime * 4, auto_congest, cw_object_dup(p));
         }
     }
     return res;
@@ -2981,7 +2967,7 @@ static void sip_destroy(struct sip_pvt *dialogue)
 		cw_verbose("Destroying call '%s'\n", dialogue->callid);
 
 	if (dialogue->pendinginvite) {
-		cw_sched_del(sched, dialogue->pendinginvite->retransid);
+		cw_sched_del(sched, &dialogue->pendinginvite->retransid);
 		cw_object_put(dialogue->pendinginvite);
 	}
 
@@ -2993,10 +2979,10 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	 * it's up to us to drop the reference that was given it.
 	 */
 
-	if (dialogue->initid > -1 && !cw_sched_del(sched, dialogue->initid))
+	if (!cw_sched_del(sched, &dialogue->initid))
 		cw_object_put(dialogue);
 
-	if (dialogue->autokillid > -1 && !cw_sched_del(sched, dialogue->autokillid))
+	if (!cw_sched_del(sched, &dialogue->autokillid))
 		cw_object_put(dialogue);
 
 	if (dialogue->registry) {
@@ -3341,7 +3327,7 @@ static int sip_hangup(struct cw_channel *ast)
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		}
-                if (p->initid != -1)
+                if (cw_sched_state_scheduled(&p->initid))
                 {
                     /* channel still up - reverse dec of inUse counter
                        only if the channel is not auto-congested */
@@ -4107,8 +4093,8 @@ static struct sip_pvt *sip_alloc(void)
 
     cw_mutex_init(&p->lock);
 
-    p->initid = -1;
-    p->autokillid = -1;
+    cw_sched_state_init(&p->initid);
+    cw_sched_state_init(&p->autokillid);
     p->subscribed = NONE;
     p->stateid = -1;
     p->prefs = prefs;
@@ -4257,8 +4243,8 @@ static int sip_register(char *value, int lineno)
         cw_copy_string(reg->authuser, authuser, sizeof(reg->authuser));
     if (secret)
         cw_copy_string(reg->secret, secret, sizeof(reg->secret));
-    reg->expire = -1;
-    reg->timeout =  -1;
+    cw_sched_state_init(&reg->expire);
+    cw_sched_state_init(&reg->timeout);
     reg->refresh = default_expiry;
     reg->portno = porta ? atoi(porta) : 0;
     reg->callid_valid = 0;
@@ -6099,7 +6085,7 @@ static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, st
 			cw_object_put(p->pendinginvite);
 			p->pendinginvite = cw_object_dup(msg);
 			msg->timer_a = 0;
-			msg->retransid = cw_sched_add(sched, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
+			cw_sched_add(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
 		}
 
 		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
@@ -6137,7 +6123,7 @@ static void transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status
 			cw_object_put(p->pendinginvite);
 			p->pendinginvite = cw_object_dup(msg);
 			msg->timer_a = 0;
-			msg->retransid = cw_sched_add(sched, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
+			cw_sched_add(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
 		}
 
 		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
@@ -6932,7 +6918,6 @@ static int sip_reg_timeout(void *data)
 	);
 
 	if (r->regstate != REG_STATE_FAILED) {
-            r->timeout = -1;
 	    /* transmit_regsiter inherits our reference and sets a new timeout */
             transmit_register(r, SIP_REGISTER, NULL, NULL);
         }
@@ -6993,17 +6978,13 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
             /* we have what we hope is a temporary network error,
              * probably DNS.  We need to reschedule a registration try */
             r->regattempts++;
-            if (r->timeout > -1)
-            {
-                if (!cw_sched_del(sched, r->timeout))
-                    cw_object_put(r);
+            if (cw_sched_modify(sched, &r->timeout, global_reg_timeout*1000, sip_reg_timeout, r)) {
+                cw_object_put(r);
                 cw_log(CW_LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
-                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
             }
             else
             {
                 cw_log(CW_LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
-                r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
             }
             sip_destroy(p);
             cw_object_put(p);
@@ -7161,9 +7142,8 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     /* set up a timeout */
     if (auth == NULL)
     {
-        if (r->timeout == -1 || cw_sched_del(sched, r->timeout))
+        if (cw_sched_modify(sched, &r->timeout, global_reg_timeout * 1000, sip_reg_timeout, r))
             cw_object_dup(r);
-        r->timeout = cw_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
         cw_log(CW_LOG_DEBUG, "Scheduled a registration timeout for %s id %d \n", r->hostname, r->timeout);
     } else
         cw_object_put(r);
@@ -7353,12 +7333,8 @@ static int expire_register(void *data)
 {
 	struct sip_peer *peer = data;
 
-	peer->expire = -1;
-
-	if (peer->pokeexpire != -1 && !cw_sched_del(sched, peer->pokeexpire)) {
-		peer->pokeexpire = -1;
+	if (!cw_sched_del(sched, &peer->pokeexpire))
 		cw_object_put(peer);
-	}
 
 	if (peer->reg_entry_byaddr) {
 		cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
@@ -7434,11 +7410,10 @@ static void reg_source_db(struct sip_peer *peer, int sip_running)
 
 			if (sip_running) {
 				/* SIP is already up, so schedule a poke in the near future */
-				if (peer->pokeexpire == -1)
-					peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
+				cw_sched_modify(sched, &peer->pokeexpire, cw_random() % 5000 + 1, sip_poke_peer, cw_object_dup(peer));
 			}
 
-			peer->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, cw_object_dup(peer));
+			cw_sched_modify(sched, &peer->expire, (expiry + 10) * 1000, expire_register, cw_object_dup(peer));
 			register_peer_exten(peer, 1);
 		} else
 			cw_log(CW_LOG_WARNING, "%s: %s\n", addr, gai_strerror(err));
@@ -7520,10 +7495,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     */
     if (cw_strlen_zero(c) && cw_strlen_zero(expires))
     {
-        if ((p->expire > -1) && !cw_strlen_zero(p->fullcontact))
+        if (cw_sched_state_scheduled(&p->expire) && !cw_strlen_zero(p->fullcontact))
         {
             /* tell them when the registration is going to expire */
-            pvt->expiry = cw_sched_when(sched, p->expire);
+            pvt->expiry = cw_sched_when(sched, &p->expire);
         }
         return PARSE_REGISTER_QUERY;
     }
@@ -7532,7 +7507,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     {
         /* Unregister this peer */
         /* This means remove all registrations and return OK */
-        if (p->expire != -1 && !cw_sched_del(sched, p->expire))
+        if (!cw_sched_del(sched, &p->expire))
             expire_register(p);
 
         return PARSE_REGISTER_UPDATE;
@@ -7632,8 +7607,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
             cw_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %#l@ expires %d\n", p->name, &p->addr.sa, expiry);
     }
 
-    if (p->pokeexpire == -1)
-        p->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(p));
+    cw_sched_modify(sched, &p->pokeexpire, 1, sip_poke_peer, cw_object_dup(p));
 
     register_peer_exten(p, 1);
 
@@ -7642,14 +7616,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
     pvt->expiry = expiry;
 
-    if (p->expire != -1 && !cw_sched_del(sched, p->expire))
-    {
-        p->expire = -1;
+    if (!cw_sched_del(sched, &p->expire))
         cw_object_put(p);
-    }
 
-    if (p->expire == -1 && !cw_test_flag(p, SIP_REALTIME))
-        p->expire = cw_sched_add(sched, (expiry + 10) * 1000, expire_register, cw_object_dup(p));
+    if (!cw_test_flag(p, SIP_REALTIME))
+        cw_sched_add(sched, &p->expire, (expiry + 10) * 1000, expire_register, cw_object_dup(p));
 
     return PARSE_REGISTER_UPDATE;
 }
@@ -8028,7 +7999,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
     {
     case CW_EXTENSION_DEACTIVATED:    /* Retry after a while */
     case CW_EXTENSION_REMOVED:    /* Extension is gone */
-        if (p->autokillid > -1)
+        if (cw_sched_state_scheduled(&p->autokillid))
             sip_cancel_destroy(p);    /* Remove subscription expiry for renewals */
         sip_scheddestroy(p, -1);
         cw_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == CW_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
@@ -9587,7 +9558,7 @@ static int sip_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
             cw_fmtval("  LastMsgsSent     : %d\n", peer->lastmsgssent),
             cw_fmtval("  Call limit       : %d\n", peer->call_limit),
             cw_fmtval("  Dynamic          : %c\n", (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? 'Y' : 'N')),
-            cw_fmtval("  Expire           : %ld\n", cw_sched_when(sched, peer->expire)),
+            cw_fmtval("  Expire           : %ld\n", cw_sched_when(sched, &peer->expire)),
             cw_fmtval("  Insecure         : %s\n", insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
             cw_fmtval("  Nat              : %s\n", nat2str(cw_test_flag(peer, SIP_NAT))),
             cw_fmtval("  CanReinvite      : %c\n", (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
@@ -9695,7 +9666,7 @@ static struct cw_manager_message *manager_sip_show_peer(struct mansession *sess,
 					cw_msg_tuple("LastMsgsSent",      "%d",    peer->lastmsgssent),
 					cw_msg_tuple("Call limit",        "%d",    peer->call_limit),
 					cw_msg_tuple("Dynamic",           "%s",    (cw_test_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC) ? "Y" : "N")),
-					cw_msg_tuple("RegExpire",         "%ld"  , cw_sched_when(sched, peer->expire)),
+					cw_msg_tuple("RegExpire",         "%ld"  , cw_sched_when(sched, &peer->expire)),
 					cw_msg_tuple("SIP-AuthInsecure",  "%s",    insecure2str(cw_test_flag(peer, SIP_INSECURE_PORT), cw_test_flag(peer, SIP_INSECURE_INVITE))),
 					cw_msg_tuple("SIP-NatSupport",    "%s",    nat2str(cw_test_flag(peer, SIP_NAT))),
 					cw_msg_tuple("SIP-CanReinvite",   "%c",    (cw_test_flag(peer, SIP_CAN_REINVITE) ? 'Y' : 'N')),
@@ -11565,10 +11536,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
      * it we own the call. If we can't we have to stop now.
      */
 
-    if (r->timeout == -1 || cw_sched_del(sched, r->timeout))
+    if (cw_sched_del(sched, &r->timeout))
         return 1;
-
-    r->timeout = -1;
 
     switch (resp)
     {
@@ -11684,10 +11653,8 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         r->refresh = (int) expires_ms / 1000;
 
         /* Schedule re-registration before we expire */
-        if (r->expire == -1 || cw_sched_del(sched, r->expire))
+        if (cw_sched_modify(sched, &r->expire, expires_ms, sip_reregister, r))
 	    cw_object_dup(r);
-
-        r->expire = cw_sched_add(sched, expires_ms, sip_reregister, r);
 
         cw_object_put(r->dialogue);
         r->dialogue = NULL;
@@ -11698,7 +11665,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         return 1;
     }
 
-    r->timeout = cw_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+    cw_sched_add(sched, &r->timeout, global_reg_timeout*1000, sip_reg_timeout, r);
     return 1;
 
 destroy:
@@ -11748,10 +11715,8 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
         p->owner->hangupcause = hangup_sip2cause(resp);
 
     /* Cancel the auto-congest if possible since we've got something useful back */
-    if (p->initid > -1 && !cw_sched_del(sched, p->initid)) {
-        p->initid = -1;
+    if (!cw_sched_del(sched, &p->initid))
         cw_object_put(p);
-    }
 
     if (p->peerpoke) {
         /* We don't really care what the response is, just that it replied back. 
@@ -12953,7 +12918,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req)
         }
         if (sipdebug  ||  option_debug > 1)
             cw_log(CW_LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
-        if (p->autokillid > -1)
+        if (cw_sched_state_scheduled(&p->autokillid))
             sip_cancel_destroy(p);    /* Remove subscription expiry for renewals */
         sip_scheddestroy(p, (p->expiry + 10) * 1000);    /* Set timer for destruction of call at expiration */
 
@@ -13146,7 +13111,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
 	 * receive in this dialogue is accepted.
 	 */
         if (p->pendinginvite && req->seqno == p->pendinginvite->seqno) {
-            cw_sched_del(sched, p->pendinginvite->retransid);
+            cw_sched_del(sched, &p->pendinginvite->retransid);
             cw_object_put(p->pendinginvite);
             p->pendinginvite = NULL;
             if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
@@ -13315,7 +13280,7 @@ static int transaction_recv(void *data)
 						transaction_rtt_adjust(trans, msg);
 						trans->state = 1;
 						trans->timer_a = -1;
-						trans->retransid = cw_sched_modify(sched, trans->retransid, SLOW_INVITE_RETRANS, message_retransmit, trans);
+						cw_sched_modify(sched, &trans->retransid, SLOW_INVITE_RETRANS, message_retransmit, trans);
 						/* Fall through */
 
 					case 1: /* Proceeding */
@@ -13326,15 +13291,17 @@ static int transaction_recv(void *data)
 
 						if (msg->pkt.data[msg->uriresp] == '2') {
 							if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: terminated after 2xx response\n", msg->branch_len, &msg->pkt.data[msg->branch]);
-							if (!cw_sched_del(sched, trans->retransid))
+							if (!cw_sched_del(sched, &trans->retransid)) {
+								cw_object_put(trans);
 								cw_registry_del(&transaction_registry, trans->reg_entry);
+							}
 							/* Final responses to INVITEs are handled by the UAC */
 							ret = handle_message(msg);
 							break;
 						}
 
 						if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after = 32s\n", msg->branch_len, &msg->pkt.data[msg->branch]);
-						trans->retransid = cw_sched_modify(sched, trans->retransid, 32000, transaction_delete, trans);
+						cw_sched_modify(sched, &trans->retransid, 32000, transaction_delete, trans);
 						transaction_ack(trans, msg);
 						break;
 
@@ -13350,7 +13317,7 @@ static int transaction_recv(void *data)
 						trans->state = 1;
 						if (msg->pkt.data[msg->uriresp] == '1') {
 							trans->timer_a = 0;
-							trans->retransid = cw_sched_modify(sched, trans->retransid, trans->owner->timer_t2, message_retransmit, trans);
+							cw_sched_modify(sched, &trans->retransid, trans->owner->timer_t2, message_retransmit, trans);
 							break;
 						}
 						/* Fall through */
@@ -13360,11 +13327,11 @@ static int transaction_recv(void *data)
 							trans->state = 2;
 							if (trans->conn->reliable) {
 								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after non-1xx response\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
-								cw_sched_del(sched, trans->retransid);
+								cw_sched_del(sched, &trans->retransid);
 								transaction_delete(trans);
 							} else {
 								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
-								trans->retransid = cw_sched_modify(sched, trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
+								cw_sched_modify(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
 							}
 							ret = handle_message(msg);
 						}
@@ -13409,7 +13376,7 @@ static int transaction_recv(void *data)
 							 */
 							if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 3, delete after %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
 							trans->state = 3;
-							trans->retransid = cw_sched_modify(sched, trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
+							cw_sched_modify(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
 						} else
 							sip_xmit(trans->conn, &trans->ouraddr, &trans->recvdaddr, trans);
 						break;
@@ -13929,13 +13896,13 @@ static void *sip_poke_peer_thread(void *data)
 				cw_set_flag(p, SIP_OUTGOING);
 				transmit_invite(p, SIP_OPTIONS, 0, 2);
 
-				peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer, peer);
+				cw_sched_add(sched, &peer->pokeexpire, DEFAULT_FREQ_OK, sip_poke_peer, peer);
 			}
 
 			cw_object_put(p);
 		} else {
 			cw_log(CW_LOG_ERROR, "SYSTEM OVERLOAD: Failed to allocate dialog for poking peer '%s'\n", peer->name);
-			peer->pokeexpire = cw_sched_add(sched, RFC_TIMER_F * peer->timer_t1, sip_poke_peer, peer);
+			cw_sched_add(sched, &peer->pokeexpire, RFC_TIMER_F * peer->timer_t1, sip_poke_peer, peer);
 		}
 	} else
 		cw_object_put(peer);
@@ -14587,34 +14554,33 @@ static struct sip_user *build_user(const char *name, struct cw_variable *v, int 
 /*! \brief  temp_peer: Create temporary peer (used in autocreatepeer mode) */
 static struct sip_peer *temp_peer(const char *name)
 {
-    struct sip_peer *peer;
+	struct sip_peer *peer;
 
-    if (!(peer = calloc(1, sizeof(*peer))))
-        return NULL;
+	if ((peer = calloc(1, sizeof(*peer)))) {
+		apeerobjs++;
 
-    apeerobjs++;
+		cw_object_init(peer, NULL, 1);
+		peer->obj.release = sip_peer_release;
 
-    cw_object_init(peer, NULL, 1);
-    peer->obj.release = sip_peer_release;
+		cw_sched_state_init(&peer->expire);
+		cw_sched_state_init(&peer->pokeexpire);
+		cw_copy_string(peer->name, name, sizeof(peer->name));
+		cw_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
+		strcpy(peer->context, default_context);
+		strcpy(peer->subscribecontext, default_subscribecontext);
+		strcpy(peer->language, default_language);
+		strcpy(peer->musicclass, global_musicclass);
+		peer->capability = global_capability;
+		peer->rtptimeout = global_rtptimeout;
+		peer->rtpholdtimeout = global_rtpholdtimeout;
+		peer->rtpkeepalive = global_rtpkeepalive;
+		cw_set_flag(peer, SIP_SELFDESTRUCT);
+		cw_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
+		peer->prefs = prefs;
+		reg_source_db(peer, 1);
+	}
 
-    peer->expire = -1;
-    peer->pokeexpire = -1;
-    cw_copy_string(peer->name, name, sizeof(peer->name));
-    cw_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
-    strcpy(peer->context, default_context);
-    strcpy(peer->subscribecontext, default_subscribecontext);
-    strcpy(peer->language, default_language);
-    strcpy(peer->musicclass, global_musicclass);
-    peer->capability = global_capability;
-    peer->rtptimeout = global_rtptimeout;
-    peer->rtpholdtimeout = global_rtpholdtimeout;
-    peer->rtpkeepalive = global_rtpkeepalive;
-    cw_set_flag(peer, SIP_SELFDESTRUCT);
-    cw_set_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);
-    peer->prefs = prefs;
-    reg_source_db(peer, 1);
-
-    return peer;
+	return peer;
 }
 
 
@@ -14685,8 +14651,8 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
     cw_object_init(peer, NULL, 1);
     peer->obj.release = sip_peer_release;
 
-    peer->expire = -1;
-    peer->pokeexpire = -1;
+    cw_sched_state_init(&peer->expire);
+    cw_sched_state_init(&peer->pokeexpire);
 
     peer->lastmsgssent = -1;
 
@@ -14809,10 +14775,8 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
             {
                 /* Non-dynamic.  Make sure we become that way if we're not */
                 cw_clear_flag(&peer->flags_page2, SIP_PAGE2_DYNAMIC);    
-                if (peer->expire != -1 && !cw_sched_del(sched, peer->expire)) {
+                if (!cw_sched_del(sched, &peer->expire))
                     cw_object_put(peer);
-                    peer->expire = -1;
-                }
                 if (!strcasecmp(v->name, "outboundproxy")) {
                     cw_copy_string(peer->proxyhost, v->value, sizeof(peer->proxyhost));
                     obproxyfound=1;
@@ -15628,8 +15592,8 @@ static int sip_poke_peer_one(struct cw_object *obj, void *data)
 	CW_UNUSED(data);
 
 	/* FIXME: peer qualifies should be staggered in a similar manner to registrations */
-	if (peer->maxms && peer->pokeexpire == -1)
-		peer->pokeexpire = cw_sched_add(sched, 1, sip_poke_peer, cw_object_dup(peer));
+	if (peer->maxms)
+		cw_sched_add(sched, &peer->pokeexpire, 1, sip_poke_peer, cw_object_dup(peer));
 
 	return 0;
 }
@@ -15658,10 +15622,8 @@ static void sip_send_all_registers(void)
     ms = 0;
 
     for (reg = regl; reg; reg = reg->next) {
-        if (reg->expire == -1 || cw_sched_del(sched, reg->expire))
+        if (cw_sched_modify(sched, &reg->expire, ms, sip_reregister, reg))
 		cw_object_dup(reg);
-
-        reg->expire = cw_sched_add(sched, ms, sip_reregister, reg);
 
         ms += regspacing;
     }
@@ -15683,10 +15645,8 @@ static int flush_peers_one(struct cw_object *obj, void *data)
 		cw_registry_del(&peerbyaddr_registry, peer->reg_entry_byaddr);
 	peer->reg_entry_byaddr = NULL;
 
-	if (peer->pokeexpire != -1 && !cw_sched_del(sched, peer->pokeexpire)) {
+	if (!cw_sched_del(sched, &peer->pokeexpire))
 		cw_object_put(peer);
-		peer->pokeexpire = -1;
-	}
 
 	return 0;
 }
@@ -15705,10 +15665,10 @@ static void sip_destroyall_registry(void)
 			sip_destroy(reg->dialogue);
 		}
 
-		if (reg->expire > -1 && !cw_sched_del(sched, reg->expire))
+		if (!cw_sched_del(sched, &reg->expire))
 			cw_object_put(reg);
 
-		if (reg->timeout > -1 && !cw_sched_del(sched, reg->timeout))
+		if (!cw_sched_del(sched, &reg->timeout))
 			cw_object_put(reg);
 
 		cw_object_put(reg);

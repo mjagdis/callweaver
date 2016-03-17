@@ -133,7 +133,7 @@ struct blt_dev {
 
   // device
   int autoconnect;                  /* 1 for autoconnect */
-  int outgoing_id;                  /* Outgoing connection scheduler id */
+  struct sched_state outgoing_id;                  /* Outgoing connection scheduler id */
   char * name;                      /* Devices friendly name */
   blt_role_t role;                  /* Device role (HS or AG) */
   bdaddr_t bdaddr;                  /* remote address */
@@ -157,7 +157,7 @@ struct blt_dev {
 
   /* HS mode */
   blt_state_t state;                       /* Runtime: Device state (AG mode only) */
-  int ring_timer;                          /* Runtime:Ring Timer */
+  struct sched_state ring_timer;                          /* Runtime:Ring Timer */
   char last_err_cmd[BLT_RDBUFF_MAX];       /* Runtime: Last AT command that was OK */
   void (*cb)(blt_dev_t * dev, char * str); /* Runtime: Callback when in HS mode */
 

@@ -159,7 +159,7 @@ struct dundi_packet {
 	struct dundi_packet *next;
 	int datalen;
 	struct dundi_transaction *parent;
-	int retransid;
+	struct sched_state retransid;
 	int retrans;
 	unsigned char data[0];
 };
@@ -191,7 +191,7 @@ struct dundi_transaction {
 	int ttl;					/* Remaining TTL for queries on this one */
 	int thread;					/* We have a calling thread */
 	int retranstimer;			/* How long to wait before retransmissions */
-	int autokillid;				/* ID to kill connection if answer doesn't come back fast enough */
+	struct sched_state autokillid;				/* ID to kill connection if answer doesn't come back fast enough */
 	int autokilltimeout;		/* Recommended timeout for autokill */
 	unsigned short strans;		/* Our transaction identifier */
 	unsigned short dtrans;		/* Their transaction identifer */
@@ -246,8 +246,8 @@ static struct dundi_peer {
 	char inkey[80];
 	char outkey[80];
 	int dead;
-	int registerid;
-	int qualifyid;
+	struct sched_state registerid;
+	struct sched_state qualifyid;
 	int sentfullkey;
 	int order;
 	unsigned char txenckey[256]; /* Transmitted encrypted key + sig */
@@ -259,7 +259,7 @@ static struct dundi_peer {
 	AES_KEY	them_ecx;	/* Cached AES 128 Encryption context */
 	AES_KEY	them_dcx;	/* Cached AES 128 Decryption context */
 	time_t keyexpire;			/* When to expire/recreate key */
-	int registerexpire;
+	struct sched_state registerexpire;
 	int lookuptimes[DUNDI_TIMING_HISTORY];
 	char *lookups[DUNDI_TIMING_HISTORY];
 	int avgms;
@@ -1285,7 +1285,6 @@ static int do_register_expire(void *data)
 	cw_mutex_lock(&peerlock);
 
 	cw_log(CW_LOG_DEBUG, "Register expired for '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
-	peer->registerexpire = -1;
 	peer->lastms = 0;
 	memset(&peer->addr, 0, sizeof(peer->addr));
 
@@ -1618,9 +1617,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 				char iabuf[INET_ADDRSTRLEN];
 				char data[256];
 				int needqual = 0;
-				if (peer->registerexpire > -1)
-					cw_sched_del(sched, peer->registerexpire);
-				peer->registerexpire = cw_sched_add(sched, (expire + 10) * 1000, do_register_expire, peer);
+				cw_sched_modify(sched, &peer->registerexpire, (expire + 10) * 1000, do_register_expire, peer);
 				cw_inet_ntoa(iabuf, sizeof(iabuf), trans->addr.sin_addr);
 				snprintf(data, sizeof(data), "%s:%d:%d", iabuf, ntohs(trans->addr.sin_port), expire);
 				cw_db_put("dundi/dpeers", dundi_eid_to_str_short(eid_str, sizeof(eid_str), &peer->eid), data);
@@ -1903,8 +1900,7 @@ static void destroy_packets(struct dundi_packet *p)
 	while(p) {
 		prev = p;
 		p = p->next;
-		if (prev->retransid > -1)
-			cw_sched_del(sched, prev->retransid);
+		cw_sched_del(sched, &prev->retransid);
 		free(prev);
 	}
 }
@@ -1923,9 +1919,7 @@ static int ack_trans(struct dundi_transaction *trans, int iseqno)
 				destroy_packets(trans->lasttrans);
 			}
 			trans->lasttrans = pack;
-			if (trans->autokillid > -1)
-				cw_sched_del(sched, trans->autokillid);
-			trans->autokillid = -1;
+			cw_sched_del(sched, &trans->autokillid);
 			return 1;
 		}
 		pack = pack->next;
@@ -2462,7 +2456,7 @@ static int dundi_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 			cw_fmtval("Host:    %s\n", (peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "<Unspecified>")),
 			cw_fmtval("Dynamic: %s\n", (peer->dynamic ? "yes" : "no")),
 			cw_fmtval("KeyPend: %s\n", (peer->keypending ? "yes" : "no")),
-			cw_fmtval("Reg:     %s\n", (peer->registerid < 0 ? "No" : "Yes")),
+			cw_fmtval("Reg:     %s\n", (cw_sched_state_scheduled(&peer->registerid) ? "Yes" : "No")),
 			cw_fmtval("In Key:  %s\n", (cw_strlen_zero(peer->inkey) ? "<None>" : peer->inkey)),
 			cw_fmtval("Out Key: %s\n", (cw_strlen_zero(peer->outkey) ? "<None>" : peer->outkey))
 		);
@@ -2901,7 +2895,7 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 			cw_set_flag(trans, FLAG_STOREHIST);
 		}
 		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
-		trans->autokillid = -1;
+		cw_sched_state_init(&trans->autokillid);
 		if (p) {
 			apply_peer(trans, p);
 			if (!p->sentfullkey)
@@ -2949,12 +2943,10 @@ static void destroy_packet(struct dundi_packet *pack, int needfree)
 			cur = cur->next;
 		}
 	}
-	if (pack->retransid > -1)
-		cw_sched_del(sched, pack->retransid);
+	cw_sched_del(sched, &pack->retransid);
 	if (needfree)
 		free(pack);
 	else {
-		pack->retransid = -1;
 		pack->next = NULL;
 	}
 }
@@ -3062,9 +3054,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 	destroy_packets(trans->lasttrans);
 	trans->packets = NULL;
 	trans->lasttrans = NULL;
-	if (trans->autokillid > -1)
-		cw_sched_del(sched, trans->autokillid);
-	trans->autokillid = -1;
+	cw_sched_del(sched, &trans->autokillid);
 	if (trans->thread) {
 		/* If used by a thread, mark as dead and be done */
 		cw_set_flag(trans, FLAG_DEAD);
@@ -3080,7 +3070,6 @@ static int dundi_rexmit(void *data)
 	cw_mutex_lock(&peerlock);
 	pack = data;
 	if (pack->retrans < 1) {
-		pack->retransid = -1;
 		if (!cw_test_flag(pack->parent, FLAG_ISQUAL))
 			cw_log(CW_LOG_NOTICE, "Max retries exceeded to host '%s:%d' msg %d on call %d\n", 
 				cw_inet_ntoa(iabuf, sizeof(iabuf), pack->parent->addr.sin_addr), 
@@ -3112,7 +3101,7 @@ static int dundi_send(struct dundi_transaction *trans, int cmdresp, int flags, i
 		memset(pack, 0, len);
 		pack->h = (struct dundi_hdr *)(pack->data);
 		if (cmdresp != DUNDI_COMMAND_ACK) {
-			pack->retransid = cw_sched_add(sched, trans->retranstimer, dundi_rexmit, pack);
+			cw_sched_add(sched, &pack->retransid, trans->retranstimer, dundi_rexmit, pack);
 			pack->retrans = DUNDI_DEFAULT_RETRANS - 1;
 			pack->next = trans->packets;
 			trans->packets = pack;
@@ -3177,7 +3166,6 @@ static int do_autokill(void *data)
 	cw_log(CW_LOG_NOTICE, "Transaction to '%s' took too long to ACK, destroying\n", 
 		dundi_eid_to_str(eid_str, sizeof(eid_str), &trans->them_eid));
 	cw_mutex_lock(&peerlock);
-	trans->autokillid = -1;
 	destroy_trans(trans, 0); /* We could actually set it to 1 instead of 0, but we won't ;-) */
 	cw_mutex_unlock(&peerlock);
 	return 0;
@@ -3227,7 +3215,7 @@ static int dundi_discover(struct dundi_transaction *trans)
 	if (trans->parent->cbypass)
 		dundi_ie_append(&ied, DUNDI_IE_CACHEBYPASS);
 	if (trans->autokilltimeout)
-		trans->autokillid = cw_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
+		cw_sched_add(sched, &trans->autokillid, trans->autokilltimeout, do_autokill, trans);
 	return dundi_send(trans, DUNDI_COMMAND_DPDISCOVER, 0, 0, &ied);
 }
 
@@ -3291,7 +3279,7 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 		dundi_ie_append_hint(&ied, DUNDI_IE_HINT, hmd.flags, hmd.exten);
 		dundi_ie_append_short(&ied, DUNDI_IE_EXPIRATION, expiration);
 		if (trans->autokilltimeout)
-			trans->autokillid = cw_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
+			cw_sched_add(sched, &trans->autokillid, trans->autokilltimeout, do_autokill, trans);
 		if (expiration < *minexp)
 			*minexp = expiration;
 		res = dundi_send(trans, DUNDI_COMMAND_PRECACHERQ, 0, 0, &ied);
@@ -3325,7 +3313,7 @@ static int dundi_query(struct dundi_transaction *trans)
 	dundi_ie_append_str(&ied, DUNDI_IE_CALLED_CONTEXT, trans->parent->dcontext);
 	dundi_ie_append_short(&ied, DUNDI_IE_TTL, trans->ttl);
 	if (trans->autokilltimeout)
-		trans->autokillid = cw_sched_add(sched, trans->autokilltimeout, do_autokill, trans);
+		cw_sched_add(sched, &trans->autokillid, trans->autokilltimeout, do_autokill, trans);
 	return dundi_send(trans, DUNDI_COMMAND_EIDQUERY, 0, 0, &ied);
 }
 
@@ -4092,14 +4080,12 @@ static void destroy_permissions(struct permission *p)
 
 static void destroy_peer(struct dundi_peer *peer)
 {
-	if (peer->registerid > -1)
-		cw_sched_del(sched, peer->registerid);
+	cw_sched_del(sched, &peer->registerid);
 	if (peer->regtrans)
 		destroy_trans(peer->regtrans, 0);
 	if (peer->keypending)
 		destroy_trans(peer->keypending, 0);
-	if (peer->qualifyid > -1)
-		cw_sched_del(sched, peer->qualifyid);
+	cw_sched_del(sched, &peer->qualifyid);
 	destroy_permissions(peer->permit);
 	destroy_permissions(peer->include);
 	free(peer);
@@ -4260,7 +4246,7 @@ static int do_register(void *data)
 	cw_mutex_lock(&peerlock);
 
 	cw_log(CW_LOG_DEBUG, "Register us as '%s' to '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->us_eid), dundi_eid_to_str(eid_str2, sizeof(eid_str2), &peer->eid));
-	peer->registerid = cw_sched_add(sched, default_expiration * 1000, do_register, data);
+	cw_sched_add(sched, &peer->registerid, default_expiration * 1000, do_register, data);
 	/* Destroy old transaction if there is one */
 	if (peer->regtrans)
 		destroy_trans(peer->regtrans, 0);
@@ -4285,7 +4271,6 @@ static int do_qualify(void *data)
 {
 	struct dundi_peer *peer;
 	peer = data;
-	peer->qualifyid = -1;
 	cw_mutex_lock(&peerlock);
 	qualify_peer(peer, 0);
 	cw_mutex_unlock(&peerlock);
@@ -4298,9 +4283,7 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 
 	cw_mutex_lock(&peerlock);
 
-	if (peer->qualifyid > -1)
-		cw_sched_del(sched, peer->qualifyid);
-	peer->qualifyid = -1;
+	cw_sched_del(sched, &peer->qualifyid);
 	if (peer->qualtrans)
 		destroy_trans(peer->qualtrans, 0);
 	peer->qualtrans = NULL;
@@ -4310,7 +4293,7 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 			when = 10000;
 		if (schedonly)
 			when = 5000;
-		peer->qualifyid = cw_sched_add(sched, when, do_qualify, peer);
+		cw_sched_add(sched, &peer->qualifyid, when, do_qualify, peer);
 		if (!schedonly)
 			peer->qualtrans = create_transaction(peer);
 		if (peer->qualtrans) {
@@ -4341,7 +4324,7 @@ static void populate_addr(struct dundi_peer *peer, dundi_eid *eid)
 				inet_aton(ds.data, &peer->addr.sin_addr);
 				peer->addr.sin_family = AF_INET;
 				peer->addr.sin_port = htons(port);
-				peer->registerexpire = cw_sched_add(sched, (expire + 10) * 1000, do_register_expire, peer);
+				cw_sched_add(sched, &peer->registerexpire, (expire + 10) * 1000, do_register_expire, peer);
 			}
 		}
 
@@ -4372,9 +4355,9 @@ static void build_peer(dundi_eid *eid, struct cw_variable *v, int *globalpcmode)
 		peer = malloc(sizeof(struct dundi_peer));
 		if (peer) {
 			memset(peer, 0, sizeof(struct dundi_peer));
-			peer->registerid = -1;
-			peer->registerexpire = -1;
-			peer->qualifyid = -1;
+			cw_sched_state_init(&peer->registerid);
+			cw_sched_state_init(&peer->registerexpire);
+			cw_sched_state_init(&peer->qualifyid);
 			peer->addr.sin_family = AF_INET;
 			peer->addr.sin_port = htons(DUNDI_PORT);
 			populate_addr(peer, eid);
@@ -4390,9 +4373,7 @@ static void build_peer(dundi_eid *eid, struct cw_variable *v, int *globalpcmode)
 		destroy_permissions(peer->include);
 		peer->permit = NULL;
 		peer->include = NULL;
-		if (peer->registerid > -1)
-			cw_sched_del(sched, peer->registerid);
-		peer->registerid = -1;
+		cw_sched_del(sched, &peer->registerid);
 		while(v) {
 			if (!strcasecmp(v->name, "inkey")) {
 				cw_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
@@ -4497,9 +4478,8 @@ static void build_peer(dundi_eid *eid, struct cw_variable *v, int *globalpcmode)
 			cw_log(CW_LOG_WARNING, "Peer '%s' is supposed to have permission for some inbound searches but isn't an inbound peer or outbound precache!\n", 
 				dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 		} else { 
-			if (needregister) {
-				peer->registerid = cw_sched_add(sched, 2000, do_register, peer);
-			}
+			if (needregister)
+				cw_sched_add(sched, &peer->registerid, 2000, do_register, peer);
 			qualify_peer(peer, 1);
 		}
 	}

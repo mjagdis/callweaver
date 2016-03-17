@@ -19,6 +19,7 @@
 #define _IAX2_PARSER_H
 
 #include "callweaver/frame.h"
+#include "callweaver/sched.h"
 
 struct iax_ies {
 	char *called_number;
@@ -115,7 +116,7 @@ struct iax_frame {
 	/* Ingress or outgres */
 	int direction;
 	/* Retransmission ID */
-	int retrans;
+	struct sched_state retrans;
 	/* Easy linking */
 	struct iax_frame *next;
 	struct iax_frame *prev;

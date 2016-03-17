@@ -443,7 +443,7 @@ static struct mgcp_gateway {
 	struct sockaddr_in defaddr;
 	struct in_addr ourip;
 	int dynamic;
-	int expire;		/* XXX Should we ever expire dynamic registrations? XXX */
+	struct sched_state expire;		/* XXX Should we ever expire dynamic registrations? XXX */
 	struct mgcp_endpoint *endpoints;
 	struct cw_acl *acl;
 /* SC: obsolete
@@ -455,7 +455,7 @@ static struct mgcp_gateway {
 	char wcardep[30];
 	struct mgcp_message *msgs; /* SC: gw msg queue */
 	cw_mutex_t msgs_lock;     /* SC: queue lock */  
-	int retransid;             /* SC: retrans timer id */
+	struct sched_state retransid;             /* SC: retrans timer id */
 	int delme;                 /* SC: needed for reload */
 	struct mgcp_response *responses;
 	struct mgcp_gateway *next;
@@ -711,7 +711,6 @@ static int retrans_pkt(void *data)
 	}
 
 	if (!gw->msgs) {
-		gw->retransid = -1;
 		res = 0;
 	} else {
 		res = 1;
@@ -778,8 +777,7 @@ static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 	} else {
 		msg->expire = tv.tv_sec * 1000 + tv.tv_usec / 1000 + DEFAULT_RETRANS;
 
-		if (gw->retransid == -1)
-			gw->retransid = cw_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, (void *)gw);
+		cw_sched_add(sched, &gw->retransid, DEFAULT_RETRANS, retrans_pkt, (void *)gw);
 	}
 	cw_mutex_unlock(&gw->msgs_lock);
 /* SC
@@ -3357,10 +3355,8 @@ static int mgcpsock_read(struct cw_io_rec *ior, int fd, short events, void *igno
 			}
 
 			/* stop retrans timer if the queue is empty */
-			if (!gw->msgs && (gw->retransid != -1)) {
-				cw_sched_del(sched, gw->retransid);
-				gw->retransid = -1;
-			}
+			if (!gw->msgs)
+				cw_sched_del(sched, &gw->retransid);
 
 			cw_mutex_unlock(&gw->msgs_lock);
 			if (cur) {
@@ -3595,8 +3591,8 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 	if (gw) {
 		if (!gw_reload) {
 			memset(gw, 0, sizeof(struct mgcp_gateway));
-			gw->expire = -1;
-			gw->retransid = -1; /* SC */
+			cw_sched_state_init(&gw->expire);
+			cw_sched_state_init(&gw->retransid); /* SC */
 			cw_mutex_init(&gw->msgs_lock);
 			strncpy(gw->name, cat, sizeof(gw->name) - 1);
 			/* SC: check if the name is numeric ip */
@@ -3616,9 +3612,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct cw_variable *v)
 					}
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
-					if (gw->expire > -1)
-						cw_sched_del(sched, gw->expire);
-					gw->expire = -1;
+					cw_sched_del(sched, &gw->expire);
 					gw->dynamic = 0;
 					if (cw_get_ip(AF_INET, (struct sockaddr *)&gw->addr, v->value)) {
 						if (!gw_reload) {

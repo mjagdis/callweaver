@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief Scheduler Routines (from cheops-NG)
+ * \brief Scheduler Routines
  *
  */
 #include <errno.h>
@@ -42,89 +42,28 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
 					 (((b).tv_sec == (a).tv_sec) && ((b).tv_usec > (a).tv_usec)))
 
-struct sched {
-	struct sched *next;		/* Next event in the list */
-	int id; 			/* ID number of event */
-	struct timeval when;		/* Absolute time event should take place */
-	int resched;			/* When to reschedule */
-	int variable;		/* Use return value from callback to reschedule */
-	void *data; 			/* Data */
-	cw_sched_cb callback;		/* Callback */
-};
-
 struct sched_context {
 	cw_mutex_t lock;
 	cw_cond_t timed;
 	cw_cond_t untimed;
 	int timed_present;
 
-	/* Number of events processed */
-	int eventcnt;
-
-	/* Number of outstanding schedule events */
-	int schedcnt;
-
 	/* Schedule entry and main queue */
- 	struct sched *schedq;
-
-#ifdef SCHED_MAX_CACHE
-	/* Cache of unused schedule structures and how many */
-	struct sched *schedc;
-	int schedccnt;
-#endif
+	struct sched_state *schedq;
 
 	int nthreads;
 	pthread_t tid[0];
 };
 
 
-static struct sched *sched_alloc(struct sched_context *con)
+static void schedule(struct sched_context *con, struct sched_state *s)
 {
-	/*
-	 * We keep a small cache of schedule entries
-	 * to minimize the number of necessary malloc()'s
-	 */
-	struct sched *tmp;
-
-#ifdef SCHED_MAX_CACHE
-	if (con->schedc) {
-		tmp = con->schedc;
-		con->schedc = con->schedc->next;
-		con->schedccnt--;
-	} else
-#endif
-		tmp = malloc(sizeof(struct sched));
-	return tmp;
-}
-
-
-static void sched_release(struct sched_context *con, struct sched *tmp)
-{
-	/*
-	 * Add to the cache, or just free() if we
-	 * already have too many cache entries
-	 */
-
-#ifdef SCHED_MAX_CACHE	 
-	if (con->schedccnt < SCHED_MAX_CACHE) {
-		tmp->next = con->schedc;
-		con->schedc = tmp;
-		con->schedccnt++;
-	} else
-#endif
-	    free(tmp);
-}
-
-
-static void schedule(struct sched_context *con, struct sched *s)
-{
-	/*
-	 * Take a sched structure and put it in the
+	/* Take a sched structure and put it in the
 	 * queue, such that the soonest event is
 	 * first in the list. 
 	 */
 	 
-	struct sched **s_p;
+	struct sched_state **s_p;
 
 	for (s_p = &con->schedq; *s_p; s_p = &(*s_p)->next) {
 		if (SOONER(s->when, (*s_p)->when))
@@ -141,107 +80,83 @@ static void schedule(struct sched_context *con, struct sched *s)
 	/* Insert this event into the schedule */
 	s->next = *s_p;
 	*s_p = s;
-	con->schedcnt++;
 }
 
 
-static int cw_sched_add_variable_nolock(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable)
+static void cw_sched_add_variable_nolock(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
 {
-	/*
-	 * Schedule callback(data) to happen when ms into the future
-	 */
-	struct sched *tmp;
+	state->callback = callback;
+	state->data = data;
+	state->resched = when;
+	state->variable = variable;
+	state->when = cw_tvadd(cw_tvnow(), cw_samp2tv(when, 1000));
+	schedule(con, state);
+}
+
+void cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
+{
+	cw_mutex_lock(&con->lock);
+	cw_sched_add_variable_nolock(con, state, when, callback, data, variable);
+	cw_mutex_unlock(&con->lock);
+}
+
+
+static int cw_sched_del_nolock(struct sched_context *con, struct sched_state *state)
+{
+	struct sched_state **s_p, *s;
 	int res = -1;
 
-	if ((tmp = sched_alloc(con))) {
-		if ((tmp->id = con->eventcnt++) < 0)
-			tmp->id = con->eventcnt = 0;
-		tmp->callback = callback;
-		tmp->data = data;
-		tmp->resched = when;
-		tmp->variable = variable;
-		tmp->when = cw_tvadd(cw_tvnow(), cw_samp2tv(when, 1000));
-		schedule(con, tmp);
-		res = tmp->id;
+	if (state->callback) {
+		for (s_p = &con->schedq; *s_p; s_p = &(*s_p)->next) {
+			if ((*s_p) == state) {
+				s = *s_p;
+				*s_p = s->next;
+				s->callback = NULL;
+				res = 0;
+				break;
+			}
+		}
 	}
 
 	return res;
 }
 
-int cw_sched_add_variable(struct sched_context *con, int when, cw_sched_cb callback, void *data, int variable)
+int cw_sched_del(struct sched_context *con, struct sched_state *state)
 {
 	int res;
 
 	cw_mutex_lock(&con->lock);
-	res = cw_sched_add_variable_nolock(con, when, callback, data, variable);
+	res = cw_sched_del_nolock(con, state);
 	cw_mutex_unlock(&con->lock);
+
 	return res;
 }
 
 
-static int cw_sched_del_nolock(struct sched_context *con, int id)
-{
-	/*
-	 * Delete the schedule entry with number
-	 * "id".  It's nearly impossible that there
-	 * would be two or more in the list with that
-	 * id.
-	 */
-	struct sched **s_p, *s;
-
-	for (s_p = &con->schedq; *s_p; s_p = &(*s_p)->next) {
-		if ((*s_p)->id == id) {
-			s = *s_p;
-			*s_p = s->next;
-			con->schedcnt--;
-			sched_release(con, s);
-			return 0;
-		}
-	}
-
-	if (option_debug)
-		cw_log(CW_LOG_DEBUG, "Attempted to delete nonexistent schedule entry %d!\n", id);
-
-	return -1;
-}
-
-int cw_sched_del(struct sched_context *con, int id)
+int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
 {
 	int res;
 
 	cw_mutex_lock(&con->lock);
-	res = cw_sched_del_nolock(con, id);
+	res = cw_sched_del_nolock(con, state);
+	cw_sched_add_variable_nolock(con, state, when, callback, data, variable);
 	cw_mutex_unlock(&con->lock);
+
 	return res;
 }
 
 
-int cw_sched_modify_variable(struct sched_context *con, int id, int when, cw_sched_cb callback, void *data, int variable)
+long cw_sched_when(struct sched_context *con, struct sched_state *state)
 {
-	cw_mutex_lock(&con->lock);
-	cw_sched_del_nolock(con, id);
-	id = cw_sched_add_variable_nolock(con, when, callback, data, variable);
-	cw_mutex_unlock(&con->lock);
-	return id;
-}
-
-
-long cw_sched_when(struct sched_context *con,int id)
-{
-	struct sched *s;
-	long secs = -1;
+	long secs;
 
 	cw_mutex_lock(&con->lock);
 
-	for (s = con->schedq; s; s = s->next) {
-		if (s->id == id) {
-			struct timeval now = cw_tvnow();
-			secs = s->when.tv_sec - now.tv_sec;
-			break;
-		}
-	}
+	struct timeval now = cw_tvnow();
+	secs = state->when.tv_sec - now.tv_sec;
 
 	cw_mutex_unlock(&con->lock);
+
 	return secs;
 }
 
@@ -256,7 +171,9 @@ static void *service_thread(void *data)
 {
 	struct timeval now;
 	struct sched_context *con = data;
-	struct sched *current;
+	struct sched_state *current;
+	cw_sched_cb callback;
+	void *cdata;
 	int res;
 
 	cw_mutex_lock(&con->lock);
@@ -273,23 +190,24 @@ static void *service_thread(void *data)
 		while (con->schedq && SOONER(con->schedq->when, now)) {
 			current = con->schedq;
 			con->schedq = con->schedq->next;
-			con->schedcnt--;
+
+			callback = current->callback;
+			cdata = current->data;
+			current->callback = NULL;
 
 			cw_cond_signal(&con->untimed);
 			cw_mutex_unlock(&con->lock);
 
-			if ((res = current->callback(current->data))) {
+			if ((res = callback(cdata))) {
 				/* If they return non-zero, we should schedule them to be run again. */
+				/* FIXME: remove this and make it the job owner's responsibilty to reschedule */
+				current->callback = callback;
+				current->data = cdata;
 				current->when = cw_tvadd(current->when, cw_samp2tv((current->variable ? res : current->resched), 1000));
 				schedule(con, current);
 			}
 
 			cw_mutex_lock(&con->lock);
-
-			if (!res) {
-				/* No longer needed, so release it */
-				sched_release(con, current);
-			}
 
 			now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
 		}
@@ -325,13 +243,7 @@ struct sched_context *sched_context_create(int nthreads)
 		cw_cond_init(&con->untimed, NULL);
 		cw_mutex_init_attr(&con->lock, &global_mutexattr_errorcheck);
 		con->timed_present = 0;
-		con->eventcnt = 1;
-		con->schedcnt = 0;
 		con->schedq = NULL;
-#ifdef SCHED_MAX_CACHE
-		con->schedc = NULL;
-		con->schedccnt = 0;
-#endif
 		con->nthreads = nthreads;
 		for (n = 0, i = 0; i < nthreads; i++) {
 			con->tid[i] = CW_PTHREADT_NULL;
@@ -354,7 +266,6 @@ struct sched_context *sched_context_create(int nthreads)
 
 void sched_context_destroy(struct sched_context *con)
 {
-	struct sched *s, *sl;
 	int i;
 
 	for (i = 0; i < con->nthreads; i++)
@@ -367,26 +278,6 @@ void sched_context_destroy(struct sched_context *con)
 
 	cw_cond_destroy(&con->timed);
 	cw_cond_destroy(&con->untimed);
-	cw_mutex_lock(&con->lock);
-
-#ifdef SCHED_MAX_CACHE
-	/* Eliminate the cache */
-	s = con->schedc;
-	while(s) {
-		sl = s;
-		s = s->next;
-		free(sl);
-	}
-#endif
-	/* And the queue */
-	s = con->schedq;
-	while(s) {
-		sl = s;
-		s = s->next;
-		free(sl);
-	}
-	/* And the context */
-	cw_mutex_unlock(&con->lock);
 	cw_mutex_destroy(&con->lock);
 	free(con);
 }

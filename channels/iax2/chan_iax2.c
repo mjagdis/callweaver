@@ -184,7 +184,7 @@ static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int trunkfreq = 20;
 #ifdef IAX_TRUNKING
-static int trunkschedid = -1;
+static struct sched_state trunkschedid;
 #endif
 static int authdebug = 1;
 static int autokill = 0;
@@ -344,14 +344,14 @@ struct iax2_peer {
 	char cid_num[CW_MAX_EXTENSION];		/*!< Default context (for transfer really) */
 	char cid_name[CW_MAX_EXTENSION];		/*!< Default context (for transfer really) */
 	
-	int expire;					/*!< Schedule entry for expiry */
+	struct sched_state expire;					/*!< Schedule entry for expiry */
 	int expiry;					/*!< How soon to expire */
 	int capability;					/*!< Capability */
 	char zonetag[80];				/*!< Time Zone */
 
 	/* Qualification */
 	unsigned short callno;				/*!< Call number of POKE request */
-	int pokeexpire;					/*!< When to expire poke */
+	struct sched_state pokeexpire;					/*!< When to expire poke */
 	int lastms;					/*!< How long last response took (in ms), or -1 for no response */
 	int maxms;					/*!< Max ms we will accept for the host to be up, 0 to not monitor */
 
@@ -563,12 +563,12 @@ struct chan_iax2_pvt {
 	unsigned int bridgesfmt;
 	struct cw_trans_pvt *bridgetrans;
 	
-	int pingid;			/*!< Transmit PING request */
-	int lagid;			/*!< Retransmit lag request */
-	int autoid;			/*!< Auto hangup for Dialplan requestor */
-	int authid;			/*!< Authentication rejection ID */
+	struct sched_state *pingid;			/*!< Transmit PING request */
+	struct sched_state *lagid;			/*!< Retransmit lag request */
+	struct sched_state *autoid;			/*!< Auto hangup for Dialplan requestor */
+	struct sched_state *authid;			/*!< Authentication rejection ID */
 	int authfail;			/*!< Reason to report failure */
-	int initid;			/*!< Initial peer auto-congest ID (based on qualified peers) */
+	struct sched_state *initid;			/*!< Initial peer auto-congest ID (based on qualified peers) */
 	int calling_ton;
 	int calling_tns;
 	int calling_pres;
@@ -967,11 +967,11 @@ static int make_trunk(unsigned short *callno, int locked)
 			iaxs[*callno] = NULL;
 			/* Update the two timers that should have been started */
 			if (iaxs[x]->pingid > -1)
-				cw_sched_del(sched, iaxs[x]->pingid);
+				cw_sched_del(sched, &iaxs[x]->pingid);
 			if (iaxs[x]->lagid > -1)
-				cw_sched_del(sched, iaxs[x]->lagid);
-			iaxs[x]->pingid = cw_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = cw_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
+				cw_sched_del(sched, &iaxs[x]->lagid);
+			cw_sched_add(sched, &iaxs[x]->pingid, ping_time * 1000, send_ping, (void *)(long)x);
+			cw_sched_add(sched, &iaxs[x]->lagid, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
 				cw_mutex_unlock(&iaxsl[*callno]);
 			res = x;
@@ -1051,8 +1051,8 @@ static unsigned short find_callno(unsigned short callno, unsigned short dcallno,
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
 			iaxs[x]->expiry = min_reg_expire;
-			iaxs[x]->pingid = cw_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
-			iaxs[x]->lagid = cw_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
+			cw_sched_add(sched, &iaxs[x]->pingid, ping_time * 1000, send_ping, (void *)(long)x);
+			cw_sched_add(sched, &iaxs[x]->lagid, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
 			cw_copy_flags(iaxs[x], (&globalflags), IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
 			cw_copy_string(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode));
@@ -1069,8 +1069,7 @@ static unsigned short find_callno(unsigned short callno, unsigned short dcallno,
 
 static void iax2_frame_free(struct iax_frame *fr)
 {
-	if (fr->retrans > -1)
-		cw_sched_del(sched, fr->retrans);
+	cw_sched_del(sched, &fr->retrans);
 	iax_frame_free(fr);
 }
 
@@ -1236,21 +1235,11 @@ static int iax2_predestroy(int callno)
 		}
 
 		/* No more pings or lagrq's */
-		if (pvt->pingid > -1)
-			cw_sched_del(sched, pvt->pingid);
-		if (pvt->lagid > -1)
-			cw_sched_del(sched, pvt->lagid);
-		if (pvt->autoid > -1)
-			cw_sched_del(sched, pvt->autoid);
-		if (pvt->authid > -1)
-			cw_sched_del(sched, pvt->authid);
-		if (pvt->initid > -1)
-			cw_sched_del(sched, pvt->initid);
-		pvt->pingid = -1;
-		pvt->lagid = -1;
-		pvt->autoid = -1;
-		pvt->initid = -1;
-		pvt->authid = -1;
+		cw_sched_del(sched, &pvt->pingid);
+		cw_sched_del(sched, &pvt->lagid);
+		cw_sched_del(sched, &pvt->autoid);
+		cw_sched_del(sched, &pvt->authid);
+		cw_sched_del(sched, &pvt->initid);
 		cw_set_flag(pvt, IAX_ALREADYGONE);	
 	}
 	c = pvt->owner;
@@ -1315,21 +1304,11 @@ retry:
 			cw_mutex_unlock(&userl.lock);
 		}
 		/* No more pings or lagrq's */
-		if (pvt->pingid > -1)
-			cw_sched_del(sched, pvt->pingid);
-		if (pvt->lagid > -1)
-			cw_sched_del(sched, pvt->lagid);
-		if (pvt->autoid > -1)
-			cw_sched_del(sched, pvt->autoid);
-		if (pvt->authid > -1)
-			cw_sched_del(sched, pvt->authid);
-		if (pvt->initid > -1)
-			cw_sched_del(sched, pvt->initid);
-		pvt->pingid = -1;
-		pvt->lagid = -1;
-		pvt->autoid = -1;
-		pvt->authid = -1;
-		pvt->initid = -1;
+		cw_sched_del(sched, &pvt->pingid);
+		cw_sched_del(sched, &pvt->lagid);
+		cw_sched_del(sched, &pvt->autoid);
+		cw_sched_del(sched, &pvt->authid);
+		cw_sched_del(sched, &pvt->initid);
 		if (pvt->bridgetrans)
 			cw_translator_free_path(pvt->bridgetrans);
 		pvt->bridgetrans = NULL;
@@ -1446,7 +1425,7 @@ static int attempt_transmit(void *data)
 			/* Transfer messages max out at one second */
 			if (f->transfer && (f->retrytime > 1000))
 				f->retrytime = 1000;
-			f->retrans = cw_sched_add(sched, f->retrytime, attempt_transmit, f);
+			cw_sched_add(sched, &f->retrans, f->retrytime, attempt_transmit, f);
 		}
 	} else {
 		/* Make sure it gets freed */
@@ -1955,11 +1934,8 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 
 	if (cw_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
 		cw_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
-		if (cw_test_flag(peer, IAX_RTAUTOCLEAR)) {
-			if (peer->expire > -1)
-				cw_sched_del(sched, peer->expire);
-			peer->expire = cw_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, peer);
-		}
+		if (cw_test_flag(peer, IAX_RTAUTOCLEAR))
+			cw_sched_modify(sched, &peer->expire, (global_rtautoclear) * 1000, expire_registry, peer);
 		cw_mutex_lock(&peerl.lock);
 		peer->next = peerl.peers;
 		peerl.peers = peer;
@@ -2383,10 +2359,10 @@ static int iax2_call(struct cw_channel *c, const char *dest)
 	if (iaxs[callno]->maxtime) {
 		/* Initialize pingtime and auto-congest time */
 		iaxs[callno]->pingtime = iaxs[callno]->maxtime / 2;
-		iaxs[callno]->initid = cw_sched_add(sched, iaxs[callno]->maxtime * 2, auto_congest, CALLNO_TO_PTR(callno));
+		cw_sched_add(sched, &iaxs[callno]->initid, iaxs[callno]->maxtime * 2, auto_congest, CALLNO_TO_PTR(callno));
 	} else if (autokill) {
 		iaxs[callno]->pingtime = autokill / 2;
-		iaxs[callno]->initid = cw_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
+		cw_sched_add(sched, &iaxs[callno]->initid, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
 
 	/* send the command using the appropriate socket for this peer */
@@ -4796,7 +4772,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	 * call and registry entry. Otherwise the reregistration is
 	 * already running and we should do nothing.
 	 */
-	if (cw_sched_del(sched, reg->expire))
+	if (cw_sched_del(sched, &reg->expire))
 		return 0;
 
 	memset(&us, 0, sizeof(us));
@@ -4838,7 +4814,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	 * by the server we are registering to
 	 */
 	reg->refresh = refresh;
-	reg->expire = cw_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+	cw_sched_add(sched, &reg->expire, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 
 	return 0;
 }
@@ -4970,16 +4946,14 @@ static void reg_source_db(struct iax2_peer *p)
 					if (option_verbose > 2)
 						cw_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
 						cw_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
-					p->pokeexpire = cw_sched_add(sched, 0, iax2_poke_peer, p);
+					cw_sched_add(sched, &p->pokeexpire, 0, iax2_poke_peer, p);
 					p->expiry = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
 					p->addr.sin_port = htons(atoi(c));
-					if (p->expire > -1)
-						cw_sched_del(sched, p->expire);
 					cw_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = cw_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+					cw_sched_modify(sched, &p->expire, (p->expiry + 10) * 1000, expire_registry, (void *)p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -5056,12 +5030,12 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		}
 
 		/* Schedule a poke as soon as possible */
-		if (!cw_sched_del(sched, p->pokeexpire)) {
+		if (!cw_sched_del(sched, &p->pokeexpire)) {
 			if (p->callno) {
 				iax2_destroy(p->callno);
 				p->callno = 0;
 			}
-			p->pokeexpire = cw_sched_add(sched, 0, iax2_poke_peer, p);
+			cw_sched_add(sched, &p->pokeexpire, 0, iax2_poke_peer, p);
 		}
 	}		
 
@@ -5080,8 +5054,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	} else {
 		p->expiry = refresh;
 	}
-	if ((p->expire == -1 || !cw_sched_del(sched, p->expire)) && p->expiry && sin->sin_addr.s_addr)
-		p->expire = cw_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+	if (p->expiry && sin->sin_addr.s_addr)
+		cw_sched_modify(sched, &p->expire, (p->expiry + 10) * 1000, expire_registry, (void *)p);
 
 	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
@@ -5186,21 +5160,11 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 
 static int stop_stuff(int callno)
 {
-		if (iaxs[callno]->lagid > -1)
-			cw_sched_del(sched, iaxs[callno]->lagid);
-		iaxs[callno]->lagid = -1;
-		if (iaxs[callno]->pingid > -1)
-			cw_sched_del(sched, iaxs[callno]->pingid);
-		iaxs[callno]->pingid = -1;
-		if (iaxs[callno]->autoid > -1)
-			cw_sched_del(sched, iaxs[callno]->autoid);
-		iaxs[callno]->autoid = -1;
-		if (iaxs[callno]->initid > -1)
-			cw_sched_del(sched, iaxs[callno]->initid);
-		iaxs[callno]->initid = -1;
-		if (iaxs[callno]->authid > -1)
-			cw_sched_del(sched, iaxs[callno]->authid);
-		iaxs[callno]->authid = -1;
+		cw_sched_del(sched, &iaxs[callno]->lagid);
+		cw_sched_del(sched, &iaxs[callno]->pingid);
+		cw_sched_del(sched, &iaxs[callno]->autoid);
+		cw_sched_del(sched, &iaxs[callno]->initid);
+		cw_sched_del(sched, &iaxs[callno]->authid);
 
 		return 0;
 }
@@ -5235,9 +5199,7 @@ static int auth_fail(int callno, int failcode)
 	iaxs[callno]->authfail = failcode;
 	if (delayreject) {
 //		cw_mutex_lock(&iaxsl[callno]);
-		if (iaxs[callno]->authid > -1)
-			cw_sched_del(sched, iaxs[callno]->authid);
-		iaxs[callno]->authid = cw_sched_add(sched, 1000, auth_reject, (void *)(long)callno);
+		cw_sched_modify(sched, &iaxs[callno]->authid, 1000, auth_reject, (void *)(long)callno);
 //		cw_mutex_unlock(&iaxsl[callno]);
 	} else
 		auth_reject((void *)(long)callno);
@@ -5266,9 +5228,7 @@ static void iax2_dprequest(struct iax2_dpcache *dp, int callno)
 {
 	struct iax_ie_data ied;
 	/* Auto-hangup with 30 seconds of inactivity */
-	if (iaxs[callno]->autoid > -1)
-		cw_sched_del(sched, iaxs[callno]->autoid);
-	iaxs[callno]->autoid = cw_sched_add(sched, 30000, auto_hangup, (void *)(long)callno);
+	cw_sched_add(sched, &iaxs[callno]->autoid, 30000, auto_hangup, (void *)(long)callno);
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, dp->exten);
 	send_command(iaxs[callno], CW_FRAME_IAX, IAX_COMMAND_DPREQ, 0, ied.buf, ied.pos, -1);
@@ -6072,11 +6032,9 @@ retryowner:
 			}
 		}
 		if (f.frametype == CW_FRAME_IAX) {
-			if (iaxs[frb.fr.callno]->initid > -1) {
-				/* Don't auto congest anymore since we've gotten something usefulb ack */
-				cw_sched_del(sched, iaxs[frb.fr.callno]->initid);
-				iaxs[frb.fr.callno]->initid = -1;
-			}
+			/* Don't auto congest anymore since we've gotten something usefulb ack */
+			cw_sched_del(sched, &iaxs[frb.fr.callno]->initid);
+
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug && iaxdebug)
 				cw_log(CW_LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
@@ -6491,7 +6449,7 @@ retryowner2:
 				/* If we can deschedule the noanswer timeout we own the call
 				 * and the peer. Otherwise we do nothing.
 				 */
-				if ((peer = iaxs[frb.fr.callno]->peerpoke) && !cw_sched_del(sched, peer->pokeexpire)) {
+				if ((peer = iaxs[frb.fr.callno]->peerpoke) && !cw_sched_del(sched, &peer->pokeexpire)) {
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[frb.fr.callno]->pingtime <= peer->maxms) {
 							cw_log(CW_LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %u\n", peer->name, iaxs[frb.fr.callno]->pingtime);
@@ -6530,9 +6488,9 @@ retryowner2:
 					/* Try again eventually */
 					cw_log(CW_LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
 					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
-						peer->pokeexpire = cw_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer, peer);
+						cw_sched_add(sched, &peer->pokeexpire, peer->pokefreqnotok, iax2_poke_peer, peer);
 					else
-						peer->pokeexpire = cw_sched_add(sched, peer->pokefreqok, iax2_poke_peer, peer);
+						cw_sched_add(sched, &peer->pokeexpire, peer->pokefreqok, iax2_poke_peer, peer);
 				}
 				break;
 			case IAX_COMMAND_LAGRQ:
@@ -7055,13 +7013,13 @@ static void *iax2_do_register_thread(void *data)
 			reg->regstate = REG_STATE_REGSENT;
 
 			/* Setup the next registration a little early */
-			reg->expire  = cw_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
+			cw_sched_add(sched, &reg->expire, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 
 			return NULL;
 		}
 	}
 
-	reg->expire  = cw_sched_add(sched, DEFAULT_RETRY_TIME, iax2_do_register_s, reg);
+	cw_sched_add(sched, &reg->expire, DEFAULT_RETRY_TIME, iax2_do_register_s, reg);
 	return NULL;
 }
 
@@ -7093,7 +7051,7 @@ static int iax2_poke_noanswer(void *data)
 	}
 
 	/* Try again quickly */
-	peer->pokeexpire = cw_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer, peer);
+	cw_sched_add(sched, &peer->pokeexpire, peer->pokefreqnotok, iax2_poke_peer, peer);
 	return 0;
 }
 
@@ -7130,13 +7088,13 @@ static void *iax2_poke_peer_thread(void *data)
 			send_command(iaxs[peer->callno], CW_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
 
 			/* If the host is already unreachable then use the unreachable interval instead */
-			peer->pokeexpire = cw_sched_add(sched, (peer->lastms < 0 ? peer->pokefreqnotok : DEFAULT_MAXMS * 2), iax2_poke_noanswer, peer);
+			cw_sched_add(sched, &peer->pokeexpire, (peer->lastms < 0 ? peer->pokefreqnotok : DEFAULT_MAXMS * 2), iax2_poke_noanswer, peer);
 		} else {
 			cw_log(CW_LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
-			peer->pokeexpire = cw_sched_add(sched, DEFAULT_RETRY_TIME, iax2_poke_peer, peer);
+			cw_sched_add(sched, &peer->pokeexpire, DEFAULT_RETRY_TIME, iax2_poke_peer, peer);
 		}
 	} else {
-		peer->pokeexpire = cw_sched_add(sched, DEFAULT_FREQ_OK, iax2_poke_peer, peer);
+		cw_sched_add(sched, &peer->pokeexpire, DEFAULT_FREQ_OK, iax2_poke_peer, peer);
 	}
 
 	return NULL;
@@ -7291,7 +7249,7 @@ static __attribute__((__noreturn__)) void *network_thread(void *data)
 				} else {
 					/* We need reliable delivery.  Schedule a retransmission */
 					f->retries++;
-					f->retrans = cw_sched_add(sched, f->retrytime, attempt_transmit, f);
+					cw_sched_add(sched, &f->retrans, f->retrytime, attempt_transmit, f);
 				}
 			}
 			f = f->next;
@@ -7557,9 +7515,7 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 					}
 				} else {
 					/* Non-dynamic.  Make sure we become that way if we're not */
-					if (peer->expire > -1)
-						cw_sched_del(sched, peer->expire);
-					peer->expire = -1;
+					cw_sched_del(sched, &peer->expire);
 					cw_clear_flag(peer, IAX_DYNAMIC);
 					cw_copy_string(peer->host, v->value, sizeof(peer->host));
 				}
@@ -7819,7 +7775,7 @@ static void delete_users(void)
 		 * Sadly, since registry entries aren't currently ref counted
 		 * that means we will leak memory here.
 		 */
-		if (reg->expire != -1 && !cw_sched_del(sched, reg->expire)) {
+		if (!cw_sched_del(sched, &reg->expire)) {
 			if (reg->callno) {
 				/* XXX Is this a potential lock?  I don't think so, but you never know */
 				cw_mutex_lock(&iaxsl[reg->callno]);
@@ -7886,10 +7842,8 @@ static void destroy_peer(struct iax2_peer *peer)
 		cw_mutex_unlock(&iaxsl[x]);
 	}
 	/* Delete it, it needs to disappear */
-	if (peer->expire > -1)
-		cw_sched_del(sched, peer->expire);
-	if (peer->pokeexpire > -1)
-		cw_sched_del(sched, peer->pokeexpire);
+	cw_sched_del(sched, &peer->expire);
+	cw_sched_del(sched, &peer->pokeexpire);
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
 	register_peer_exten(peer, 0);
@@ -8063,8 +8017,8 @@ static int set_config(const char *config_file, int reload)
 			if (trunkfreq < 10)
 				trunkfreq = 10;
 			if (trunkfreq != oldfreq || trunkschedid == -1) {
-				if (trunkschedid == -1 || !cw_sched_del(sched, trunkschedid))
-					trunkschedid = cw_sched_add_variable(sched, 0, timing_read, NULL, 1);
+				if (!cw_sched_del(sched, &trunkschedid))
+					cw_sched_add_variable(sched, &trunkschedid, 0, timing_read, NULL, 1);
 			}
 #else
 			cw_log(CW_LOG_WARNING, "trunkfreq is set in config but trunking support was not enabled for this build\n");
@@ -8185,13 +8139,13 @@ static int reload_config(void)
 
 	cw_mutex_lock(&regl.lock);
 	for (reg = regl.regs; reg; reg = reg->next)
-		reg->expire  = cw_sched_add(sched, cw_random() % 5000, iax2_do_register_s, reg);
+		cw_sched_add(sched, &reg->expire, cw_random() % 5000, iax2_do_register_s, reg);
 	cw_mutex_unlock(&regl.lock);
 
 	/* Qualify hosts, too */
 	cw_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next)
-		peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000, iax2_poke_peer, peer);
+		cw_sched_add(sched, &peer->pokeexpire, cw_random() % 5000, iax2_poke_peer, peer);
 	cw_mutex_unlock(&peerl.lock);
 	return 0;
 }
@@ -8987,8 +8941,7 @@ static int load_module(void)
 	}
 
 #ifdef IAX_TRUNKING
-	if (trunkschedid == -1)
-		trunkschedid = cw_sched_add_variable(sched, 0, timing_read, NULL, 1);
+	cw_sched_add_variable(sched, &trunkschedid, 0, timing_read, NULL, 1);
 #endif
 
 	cw_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
@@ -9005,14 +8958,14 @@ static int load_module(void)
 
 	cw_mutex_lock(&regl.lock);
 	for (reg = regl.regs; reg; reg = reg->next)
-		reg->expire  = cw_sched_add(sched, cw_random() % 5000, iax2_do_register_s, reg);
+		cw_sched_add(sched, &reg->expire, cw_random() % 5000, iax2_do_register_s, reg);
 	cw_mutex_unlock(&regl.lock);
 
 	cw_mutex_lock(&peerl.lock);
 	for (peer = peerl.peers; peer; peer = peer->next) {
 		if (peer->sockfd < 0)
 			peer->sockfd = defaultsockfd;
-		peer->pokeexpire = cw_sched_add(sched, cw_random() % 5000, iax2_poke_peer, peer);
+		cw_sched_add(sched, &peer->pokeexpire, cw_random() % 5000, iax2_poke_peer, peer);
 	}
 	cw_mutex_unlock(&peerl.lock);
 	return res;

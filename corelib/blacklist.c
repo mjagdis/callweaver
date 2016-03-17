@@ -47,7 +47,7 @@ struct cw_blacklist_entry {
 	struct cw_registry_entry *reg_entry;
 	time_t start;
 	unsigned int duration;
-	int expire;
+	struct sched_state expire;
 	/* This must be last */
 	struct sockaddr addr;
 };
@@ -125,8 +125,6 @@ static int blacklist_entry_remove(void *data)
 {
 	struct cw_blacklist_entry *entry = data;
 
-	entry->expire = -1;
-
 	cw_log(CW_LOG_NOTICE, "Blacklist of %@ removed\n", &entry->addr);
 	cw_manager_event(CW_EVENT_FLAG_SYSTEM, "Blacklist",
 		2,
@@ -167,9 +165,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 		 * to the entry so can hand it off again when we rescheduled the
 		 * expire job.
 		 */
-		if (entry->expire == -1 || !cw_sched_del(sched, entry->expire)) {
-			if (entry->expire == -1)
-				cw_object_dup(entry);
+		if (!cw_sched_del(sched, &entry->expire)) {
 			if (mode == BLACKLIST_DYNAMIC) {
 				entry->duration <<= 1;
 				if (blacklist_max_duration && entry->duration > blacklist_max_duration)
@@ -177,7 +173,6 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 			} else
 				entry->duration = duration;
 			entry->start = time(NULL);
-			entry->expire = -1;
 		} else {
 			cw_object_put(entry);
 			entry = NULL;
@@ -190,10 +185,8 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 
 		entry->duration = duration;
 		entry->start = time(NULL);
-		entry->expire = -1;
+		cw_sched_state_init(&entry->expire);
 		memcpy(&entry->addr, addr, addrlen);
-		switch (entry->addr.sa_family) {
-		}
 
 		entry->reg_entry = cw_registry_add(&blacklist_registry, hash, &entry->obj);
 	}
@@ -205,7 +198,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 	 */
 	if (entry) {
 		if (remember || mode == BLACKLIST_DELETE)
-			entry->expire = cw_sched_add(sched, (entry->duration + remember) * 1000, blacklist_entry_remove, entry);
+			cw_sched_add(sched, &entry->expire, (entry->duration + remember) * 1000, blacklist_entry_remove, entry);
 		else
 			cw_object_put(entry);
 	}
@@ -511,8 +504,8 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 			);
 		}
 
-		if (entry->expire != -1) {
-			cw_interval_print(args->ds_p, cw_sched_when(sched, entry->expire));
+		if (cw_sched_state_scheduled(&entry->expire)) {
+			cw_interval_print(args->ds_p, entry->expire.when.tv_sec - args->now);
 			cw_dynstr_printf(args->ds_p, "\n");
 		} else
 			cw_dynstr_printf(args->ds_p, "never\n");
