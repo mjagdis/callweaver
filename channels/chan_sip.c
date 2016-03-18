@@ -4356,7 +4356,7 @@ static int parse_request(struct parse_request_state *state, struct sip_request *
 					 * If more than one Via header field is present in a response, the UAC
 					 * SHOULD discard the message.
 					 */
-					if (req->sentby)
+					if (req->sentby && req->method == SIP_RESPONSE)
 						state->error = 1;
 					j = state->value;
 					while (req->pkt.data[j] == ' ' || req->pkt.data[j] == '\t')
