@@ -570,12 +570,14 @@ struct cw_frame *cw_dsp_process(struct cw_channel *chan, struct cw_dsp *dsp, str
 
     if ((dsp->features & DSP_FEATURE_SILENCE_SUPPRESS)  &&  __cw_dsp_silence(dsp, amp, samples, NULL))
     {
+        cw_fr_free(af);
         dsp->f.frametype = CW_FRAME_NULL;
         return &dsp->f;
     }
 
     if ((dsp->features & DSP_FEATURE_BUSY_DETECT)  &&  cw_dsp_busydetect(dsp))
     {
+        cw_fr_free(af);
         chan->_softhangup |= CW_SOFTHANGUP_DEV;
         dsp->f.frametype = CW_FRAME_CONTROL;
         dsp->f.subclass = CW_CONTROL_BUSY;
