@@ -3430,96 +3430,77 @@ static int sip_answer(struct cw_channel *ast)
     return res;
 }
 
-/*! \brief  sip_write: Send frame to media channel (rtp) */
-static int sip_rtp_write(struct cw_channel *ast, struct cw_frame *frame, int *faxdetect)
-{
-    struct sip_pvt *p = ast->tech_pvt;
-    int res = 0;
-
-    CW_UNUSED(faxdetect);
-
-    switch (frame->frametype)
-    {
-    case CW_FRAME_VOICE:
-        if (!(frame->subclass & ast->nativeformats))
-        {
-            cw_log(CW_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-                frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
-            return 0;
-        }
-        if (p)
-        {
-            cw_mutex_lock(&p->lock);
-            if (p->rtp)
-            {
-                /* If channel is not up, activate early media session */
-                if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING))
-                {
-                    transmit_response_with_sdp(p, "183 Session Progress", p->pendinginvite, 0);
-                    cw_set_flag(p, SIP_PROGRESS_SENT);    
-                }
-                time(&p->lastrtptx);
-                res =  cw_rtp_write(p->rtp, frame);
-
-            }
-            cw_mutex_unlock(&p->lock);
-        }
-        break;
-    case CW_FRAME_VIDEO:
-        if (p)
-        {
-            cw_mutex_lock(&p->lock);
-            if (p->vrtp)
-            {
-                /* Activate video early media */
-                if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING))
-                {
-                    transmit_response_with_sdp(p, "183 Session Progress", p->pendinginvite, 0);
-                    cw_set_flag(p, SIP_PROGRESS_SENT);    
-                }
-                time(&p->lastrtptx);
-                res =  cw_rtp_write(p->vrtp, frame);
-            }
-            cw_mutex_unlock(&p->lock);
-        }
-        break;
-    case CW_FRAME_IMAGE:
-        return 0;
-        break;
-    case CW_FRAME_MODEM:
-        if (p)
-        {
-            cw_mutex_lock(&p->lock);
-            if (p->udptl)
-            {
-                if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING))
-                {
-                    transmit_response_with_t38_sdp(p, "183 Session Progress", p->pendinginvite, 0);
-                    cw_set_flag(p, SIP_PROGRESS_SENT);    
-                }
-                res = cw_udptl_write(p->udptl, frame);
-            }
-            cw_mutex_unlock(&p->lock);
-        }
-        break;
-    default: 
-        cw_log(CW_LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
-        return 0;
-    }
-
-    return res;
-}
 
 /*! \brief  sip_write: Send frame to media channel (rtp) */
 static int sip_write(struct cw_channel *ast, struct cw_frame *frame)
 {
-    int res=0;
-    int faxdetected = 0;
+	struct sip_pvt *p = ast->tech_pvt;
+	int res = 1;
 
-    res = sip_rtp_write(ast,frame,&faxdetected);
+	if (p) {
+		switch (frame->frametype) {
+			case CW_FRAME_VOICE:
+				if (!(frame->subclass & ast->nativeformats)) {
+					cw_log(CW_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+						frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+					goto out_no_unlock;
+				}
+				break;
 
-    return res;
+			case CW_FRAME_IMAGE:
+				res = 0;
+				goto out_no_unlock;
+		}
+
+		cw_mutex_lock(&p->lock);
+
+		switch (frame->frametype) {
+			case CW_FRAME_VOICE:
+				if (p->rtp) {
+					/* If channel is not up, activate early media session */
+					if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING)) {
+						transmit_response_with_sdp(p, "183 Session Progress", p->pendinginvite, 0);
+						cw_set_flag(p, SIP_PROGRESS_SENT);
+					}
+					time(&p->lastrtptx);
+					res =  cw_rtp_write(p->rtp, frame);
+
+				}
+				break;
+
+			case CW_FRAME_VIDEO:
+				if (p->vrtp) {
+					/* Activate video early media */
+					if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING)) {
+						transmit_response_with_sdp(p, "183 Session Progress", p->pendinginvite, 0);
+						cw_set_flag(p, SIP_PROGRESS_SENT);    
+					}
+					time(&p->lastrtptx);
+					res =  cw_rtp_write(p->vrtp, frame);
+				}
+				break;
+
+			case CW_FRAME_MODEM:
+				if (p->udptl) {
+					if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING)) {
+ 						transmit_response_with_t38_sdp(p, "183 Session Progress", p->pendinginvite, 0);
+						cw_set_flag(p, SIP_PROGRESS_SENT);    
+					}
+					res = cw_udptl_write(p->udptl, frame);
+				}
+				break;
+		}
+
+		cw_mutex_unlock(&p->lock);
+
+		if (res == 1)
+			cw_log(CW_LOG_WARNING, "Can't send %d type frames with SIP write\n", frame->frametype);
+	}
+
+out_no_unlock:
+	return res;
 }
+
 
 /*! \brief  sip_fixup: Fix up a channel:  If a channel is consumed, this is called.
         Basically update any ->owner links -*/
