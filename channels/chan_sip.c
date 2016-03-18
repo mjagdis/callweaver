@@ -3955,85 +3955,70 @@ static char *get_header(const struct sip_request *req, const char *name, size_t 
 }
 
 
-/*! \brief  sip_rtp_read: Read RTP from network */
-static struct cw_frame *sip_rtp_read(struct cw_channel *ast, struct sip_pvt *p, int *faxdetect)
-{
-    /* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
-    struct cw_frame *f;
-
-    CW_UNUSED(faxdetect);
-
-    if (!p->rtp)
-    {
-        /* We have no RTP allocated for this channel */
-        return &cw_null_frame;
-    }
-
-    switch (ast->fdno)
-    {
-    case 0:
-        if (p->udptl_active  &&  p->udptl)
-            f = cw_udptl_read(p->udptl);      /* UDPTL for T.38 */
-        else
-            f = cw_rtp_read(p->rtp);          /* RTP Audio */
-        break;
-    case 1:
-        f = cw_rtcp_read(ast, p->rtp);             /* RTCP Control Channel */
-        break;
-    case 2:
-        f = cw_rtp_read(p->vrtp);             /* RTP Video */
-        break;
-    case 3:
-        f = cw_rtcp_read(ast, p->vrtp);            /* RTCP Control Channel for video */
-        break;
-    default:
-        f = &cw_null_frame;
-    }
-    /* Don't forward RFC2833 if we're not supposed to */
-    if (f && (f->frametype == CW_FRAME_DTMF) && (cw_test_flag(p, SIP_DTMF) != SIP_DTMF_RFC2833))
-        return &cw_null_frame;
-    if (p->owner)
-    {
-        /* We already hold the channel lock */
-        if (f->frametype == CW_FRAME_VOICE)
-        {
-            if (f->subclass != p->owner->nativeformats)
-            {
-		if (!(f->subclass & p->jointcapability)) {
-		    cw_log(CW_LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
-		    cw_getformatname(f->subclass), p->owner->name);
-		    return &cw_null_frame;
-		}
-                cw_log(CW_LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-                p->owner->nativeformats = f->subclass;
-                cw_set_read_format(p->owner, p->owner->readformat);
-                cw_set_write_format(p->owner, p->owner->writeformat);
-            }
-            if (f && (cw_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad)
-            {
-                f = cw_dsp_process(p->owner, p->vad, f);
-                if (f && f->frametype == CW_FRAME_DTMF)
-                    cw_log(CW_LOG_DEBUG, "Detected inband DTMF '%c'\n", f->subclass);
-            }
-        }
-    }
-    return f;
-}
-
 /*! \brief  sip_read: Read SIP RTP from channel */
-static struct cw_frame *sip_read(struct cw_channel *ast)
+static struct cw_frame *sip_read(struct cw_channel *chan)
 {
-    struct cw_frame *fr;
-    struct sip_pvt *p = ast->tech_pvt;
-    int faxdetected = 0;
+	struct sip_pvt *dialogue = chan->tech_pvt;
+	struct cw_frame *f = &cw_null_frame;
 
-    cw_mutex_lock(&p->lock);
-    fr = sip_rtp_read(ast, p, &faxdetected);
-    time(&p->lastrtprx);
-    cw_mutex_unlock(&p->lock);
+	cw_mutex_lock(&dialogue->lock);
 
-    return fr;
+	if (dialogue->rtp) {
+		switch (chan->fdno) {
+			case 0:
+				if (dialogue->udptl_active && dialogue->udptl)
+					f = cw_udptl_read(dialogue->udptl); /* UDPTL for T.38 */
+				else
+					f = cw_rtp_read(dialogue->rtp);     /* RTP Audio */
+				break;
+			case 1:
+				f = cw_rtcp_read(chan, dialogue->rtp);       /* RTCP Control Channel */
+				break;
+			case 2:
+				f = cw_rtp_read(dialogue->vrtp);            /* RTP Video */
+				break;
+			case 3:
+				f = cw_rtcp_read(chan, dialogue->vrtp);      /* RTCP Control Channel for video */
+				break;
+		}
+
+		time(&dialogue->lastrtprx);
+
+		cw_mutex_unlock(&dialogue->lock);
+	}
+
+	if (f != &cw_null_frame) {
+		/* Don't forward RFC2833 if we're not supposed to */
+		if (f->frametype != CW_FRAME_DTMF || cw_test_flag(dialogue, SIP_DTMF) == SIP_DTMF_RFC2833) {
+			if (dialogue->owner && f->frametype == CW_FRAME_VOICE) {
+				if (f->subclass != dialogue->owner->nativeformats) {
+					if (!(f->subclass & dialogue->jointcapability)) {
+						cw_log(CW_LOG_DEBUG, "Bogus frame of format '%s' received from '%s'!\n",
+							cw_getformatname(f->subclass), dialogue->owner->name);
+						cw_fr_free(f);
+						f = &cw_null_frame;
+					}
+					cw_log(CW_LOG_DEBUG, "Format changed to %d\n", f->subclass);
+					dialogue->owner->nativeformats = f->subclass;
+					cw_set_read_format(dialogue->owner, dialogue->owner->readformat);
+					cw_set_write_format(dialogue->owner, dialogue->owner->writeformat);
+				}
+				if (f && (cw_test_flag(dialogue, SIP_DTMF) == SIP_DTMF_INBAND) && dialogue->vad) {
+					f = cw_dsp_process(dialogue->owner, dialogue->vad, f);
+					if (f && f->frametype == CW_FRAME_DTMF)
+						cw_log(CW_LOG_DEBUG, "Detected inband DTMF '%c'\n", f->subclass);
+				}
+			}
+		} else {
+			cw_fr_free(f);
+			f = &cw_null_frame;
+		}
+	}
+
+
+	return f;
 }
+
 
 /*! \brief  build_callid: Build SIP CALLID header */
 static void build_callid(char *callid, int len, struct sockaddr *oursa, char *fromdomain)
