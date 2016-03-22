@@ -410,7 +410,7 @@ struct iax2_registry {
 	char username[80];
 	char secret[80];			/*!< Password or key name in []'s */
 	char random[80];
-	int expire;				/*!< Sched ID of expiration */
+	struct sched_state expire;		/*!< Sched ID of expiration */
 	int refresh;				/*!< How often to refresh */
 	enum iax_reg_state regstate;
 	int messages;				/*!< Message count */
@@ -563,12 +563,12 @@ struct chan_iax2_pvt {
 	unsigned int bridgesfmt;
 	struct cw_trans_pvt *bridgetrans;
 	
-	struct sched_state *pingid;			/*!< Transmit PING request */
-	struct sched_state *lagid;			/*!< Retransmit lag request */
-	struct sched_state *autoid;			/*!< Auto hangup for Dialplan requestor */
-	struct sched_state *authid;			/*!< Authentication rejection ID */
+	struct sched_state pingid;			/*!< Transmit PING request */
+	struct sched_state lagid;			/*!< Retransmit lag request */
+	struct sched_state autoid;			/*!< Auto hangup for Dialplan requestor */
+	struct sched_state authid;			/*!< Authentication rejection ID */
 	int authfail;			/*!< Reason to report failure */
-	struct sched_state *initid;			/*!< Initial peer auto-congest ID (based on qualified peers) */
+	struct sched_state initid;			/*!< Initial peer auto-congest ID (based on qualified peers) */
 	int calling_ton;
 	int calling_tns;
 	int calling_pres;
@@ -862,11 +862,11 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, const char *host)
 		tmp->peercallno = 0;
 		tmp->transfercallno = 0;
 		tmp->bridgecallno = 0;
-		tmp->pingid = -1;
-		tmp->lagid = -1;
-		tmp->autoid = -1;
-		tmp->authid = -1;
-		tmp->initid = -1;
+		cw_sched_state_init(&tmp->pingid);
+		cw_sched_state_init(&tmp->lagid);
+		cw_sched_state_init(&tmp->autoid);
+		cw_sched_state_init(&tmp->authid);
+		cw_sched_state_init(&tmp->initid);
 		/* cw_copy_string(tmp->context, context, sizeof(tmp->context)); */
 		cw_copy_string(tmp->exten, "s", sizeof(tmp->exten));
 		cw_copy_string(tmp->host, host, sizeof(tmp->host));
@@ -888,7 +888,7 @@ static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 		new->data = NULL;
 		new->datalen = 0;
 		new->direction = DIRECTION_INGRESS;
-		new->retrans = -1;
+		cw_sched_state_init(&new->retrans);
 	}
 	return new;
 }
@@ -966,10 +966,8 @@ static int make_trunk(unsigned short *callno, int locked)
 			iaxs[x]->callno = x;
 			iaxs[*callno] = NULL;
 			/* Update the two timers that should have been started */
-			if (iaxs[x]->pingid > -1)
-				cw_sched_del(sched, &iaxs[x]->pingid);
-			if (iaxs[x]->lagid > -1)
-				cw_sched_del(sched, &iaxs[x]->lagid);
+			cw_sched_del(sched, &iaxs[x]->pingid);
+			cw_sched_del(sched, &iaxs[x]->lagid);
 			cw_sched_add(sched, &iaxs[x]->pingid, ping_time * 1000, send_ping, (void *)(long)x);
 			cw_sched_add(sched, &iaxs[x]->lagid, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			if (locked)
@@ -1102,7 +1100,7 @@ static int __do_deliver(void *data)
 	/* Just deliver the packet by using queueing.  This is called by
 	  the IAX thread with the iaxsl lock held. */
 	struct iax_frame *fr = data;
-	fr->retrans = -1;
+	cw_sched_state_init(&fr->retrans);
 	if (iaxs[fr->callno] && !cw_test_flag(iaxs[fr->callno], IAX_ALREADYGONE))
 		iax2_queue_frame(fr->callno, &fr->af);
 	/* Free our iax frame */
@@ -1448,7 +1446,7 @@ static int attempt_transmit(void *data)
 			iaxq.tail = f->prev;
 		iaxq.count--;
 		cw_mutex_unlock(&iaxq.lock);
-		f->retrans = -1;
+		cw_sched_state_init(&f->retrans);
 		/* Free the IAX frame */
 		iax2_frame_free(f);
 	}
@@ -1538,7 +1536,7 @@ static int iax2_show_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 			cw_fmtval("  Mailbox      : %s\n", peer->mailbox),
 			cw_fmtval("  Dynamic      : %s\n", cw_test_flag(peer, IAX_DYNAMIC) ? "Yes":"No"),
 			cw_fmtval("  Callerid     : %s\n", cw_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>")),
-			cw_fmtval("  Expire       : %d\n", peer->expire),
+			cw_fmtval("  Expire       : %d\n", (int)peer->expire.when.tv_sec),
 			cw_fmtval("  ACL          : %s\n", (peer->acl?"Yes":"No")),
 			cw_fmtval("  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? cw_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port)),
 			cw_fmtval("  Defaddr->IP  : %s Port %d\n", cw_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port)),
@@ -2133,7 +2131,7 @@ static int auto_congest(void *nothing)
 	struct cw_frame f = { .frametype = CW_FRAME_CONTROL, .subclass = CW_CONTROL_CONGESTION };
 	cw_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		iaxs[callno]->initid = -1;
+		cw_sched_state_init(&iaxs[callno]->initid);
 		iax2_queue_frame(callno, &f);
 		cw_log(CW_LOG_NOTICE, "Auto-congesting call due to slow response\n");
 	}
@@ -4856,7 +4854,7 @@ static int iax2_register(char *value, int lineno)
 		cw_copy_string(reg->username, username, sizeof(reg->username));
 		if (secret)
 			cw_copy_string(reg->secret, secret, sizeof(reg->secret));
-		reg->expire = -1;
+		cw_sched_state_init(&reg->expire);
 		reg->refresh = IAX_DEFAULT_REG_EXPIRE;
 		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(listen_port);
 		reg->callno = 0;
@@ -4901,7 +4899,7 @@ static int expire_registry(void *data)
 	/* Reset the address */
 	memset(&p->addr, 0, sizeof(p->addr));
 	/* Reset expire notice */
-	p->expire = -1;
+	cw_sched_state_init(&p->expire);
 	/* Reset expiry value */
 	p->expiry = min_reg_expire;
 	if (!cw_test_flag(p, IAX_TEMPONLY)) {
@@ -5176,7 +5174,7 @@ static int auth_reject(void *nothing)
 	struct iax_ie_data ied;
 	cw_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		iaxs[callno]->authid = -1;
+		cw_sched_state_init(&iaxs[callno]->authid);
 		memset(&ied, 0, sizeof(ied));
 		if (iaxs[callno]->authfail == IAX_COMMAND_REGREJ) {
 			iax_ie_append_str(&ied, IAX_IE_CAUSE, "Registration Refused");
@@ -5214,7 +5212,7 @@ static int auto_hangup(void *nothing)
 	struct iax_ie_data ied;
 	cw_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
-		iaxs[callno]->autoid = -1;
+		cw_sched_state_init(&iaxs[callno]->autoid);
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_str(&ied, IAX_IE_CAUSE, "Timeout");
 		iax_ie_append_byte(&ied, IAX_IE_CAUSECODE, CW_CAUSE_NO_USER_RESPONSE);
@@ -5280,7 +5278,7 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		mth->ts = htonl(calc_txpeerstamp(tpeer, trunkfreq, now));
 		/* And the rest of the cw_iax2 header */
 		fr->direction = DIRECTION_OUTGRESS;
-		fr->retrans = -1;
+		cw_sched_state_init(&fr->retrans);
 		fr->transfer = 0;
 		/* Any appropriate call will do */
 		fr->data = fr->afdata;
@@ -7450,8 +7448,8 @@ static struct iax2_peer *build_peer(const char *name, struct cw_variable *v, int
 		peer = malloc(sizeof(struct iax2_peer));
 		if (peer) {
 			memset(peer, 0, sizeof(struct iax2_peer));
-			peer->expire = -1;
-			peer->pokeexpire = -1;
+			cw_sched_state_init(&peer->expire);
+			cw_sched_state_init(&peer->pokeexpire);
 			peer->sockfd = defaultsockfd;
 		}
 	}
@@ -8016,9 +8014,9 @@ static int set_config(const char *config_file, int reload)
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
 				trunkfreq = 10;
-			if (trunkfreq != oldfreq || trunkschedid == -1) {
-				if (!cw_sched_del(sched, &trunkschedid))
-					cw_sched_add_variable(sched, &trunkschedid, 0, timing_read, NULL, 1);
+			if (trunkfreq != oldfreq) {
+				cw_sched_del(sched, &trunkschedid);
+				cw_sched_add_variable(sched, &trunkschedid, 0, timing_read, NULL, 1);
 			}
 #else
 			cw_log(CW_LOG_WARNING, "trunkfreq is set in config but trunking support was not enabled for this build\n");
@@ -8548,7 +8546,7 @@ static int function_iaxpeer(struct cw_channel *chan, int argc, char **argv, stru
 	} else  if (!strcasecmp(argv[1], "context")) {
 		cw_dynstr_printf(result, "%s", peer->context);
 	} else  if (!strcasecmp(argv[1], "expire")) {
-		cw_dynstr_printf(result, "%d", peer->expire);
+		cw_dynstr_printf(result, "%d", (int)peer->expire.when.tv_sec);
 	} else  if (!strcasecmp(argv[1], "dynamic")) {
 		cw_dynstr_printf(result, "%s", (cw_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no"));
 	} else  if (!strcasecmp(argv[1], "callerid_name")) {

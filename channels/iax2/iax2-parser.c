@@ -919,7 +919,7 @@ struct iax_frame *iax_frame_new(int direction, int datalen)
 	fr = calloc(1, (int)sizeof(struct iax_frame) + datalen);
 	if (fr) {
 		fr->direction = direction;
-		fr->retrans = -1;
+		cw_sched_state_init(&fr->retrans);
 		frames++;
 		if (fr->direction == DIRECTION_INGRESS)
 			iframes++;

@@ -1825,7 +1825,7 @@ try_connect(blt_dev_t * dev)
 
     if (dev->status != BLT_STATUS_CONNECTING) {
       cw_mutex_unlock(&(dev->lock));
-      dev->outgoing_id = -1;
+      cw_sched_state_init(&dev->outgoing_id);
       return 0;
     }
 
@@ -1863,7 +1863,7 @@ try_connect(blt_dev_t * dev)
           send_atcmd(dev, "AT+BRSF=23");
         }
 
-        dev->outgoing_id = -1;
+        cw_sched_state_init(&dev->outgoing_id);
         cw_mutex_unlock(&(dev->lock));
         return 0;
 
@@ -1875,7 +1875,7 @@ try_connect(blt_dev_t * dev)
         close(dev->rd);
         dev->rd = -1;
         dev->status = BLT_STATUS_DOWN;
-        cw_sched_add(sched, &outgoing_id, (ret == EHOSTDOWN) ? 10000 : 2500, CW_SCHED_CB(try_connect), dev);
+        cw_sched_add(sched, &dev->outgoing_id, (ret == EHOSTDOWN) ? 10000 : 2500, CW_SCHED_CB(try_connect), dev);
         cw_mutex_unlock(&(dev->lock));
         return 0;
 
@@ -2509,7 +2509,7 @@ blt_parse_config(void)
       device->sco_running = -1;
       device->sco = -1;
       device->rd = -1;
-      device->outgoing_id = -1;
+      cw_sched_state_init(&device->outgoing_id);
       device->status = BLT_STATUS_DOWN;
       str2ba(cat, &(device->bdaddr));
       device->name = cw_variable_retrieve(cfg, cat, "name");
