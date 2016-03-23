@@ -225,9 +225,6 @@ static struct cw_frame *tech_exception(struct cw_channel *self);
 static int tech_write(struct cw_channel *self, struct cw_frame *frame);
 static int tech_indicate(struct cw_channel *self, int condition);
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen);
-static int tech_send_text(struct cw_channel *self, const char *text);
-static int tech_send_image(struct cw_channel *self, struct cw_frame *frame);
 static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen);
 static int tech_queryoption(struct cw_channel *self, int option, void *data, int *datalen);
 static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge);
@@ -238,7 +235,6 @@ static enum cw_bridge_result tech_bridge(struct cw_channel *chan_a,
 					   struct cw_frame **outframe, 
 					   struct cw_channel **recent_chan,
 					   int timeoutms);
-static int tech_write_video(struct cw_channel *self, struct cw_frame *frame);
 
 
 /********************************************************************************
@@ -258,15 +254,11 @@ static const struct cw_channel_tech technology = {
 	.hangup = tech_hangup,
 	.answer = tech_answer,
 	.transfer = tech_transfer,
-	.write_video = tech_write_video,
 	.read = tech_read,
 	.write = tech_write,
 	.exception = tech_exception,
 	.indicate = tech_indicate,
 	.fixup = tech_fixup,
-	.send_html = tech_send_html,
-	.send_text = tech_send_text,
-	.send_image = tech_send_image,
 	.setoption = tech_setoption,
 	.queryoption = tech_queryoption,
 	.bridged_channel = tech_bridged_channel,
@@ -1703,19 +1695,6 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	return res;
 }
 
-/*--- tech_write_video: Write a video frame to my channel ---*/
-static int tech_write_video(struct cw_channel *self, struct cw_frame *frame)
-{
-//	private_object *tech_pvt;
-	int res = 0;
-
-	CW_UNUSED(self);
-	CW_UNUSED(frame);
-
-//	tech_pvt = self->tech_pvt;
-	return res;
-}
-
 /*--- tech_exception: Read an exception audio frame from my channel ---*/
 static struct cw_frame *tech_exception(struct cw_channel *self)
 {
@@ -1759,44 +1738,6 @@ static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 	}
 	return res;
 }
-
-/*--- tech_send_html: Send html data on my channel ---*/
-static int tech_send_html(struct cw_channel *self, int subclass, const char *data, int datalen)
-{
-//	private_object *tech_pvt;
-	int res = 0;
-
-	CW_UNUSED(self);
-	CW_UNUSED(subclass);
-	CW_UNUSED(data);
-	CW_UNUSED(datalen);
-
-//	tech_pvt = self->tech_pvt;
-	return res;
-}
-
-/*--- tech_send_text: Send plain text data on my channel ---*/
-static int tech_send_text(struct cw_channel *self, const char *text)
-{
-	int res = 0;
-
-	CW_UNUSED(self);
-	CW_UNUSED(text);
-
-	return res;
-}
-
-/*--- tech_send_image: Send image data on my channel ---*/
-static int tech_send_image(struct cw_channel *self, struct cw_frame *frame) 
-{
-	int res = 0;
-
-	CW_UNUSED(self);
-	CW_UNUSED(frame);
-
-	return res;
-}
-
 
 /*--- tech_setoption: set options on my channel ---*/
 static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen)

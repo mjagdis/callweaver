@@ -5213,7 +5213,6 @@ static const struct cw_channel_tech capi_tech = {
 	.capabilities = CW_FORMAT_ALAW,
 	.requester = pbx_capi_request,
 	.send_digit = pbx_capi_send_digit,
-	.send_text = NULL,
 	.call = pbx_capi_call,
 	.hangup = pbx_capi_hangup,
 	.answer = pbx_capi_answer,

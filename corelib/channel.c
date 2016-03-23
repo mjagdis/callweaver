@@ -2050,16 +2050,13 @@ char *cw_recvtext(struct cw_channel *chan, int timeout)
 
 int cw_sendtext(struct cw_channel *chan, const char *text)
 {
-	int res = 0;
+	struct cw_frame f = {
+		.frametype = CW_FRAME_TEXT,
+		.data = (char *)text,
+		.datalen = strlen(text),
+	};
 
-	/* Stop if we're a zombie or need a soft hangup */
-	if (cw_test_flag(chan, CW_FLAG_ZOMBIE)  ||  cw_check_hangup(chan)) 
-		return -1;
-	CHECK_BLOCKING(chan);
-	if (chan->tech->send_text)
-		res = chan->tech->send_text(chan, text);
-	cw_clear_flag(chan, CW_FLAG_BLOCKING);
-	return res;
+	return cw_queue_frame(chan, &f);
 }
 
 static int do_senddigit(struct cw_channel *chan, char digit)
@@ -2198,64 +2195,45 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	CHECK_BLOCKING(chan);
 #endif
 	switch (fr->frametype) {
-	case CW_FRAME_CONTROL:
-		/* XXX Interpret control frames XXX */
-		cw_log(CW_LOG_WARNING, "Don't know how to handle control frames yet\n");
-		res = 1;
-		break;
-	case CW_FRAME_DTMF:
-		cw_clear_flag(chan, CW_FLAG_BLOCKING);
-		cw_channel_unlock(chan);
-		res = do_senddigit(chan, (char)fr->subclass);
-		cw_channel_lock(chan);
-		CHECK_BLOCKING(chan);
-		break;
-	case CW_FRAME_TEXT:
-		if (chan->tech->send_text)
-			res = chan->tech->send_text(chan, (char *) fr->data);
-		else
-			res = 0;
-		break;
-	case CW_FRAME_HTML:
-		if (chan->tech->send_html)
-			res = chan->tech->send_html(chan, fr->subclass, (char *) fr->data, fr->datalen);
-		else
-			res = 0;
-		break;
-	case CW_FRAME_VIDEO:
-		/* XXX Handle translation of video codecs one day XXX */
-		if (chan->tech->write_video)
-			res = chan->tech->write_video(chan, fr);
-		else
-			res = 0;
-		break;
-	case CW_FRAME_MODEM:
-		if (chan->tech->write)
-			res = chan->tech->write(chan, fr);
-		else
-			res = 0;
-		break;
-	default:
-		if (chan->tech->write) {
-			if (chan->writetrans && fr->frametype == CW_FRAME_VOICE) 
-				f = cw_translate(chan->writetrans, fr, 0);
-			else
-				f = fr;
-			if (f) {
-				/* CMANTUNES: Instead of writing directly here,
-				 * we could insert frame into output queue and
-				 * let the channel driver use a writer thread
-				 * to actually write the stuff, for example. */
+		case CW_FRAME_CONTROL:
+			/* XXX Interpret control frames XXX */
+			cw_log(CW_LOG_WARNING, "Don't know how to handle control frames yet\n");
+			res = 1;
+			break;
 
-				if (f->frametype == CW_FRAME_VOICE  &&  chan->spies) {
+		case CW_FRAME_DTMF:
+			cw_clear_flag(chan, CW_FLAG_BLOCKING);
+			cw_channel_unlock(chan);
+			cw_log(CW_LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
+			res = do_senddigit(chan, (char)fr->subclass);
+			cw_channel_lock(chan);
+			CHECK_BLOCKING(chan);
+			break;
+
+		default:
+			if (!chan->tech->write)
+				break;
+
+			res = 0;
+			f = fr;
+
+			if (chan->writetrans && fr->frametype == CW_FRAME_VOICE && !(f = cw_translate(chan->writetrans, fr, 0)))
+				break;
+
+			/* CMANTUNES: Instead of writing directly here,
+			 * we could insert frame into output queue and
+			 * let the channel driver use a writer thread
+			 * to actually write the stuff, for example. */
+
+			if (f->frametype == CW_FRAME_VOICE) {
+				if (chan->spies) {
 					struct cw_channel_spy *spying;
 
 					for (spying = chan->spies;  spying;  spying = spying->next)
 						cw_spy_queue_frame(spying, f, 1);
 				}
 
-				if( chan->monitor && chan->monitor->write_stream &&
-						f && ( f->frametype == CW_FRAME_VOICE ) ) {
+				if (chan->monitor && chan->monitor->write_stream) {
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->insmpl - chan->outsmpl - 2 * f->samples;
 					if (jump >= 0) {
@@ -2276,21 +2254,13 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 					if (cw_writestream(chan->monitor->write_stream, f) < 0)
 						cw_log(CW_LOG_WARNING, "Failed to write data to channel monitor write stream\n");
 				}
-
-				res = chan->tech->write(chan, f);
-			} else {
-				res = 0;
 			}
-		}
+
+			res = chan->tech->write(chan, f);
+			break;
 	}
 
-	/* It's possible this is a translated frame */
-	if (f && f->frametype == CW_FRAME_DTMF)
-		cw_log(CW_LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
-	else if (fr->frametype == CW_FRAME_DTMF)
-		cw_log(CW_LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
-
-	if (f && (f != fr))
+	if (f != fr)
 		cw_fr_free(f);
 
 	cw_clear_flag(chan, CW_FLAG_BLOCKING);
@@ -2664,25 +2634,21 @@ int cw_readstring_full(struct cw_channel *c, char *s, int len, int timeout, int 
 	return ret;
 }
 
-int cw_channel_supports_html(struct cw_channel *chan)
-{
-	if (chan->tech->send_html)
-		return 1;
-	return 0;
-}
-
 int cw_channel_sendhtml(struct cw_channel *chan, int subclass, const char *data, int datalen)
 {
-	if (chan->tech->send_html)
-		return chan->tech->send_html(chan, subclass, data, datalen);
-	return -1;
+	struct cw_frame f = {
+		.frametype = CW_FRAME_HTML,
+		.subclass = subclass,
+		.data = (char *)data,
+		.datalen = datalen,
+	};
+
+	return cw_queue_frame(chan, &f);
 }
 
 int cw_channel_sendurl(struct cw_channel *chan, const char *url)
 {
-	if (chan->tech->send_html)
-		return chan->tech->send_html(chan, CW_HTML_URL, url, strlen(url) + 1);
-	return -1;
+	return cw_channel_sendhtml(chan, CW_HTML_URL, url, strlen(url) + 1);
 }
 
 int cw_channel_make_compatible(struct cw_channel *chan, struct cw_channel *peer)

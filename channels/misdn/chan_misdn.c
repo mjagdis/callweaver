@@ -2445,7 +2445,13 @@ static int misdn_write(struct cw_channel *cw, struct cw_frame *frame)
 		cw_log(CW_LOG_WARNING, "private but no bc\n");
 		return -1;
 	}
-	
+
+	if (frame->frametype == CW_FRAME_TEXT) {
+		cw_copy_string(ch->bc->display, frame->data, sizeof(ch->bc->display));
+		misdn_lib_send_event(ch->bc, EVENT_INFORMATION);
+		return 0;
+	}
+
 	if (ch->state == MISDN_HOLDED) {
 		chan_misdn_log(8, ch->bc->port, "misdn_write: Returning because holded\n");
 		return 0;
@@ -2889,22 +2895,6 @@ static struct cw_channel *misdn_request(const char *type, int format, void *data
 }
 
 
-static int misdn_send_text (struct cw_channel *chan, const char *text)
-{
-	struct chan_list *tmp=chan->tech_pvt;
-	
-	if (tmp && tmp->bc) {
-		cw_copy_string(tmp->bc->display,text,sizeof(tmp->bc->display));
-		misdn_lib_send_event(tmp->bc, EVENT_INFORMATION);
-	} else {
-		cw_log(CW_LOG_WARNING, "No chan_list but send_text request?\n");
-		return -1;
-	}
-	
-	return 0;
-}
-
-
 static int misdn_setoption(struct cw_channel *chan, int option, void *data, int datalen)
 {
 	struct chan_list *pvt;
@@ -2966,7 +2956,6 @@ static struct cw_channel_tech misdn_tech = {
 	.write=misdn_write,
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
-	.send_text=misdn_send_text,
 	.setoption=misdn_setoption,
 	.properties=0
 };
@@ -2984,7 +2973,6 @@ static struct cw_channel_tech misdn_tech_wo_bridge = {
 	.write=misdn_write,
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
-	.send_text=misdn_send_text,
 	.setoption=misdn_setoption,
 	.properties=0
 };

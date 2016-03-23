@@ -88,16 +88,6 @@ extern CW_API_PUBLIC int cw_supports_images(struct cw_channel *chan);
  */
 extern CW_API_PUBLIC int cw_send_image(struct cw_channel *chan, char *filename);
 
-/*! Make an image */
-/*! 
- * \param filename filename of image to prepare
- * \param preflang preferred language to get the image...?
- * \param format the format of the file
- * Make an image from a filename ??? No estoy positivo
- * Returns an cw_frame on success, NULL on failure
- */
-extern CW_API_PUBLIC struct cw_frame *cw_read_image(char *filename, char *lang, int format);
-
 /*! Initialize image stuff */
 /*!
  * Initializes all the various image stuff.  Basically just registers the cli stuff

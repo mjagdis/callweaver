@@ -60,9 +60,6 @@ static int skel_write(struct cw_channel *ast, struct cw_frame *f);
 static int skel_indicate(struct cw_channel *ast, int condition);
 
 static int skel_digit(struct cw_channel *ast, char digit);
-static int skel_sendtext(struct cw_channel *chan, const char *text);
-static int skel_sendhtml(struct cw_channel *ast, int subclass, const char *data, int datalen);
-static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame);
 
 
 static struct cw_channel *skel_request(const char *drvtype, int format, void *data, int *cause)
@@ -198,65 +195,6 @@ static int skel_digit(struct cw_channel *chan, char digit)
 }
 
 
-/*! Display or send text.
- *
- * \param chan		Channel to send to
- * \param text		Text to send
- */
-static int skel_sendtext(struct cw_channel *chan, const char *text)
-{
-	CW_UNUSED(chan);
-	CW_UNUSED(text);
-
-	return -1;
-}
-
-
-/*! Display or send HTML.
- *
- * \param chan		Channel to send to
- * \param subclass
- * \param data
- * \param datalen
- */
-static int skel_sendhtml(struct cw_channel *chan, int subclass, const char *data, int datalen)
-{
-	CW_UNUSED(chan);
-	CW_UNUSED(subclass);
-	CW_UNUSED(data);
-	CW_UNUSED(datalen);
-
-	return -1;
-}
-
-
-/*! Display or send an image.
- *
- * \param chan		Channel to send to
- * \param frame		Frame containing the complete image data
- */
-static int skel_sendimage(struct cw_channel *chan, struct cw_frame *frame)
-{
-	CW_UNUSED(chan);
-	CW_UNUSED(frame);
-
-	return -1;
-}
-
-
-/*! Write video
- *
- * OPTIONAL - It is not necessary to implement this.
- */
-static int skel_writevideo(struct cw_channel *chan, struct cw_frame *frame)
-{
-	CW_UNUSED(chan);
-	CW_UNUSED(frame);
-
-	return 0;
-}
-
-
 /*! Set an option.
  *
  * OPTIONAL - It is not necessary to implement this.
@@ -351,12 +289,8 @@ static const struct cw_channel_tech skel_tech = {
 	.indicate = skel_indicate,
 
 	.send_digit = skel_digit,
-	.send_text = skel_sendtext,
-	.send_html = skel_sendhtml,
-	.send_image = skel_sendimage,
 
 	/* The following are optional and should be left NULL if not implemented. */
-	.write_video = skel_writevideo,
 	.setoption = skel_setoption,
 	.queryoption = skel_queryoption,
 	.transfer = skel_transfer,

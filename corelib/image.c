@@ -74,8 +74,6 @@ int cw_supports_images(struct cw_channel *chan)
 {
 	if (!chan || !chan->tech)
 		return 0;
-	if (!chan->tech->send_image)
-		return 0;
 	return 1;
 }
 
@@ -150,32 +148,17 @@ static int read_image_try(struct cw_object *obj, void *data)
 	return res;
 }
 
-struct cw_frame *cw_read_image(char *filename, char *lang, int format)
+int cw_send_image(struct cw_channel *chan, char *filename)
 {
-	struct read_image_args args = { filename, lang, format, NULL };
+	struct read_image_args args = { filename, chan->language, -1, NULL };
 
 	if (!cw_registry_iterate(&imager_registry, read_image_try, &args)) {
 		args.lang = NULL;
 		if (!cw_registry_iterate(&imager_registry, read_image_try, &args))
 			cw_log(CW_LOG_WARNING, "Image file '%s' not found\n", filename);
 	}
-	return args.frame;
-}
 
-
-int cw_send_image(struct cw_channel *chan, char *filename)
-{
-	struct cw_frame *f;
-	int res = -1;
-
-	if (chan->tech->send_image) {
-		f = cw_read_image(filename, chan->language, -1);
-		if (f) {
-			res = chan->tech->send_image(chan, f);
-			cw_fr_free(f);
-		}
-	}
-	return res;
+	return (args.frame ? cw_queue_frame(chan, args.frame) : -1);
 }
 
 

@@ -2225,7 +2225,6 @@ static int nosound=0;
 /* ZZ */
 static struct cw_channel *alsa_request(const char *type, int format, void *data, int *cause);
 static int alsa_digit(struct cw_channel *c, char digit);
-static int alsa_text(struct cw_channel *c, const char *text);
 static int alsa_hangup(struct cw_channel *c);
 static int alsa_answer(struct cw_channel *c);
 static struct cw_frame *alsa_read(struct cw_channel *chan);
@@ -2241,7 +2240,6 @@ static const struct cw_channel_tech alsa_tech =
 	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = alsa_request,
 	.send_digit = alsa_digit,
-	.send_text = alsa_text,
 	.hangup = alsa_hangup,
 	.answer = alsa_answer,
 	.read = alsa_read,
@@ -2565,16 +2563,6 @@ static int alsa_digit(struct cw_channel *c, char digit)
 	return 0;
 }
 
-static int alsa_text(struct cw_channel *c, const char *text)
-{
-	CW_UNUSED(c);
-
-	cw_mutex_lock(&alsalock);
-	cw_verbose( " << Console Received text %s >> \n", text);
-	cw_mutex_unlock(&alsalock);
-	return 0;
-}
-
 static void grab_owner(void)
 {
 	while(alsa.owner && cw_channel_trylock(alsa.owner)) {
@@ -2668,11 +2656,16 @@ static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 	static int sizpos = 0;
 	int len = sizpos;
 	int res = 0;
+	/* size_t frames = 0; */
+	snd_pcm_state_t state;
 
 	CW_UNUSED(chan);
 
-	/* size_t frames = 0; */
-	snd_pcm_state_t state;
+	if (f->frametype == CW_FRAME_TEXT) {
+		cw_verbose("Received text: %s\n", (char *)f->data);
+		return 0;
+	}
+
 	/* Immediately return if no sound is enabled */
 	if (nosound)
 		return 0;

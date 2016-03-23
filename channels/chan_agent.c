@@ -243,8 +243,6 @@ static int agent_hangup(struct cw_channel *ast);
 static int agent_answer(struct cw_channel *ast);
 static struct cw_frame *agent_read(struct cw_channel *ast);
 static int agent_write(struct cw_channel *ast, struct cw_frame *f);
-static int agent_sendhtml(struct cw_channel *ast, int subclass, const char *data, int datalen);
-static int agent_sendtext(struct cw_channel *ast, const char *text);
 static int agent_indicate(struct cw_channel *ast, int condition);
 static int agent_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 static struct cw_channel *agent_bridgedchannel(struct cw_channel *chan, struct cw_channel *bridge);
@@ -261,8 +259,6 @@ static const struct cw_channel_tech agent_tech = {
 	.answer = agent_answer,
 	.read = agent_read,
 	.write = agent_write,
-	.send_html = agent_sendhtml,
-	.send_text = agent_sendtext,
 	.exception = agent_read,
 	.indicate = agent_indicate,
 	.fixup = agent_fixup,
@@ -543,28 +539,6 @@ static struct cw_frame *agent_read(struct cw_channel *ast)
 	if (recordagentcalls && f == &answer_frame)
 		agent_start_monitoring(ast,0);
 	return f;
-}
-
-static int agent_sendhtml(struct cw_channel *ast, int subclass, const char *data, int datalen)
-{
-	struct agent_pvt *p = ast->tech_pvt;
-	int res = -1;
-	cw_mutex_lock(&p->lock);
-	if (p->chan) 
-		res = cw_channel_sendhtml(p->chan, subclass, data, datalen);
-	cw_mutex_unlock(&p->lock);
-	return res;
-}
-
-static int agent_sendtext(struct cw_channel *ast, const char *text)
-{
-	struct agent_pvt *p = ast->tech_pvt;
-	int res = -1;
-	cw_mutex_lock(&p->lock);
-	if (p->chan) 
-		res = cw_sendtext(p->chan, text);
-	cw_mutex_unlock(&p->lock);
-	return res;
 }
 
 static int agent_write(struct cw_channel *ast, struct cw_frame *f)

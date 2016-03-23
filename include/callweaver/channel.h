@@ -127,15 +127,6 @@ struct cw_channel_tech {
 	/*! Write a frame, in standard format */
 	int (* const write)(struct cw_channel *chan, struct cw_frame *frame);
 
-	/*! Display or transmit text */
-	int (* const send_text)(struct cw_channel *chan, const char *text);
-
-	/*! Display or send an image */
-	int (* const send_image)(struct cw_channel *chan, struct cw_frame *frame);
-
-	/*! Send HTML data */
-	int (* const send_html)(struct cw_channel *chan, int subclass, const char *data, int len);
-
 	/*! Handle an exception, reading a frame */
 	struct cw_frame * (* const exception)(struct cw_channel *chan);
 
@@ -924,10 +915,6 @@ extern CW_API_PUBLIC int cw_best_codec(int fmts);
  * Works similarly to setoption except only reads the options.
  */
 extern CW_API_PUBLIC struct cw_frame *cw_channel_queryoption(struct cw_channel *channel, int option, void *data, int *datalen, int block);
-
-/*! Checks for HTML support on a channel */
-/*! Returns 0 if channel does not support HTML or non-zero if it does */
-extern CW_API_PUBLIC int cw_channel_supports_html(struct cw_channel *channel);
 
 /*! Sends HTML on given channel */
 /*! Send HTML or URL on link.  Returns 0 on success or -1 on failure */

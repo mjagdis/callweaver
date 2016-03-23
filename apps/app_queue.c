@@ -2622,7 +2622,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
         }
         /* Drop out of the queue at this point, to prepare for next caller */
         leave_queue(qe);
-        if (!cw_strlen_zero(url) && cw_channel_supports_html(peer))
+        if (!cw_strlen_zero(url))
         {
             if (option_debug)
                 cw_log(CW_LOG_DEBUG, "app_queue: sendurl=%s.\n", url);

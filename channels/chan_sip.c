@@ -1174,7 +1174,6 @@ static int callevents = 0;
 
 static struct cw_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
-static int sip_sendtext(struct cw_channel *ast, const char *text);
 static int sip_call(struct cw_channel *ast, const char *dest);
 static int sip_hangup(struct cw_channel *ast);
 static int sip_answer(struct cw_channel *ast);
@@ -1669,14 +1668,12 @@ static const struct cw_channel_tech sip_tech =
     .answer = sip_answer,
     .read = sip_read,
     .write = sip_write,
-    .write_video = sip_write,
     .indicate = sip_indicate,
     .transfer = sip_transfer,
     .fixup = sip_fixup,
     .send_digit = sip_senddigit,
     .bridge = sip_bridge,
 //    .bridge = cw_rtp_bridge,
-    .send_text = sip_sendtext,
 };
 
 
@@ -2351,23 +2348,6 @@ static char *get_in_brackets(char *tmp)
         }
         return tmp;
     }
-}
-
-/*! \brief  sip_sendtext: Send SIP MESSAGE text within a call */
-/*      Called from PBX core text message functions */
-static int sip_sendtext(struct cw_channel *chan, const char *text)
-{
-	struct sip_pvt *p = chan->tech_pvt;
-	int res = -1;
-
-	if (p) {
-		if (sip_debug_test_pvt(p))
-			cw_verbose("%s: sending text: %s\n", chan->name, text);
-
-		res = transmit_message_with_text(p, "text/plain", NULL, text);
-	}
-
-	return res;
 }
 
 /*! \brief  realtime_update_peer: Update peer object in realtime storage */
@@ -3455,6 +3435,10 @@ static int sip_write(struct cw_channel *ast, struct cw_frame *frame)
 		cw_mutex_lock(&p->lock);
 
 		switch (frame->frametype) {
+			case CW_FRAME_TEXT:
+				res = transmit_message_with_text(p, "text/plain", NULL, frame->data);
+				break;
+
 			case CW_FRAME_VOICE:
 				if (p->rtp) {
 					/* If channel is not up, activate early media session */

@@ -162,7 +162,6 @@ static int unicall_write(struct cw_channel *c, struct cw_frame *f);
 static int unicall_indicate(struct cw_channel *c, int condition);
 static int unicall_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
 static int unicall_digit(struct cw_channel *c, char digit);
-static int unicall_send_text(struct cw_channel *c, const char *text);
 static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 struct cw_frame *unicall_exception(struct cw_channel *ast);
 static int unicall_setoption(struct cw_channel *chan, int option, void *data, int datalen);
@@ -180,7 +179,6 @@ static const struct cw_channel_tech unicall_tech = {
     .indicate = unicall_indicate,
     .fixup = unicall_fixup,
     .send_digit = unicall_digit,
-    .send_text = unicall_send_text,
     .bridge = unicall_bridge,
     .exception = unicall_exception,
     .setoption = unicall_setoption,
@@ -2436,6 +2434,18 @@ static int unicall_write(struct cw_channel *cw, struct cw_frame *frame)
         return -1;
     }
     /*endif*/    
+    if (frame->frametype == CW_FRAME_TEXT)
+    {
+        uc_usertouser_t msg;
+
+        msg.len = frame->datalen;
+        msg.message = (unsigned char *) frame.data;
+        if ((ret = uc_call_control(p->uc, UC_OP_USERTOUSER, 0, &msg)) < 0)
+        {
+            cw_log(CW_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
+            return -1;
+        }
+    }
     /* Write a frame of (presumably voice) data */
     if (frame->frametype != CW_FRAME_VOICE)
     {
@@ -4533,34 +4543,6 @@ static int unload_module(void)
     cw_mutex_unlock(&iflock);
     memset(round_robin, 0, sizeof(round_robin));
     return 0;
-}
-
-static int unicall_send_text(struct cw_channel *c, const char *text)
-{
-    unicall_pvt_t *p;
-    int index;
-    int ret;
-    uc_usertouser_t msg;
-
-    p = c->tech_pvt;
-    if ((index = unicall_get_index(c, p, 0)) < 0)
-    {
-        cw_log(CW_LOG_WARNING, "Huh?  I don't exist?\n");
-        return -1;
-    }
-    /*endif*/
-    if (text[0] == '\0')
-        return 0;
-    /*endif*/
-    msg.len = strlen(text);
-    msg.message = (unsigned char *) text;
-    if ((ret = uc_call_control(p->uc, UC_OP_USERTOUSER, 0, &msg)) < 0)
-    {
-        cw_log(CW_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
-        return -1;
-    }
-    /*endif*/
-    return  0;
 }
 
 static int reload_module(void)

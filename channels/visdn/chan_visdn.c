@@ -1681,13 +1681,6 @@ static int visdn_send_digit(struct cw_channel *cw_chan, char digit)
 		return 0;
 }
 
-static int visdn_sendtext(struct cw_channel *ast, const char *text)
-{
-	cw_log(CW_LOG_WARNING, "%s\n", __FUNCTION__);
-
-	return -1;
-}
-
 static void visdn_destroy(struct visdn_chan *visdn_chan)
 {
 	free(visdn_chan);
@@ -2122,7 +2115,6 @@ static const struct cw_channel_tech visdn_tech = {
 	.fixup		= visdn_fixup,
 	.send_digit	= visdn_send_digit,
 	.bridge		= visdn_bridge,
-	.send_text	= visdn_sendtext,
 	.setoption	= visdn_setoption,
 };
 

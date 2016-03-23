@@ -81,7 +81,6 @@ static struct cw_frame *local_read(struct cw_channel *ast);
 static int local_write(struct cw_channel *ast, struct cw_frame *f);
 static int local_indicate(struct cw_channel *ast, int condition);
 static int local_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int local_sendhtml(struct cw_channel *ast, int subclass, const char *data, int datalen);
 
 /* PBX interface structure for channel registration */
 static const struct cw_channel_tech local_tech = {
@@ -98,7 +97,6 @@ static const struct cw_channel_tech local_tech = {
 	.exception = local_read,
 	.indicate = local_indicate,
 	.fixup = local_fixup,
-	.send_html = local_sendhtml,
 };
 
 static struct local_pvt {
@@ -308,23 +306,6 @@ static int local_digit(struct cw_channel *ast, char digit)
 	cw_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
-	res = local_queue_frame(p, isoutbound, &f, ast);
-	cw_mutex_unlock(&p->lock);
-	return res;
-}
-
-static int local_sendhtml(struct cw_channel *ast, int subclass, const char *data, int datalen)
-{
-	struct local_pvt *p = ast->tech_pvt;
-	int res = -1;
-	struct cw_frame f = { CW_FRAME_HTML, };
-	int isoutbound;
-
-	cw_mutex_lock(&p->lock);
-	isoutbound = IS_OUTBOUND(ast, p);
-	f.subclass = subclass;
-	f.data = (char *)data;
-	f.datalen = datalen;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	cw_mutex_unlock(&p->lock);
 	return res;

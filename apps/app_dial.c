@@ -1357,7 +1357,7 @@ static int dial_exec_full(struct cw_channel *chan, int argc, char **argv, struct
 		} else
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
 
- 		if (!cw_strlen_zero(url) && cw_channel_supports_html(peer) ) {
+		if (!cw_strlen_zero(url)) {
  			cw_log(CW_LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			cw_channel_sendurl( peer, url );
  		}

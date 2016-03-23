@@ -681,7 +681,6 @@ static const struct cw_channel_tech dahdi_tech = {
 	.capabilities = CW_FORMAT_SLINEAR,
 	.requester = dahdi_request,
 	.send_digit = dahdi_digit,
-	.send_text = dahdi_sendtext,
 	.call = dahdi_call,
 	.hangup = dahdi_hangup,
 	.answer = dahdi_answer,
@@ -4763,18 +4762,6 @@ static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame)
 	cw_mutex_unlock(&p->lock);
 #endif
 #endif
-	/* Write a frame of (presumably voice) data */
-	if (frame->frametype != CW_FRAME_VOICE) {
-		if (frame->frametype != CW_FRAME_IMAGE)
-			cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
-		return 0;
-	}
-	if ((frame->subclass != CW_FORMAT_SLINEAR) && 
-	    (frame->subclass != CW_FORMAT_ULAW) &&
-	    (frame->subclass != CW_FORMAT_ALAW)) {
-		cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
-		return -1;
-	}
 	if (p->dialing) {
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n",cw->name);
@@ -4789,6 +4776,22 @@ static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame)
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "Dropping frame since I've still got a callerid spill\n");
 		return 0;
+	}
+	if (frame->frametype == CW_FRAME_TEXT) {
+		dahdi_sendtext(cw, frame->data);
+		return 0;
+	}
+	/* Write a frame of (presumably voice) data */
+	if (frame->frametype != CW_FRAME_VOICE) {
+		if (frame->frametype != CW_FRAME_IMAGE)
+			cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
+		return 0;
+	}
+	if ((frame->subclass != CW_FORMAT_SLINEAR) &&
+	    (frame->subclass != CW_FORMAT_ULAW) &&
+	    (frame->subclass != CW_FORMAT_ALAW)) {
+		cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
+		return -1;
 	}
 	/* Return if it's not valid data */
 	if (!frame->data || !frame->datalen)

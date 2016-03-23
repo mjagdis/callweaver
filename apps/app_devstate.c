@@ -112,7 +112,6 @@ static struct cw_channel_tech devstate_tech = {
 	.devicestate = ds_devicestate,
 	.requester = NULL,
 	.send_digit = NULL,
-	.send_text = NULL,
 	.call = NULL,
 	.hangup = NULL,
 	.answer = NULL,

@@ -690,9 +690,6 @@ static int iax2_poke_peer(void *data);
 static struct cw_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static int iax2_devicestate(void *data);
 static int iax2_digit(struct cw_channel *c, char digit);
-static int iax2_sendtext(struct cw_channel *c, const char *text);
-static int iax2_sendimage(struct cw_channel *c, struct cw_frame *img);
-static int iax2_sendhtml(struct cw_channel *c, int subclass, const char *data, int datalen);
 static int iax2_call(struct cw_channel *c, const char *dest);
 static int iax2_hangup(struct cw_channel *c);
 static int iax2_answer(struct cw_channel *c);
@@ -714,15 +711,11 @@ static const struct cw_channel_tech iax2_tech = {
 	.requester = iax2_request,
 	.devicestate = iax2_devicestate,
 	.send_digit = iax2_digit,
-	.send_text = iax2_sendtext,
-	.send_image = iax2_sendimage,
-	.send_html = iax2_sendhtml,
 	.call = iax2_call,
 	.hangup = iax2_hangup,
 	.answer = iax2_answer,
 	.read = iax2_read,
 	.write = iax2_write,
-	.write_video = iax2_write,
 	.indicate = iax2_indicate,
 	.setoption = iax2_setoption,
 	.bridge = iax2_bridge,
@@ -1827,23 +1820,6 @@ static int iax2_transmit(struct iax_frame *fr)
 static int iax2_digit(struct cw_channel *c, char digit)
 {
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), CW_FRAME_DTMF, digit, 0, NULL, 0, -1);
-}
-
-static int iax2_sendtext(struct cw_channel *c, const char *text)
-{
-	
-	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), CW_FRAME_TEXT,
-		0, 0, (unsigned char *)text, strlen(text) + 1, -1);
-}
-
-static int iax2_sendimage(struct cw_channel *c, struct cw_frame *img)
-{
-	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), CW_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
-}
-
-static int iax2_sendhtml(struct cw_channel *c, int subclass, const char *data, int datalen)
-{
-	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), CW_FRAME_HTML, subclass, 0, (unsigned char *)data, datalen, -1);
 }
 
 static int iax2_fixup(struct cw_channel *oldchannel, struct cw_channel *newchan)
@@ -3922,6 +3898,8 @@ static int iax2_write(struct cw_channel *c, struct cw_frame *f)
 				/* Don't waste bandwidth sending null frames */
 			else if (f->frametype == CW_FRAME_NULL)
 				res = 0;
+			else if (f->frametype == CW_FRAME_TEXT || f->frametype == CW_FRAME_HTML || f->frametype == CW_FRAME_IMAGE)
+				res = send_command(iaxs[callno], f->frametype, f->subclass, 0, (unsigned char *)f->data, f->datalen, -1);
 			else if ((f->frametype == CW_FRAME_VOICE) && cw_test_flag(iaxs[callno], IAX_QUELCH))
 				res = 0;
 			else if (!(iaxs[callno]->state & IAX_STATE_STARTED))

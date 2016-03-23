@@ -280,32 +280,38 @@ static struct cw_frame * sccp_pbx_read(struct cw_channel *ast) {
 
 static int sccp_pbx_write(struct cw_channel *ast, struct cw_frame *frame) {
 	sccp_channel_t * c = CS_CW_CHANNEL_PVT(ast);
-
-	if (!c)
-		return 0;
-
 	int res = 0;
-	if (frame->frametype != CW_FRAME_VOICE) {
-		if (frame->frametype == CW_FRAME_IMAGE)
-			return 0;
-		else {
-			cw_log(CW_LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", DEV_ID_LOG(c->device), frame->frametype, (c) ? c->callid : 0);
-			return 0;
-		}
-	} else {
-		if (!(frame->subclass & ast->nativeformats)) {
-			cw_log(CW_LOG_WARNING, "%s: Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-			DEV_ID_LOG(c->device), frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
-			return -1;
-		}
-	}
+
 	if (c) {
-		cw_mutex_lock(&c->lock);
-		if (c->rtp) {
-			res =  cw_rtp_write(c->rtp, frame);
+		switch (frame->frametype) {
+			case CW_FRAME_IMAGE:
+				break;
+
+			case CW_FRAME_TEXT:
+				sccp_log(1)(VERBOSE_PREFIX_3 "%s: Sending text %s on %s\n", DEV_ID_LOG(c->device), (char *)f->data, ast->name);
+				sccp_dev_displayprompt(c->device, c->line->instance, c->callid, (char *)f->data, 10);
+				break;
+
+			case CW_FRAME_VOICE:
+				if ((frame->subclass & ast->nativeformats)) {
+					cw_mutex_lock(&c->lock);
+					if (c->rtp)
+						res =  cw_rtp_write(c->rtp, frame);
+					cw_mutex_unlock(&c->lock);
+					break;
+				}
+
+				cw_log(CW_LOG_WARNING, "%s: Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+				DEV_ID_LOG(c->device), frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+				res = -1;
+				break;
+
+			default:
+				cw_log(CW_LOG_WARNING, "%s: Can't send %d type frames with SCCP write on channel %d\n", DEV_ID_LOG(c->device), frame->frametype, (c) ? c->callid : 0);
+				break;
 		}
-		cw_mutex_unlock(&c->lock);
 	}
+
 	return res;
 }
 
@@ -463,22 +469,6 @@ static int sccp_pbx_recvdigit(struct cw_channel *ast, char digit) {
 	return 0;
 }
 
-static int sccp_pbx_sendtext(struct cw_channel *ast, const char *text) {
-	sccp_channel_t * c = CS_CW_CHANNEL_PVT(ast);
-	sccp_device_t * d;
-
-	if (!c || !c->device)
-		return -1;
-
-	d = c->device;
-	if (!text || cw_strlen_zero(text))
-		return 0;
-
-	sccp_log(1)(VERBOSE_PREFIX_3 "%s: Sending text %s on %s\n", d->id, text, ast->name);
-	sccp_dev_displayprompt(d, c->line->instance, c->callid, (char *)text, 10);
-	return 0;
-}
-
 const struct cw_channel_tech sccp_tech = {
 	.type = "SCCP",
 	.description = "Skinny Client Control Protocol (SCCP)",
@@ -493,7 +483,6 @@ const struct cw_channel_tech sccp_tech = {
 	.indicate = sccp_pbx_indicate,
 	.fixup = sccp_pbx_fixup,
 	.send_digit = sccp_pbx_recvdigit,
-	.send_text = sccp_pbx_sendtext,
 /*	.bridge = cw_rtp_bridge */
 };
 
