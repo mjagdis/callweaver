@@ -206,9 +206,6 @@ struct cw_channel {
 	/*! The generator thread feeding data to the channel */
 	struct cw_generator_instance generator;
 
-	/*! Comfort noise level to generate in dBov's */
-	int comfortnoiselevel;
-
 	/*! Who are we bridged to, if we're bridged. Who is proxying for us,
 	  if we are proxied (i.e. chan_agent).
 	  Do not access directly, use cw_bridged_channel(chan) */
@@ -228,8 +225,6 @@ struct cw_channel {
 	pthread_t blocker;			
 	/*! Lock, can be used to lock a channel for some operations */
 	cw_mutex_t lock;
-	/*! Procedure causing blocking */
-	const char *blockproc;			
 
 	/*! Current application */
 	const char *appl;
@@ -1088,15 +1083,15 @@ static inline int cw_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, 
 #endif
 
 
-#define CHECK_BLOCKING(c) { 	 \
-							if (cw_test_flag(c, CW_FLAG_BLOCKING)) {\
-								cw_log(CW_LOG_WARNING, "Thread %lu Blocking '%s', already blocked by thread %lu in procedure %s\n", (unsigned long) pthread_self(), (c)->name, (unsigned long) (c)->blocker, (c)->blockproc); \
-								CRASH; \
-							} else { \
-								(c)->blocker = pthread_self(); \
-								(c)->blockproc = __PRETTY_FUNCTION__; \
-									cw_set_flag(c, CW_FLAG_BLOCKING); \
-									} }
+#define CHECK_BLOCKING(c) { \
+	if (cw_test_flag(c, CW_FLAG_BLOCKING)) {\
+		cw_log(CW_LOG_WARNING, "Thread %lu Blocking '%s', already blocked by thread %lu\n", (unsigned long) pthread_self(), (c)->name, (unsigned long) (c)->blocker); \
+		CRASH; \
+	} else { \
+		(c)->blocker = pthread_self(); \
+		cw_set_flag(c, CW_FLAG_BLOCKING); \
+	} \
+}
 
 extern CW_API_PUBLIC cw_group_t cw_get_group(char *s);
 /* print call- and pickup groups into buffer */

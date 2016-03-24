@@ -72,7 +72,7 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		sec = elapsed_seconds % 60;
 	}
 
-	cw_dynstr_tprintf(ds_p, 23,
+	cw_dynstr_tprintf(ds_p, 22,
 		cw_fmtval("Name=               %s\n",        c->name),
 		cw_fmtval("Type=               %s\n",        c->type),
 		cw_fmtval("UniqueID=           %s\n",        c->uniqueid),
@@ -94,8 +94,7 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		cw_fmtval("Priority=           %d\n",        c->priority),
 		cw_fmtval("CallGroup=          %s\n",        cw_print_group(cgrp, sizeof(cgrp), c->callgroup)),
 		cw_fmtval("PickupGroup=        %s\n",        cw_print_group(pgrp, sizeof(pgrp), c->pickupgroup)),
-		cw_fmtval("Application=        %s\n",        (c->appl ? c->appl : "(N/A)")),
-		cw_fmtval("Blocking_in=        %s\n",        (cw_test_flag(c, CW_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"))
+		cw_fmtval("Application=        %s\n",        (c->appl ? c->appl : "(N/A)"))
 	);
 
 	return;

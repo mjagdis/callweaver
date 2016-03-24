@@ -1403,8 +1403,8 @@ int cw_hangup(struct cw_channel *chan)
 	if (cw_test_flag(chan, CW_FLAG_BLOCKING))
 	{
 		cw_log(CW_LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
-					"is blocked by thread %ld in procedure %s!  Expect a failure\n",
-					(long)pthread_self(), chan->name, (long)chan->blocker, chan->blockproc);
+					"is blocked by thread %ld!  Expect a failure\n",
+					(long)pthread_self(), chan->name, (long)chan->blocker);
 		CRASH;
 	}
 	if (!cw_test_flag(chan, CW_FLAG_ZOMBIE))
@@ -2949,7 +2949,7 @@ int cw_do_masquerade(struct cw_channel *original)
 
 	/* Bridge remains the same */
 	/* CDR fields remain the same */
-	/* XXX What about blocking, softhangup, blocker, and lock and blockproc? XXX */
+	/* XXX What about blocking, softhangup, blocker, and lock? XXX */
 	/* Application and data remain the same */
 
 	/* oldchan exception  becomes real one, as with fdno */

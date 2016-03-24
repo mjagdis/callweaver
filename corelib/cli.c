@@ -568,7 +568,7 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 
     bchan = cw_bridged_channel(chan);
 
-    cw_dynstr_tprintf(ds_p, 35,
+    cw_dynstr_tprintf(ds_p, 34,
         cw_fmtval(" -- General --\n"),
         cw_fmtval("           Name: %s\n",           chan->name),
         cw_fmtval("           Type: %s\n",           chan->type),
@@ -602,7 +602,6 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
         cw_fmtval("     Call Group: %d\n",           (int)chan->callgroup),
         cw_fmtval("   Pickup Group: %d\n",           (int)chan->pickupgroup),
         cw_fmtval("    Application: %s\n",           (chan->appl ? chan->appl : "(N/A)")),
-        cw_fmtval("    Blocking in: %s\n",           (cw_test_flag(chan, CW_FLAG_BLOCKING) ? chan->blockproc : "(Not Blocking)")),
         cw_fmtval("    T38 mode on: %d\n",           chan->t38_status)
     );
 
