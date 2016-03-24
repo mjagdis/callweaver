@@ -72,7 +72,7 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		sec = elapsed_seconds % 60;
 	}
 
-	cw_dynstr_tprintf(ds_p, 21,
+	cw_dynstr_tprintf(ds_p, 19,
 		cw_fmtval("Name=               %s\n",        c->name),
 		cw_fmtval("Type=               %s\n",        c->type),
 		cw_fmtval("UniqueID=           %s\n",        c->uniqueid),
@@ -84,8 +84,6 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		cw_fmtval("WriteFormat=        %d\n",        c->writeformat),
 		cw_fmtval("ReadFormat=         %d\n",        c->readformat),
 		cw_fmtval("1stFileDescriptor=  %d\n",        c->fds[0]),
-		cw_fmtval("Framesin=           %u %s\n",     c->fin, (cw_test_flag(c, CW_FLAG_DEBUG_IN) ? " (DEBUGGED)" : "")),
-		cw_fmtval("Framesout=          %u %s\n",     c->fout, (cw_test_flag(c, CW_FLAG_DEBUG_OUT) ? " (DEBUGGED)" : "")),
 		cw_fmtval("TimetoHangup=       %ld\n",       (long)c->whentohangup),
 		cw_fmtval("ElapsedTime=        %dh%dm%ds\n", hour, min, sec),
 		cw_fmtval("Context=            %s\n",        c->context),

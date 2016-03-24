@@ -1939,8 +1939,6 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 	if (cw_test_flag(chan, CW_FLAG_DEBUG_IN))
 		cw_frame_dump(chan->name, f, "<<");
 
-	chan->fin++;
-		
 	cw_channel_unlock(chan);
 
 	if (f == NULL)
@@ -2268,8 +2266,6 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
 		chan->_softhangup |= CW_SOFTHANGUP_DEV;
-	else
-		chan->fout++;
 
 	cw_channel_unlock(chan);
 	return res;

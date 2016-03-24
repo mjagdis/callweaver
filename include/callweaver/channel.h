@@ -288,10 +288,6 @@ struct cw_channel {
 	unsigned long insmpl;
 	unsigned long outsmpl;
 
-	/* Frames in/out counters */
-	unsigned int fin;
-	unsigned int fout;
-
 	/* Unique Channel Identifier */
 	char uniqueid[32];
 

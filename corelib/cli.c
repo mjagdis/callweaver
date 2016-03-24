@@ -568,7 +568,7 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 
     bchan = cw_bridged_channel(chan);
 
-    cw_dynstr_tprintf(ds_p, 33,
+    cw_dynstr_tprintf(ds_p, 31,
         cw_fmtval(" -- General --\n"),
         cw_fmtval("           Name: %s\n",           chan->name),
         cw_fmtval("           Type: %s\n",           chan->type),
@@ -581,8 +581,6 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
         cw_fmtval("    WriteFormat: %d\n",           chan->writeformat),
         cw_fmtval("     ReadFormat: %d\n",           chan->readformat),
         cw_fmtval("1st File Descriptor: %d\n",       chan->fds[0]),
-        cw_fmtval("      Frames in: %d%s\n",         chan->fin, (cw_test_flag(chan, CW_FLAG_DEBUG_IN) ? " (DEBUGGED)" : "")),
-        cw_fmtval("     Frames out: %d%s\n",         chan->fout, (cw_test_flag(chan, CW_FLAG_DEBUG_OUT) ? " (DEBUGGED)" : "")),
         cw_fmtval(" Time to Hangup: %ld\n",          (long)chan->whentohangup),
         cw_fmtval("   Elapsed Time: %ldh%ldm%lds\n", secs / 3600, (secs % 3600) / 60, secs % 60),
         cw_fmtval("  Direct Bridge: %s\n",           (chan->_bridge ? chan->_bridge->name : "<none>")),
