@@ -238,8 +238,6 @@ struct cw_channel {
 	
 	/*! State of line -- Don't write directly, use cw_setstate */
 	int _state;				
-	/*! Number of rings so far */
-	int rings;				
 
 	/*! Kinds of data this channel can natively handle */
 	int nativeformats;			

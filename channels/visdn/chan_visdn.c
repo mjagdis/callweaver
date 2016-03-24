@@ -2028,9 +2028,6 @@ static struct cw_channel *visdn_new(
 		goto err_open_timer;
 	}
 
-	if (state == CW_STATE_RING)
-		cw_chan->rings = 1;
-
 	visdn_chan->cw_chan = cw_chan;
 
 	visdn_chan->dsp = cw_dsp_new();

@@ -230,7 +230,7 @@ CwChanEntry ::= SEQUENCE {
 	cwChanPickupGroup	Unsigned32,
 	cwChanState		INTEGER,
 	cwChanMuted		TruthValue,
-	cwChanRings		Integer32,
+--	cwChanRings		Integer32,
 	cwChanCidDNID		DisplayString,
 	cwChanCidNum		DisplayString,
 	cwChanCidName		DisplayString,
@@ -456,13 +456,13 @@ cwChanMuted OBJECT-TYPE
 		"Transmission of voice data has been muted."
 	::= { cwChanEntry 24 }
 
-cwChanRings OBJECT-TYPE
-	SYNTAX		Integer32
-	MAX-ACCESS	read-only
-	STATUS		current
-	DESCRIPTION
-		"Number of rings so far."
-	::= { cwChanEntry 25 }
+-- cwChanRings OBJECT-TYPE
+-- 	SYNTAX		Integer32
+-- 	MAX-ACCESS	read-only
+-- 	STATUS		current
+-- 	DESCRIPTION
+-- 		"Number of rings so far."
+-- 	::= { cwChanEntry 25 }
 
 cwChanCidDNID OBJECT-TYPE
 	SYNTAX		DisplayString

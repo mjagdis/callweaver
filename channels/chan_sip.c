@@ -3777,8 +3777,6 @@ static struct cw_channel *sip_new(struct sip_pvt *i, int state, char *title)
         tmp->fds[2] = cw_rtp_fd(i->vrtp);
         tmp->fds[3] = cw_rtcp_fd(i->vrtp);
     }
-    if (state == CW_STATE_RING)
-        tmp->rings = 1;
     tmp->adsicpe = CW_ADSI_UNAVAILABLE;
     tmp->writeformat = fmt;
     tmp->rawwriteformat = fmt;

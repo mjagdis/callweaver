@@ -3052,12 +3052,6 @@ static struct cw_channel *misdn_new(struct chan_list *chlist, int state,  char *
 		}
 		
 		cw_setstate(tmp, state);
-		if (state == CW_STATE_RING)
-			tmp->rings = 1;
-		else
-			tmp->rings = 0;
-		
-		
 	} else {
 		chan_misdn_log(-1,0,"Unable to allocate channel structure\n");
 	}
@@ -3837,7 +3831,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		
 		export_ch(chan, bc, ch);
 
-		ch->cw->rings=1;
 		cw_setstate(ch->cw, CW_STATE_RINGING);
 
 		int pres,screen;

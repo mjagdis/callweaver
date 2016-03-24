@@ -1410,8 +1410,6 @@ static struct cw_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 			i->dsp = NULL;
 		}
 		cw_setstate(tmp, state);
-		if (state == CW_STATE_RING)
-			tmp->rings = 1;
 		tmp->writeformat = fmt;
 		tmp->rawwriteformat = fmt;
 		tmp->readformat = fmt;
@@ -2817,7 +2815,6 @@ static void *mgcp_ss(void *data)
 			start_rtp(p);
 		}
 		cw_setstate(chan, CW_STATE_RING);
-		chan->rings = 1;
 		if (cw_pbx_run(chan)) {
 			cw_log(CW_LOG_WARNING, "Unable to launch PBX on %s\n", chan->name);
 		} else

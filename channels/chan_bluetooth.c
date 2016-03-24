@@ -682,8 +682,6 @@ ring_hs(blt_dev_t * dev)
 
   send_atcmd(dev, "RING");
 
-  dev->owner->rings++;
-
   // FIXME '"' needs to be escaped in ELIP.
 
   if (dev->clip && dev->owner->cid.cid_num)

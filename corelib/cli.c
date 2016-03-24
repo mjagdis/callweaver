@@ -568,7 +568,7 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
 
     bchan = cw_bridged_channel(chan);
 
-    cw_dynstr_tprintf(ds_p, 34,
+    cw_dynstr_tprintf(ds_p, 33,
         cw_fmtval(" -- General --\n"),
         cw_fmtval("           Name: %s\n",           chan->name),
         cw_fmtval("           Type: %s\n",           chan->type),
@@ -577,7 +577,6 @@ static int handle_showchan(struct cw_dynstr *ds_p, int argc, char *argv[])
         cw_fmtval(" Caller ID Name: %s\n",           (chan->cid.cid_name ? chan->cid.cid_name : "(N/A)")),
         cw_fmtval("    DNID Digits: %s\n",           (chan->cid.cid_dnid ? chan->cid.cid_dnid : "(N/A)" )),
         cw_fmtval("          State: %s (%d)\n",      cw_state2str(chan->_state), chan->_state),
-        cw_fmtval("          Rings: %d\n",           chan->rings),
         cw_fmtval("   NativeFormat: %d\n",           chan->nativeformats),
         cw_fmtval("    WriteFormat: %d\n",           chan->writeformat),
         cw_fmtval("     ReadFormat: %d\n",           chan->readformat),

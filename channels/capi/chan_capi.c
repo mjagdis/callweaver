@@ -3996,9 +3996,6 @@ static void capidev_handle_msg(_cmsg *CMSG)
 		if ((wInfo & 0xff00) == 0) {
 			if (i->state != CAPI_STATE_DISCONNECTING) {
 				i->state = CAPI_STATE_ALERTING;
-				if (i->owner->_state == CW_STATE_RING) {
-					i->owner->rings = 1;
-				}
 			}
 		}
 		break;	    

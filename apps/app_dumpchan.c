@@ -72,7 +72,7 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		sec = elapsed_seconds % 60;
 	}
 
-	cw_dynstr_tprintf(ds_p, 22,
+	cw_dynstr_tprintf(ds_p, 21,
 		cw_fmtval("Name=               %s\n",        c->name),
 		cw_fmtval("Type=               %s\n",        c->type),
 		cw_fmtval("UniqueID=           %s\n",        c->uniqueid),
@@ -80,7 +80,6 @@ static void cw_serialize_showchan(struct cw_channel *c, struct cw_dynstr *ds_p)
 		cw_fmtval("CallerIDName=       %s\n",        (c->cid.cid_name ? c->cid.cid_name : "(N/A)")),
 		cw_fmtval("DNIDDigits=         %s\n",        (c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" )),
 		cw_fmtval("State=              %s (%d)\n",   cw_state2str(c->_state), c->_state),
-		cw_fmtval("Rings=              %d\n",        c->rings),
 		cw_fmtval("NativeFormat=       %d\n",        c->nativeformats),
 		cw_fmtval("WriteFormat=        %d\n",        c->writeformat),
 		cw_fmtval("ReadFormat=         %d\n",        c->readformat),

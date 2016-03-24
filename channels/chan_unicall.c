@@ -2625,9 +2625,6 @@ static struct cw_channel *unicall_new(unicall_pvt_t *i, int state, int startpbx,
     }
     /*endif*/
 
-    if (state == CW_STATE_RING)
-        tmp->rings = 1;
-    /*endif*/
     tmp->tech_pvt = i;
     if (strlen(i->language))
         strncpy(tmp->language, i->language, sizeof(tmp->language) - 1);

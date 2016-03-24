@@ -508,6 +508,7 @@ static struct dahdi_pvt {
 #endif
 	unsigned int polarity_events:1;
 
+	int rings;
 	struct dahdi_distRings drings;
 
 	char context[CW_MAX_CONTEXT];
@@ -3862,7 +3863,7 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 					return &p->subs[curindex].f;
 				case CW_STATE_DOWN:
 					cw_setstate(cw, CW_STATE_RING);
-					cw->rings = 1;
+					p->rings = 1;
 					p->subs[curindex].f.frametype = CW_FRAME_CONTROL;
 					p->subs[curindex].f.subclass = CW_CONTROL_OFFHOOK;
 					cw_log(CW_LOG_DEBUG, "channel %d picked up\n", p->channel);
@@ -3954,14 +3955,14 @@ static struct cw_frame *dahdi_handle_event(struct cw_channel *cw)
 		case DAHDI_EVENT_RINGEROFF:
 			if (p->inalarm) break;
 			if (p->radio) break;
-			cw->rings++;
-			if (p->cidspill && cw->rings == p->cidrings)
+			p->rings++;
+			if (p->cidspill && p->rings == p->cidrings)
 				cw_log(CW_LOG_DEBUG, "%s: Send post-ring caller ID\n", cw->name);
 			p->subs[curindex].f.frametype = CW_FRAME_CONTROL;
 			p->subs[curindex].f.subclass = CW_CONTROL_RINGING;
 			break;
 		case DAHDI_EVENT_RINGERON:
-			if (p->cidspill && cw->rings > p->cidrings) {
+			if (p->cidspill && p->rings > p->cidrings) {
 				cw_log(CW_LOG_WARNING, "%s: Didn't finish sending caller ID before start of ring!\n", cw->name);
 				free(p->cidspill);
 				p->cidspill = NULL;
@@ -4588,12 +4589,12 @@ struct cw_frame  *dahdi_read(struct cw_channel *cw)
 	}
 
 	/* Handle CallerID Transmission */
-	if (p->owner == cw && p->cidspill && (cw->_state == CW_STATE_UP || p->cid_send_on != CID_START_RING || cw->rings == p->cidrings)) {
+	if (p->owner == cw && p->cidspill && (cw->_state == CW_STATE_UP || p->cid_send_on != CID_START_RING || p->rings == p->cidrings)) {
 		if (send_callerid(p)) {
 			/* Once we're done sending caller ID we need to start ringing the line
 			 * if it isn't up and we were sending caller ID before the first ring.
 			 */
-			if (cw->_state != CW_STATE_UP && p->cid_send_on != CID_START_RING && !cw->rings) {
+			if (cw->_state != CW_STATE_UP && p->cid_send_on != CID_START_RING && !p->rings) {
 				ioctl(p->subs[SUB_REAL].dfd, DAHDI_SYNC, &res);
 				res = POLARITY_IDLE;
 				ioctl(p->subs[SUB_REAL].dfd, DAHDI_SETPOLARITY, &res);
@@ -5107,9 +5108,10 @@ static struct cw_channel *dahdi_new(struct dahdi_pvt *i, int state, int startpbx
 			}
 		}
 		
-		if (state == CW_STATE_RING)
-			tmp->rings = 1;
 		tmp->tech_pvt = i;
+
+		if (state == CW_STATE_RING)
+			i->rings = 1;
 		if ((i->sig == SIG_FXOKS) || (i->sig == SIG_FXOGS) || (i->sig == SIG_FXOLS)) {
 			/* Only FXO signalled stuff can be picked up */
 			tmp->callgroup = i->callgroup;
@@ -5890,9 +5892,9 @@ static void *ss_thread(void *data)
 		p->ringt = p->ringt_base;
 		receivedRingT = !p->usedistinctiveringdetection;
 		samples = 0;
-		chan->rings = chan->_state == CW_STATE_PRERING ? -1 : 0;
+		p->rings = chan->_state == CW_STATE_PRERING ? -1 : 0;
 		while (p->ringt > 0
-		&& (!receivedRingT || (p->adsi_rx1 && chan->rings < (int)arraysize(curRingData)-1))) {
+		&& (!receivedRingT || (p->adsi_rx1 && p->rings < (int)arraysize(curRingData)-1))) {
 			struct pollfd pfd;
 			pfd.fd = p->subs[curindex].dfd;
 			pfd.events = POLLIN;
@@ -5928,9 +5930,9 @@ static void *ss_thread(void *data)
 						/* Fall through */
 					case DAHDI_EVENT_RINGBEGIN:
 						p->ringt = p->ringt_base;
-						if (chan->rings >= 0 && !receivedRingT) {
+						if (p->rings >= 0 && !receivedRingT) {
 							int offset;
-							curRingData[chan->rings] = SAMPLES_TO_MS(samples);
+							curRingData[p->rings] = SAMPLES_TO_MS(samples);
 							if (option_debug)
 								cw_log(CW_LOG_DEBUG, "%s: cadence=%d,%d,%d,%d,%d\n", chan->name, curRingData[0], curRingData[1], curRingData[2], curRingData[3], curRingData[4]);
 							len = 0;
@@ -5939,20 +5941,20 @@ static void *ss_thread(void *data)
 							 * (as for some UK cable co's that use US style CID with
 							 * UK cadence)
 							 */
-							for (offset = 0; offset <= chan->rings && !counter && offset <= 2; offset += 2) {
+							for (offset = 0; offset <= p->rings && !counter && offset <= 2; offset += 2) {
 								for (i = 0; i < arraysize(p->drings.ringnum); i++) {
 									int j;
 									if (!p->drings.ringnum[i].ring[0])
 										continue;
 									samples = 0;
-									for (j = 0; j <= chan->rings - offset && j < arraysize(p->drings.ringnum[0].ring); j++) {
+									for (j = 0; j <= p->rings - offset && j < arraysize(p->drings.ringnum[0].ring); j++) {
 										samples += curRingData[offset + j] - p->drings.ringnum[i].ring[j];
 										if (abs(samples) > 180)
 											break;
 									}
 									if (option_debug)
 										cw_log(CW_LOG_DEBUG, "dring%d cmp (offset=%d, j=%d, samples=%d, dring=%d,%d,%d)\n", i+1, offset, j, samples, p->drings.ringnum[i].ring[0], p->drings.ringnum[i].ring[1], p->drings.ringnum[i].ring[2]);
-									if (offset + j > chan->rings && j >= len) {
+									if (offset + j > p->rings && j >= len) {
 									if (option_debug)
 										cw_log(CW_LOG_DEBUG, "dring%d match (j=%d, samples=%d, dring=%d,%d,%d)\n", i+1, j, samples, p->drings.ringnum[i].ring[0], p->drings.ringnum[i].ring[1], p->drings.ringnum[i].ring[2]);
 										if (j == len) {
@@ -5977,16 +5979,16 @@ static void *ss_thread(void *data)
 								if (option_verbose > 2)
 									cw_verbose(VERBOSE_PREFIX_3 "%s: Matched Distinctive Ring %d context %s exten %s\n", chan->name, res + 1, chan->context, chan->exten);
 								receivedRingT = 1;
-							} else if (counter == 0 && chan->rings >= 2) {
+							} else if (counter == 0 && p->rings >= 2) {
 								/* No matches and we're beyond any initial chirp/CID. Give in */
 								receivedRingT = 1;
-							} else if (chan->rings == (int)arraysize(curRingData)-1) {
+							} else if (p->rings == (int)arraysize(curRingData)-1) {
 								/* More than one match but we've reached the max steps */
 								cw_log(CW_LOG_WARNING, "%d matches for received ring cadence", counter);
 								receivedRingT = 1;
 							}
 						}
-						chan->rings++;
+						p->rings++;
 						samples = 0;
 						break;
 					}
@@ -6026,7 +6028,7 @@ static void *ss_thread(void *data)
 		}
 
 		cw_setstate(chan, CW_STATE_RING);
-		chan->rings = 1;
+		p->rings = 1;
 		p->ringt = p->ringt_base;
 		res = cw_pbx_run(chan);
 		if (res) {

@@ -105,7 +105,7 @@ static oid callweaver_oid[] = { 1, 3, 6, 1, 4, 1, 22736, 1 };
 #define CWCHANPICKUPGROUP 22
 #define CWCHANSTATE 23
 #define CWCHANMUTED 24
-#define CWCHANRINGS 25
+//#define CWCHANRINGS 25
 #define CWCHANCIDDNID 26
 #define CWCHANCIDNUM 27
 #define CWCHANCIDNAME 28
@@ -380,10 +380,6 @@ static int channels_table_one(struct cw_object *obj, void *data)
         break;
     case CWCHANMUTED:
         long_ret = chan->_state & CW_STATE_MUTE  ?  1  :  2;
-        args->ret = (u_char *) &long_ret;
-        break;
-    case CWCHANRINGS:
-        long_ret = chan->rings;
         args->ret = (u_char *) &long_ret;
         break;
     case CWCHANCIDDNID:
@@ -831,7 +827,6 @@ static void init_callweaver_mib(void)
         {CWCHANPICKUPGROUP,    ASN_UNSIGNED,  RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANPICKUPGROUP}},
         {CWCHANSTATE,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANSTATE}},
         {CWCHANMUTED,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANMUTED}},
-        {CWCHANRINGS,          ASN_INTEGER,   RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANRINGS}},
         {CWCHANCIDDNID,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDDNID}},
         {CWCHANCIDNUM,         ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDNUM}},
         {CWCHANCIDNAME,        ASN_OCTET_STR, RONLY, cw_var_channels_table,      4, {CWCHANNELS, CWCHANTABLE, 1, CWCHANCIDNAME}},
