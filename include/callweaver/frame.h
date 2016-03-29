@@ -128,22 +128,6 @@ struct cw_frame
 /* HTML subclasses */
 /*! Sending a URL */
 #define CW_HTML_URL           1
-/*! Data frame */
-#define CW_HTML_DATA          2
-/*! Beginning frame */
-#define CW_HTML_BEGIN         4
-/*! End frame */
-#define CW_HTML_END           8
-/*! Load is complete */
-#define CW_HTML_LDCOMPLETE    16
-/*! Peer is unable to support HTML */
-#define CW_HTML_NOSUPPORT     17
-/*! Send URL, and track */
-#define CW_HTML_LINKURL       18
-/*! No more HTML linkage */
-#define CW_HTML_UNLINK        19
-/*! Reject link request */
-#define CW_HTML_LINKREJECT    20
 
 /* Data formats for capabilities and frames alike */
 #define CW_AUDIO_CODEC_MASK   0xFFFF

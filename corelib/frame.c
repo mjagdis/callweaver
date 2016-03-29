@@ -669,31 +669,6 @@ void cw_frame_dump(const char *name, const struct cw_frame *f, const char *prefi
             subclass = "URL";
             moreinfo = 1;
             break;
-        case CW_HTML_DATA:
-            subclass = "Data";
-            break;
-        case CW_HTML_BEGIN:
-            subclass = "Begin";
-            break;
-        case CW_HTML_END:
-            subclass = "End";
-            break;
-        case CW_HTML_LDCOMPLETE:
-            subclass = "Load Complete";
-            break;
-        case CW_HTML_NOSUPPORT:
-            subclass = "No Support";
-            break;
-        case CW_HTML_LINKURL:
-            subclass = "Link URL";
-            moreinfo = 1;
-            break;
-        case CW_HTML_UNLINK:
-            subclass = "Unlink";
-            break;
-        case CW_HTML_LINKREJECT:
-            subclass = "Link Reject";
-            break;
         }
         break;
 
