@@ -234,9 +234,6 @@ struct cw_frame
 /* Relax the parameters for DTMF reception (mainly for radio use) */
 #define    CW_OPTION_RELAXDTMF    3
 
-/* Set (or clear) Audio (Not-Clear) Mode */
-#define    CW_OPTION_AUDIO_MODE   4
-
 /* Set channel transmit gain */
 /* Option data is a single signed char
    representing number of decibels (dB)

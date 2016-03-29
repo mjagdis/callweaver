@@ -2428,7 +2428,8 @@ static int dahdi_hangup(struct cw_channel *cw)
 
 	if (p->sig == SIG_PRI) {
 		x = 1;
-		cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char));
+		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x) == -1)
+			cw_log(CW_LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 	}
 
 	x = 0;
@@ -2681,7 +2682,9 @@ static int dahdi_hangup(struct cw_channel *cw)
 		/* Restore data mode */
 		if (p->sig == SIG_PRI) {
 			x = 0;
-			cw_channel_setoption(cw, CW_OPTION_AUDIO_MODE, &x, sizeof(char));
+			dahdi_disable_ec(p);
+			if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x) == -1)
+				cw_log(CW_LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 		}
 #ifdef ZAPATA_PRI
 		if (p->bearer) {
@@ -2812,7 +2815,6 @@ static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int 
 {
 	char *cp;
 	signed char *scp;
-	int x;
 	int curindex;
 	struct dahdi_pvt *p = chan->tech_pvt;
 
@@ -2950,19 +2952,6 @@ static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int 
 		cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: %s(%d) on %s\n",
 			*cp ? "ON" : "OFF", (int) *cp, chan->name);
 		cw_dsp_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
-		break;
-	case CW_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
-		cp = (char *) data;
-		if (!*cp) {		
-			cw_log(CW_LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n", chan->name);
-			x = 0;
-			dahdi_disable_ec(p);
-		} else {		
-			cw_log(CW_LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n", chan->name);
-			x = 1;
-		}
-		if (ioctl(p->subs[SUB_REAL].dfd, DAHDI_AUDIOMODE, &x) == -1)
-			cw_log(CW_LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 		break;
 	}
 	errno = 0;
