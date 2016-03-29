@@ -176,8 +176,6 @@ struct cw_frame
 #define CW_FORMAT_MAX_VIDEO   (1 << 24)
 
 /* Control frame types */
-/*! Stop playing indications */
-#define CW_STATE_STOP_INDICATING  -1      
 /*! Other end has hungup */
 #define CW_CONTROL_HANGUP         1
 /*! Local ring */
