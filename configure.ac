@@ -1974,13 +1974,6 @@ AM_CONDITIONAL([WANT_CHAN_FAX],
 
 dnl ###########################################################################
 
-AC_ARG_WITH([chan_iax2],
-	[AC_HELP_STRING([--with-chan_iax2],[Build and install chan_iax2 (default=no)])],,[with_chan_iax2="no"])
-
-AM_CONDITIONAL([WANT_CHAN_IAX2],[test "${with_chan_iax2}" = "yes"])
-
-dnl ###########################################################################
-
 AC_ARG_ENABLE([iax-trunking],
         [AC_HELP_STRING([--enable-iax-trunking],[Enables the IAX trunking feature (default=no)])],,[enable_iax_trunking="no"])
 
@@ -2618,7 +2611,6 @@ AC_OUTPUT([Makefile
 		 apps/nconference/Makefile
                  cdr/Makefile
                  channels/Makefile
-                 channels/iax2/Makefile
                  channels/sccp/Makefile
                  channels/fax/Makefile
                  channels/misdn/Makefile

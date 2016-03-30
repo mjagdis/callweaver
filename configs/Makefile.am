@@ -72,10 +72,6 @@ if WANT_CHAN_FAX
 SAMPLES += chan_fax.conf.sample
 endif WANT_CHAN_FAX
 
-if WANT_CHAN_IAX2
-SAMPLES += iax.conf.sample
-endif WANT_CHAN_IAX2
-
 if WANT_CHAN_MGCP
 SAMPLES += mgcp.conf.sample
 endif WANT_CHAN_MGCP

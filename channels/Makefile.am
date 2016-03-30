@@ -12,7 +12,7 @@ AM_CFLAGS			= @CW_CFLAGS@
 noinst_LTLIBRARIES 		=
 cwmod_LTLIBRARIES 		=
 
-SUBDIRS				= iax2 sccp fax misdn visdn capi
+SUBDIRS				= sccp fax misdn visdn capi
 
 noinst_LTLIBRARIES		+= chan_skel.la
 chan_skel_la_SOURCES		= chan_skel.c
