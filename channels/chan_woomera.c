@@ -225,7 +225,6 @@ static struct cw_frame *tech_exception(struct cw_channel *self);
 static int tech_write(struct cw_channel *self, struct cw_frame *frame);
 static int tech_indicate(struct cw_channel *self, int condition);
 static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen);
 static int tech_queryoption(struct cw_channel *self, int option, void *data, int *datalen);
 static struct cw_channel *tech_bridged_channel(struct cw_channel *self, struct cw_channel *bridge);
 static int tech_transfer(struct cw_channel *self, const char *newdest);
@@ -259,7 +258,6 @@ static const struct cw_channel_tech technology = {
 	.exception = tech_exception,
 	.indicate = tech_indicate,
 	.fixup = tech_fixup,
-	.setoption = tech_setoption,
 	.queryoption = tech_queryoption,
 	.bridged_channel = tech_bridged_channel,
 	.transfer = tech_transfer,
@@ -1675,20 +1673,27 @@ static int tech_write(struct cw_channel *self, struct cw_frame *frame)
 	private_object *tech_pvt = self->tech_pvt;
 	int res = 0, i = 0;
 
-	if (globals.panic) {
+	if (globals.panic)
 		return -1;
-	}
-	if(cw_test_flag(tech_pvt, TFLAG_MEDIA) && frame->datalen) {
-		if (frame->frametype == CW_FRAME_VOICE) {
-			i = sendto(tech_pvt->udp_socket, frame->data, frame->datalen, 0, (struct sockaddr *) &tech_pvt->udpwrite, sizeof(tech_pvt->udpwrite));
-			if (i < 0) {
-				return -1;
-			}
-			if (globals.debug > 2) {
-				cw_verbose(WOOMERA_DEBUG_PREFIX "+++WRITE %s %d\n",self->name, i);
-			}
-		} else {
-			cw_log(CW_LOG_WARNING, "Invalid frame type %d sent\n", frame->frametype);
+
+	if (cw_test_flag(tech_pvt, TFLAG_MEDIA)) {
+		switch (frame->frametype) {
+			case CW_FRAME_CONTROL:
+				break;
+
+			case CW_FRAME_VOICE:
+				if (frame->datalen) {
+					i = sendto(tech_pvt->udp_socket, frame->data, frame->datalen, 0, (struct sockaddr *) &tech_pvt->udpwrite, sizeof(tech_pvt->udpwrite));
+					if (i < 0)
+						res = -1;
+					if (globals.debug > 2)
+						cw_verbose(WOOMERA_DEBUG_PREFIX "+++WRITE %s %d\n", self->name, i);
+				}
+				break;
+
+			default:
+				cw_log(CW_LOG_WARNING, "Invalid frame type %d sent\n", frame->frametype);
+				break;
 		}
 	}
 	
@@ -1737,22 +1742,6 @@ static int tech_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 		cw_verbose(WOOMERA_DEBUG_PREFIX "+++FIXUP %s\n",oldchan->name);
 	}
 	return res;
-}
-
-/*--- tech_setoption: set options on my channel ---*/
-static int tech_setoption(struct cw_channel *self, int option, void *data, int datalen)
-{
-	int res = 0;
-
-	CW_UNUSED(option);
-	CW_UNUSED(data);
-	CW_UNUSED(datalen);
-
-	if (globals.debug > 1) {
-		cw_verbose(WOOMERA_DEBUG_PREFIX "+++SETOPT %s\n",self->name);
-	}
-	return res;
-
 }
 
 /*--- tech_queryoption: get options from my channel ---*/

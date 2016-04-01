@@ -2446,10 +2446,26 @@ static int misdn_write(struct cw_channel *cw, struct cw_frame *frame)
 		return -1;
 	}
 
-	if (frame->frametype == CW_FRAME_TEXT) {
-		cw_copy_string(ch->bc->display, frame->data, sizeof(ch->bc->display));
-		misdn_lib_send_event(ch->bc, EVENT_INFORMATION);
-		return 0;
+	switch (frame->frametype) {
+		case CW_FRAME_CONTROL:
+			switch (frame->subclass) {
+				case CW_CONTROL_OPTION: {
+					int *arg = (int *)frame->data;
+					switch (arg[0]) {
+						case CW_OPTION_ECHOCANCEL:
+							ch->bc->ec_enable = arg[1];
+							chan_misdn_log(1, ch->bc->port, " echo cancellation set to %d\n", ch->bc->ec_enable);
+							isdn_lib_update_ec(ch->bc);
+							return 0;
+					}
+				}
+			}
+			break;
+
+		case CW_FRAME_TEXT:
+			cw_copy_string(ch->bc->display, frame->data, sizeof(ch->bc->display));
+			misdn_lib_send_event(ch->bc, EVENT_INFORMATION);
+			return 0;
 	}
 
 	if (ch->state == MISDN_HOLDED) {
@@ -2895,53 +2911,6 @@ static struct cw_channel *misdn_request(const char *type, int format, void *data
 }
 
 
-static int misdn_setoption(struct cw_channel *chan, int option, void *data, int datalen)
-{
-	struct chan_list *pvt;
-	int ret = -1;
-
-	errno = ENOSYS;
-
-	if (chan && (pvt = MISDN_CALLWEAVER_TECH_PVT(chan)) && pvt->bc) {
-		switch (option) {
-			case CW_OPTION_RXGAIN:
-				if (data && datalen == sizeof(signed char)) {
-					signed char gain = *(signed char *)data;
-					if (gain < -8) gain = -8;
-					if (gain > 8) gain = 8;
-					pvt->bc->rxgain = gain;
-					isdn_lib_update_rxgain(pvt->bc);
-					chan_misdn_log(1, pvt->bc->port, "SETOPT: RX gain: %d\n", gain);
-					ret = 0;
-				}
-				break;
-
-			case CW_OPTION_TXGAIN:
-				if (data && datalen == sizeof(signed char)) {
-					signed char gain = *(signed char *)data;
-					if (gain < -8) gain = -8;
-					if (gain > 8) gain = 8;
-					pvt->bc->txgain = gain;
-					isdn_lib_update_txgain(pvt->bc);
-					chan_misdn_log(1, pvt->bc->port, "SETOPT: TX gain: %d\n", gain);
-					ret = 0;
-				}
-				break;
-
-			case CW_OPTION_ECHOCANCEL:
-				if (data && datalen == sizeof(signed char)) {
-					pvt->bc->ec_enable = *(signed char *)data;
-					chan_misdn_log(1, pvt->bc->port, " echo cancellation set to %d\n", pvt->bc->ec_enable);
-					isdn_lib_update_ec(pvt->bc);
-					ret = 0;
-				}
-				break;
-		}
-	}
-
-	return ret;
-}
-
 static struct cw_channel_tech misdn_tech = {
 	.type="mISDN",
 	.description="Channel driver for mISDN Support (Bri/Pri)",
@@ -2956,7 +2925,6 @@ static struct cw_channel_tech misdn_tech = {
 	.write=misdn_write,
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
-	.setoption=misdn_setoption,
 	.properties=0
 };
 
@@ -2973,7 +2941,6 @@ static struct cw_channel_tech misdn_tech_wo_bridge = {
 	.write=misdn_write,
 	.indicate=misdn_indication,
 	.fixup=misdn_fixup,
-	.setoption=misdn_setoption,
 	.properties=0
 };
 

@@ -457,23 +457,23 @@ static int handle_recvtext(struct cw_channel *chan, OGI *ogi, int argc, char *ar
 
 static int handle_tddmode(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])
 {
-	int res,x;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	if (!strncasecmp(argv[2],"on",2)) 
-		x = 1; 
-	else 
-		x = 0;
-	if (!strncasecmp(argv[2],"mate",4)) 
-		x = 2;
-	if (!strncasecmp(argv[2],"tdd",3))
-		x = 1;
-	res = cw_channel_setoption(chan, CW_OPTION_TDD, &x, sizeof(char));
-	if (res != RESULT_SUCCESS)
-		fdprintf(ogi->fd, "200 result=0\n");
-	else
+	int ret = RESULT_SHOWUSAGE;
+
+	if (argc == 3) {
+		int value = 0;
+
+		if (!strncasecmp(argv[2], "on", 2) || !strncasecmp(argv[2], "tdd", 3))
+			value = 1;
+		else if (!strncasecmp(argv[2], "mate", 4))
+			value = 2;
+
+		cw_channel_setoption(chan, CW_OPTION_TDD, value);
+
 		fdprintf(ogi->fd, "200 result=1\n");
-	return RESULT_SUCCESS;
+		ret = RESULT_SUCCESS;
+	}
+
+	return ret;
 }
 
 static int handle_sendimage(struct cw_channel *chan, OGI *ogi, int argc, char *argv[])

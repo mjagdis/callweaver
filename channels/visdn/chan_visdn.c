@@ -1604,17 +1604,6 @@ static int visdn_fixup(
 	return 0;
 }
 
-static int visdn_setoption(
-	struct cw_channel *cw_chan,
-	int option,
-	void *data,
-	int datalen)
-{
-	cw_log(CW_LOG_ERROR, "%s\n", __FUNCTION__);
-
-	return -1;
-}
-
 static int visdn_transfer(
 	struct cw_channel *cw_chan,
 	const char *dest)
@@ -2112,7 +2101,6 @@ static const struct cw_channel_tech visdn_tech = {
 	.fixup		= visdn_fixup,
 	.send_digit	= visdn_send_digit,
 	.bridge		= visdn_bridge,
-	.setoption	= visdn_setoption,
 };
 
 #define MAX_PAYLOAD 1024

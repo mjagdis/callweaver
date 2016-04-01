@@ -121,7 +121,6 @@ static struct cw_channel_tech devstate_tech = {
 	.exception = NULL,
 	.indicate = NULL,
 	.fixup = NULL,
-	.setoption = NULL,
 };
 
 static char mandescr_devstate[] = 

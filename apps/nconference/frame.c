@@ -309,29 +309,7 @@ long usecdiff( struct timeval* timeA, struct timeval* timeB )
     return u_secs;
 }
 
-int set_talk_volume(struct cw_conf_member *member, struct cw_frame *f, int is_talk)
+void set_talk_volume(struct cw_conf_member *member, int is_talk)
 {
-    int ret = 0;
-    signed char gain_adjust;
-
-    gain_adjust = gain_map[member->talk_volume + 4];
-
-    if (is_talk)
-    {
-        /* Attempt to make the adjustment in the channel driver first */
-        if (member->talk_volume_adjust == 0)
-        {
-            ret = cw_channel_setoption(member->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust));
-            if (ret)
-                member->talk_volume_adjust = 1;
-        }
-        if (member->talk_volume_adjust  &&  f)
-            ret = cw_frame_adjust_volume(f, gain_adjust);
-    }
-    else
-    {
-        /* Listen volume */
-        ret = cw_frame_adjust_volume(f, gain_adjust);
-    }
-    return ret;
+    cw_channel_setoption(member->chan, (is_talk ? CW_OPTION_RXGAIN : CW_OPTION_TXGAIN), gain_map[member->talk_volume + 4]);
 }

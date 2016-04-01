@@ -344,16 +344,14 @@ static void stop_spying(struct cw_channel *chan, struct cw_channel_spy *spy)
 */
 static void set_volume(struct cw_channel *chan, struct chanspy_translation_helper *csth)
 {
-    signed char volume_adjust;
+	int value = csth->volfactor;
 
-    if (csth->volfactor > 24)
-        volume_adjust = 24;
-    else if (csth->volfactor < -24)
-        volume_adjust = -24;
-    else
-        volume_adjust = csth->volfactor;
-    if (!cw_channel_setoption(chan, CW_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust)))
-        csth->volfactor = 0;
+	if (value > 24)
+		value = 24;
+	else if (value < -24)
+		value = -24;
+
+	cw_channel_setoption(chan, CW_OPTION_TXGAIN, value);
 }
 
 static int channel_spy(struct cw_channel *chan, struct cw_channel *spyee, int *volfactor, int fd)
@@ -547,7 +545,6 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct c
 	int oldrf;
 	int oldwf;
 	int res = -1;
-	signed char zero_volume = 0;
 
 	CW_UNUSED(result);
 
@@ -650,7 +647,7 @@ static int chanspy_exec(struct cw_channel *chan, int argc, char **argv, struct c
 
 	cw_clear_flag(chan, CW_FLAG_SPYING);
 
-	cw_channel_setoption(chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
+	cw_channel_setoption(chan, CW_OPTION_TXGAIN, 0);
 
 	ALL_DONE(u, res);
 }

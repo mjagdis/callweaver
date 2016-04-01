@@ -35,5 +35,5 @@ int queue_incoming_silent_frame( struct cw_conf_member *member, int count);
 
 long usecdiff( struct timeval* timeA, struct timeval* timeB );
 void add_milliseconds( struct timeval* tv, long ms );
-int set_talk_volume(struct cw_conf_member *member, struct cw_frame *f, int is_talk);
+void set_talk_volume(struct cw_conf_member *member, int is_talk);
 

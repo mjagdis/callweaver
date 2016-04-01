@@ -164,7 +164,6 @@ static int unicall_fixup(struct cw_channel *oldchan, struct cw_channel *newchan)
 static int unicall_digit(struct cw_channel *c, char digit);
 static enum cw_bridge_result unicall_bridge(struct cw_channel *c0, struct cw_channel *c1, int flags, struct cw_frame **fo, struct cw_channel **rc, int timeoutms);
 struct cw_frame *unicall_exception(struct cw_channel *ast);
-static int unicall_setoption(struct cw_channel *chan, int option, void *data, int datalen);
 
 static const struct cw_channel_tech unicall_tech = {
     .type = type,
@@ -181,7 +180,6 @@ static const struct cw_channel_tech unicall_tech = {
     .send_digit = unicall_digit,
     .bridge = unicall_bridge,
     .exception = unicall_exception,
-    .setoption = unicall_setoption,
 };
 
 struct unicall_pvt_s;
@@ -1444,8 +1442,6 @@ static int unicall_hangup(struct cw_channel *cw)
         /*endif*/
         super_tone(&p->subs[SUB_REAL], ST_TYPE_NONE);
         x = 0;
-        //cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char));
-        //cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char));
         p->dialing = FALSE;
         p->rdnis[0] = '\0';
         update_conf(p);
@@ -1504,77 +1500,6 @@ static int unicall_answer(struct cw_channel *cw)
         ret = -1;
     }
     return ret;
-}
-
-static int unicall_setoption(struct cw_channel *chan, int option, void *data, int datalen)
-{
-    unicall_pvt_t *p = chan->tech_pvt;
-    char *cp;
-    int x;
-
-    cw_log(CW_LOG_WARNING, "unicall_setoption called - %d\n", option);
-    if (option != CW_OPTION_TONE_VERIFY
-        &&
-        option != CW_OPTION_MUTECONF
-        &&
-        option != CW_OPTION_TDD
-        &&
-        option != CW_OPTION_RELAXDTMF)
-    {
-        errno = ENOSYS;
-        return -1;
-    }
-    /*endif*/
-    if (data == NULL  ||  datalen < 1)
-    {
-        errno = EINVAL;
-        return -1;
-    }
-    /*endif*/
-    cp = (char *) data;
-    switch (option)
-    {
-    case CW_OPTION_TONE_VERIFY:
-        switch (*cp)
-        {
-        case 1:
-            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n", chan->name);
-            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
-            break;
-        case 2:
-            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n", chan->name);
-            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
-            break;
-        default:
-            cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n", chan->name);
-            cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
-            break;
-        }
-        /*endswitch*/
-        break;
-    case CW_OPTION_MUTECONF:
-        unicall_confmute(p, *(char *)data);
-        break;
-    case CW_OPTION_RELAXDTMF:
-        /* Relax DTMF decoding (or not) */
-        switch (*cp)
-        {
-        case 0:
-            cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: OFF(0) on %s\n",chan->name);
-            x = FALSE;
-            break;
-        default:
-            cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: ON(1) on %s\n",chan->name);
-            x = TRUE;
-            break;
-        }
-        /*endswitch*/
-        cw_dsp_digitmode(p->dsp, (x)  ?  DSP_DIGITMODE_RELAXDTMF  :  (DSP_DIGITMODE_DTMF | p->dtmfrelax));
-        break;
-    }
-    /*endswitch*/
-    errno = 0;
-    return 0;
 }
 
 static void unicall_unlink(unicall_pvt_t *slave, unicall_pvt_t *master)
@@ -2427,73 +2352,94 @@ static int unicall_write(struct cw_channel *cw, struct cw_frame *frame)
 
     p = cw->tech_pvt;
     res = 0;
-    //cw_log(CW_LOG_WARNING, "unicall_write\n");
-    if ((index = unicall_get_index(cw, p, 0)) < 0)
-    {
+
+    if ((index = unicall_get_index(cw, p, 0)) < 0) {
         cw_log(CW_LOG_WARNING, "%s doesn't really exist?\n", cw->name);
         return -1;
     }
-    /*endif*/    
-    if (frame->frametype == CW_FRAME_TEXT)
-    {
-        uc_usertouser_t msg;
 
-        msg.len = frame->datalen;
-        msg.message = (unsigned char *) frame.data;
-        if ((ret = uc_call_control(p->uc, UC_OP_USERTOUSER, 0, &msg)) < 0)
-        {
-            cw_log(CW_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
-            return -1;
+    switch (frame->frametype) {
+        case CW_FRAME_CONTROL:
+            switch (frame->subclass) {
+                case CW_CONTROL_OPTION: {
+                    int *arg = (int *)frame->data;
+
+                    switch (arg[0]) {
+                        case CW_OPTION_TONE_VERIFY:
+                            switch (arg[1]) {
+                                case 1:
+                                    cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n", chan->name);
+                                    cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
+                                    break;
+                                case 2:
+                                    cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n", chan->name);
+                                    cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
+                                    break;
+                                default:
+                                    cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n", chan->name);
+                                    cw_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
+                                    break;
+                            }
+                            break;
+
+                        case CW_OPTION_MUTECONF:
+                            unicall_confmute(p, arg[1]);
+                            break;
+
+                        case CW_OPTION_RELAXDTMF:
+                            cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: %s on %s\n", (arg[1] ? "ON" : "OFF"), chan->name);
+                            cw_dsp_digitmode(p->dsp, arg[1]? DSP_DIGITMODE_RELAXDTMF : (DSP_DIGITMODE_DTMF | p->dtmfrelax));
+                            break;
+                    }
+                    break;
+                }
+            }
+            break;
+
+        case CW_FRAME_TEXT: {
+            uc_usertouser_t msg;
+
+            msg.len = frame->datalen;
+            msg.message = (unsigned char *) frame.data;
+            if ((ret = uc_call_control(p->uc, UC_OP_USERTOUSER, 0, &msg)) < 0) {
+                cw_log(CW_LOG_WARNING, "User to user failed - %s\n", uc_ret2str(ret));
+                return -1;
+            }
         }
-    }
-    /* Write a frame of (presumably voice) data */
-    if (frame->frametype != CW_FRAME_VOICE)
-    {
-        if (frame->frametype != CW_FRAME_IMAGE)
-            cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
-        /*endif*/
-        return 0;
-    }
-    /*endif*/
-    if ((frame->subclass != CW_FORMAT_SLINEAR)
-        && 
-        (frame->subclass != CW_FORMAT_ULAW)
-        &&
-        (frame->subclass != CW_FORMAT_ALAW))
-    {
-        cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
-        return 0;
-    }
-    /*endif*/
-    if (p->dialing)
-    {
-        if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n", cw->name);
-        /*endif*/
-        return 0;
-    }
-    /*endif*/
-    if (p->subs[index].super_tone != ST_TYPE_NONE)
-    {
-        if (option_debug)
-            cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still sending supervisory tone %d on %s...\n", p->subs[index].super_tone, cw->name);
-        /*endif*/
-        return 0;
-    }
-    /*endif*/
-    /* Return if it's not valid data */
-    if (frame->data == NULL  ||  frame->datalen == 0)
-        return 0;
-    /*endif*/
 
-    select_codec(p, index, frame->subclass);
-    if ((res = uc_channel_write(p->uc, p->subs[index].chan, (unsigned char *) frame->data, frame->datalen)) < 0)
-    {
-        cw_log(CW_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
-        return -1;
+        case CW_FRAME_VOICE:
+            switch (frame->subclass) {
+                    case CW_FORMAT_SLINEAR:
+                    case CW_FORMAT_ULAW:
+                    case CW_FORMAT_ALAW:
+                        if (p->dialing) {
+                            if (option_debug)
+                                cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n", cw->name);
+                        } else if (p->subs[index].super_tone != ST_TYPE_NONE) {
+                            if (option_debug)
+                                cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still sending supervisory tone %d on %s...\n", p->subs[index].super_tone, cw->name);
+                        } else if (frame->data != NULL && frame->datalen != 0) {
+                            select_codec(p, index, frame->subclass);
+                            if ((res = uc_channel_write(p->uc, p->subs[index].chan, (unsigned char *) frame->data, frame->datalen)) < 0) {
+                                cw_log(CW_LOG_WARNING, "write failed: %s - %d\n", strerror(errno), errno);
+                                res = -1;
+                            }
+                        }
+                        break;
+
+                    default:
+                        cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
+                        break;
+            }
+            break;
+
+	default:
+            if (frame->frametype != CW_FRAME_IMAGE)
+                cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
+            break;
     }
-    /*endif*/
-    return 0;
+
+    return res;
 }
 
 static int unicall_indicate(struct cw_channel *chan, int condition)

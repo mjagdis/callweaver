@@ -3156,10 +3156,10 @@ static int get_folder2(struct cw_channel *chan, const char *fn, int start)
 
 static int vm_forwardoptions(struct cw_channel *chan, struct cw_vm_user *vmu, char *curdir, int curmsg, char *vmfts, char *context, signed char record_gain)
 {
+	char file[200];
 	int cmd = 0;
 	int retries = 0;
 	int duration = 0;
-	signed char zero_gain = 0;
 
 	CW_UNUSED(vmu);
 	CW_UNUSED(vmfts);
@@ -3172,13 +3172,15 @@ static int vm_forwardoptions(struct cw_channel *chan, struct cw_vm_user *vmu, ch
 		case '1': 
 			/* prepend a message to the current message and return */
 		{
-			char file[200];
 			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
+
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain));
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, record_gain);
+
 			cmd = cw_play_and_prepend(chan, NULL, file, 0, vmfmts, &duration, 1, silencethreshold, maxsilence);
+
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain));
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, 0);
 			break;
 		}
 		case '2': 
@@ -6388,14 +6390,13 @@ static int play_record_review(struct cw_channel *chan, const char *playfile, con
 			      signed char record_gain)
 {
 	/* Record message & let caller review or re-record it, or set options if applicable */
- 	int res = 0;
- 	int cmd = 0;
- 	int max_attempts = 3;
- 	int attempts = 0;
- 	int recorded = 0;
- 	int message_exists = 0;
-	signed char zero_gain = 0;
- 	/* Note that urgent and private are for flagging messages as such in the future */
+	int res = 0;
+	int cmd = 0;
+	int max_attempts = 3;
+	int attempts = 0;
+	int recorded = 0;
+	int message_exists = 0;
+	/* Note that urgent and private are for flagging messages as such in the future */
  
 	/* barf if no pointer passed to store duration in */
 	if (duration == NULL) {
@@ -6403,107 +6404,104 @@ static int play_record_review(struct cw_channel *chan, const char *playfile, con
 		return -1;
 	}
 
- 	cmd = '3';	 /* Want to start by recording */
+	cmd = '3';	 /* Want to start by recording */
  
 	while ((cmd >= 0) && (cmd != 't')) {
 		switch (cmd) {
 		case '1':
 			if (!message_exists) {
- 				/* In this case, 1 is to record a message */
- 				cmd = '3';
- 				break;
- 			} else {
- 				/* Otherwise 1 is to save the existing message */
- 				cw_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
- 				cw_streamfile(chan, "vm-msgsaved", chan->language);
- 				cw_waitstream(chan, "");
+				/* In this case, 1 is to record a message */
+				cmd = '3';
+				break;
+			} else {
+				/* Otherwise 1 is to save the existing message */
+				cw_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
+				cw_streamfile(chan, "vm-msgsaved", chan->language);
+				cw_waitstream(chan, "");
 				STORE(recordfile, vmu->mailbox, vmu->context, -1);
 				DISPOSE(recordfile, -1);
- 				cmd = 't';
- 				return res;
- 			}
- 		case '2':
- 			/* Review */
- 			cw_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
- 			cw_streamfile(chan, recordfile, chan->language);
- 			cmd = cw_waitstream(chan, CW_DIGIT_ANY);
- 			break;
- 		case '3':
- 			message_exists = 0;
- 			/* Record */
- 			if (recorded == 1)
+				cmd = 't';
+				return res;
+			}
+		case '2':
+			/* Review */
+			cw_verbose(VERBOSE_PREFIX_3 "Reviewing the message\n");
+			cw_streamfile(chan, recordfile, chan->language);
+			cmd = cw_waitstream(chan, CW_DIGIT_ANY);
+			break;
+		case '3':
+			message_exists = 0;
+			/* Record */
+			if (recorded == 1)
 				cw_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
- 			else	
+			else
 				cw_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
 			if (recorded && outsidecaller) {
- 				cmd = cw_play_and_wait(chan, INTRO);
- 				cmd = cw_play_and_wait(chan, "beep");
- 			}
- 			recorded = 1;
- 			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
+				cmd = cw_play_and_wait(chan, INTRO);
+				cmd = cw_play_and_wait(chan, "beep");
+			}
+			recorded = 1;
+			/* After an attempt has been made to record message, we have to take care of INTRO and beep for incoming messages, but not for greetings */
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &record_gain, sizeof(record_gain));
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, record_gain);
+
 			cmd = cw_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence, unlockdir);
 			if (record_gain)
-				cw_channel_setoption(chan, CW_OPTION_RXGAIN, &zero_gain, sizeof(zero_gain));
- 			if (cmd == -1) {
- 			/* User has hung up, no options to give */
- 				return cmd;
-			}
- 			if (cmd == '0') {
- 				break;
- 			} else if (cmd == '*') {
- 				break;
- 			} 
+				cw_channel_setoption(chan, CW_OPTION_RXGAIN, 0);
+
+			if (cmd == -1) /* User has hung up, no options to give */
+				return cmd;
+			if (cmd == '0' || cmd == '*')
+				break;
 #if 0			
- 			else if (vmu->review && (*duration < 5)) {
- 				/* Message is too short */
- 				cw_verbose(VERBOSE_PREFIX_3 "Message too short\n");
+			else if (vmu->review && (*duration < 5)) {
+				/* Message is too short */
+				cw_verbose(VERBOSE_PREFIX_3 "Message too short\n");
 				cmd = cw_play_and_wait(chan, "vm-tooshort");
- 				cmd = vm_delete(recordfile);
- 				break;
- 			}
- 			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
- 				/* Message is all silence */
- 				cw_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
- 				cmd = vm_delete(recordfile);
+				cmd = vm_delete(recordfile);
+				break;
+			}
+			else if (vmu->review && (cmd == 2 && *duration < (maxsilence + 3))) {
+				/* Message is all silence */
+				cw_verbose(VERBOSE_PREFIX_3 "Nothing recorded\n");
+				cmd = vm_delete(recordfile);
 				cmd = cw_play_and_wait(chan, "vm-nothingrecorded");
 				if (!cmd)
- 					cmd = cw_play_and_wait(chan, "vm-speakup");
- 				break;
- 			}
+					cmd = cw_play_and_wait(chan, "vm-speakup");
+				break;
+			}
 #endif
- 			else {
- 				/* If all is well, a message exists */
- 				message_exists = 1;
+			else {
+				/* If all is well, a message exists */
+				message_exists = 1;
 				cmd = 0;
- 			}
- 			break;
- 		case '4':
- 		case '5':
- 		case '6':
- 		case '7':
- 		case '8':
- 		case '9':
+			}
+			break;
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
 		case '*':
 		case '#':
- 			cmd = cw_play_and_wait(chan, "vm-sorry");
- 			break;
+			cmd = cw_play_and_wait(chan, "vm-sorry");
+			break;
 #if 0 
 /*  XXX Commented out for the moment because of the dangers of deleting
     a message while recording (can put the message numbers out of sync) */
- 		case '*':
- 			/* Cancel recording, delete message, offer to take another message*/
- 			cmd = cw_play_and_wait(chan, "vm-deleted");
- 			cmd = vm_delete(recordfile);
- 			if (outsidecaller) {
- 				res = vm_exec(chan, 0, NULL, NULL, 0, NULL);
- 				return res;
- 			}
- 			else
- 				return 1;
+		case '*':
+			/* Cancel recording, delete message, offer to take another message*/
+			cmd = cw_play_and_wait(chan, "vm-deleted");
+			cmd = vm_delete(recordfile);
+			if (outsidecaller) {
+				res = vm_exec(chan, 0, NULL, NULL, 0, NULL);
+				return res;
+			}
+			else
+				return 1;
 #endif
- 		case '0':
+		case '0':
 			if (message_exists || recorded) {
 				cmd = cw_play_and_wait(chan, "vm-saveoper");
 				if (!cmd)

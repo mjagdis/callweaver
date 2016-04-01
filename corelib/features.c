@@ -1346,7 +1346,6 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 	int diff;
 	int hasfeatures=0;
 	int hadfeatures=0;
-	struct cw_option_header *aoh;
 	struct timeval start = { 0 , 0 };
 	struct cw_bridge_config backup_config;
 
@@ -1501,16 +1500,6 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 			else
 				cw_indicate(chan, CW_CONTROL_FLASH);
 		}
-		if ((f->frametype == CW_FRAME_CONTROL) && (f->subclass == CW_CONTROL_OPTION)) {
-			aoh = f->data;
-			/* Forward option Requests */
-			if (aoh && (aoh->flag == CW_OPTION_FLAG_REQUEST)) {
-				if (who == chan)
-					cw_channel_setoption(peer, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header));
-				else
-					cw_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct cw_option_header));
-			}
-		}
 		/* check for '*', if we find it it's time to disconnect */
 		if (f && (f->frametype == CW_FRAME_DTMF)) {
 			char *featurecode;
@@ -1568,6 +1557,10 @@ int cw_bridge_call(struct cw_channel *chan,struct cw_channel *peer,struct cw_bri
 				cw_log(CW_LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
 			}
 		}
+
+		if (f->frametype == CW_FRAME_CONTROL)
+			cw_write((who == chan ? peer : chan), &f);
+
 		if (f)
 			cw_fr_free(f);
 	}

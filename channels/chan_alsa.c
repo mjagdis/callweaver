@@ -2654,68 +2654,79 @@ static int alsa_write(struct cw_channel *chan, struct cw_frame *f)
 {
 	static char sizbuf[8000];
 	static int sizpos = 0;
+	snd_pcm_state_t state;
 	int len = sizpos;
 	int res = 0;
-	/* size_t frames = 0; */
-	snd_pcm_state_t state;
 
 	CW_UNUSED(chan);
 
-	if (f->frametype == CW_FRAME_TEXT) {
-		cw_verbose("Received text: %s\n", (char *)f->data);
-		return 0;
-	}
+	switch (f->frametype) {
+		case CW_FRAME_CONTROL:
+		case CW_FRAME_IMAGE:
+			break;
 
-	/* Immediately return if no sound is enabled */
-	if (nosound)
-		return 0;
-	cw_mutex_lock(&alsalock);
-	/* Stop any currently playing sound */
-	if (cursound != -1) {
-		snd_pcm_drop(alsa.ocard);
-		snd_pcm_prepare(alsa.ocard);
-		cursound = -1;
-	}
-	
+		case CW_FRAME_TEXT:
+			cw_verbose("Received text: %s\n", (char *)f->data);
+			return 0;
 
-	/* We have to digest the frame in 160-byte portions */
-	if (f->datalen > sizeof(sizbuf) - sizpos) {
-		cw_log(CW_LOG_WARNING, "Frame too large\n");
-		res = -1;
-	} else {
-		memcpy(sizbuf + sizpos, f->data, f->datalen);
-		len += f->datalen;
+		case CW_FRAME_VOICE:
+			if (!nosound) {
+				cw_mutex_lock(&alsalock);
+
+				/* Stop any currently playing sound */
+				if (cursound != -1) {
+					snd_pcm_drop(alsa.ocard);
+					snd_pcm_prepare(alsa.ocard);
+					cursound = -1;
+				}
+
+				/* We have to digest the frame in 160-byte portions */
+				if (f->datalen > sizeof(sizbuf) - sizpos) {
+					cw_log(CW_LOG_WARNING, "Frame too large\n");
+					res = -1;
+				} else {
+					memcpy(sizbuf + sizpos, f->data, f->datalen);
+					len += f->datalen;
 #ifdef ALSA_MONITOR
-		alsa_monitor_write(sizbuf, len);
+					alsa_monitor_write(sizbuf, len);
 #endif
-		state = snd_pcm_state(alsa.ocard);
-		if (state == SND_PCM_STATE_XRUN) {
-			snd_pcm_prepare(alsa.ocard);
-		}
-		res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
-		if (res == -EPIPE) {
+					state = snd_pcm_state(alsa.ocard);
+					if (state == SND_PCM_STATE_XRUN) {
+						snd_pcm_prepare(alsa.ocard);
+					}
+					res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
+					if (res == -EPIPE) {
 #if DEBUG
-			cw_log(CW_LOG_DEBUG, "XRUN write\n");
+						cw_log(CW_LOG_DEBUG, "XRUN write\n");
 #endif
-			snd_pcm_prepare(alsa.ocard);
-			res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
-			if (res != len/2) {
-				cw_log(CW_LOG_ERROR, "Write error: %s\n", snd_strerror(res));
-				res = -1;
-			} else if (res < 0) {
-				cw_log(CW_LOG_ERROR, "Write error %s\n", snd_strerror(res));
-				res = -1;
+						snd_pcm_prepare(alsa.ocard);
+						res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
+						if (res != len/2) {
+							cw_log(CW_LOG_ERROR, "Write error: %s\n", snd_strerror(res));
+							res = -1;
+						} else if (res < 0) {
+							cw_log(CW_LOG_ERROR, "Write error %s\n", snd_strerror(res));
+							res = -1;
+						}
+					} else {
+						if (res == -ESTRPIPE) {
+							cw_log(CW_LOG_ERROR, "You've got some big problems\n");
+						} else if (res < 0)
+							cw_log(CW_LOG_NOTICE, "Error %d on write\n", res);
+					}
+				}
+
+				cw_mutex_unlock(&alsalock);
+
+				if (res > 0)
+					res = 0;
 			}
-		} else {
-			if (res == -ESTRPIPE) {
-				cw_log(CW_LOG_ERROR, "You've got some big problems\n");
-			} else if (res < 0)
-				cw_log(CW_LOG_NOTICE, "Error %d on write\n", res);
-		}
+			break;
+
+		default:
+			break;
 	}
-	cw_mutex_unlock(&alsalock);
-	if (res > 0)
-		res = 0;
+
 	return res;
 }
 

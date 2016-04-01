@@ -153,7 +153,6 @@ static struct cw_conference
 struct volume
 {
     int desired;                /* Desired volume adjustment */
-    int actual;                 /* Actual volume adjustment (for channels that can't adjust) */
 };
 
 struct cw_conf_user
@@ -316,28 +315,6 @@ static signed char gain_map[] =
     15
 };
 
-static int set_talk_volume(struct cw_conf_user *user, int volume)
-{
-    signed char gain_adjust;
-
-    /* attempt to make the adjustment in the channel driver;
-       if successful, don't adjust in the frame reading routine
-    */
-    gain_adjust = gain_map[volume + 5];
-    return cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust));
-}
-
-static int set_listen_volume(struct cw_conf_user *user, int volume)
-{
-    signed char gain_adjust;
-
-    /* attempt to make the adjustment in the channel driver;
-       if successful, don't adjust in the frame reading routine
-    */
-    gain_adjust = gain_map[volume + 5];
-    return cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust));
-}
-
 static void tweak_volume(struct volume *vol, enum volume_action action)
 {
     switch (action)
@@ -379,33 +356,19 @@ static void tweak_volume(struct volume *vol, enum volume_action action)
 static void tweak_talk_volume(struct cw_conf_user *user, enum volume_action action)
 {
     tweak_volume(&user->talk, action);
-    /* attempt to make the adjustment in the channel driver;
-       if successful, don't adjust in the frame reading routine
-    */
-    if (!set_talk_volume(user, user->talk.desired))
-        user->talk.actual = 0;
-    else
-        user->talk.actual = user->talk.desired;
+    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, gain_map[user->talk.desired + 5]);
 }
 
 static void tweak_listen_volume(struct cw_conf_user *user, enum volume_action action)
 {
     tweak_volume(&user->listen, action);
-    /* attempt to make the adjustment in the channel driver;
-       if successful, don't adjust in the frame reading routine
-    */
-    if (!set_listen_volume(user, user->listen.desired))
-        user->listen.actual = 0;
-    else
-        user->listen.actual = user->listen.desired;
+    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, gain_map[user->talk.desired + 5]);
 }
 
 static void reset_volumes(struct cw_conf_user *user)
 {
-    signed char zero_volume = 0;
-
-    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume));
-    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume));
+    cw_channel_setoption(user->chan, CW_OPTION_TXGAIN, 0);
+    cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, 0);
 }
 
 static void conf_play(struct cw_channel *chan, struct cw_conference *conf, int sound)
@@ -1150,8 +1113,7 @@ dahdiretry:
         if (user->dahdichannel)
         {
             /*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones */
-            x = 1;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
+            cw_channel_setoption(user->chan, CW_OPTION_TONE_VERIFY, 1);
         }
 
         /* Get name of OGI file to run from $(MEETME_OGI_BACKGROUND)
@@ -1172,8 +1134,7 @@ dahdiretry:
         if (user->dahdichannel)
         {
             /*  Remove CONFMUTE mode on DAHDI channel */
-            x = 0;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
+            cw_channel_setoption(user->chan, CW_OPTION_TONE_VERIFY, 0);
         }
     }
     else
@@ -1181,8 +1142,7 @@ dahdiretry:
         if (user->dahdichannel && (confflags & CONFFLAG_STARMENU))
         {
             /*  Set CONFMUTE mode on DAHDI channel to mute DTMF tones when the menu is enabled */
-            x = 1;
-            cw_channel_setoption(chan,CW_OPTION_TONE_VERIFY,&x,sizeof(char));
+            cw_channel_setoption(user->chan, CW_OPTION_TONE_VERIFY, 1);
         }
         if (confflags &  CONFFLAG_MONITORTALKER && !(dsp = cw_dsp_new()))
         {
@@ -1199,8 +1159,8 @@ dahdiretry:
             /* if we have just exited from the menu, and the user had a channel-driver
                volume adjustment, restore it
             */
-            if (!menu_active  &&  menu_was_active  &&  user->listen.desired  &&  !user->listen.actual)
-                set_talk_volume(user, user->listen.desired);
+            if (!menu_active  &&  menu_was_active  &&  user->listen.desired)
+                cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, gain_map[user->talk.desired + 5]);
 
             menu_was_active = menu_active;
 
@@ -1389,9 +1349,6 @@ dahdiretry:
                     break;
                 if ((f->frametype == CW_FRAME_VOICE) && (f->subclass == CW_FORMAT_SLINEAR))
                 {
-                    if (user->talk.actual)
-                        cw_frame_adjust_volume(f, user->talk.actual);
-
                     if (confflags &  CONFFLAG_MONITORTALKER)
                     {
                         int totalsilence;
@@ -1459,8 +1416,8 @@ dahdiretry:
                     /* if we are entering the menu, and the user has a channel-driver
                        volume adjustment, clear it
                     */
-                    if (!menu_active && user->talk.desired && !user->talk.actual)
-                        set_talk_volume(user, 0);
+                    if (!menu_active && user->talk.desired)
+                        cw_channel_setoption(user->chan, CW_OPTION_RXGAIN, 0);
 
                     if (musiconhold)
                         cw_moh_stop(chan);
@@ -1672,8 +1629,6 @@ dahdiretry:
                     fr.samples = res/2;
                     fr.data = buf;
                     fr.offset = CW_FRIENDLY_OFFSET;
-                    if (user->listen.actual)
-                        cw_frame_adjust_volume(&fr, user->listen.actual);
                     fout = &fr;
                     if (cw_write(chan, &fout) < 0)
                     {

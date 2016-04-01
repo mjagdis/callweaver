@@ -651,8 +651,6 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, struct cw_
     int original_read_fmt;
     int original_write_fmt;
 
-    signed char sc;
-
     CW_UNUSED(result);
 
     /* Basic initial checkings */
@@ -744,10 +742,9 @@ static int txfax_exec(struct cw_channel *chan, int argc, char **argv, struct cw_
     }
 
     /* Remove any app level gain adjustments and disable echo cancel. */
-    sc = 0;
-    cw_channel_setoption(chan, CW_OPTION_RXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_RXGAIN, 0);
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, 0);
+    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, 0);
 
     /* This is the main loop */
 

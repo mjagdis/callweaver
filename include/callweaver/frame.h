@@ -216,14 +216,6 @@ struct cw_frame
 #define CW_SMOOTHER_FLAG_G729     (1 << 0)
 #define CW_SMOOTHER_FLAG_BE       (1 << 1)
 
-/* Option identifiers and flags */
-#define CW_OPTION_FLAG_REQUEST    0
-#define CW_OPTION_FLAG_ACCEPT     1
-#define CW_OPTION_FLAG_REJECT     2
-#define CW_OPTION_FLAG_QUERY      4
-#define CW_OPTION_FLAG_ANSWER     5
-#define CW_OPTION_FLAG_WTF        6
-
 /* Verify touchtones by muting audio transmission 
     (and reception) and verify the tone is still present */
 #define CW_OPTION_TONE_VERIFY     1        
@@ -257,23 +249,6 @@ struct cw_frame
 #define CW_OPTION_MUTECONF        8
 
 
-struct cw_option_header {
-    /* Always keep in network byte order */
-#if __BYTE_ORDER == __BIG_ENDIAN
-        u_int16_t flag:3;
-        u_int16_t option:13;
-#else
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-        u_int16_t option:13;
-        u_int16_t flag:3;
-#else
-#error Byte order not defined
-#endif
-#endif
-        u_int8_t data[0];
-};
-
-
 /*! \brief Initialises a frame to a given type
  *
  * \param frame		frame to initialise
@@ -294,6 +269,24 @@ static inline void cw_fr_init_ex(struct cw_frame *frame, int type, int subtype)
 	frame->samplerate = 8000;
 	frame->tx_copies = 1;
 }
+
+
+/*! \brief Allocate a frame on the stack with a given amount of data
+ *
+ * \param type		frame type
+ * \param subtype	frame sub-type
+ * \param size		data size
+ */
+#define cw_fr_alloca(type, subclass, size) ({ \
+	typeof(size) __size = (size); \
+	struct cw_frame *__f = alloca(sizeof(*f) + __size); \
+	cw_fr_init_ex(__f, (type), (subclass)); \
+	__f->datalen = __size; \
+	__f->data = &__f->local_data; \
+\
+	__f; \
+})
+
 
 
 /*! \brief Initialises a frame to be null

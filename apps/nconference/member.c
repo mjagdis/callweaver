@@ -223,7 +223,7 @@ static int process_incoming(struct cw_conf_member *member, struct cw_frame *f)
 
 	// volume of the frame is modified after the VAD has been done
 	if (member->talk_volume != 0) 
-	    set_talk_volume(member, f, 1);
+	    set_talk_volume(member, 1);
 
 
 	if (  member->is_speaking && queue_incoming_frame( member, f ) != 0 )

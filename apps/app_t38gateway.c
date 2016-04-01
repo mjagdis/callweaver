@@ -85,16 +85,13 @@ static void span_message(int level, const char *msg)
 
 static void request_t38(struct cw_channel *chan, struct cw_channel *peer)
 {
-    signed char sc;
-
     /* Remove any app level gain adjustments and disable echo cancel. */
-    sc = 0;
-    cw_channel_setoption(chan, CW_OPTION_RXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(chan, CW_OPTION_TXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
-    cw_channel_setoption(peer, CW_OPTION_RXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(peer, CW_OPTION_TXGAIN, &sc, sizeof(sc));
-    cw_channel_setoption(peer, CW_OPTION_ECHOCANCEL, &sc, sizeof(sc));
+    cw_channel_setoption(chan, CW_OPTION_RXGAIN, 0);
+    cw_channel_setoption(peer, CW_OPTION_RXGAIN, 0);
+    cw_channel_setoption(chan, CW_OPTION_TXGAIN, 0);
+    cw_channel_setoption(peer, CW_OPTION_TXGAIN, 0);
+    cw_channel_setoption(chan, CW_OPTION_ECHOCANCEL, 0);
+    cw_channel_setoption(peer, CW_OPTION_ECHOCANCEL, 0);
 
     cw_app_request_t38(chan);
 }

@@ -5219,7 +5219,6 @@ static const struct cw_channel_tech capi_tech = {
 	.exception = NULL,
 	.indicate = pbx_capi_indicate,
 	.fixup = pbx_capi_fixup,
-	.setoption = NULL,
 	.devicestate = pbx_capi_devicestate,
 };
 

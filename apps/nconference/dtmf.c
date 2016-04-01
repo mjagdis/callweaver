@@ -48,7 +48,7 @@ int parse_dtmf_option( struct cw_conf_member *member, int subclass ) {
 		conference_queue_sound( member, "beep" );
 		member->talk_volume = (member->talk_volume > -5) ? member->talk_volume-1 : member->talk_volume;
 		cw_log(CW_CONF_DEBUG,"TALK Volume DOWN to %d\n",member->talk_volume);
-		if (member->talk_volume) set_talk_volume(member, NULL, 1);
+		if (member->talk_volume) set_talk_volume(member, 1);
 		break;
 	    case '2': 
 		member->talk_mute = (member->talk_mute == 0 ) ? 1 : 0;
@@ -72,7 +72,7 @@ int parse_dtmf_option( struct cw_conf_member *member, int subclass ) {
 		conference_queue_sound( member, "beep" );
 		member->talk_volume = (member->talk_volume < 5) ? member->talk_volume+1 : member->talk_volume;
 		cw_log(CW_CONF_DEBUG,"TALK Volume UP %d\n",member->talk_volume);
-		if (member->talk_volume) set_talk_volume(member, NULL, 1);
+		if (member->talk_volume) set_talk_volume(member, 1);
 		break;
 	    case '4': 
 #if ENABLE_VAD

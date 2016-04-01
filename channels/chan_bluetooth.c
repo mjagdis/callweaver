@@ -549,38 +549,37 @@ answer(blt_dev_t * dev)
  * @param chan cw_channel
  * @param frame cw_frame
  */
-static int 
+static int
 blt_write(struct cw_channel *chan, struct cw_frame * frame)
 {
-  blt_dev_t *dev = chan->tech_pvt; 
+	blt_dev_t *dev = chan->tech_pvt;
 
-  /* We do want Voice data only */
-  if (frame->frametype != CW_FRAME_VOICE) {
-    cw_log(CW_LOG_WARNING, 
-        "Don't know what to do with frame type '%d'\n", frame->frametype);
-    return 0;
+	switch (frame->frametype) {
+		case CW_FRAME_CONTROL:
+		case CW_FRAME_TEXT:
+		case CW_FRAME_IMAGE:
+			break;
+
+		case CW_FRAME_VOICE:
+			if ((frame->subclass & BLUETOOTH_FORMAT)) {
+				if (chan->_state == CW_STATE_UP) {
+					cw_mutex_lock(&(dev->sco_lock));
+					set_buffer(dev->sco_buf_out, frame->data, BUFLEN, &(dev->sco_pos_out), MIN(frame->datalen, BUFLEN));
+					cw_mutex_unlock(&(dev->sco_lock));
+				}
+			} else {
+				static int count = 5;
+				if (count) {
+					cw_log(CW_LOG_WARNING, "Cannot handle frames in format %d\n", frame->subclass);
+					count--;
+				}
+			}
+			break;
+
+		default:
+			cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
+			break;
   }
-
-  /* and we need our format already */
-  if (!(frame->subclass & BLUETOOTH_FORMAT)) {
-    static int fish = 5;
-    if (fish) {
-      cw_log(CW_LOG_WARNING, 
-          "Cannot handle frames in format %d\n", frame->subclass);
-      fish--;
-    }
-    return 0;
-  }
-
-  /* Channel had already hang up on us */
-  if (chan->_state != CW_STATE_UP) {
-    return 0;
-  }
-
-  /* lock and prealloc buffer we use */
-  cw_mutex_lock(&(dev->sco_lock));
-  set_buffer(dev->sco_buf_out, frame->data, BUFLEN, &(dev->sco_pos_out), MIN(frame->datalen, BUFLEN));
-  cw_mutex_unlock(&(dev->sco_lock));
 
   return 0;
 

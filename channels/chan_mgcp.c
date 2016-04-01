@@ -1261,29 +1261,33 @@ static int mgcp_write(struct cw_channel *ast, struct cw_frame *frame)
 {
 	struct mgcp_subchannel *sub = ast->tech_pvt;
 	int res = 0;
-	if (frame->frametype != CW_FRAME_VOICE) {
-		if (frame->frametype == CW_FRAME_IMAGE)
-			return 0;
-		else {
-			cw_log(CW_LOG_WARNING, "Can't send %d type frames with MGCP write\n", frame->frametype);
-			return 0;
-		}
-	} else {
-		if (!(frame->subclass & ast->nativeformats)) {
-			cw_log(CW_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
-				frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
-			return -1;
-		}
-	}
-	if (sub) {
-		cw_mutex_lock(&sub->lock);
-		if ((sub->parent->sub == sub) || !sub->parent->singlepath) {
-			if (sub->rtp) {
-				res =  cw_rtp_write(sub->rtp, frame);
+
+	switch (frame->frametype) {
+		case CW_FRAME_CONTROL:
+		case CW_FRAME_IMAGE:
+		case CW_FRAME_TEXT:
+			break;
+
+		case CW_FRAME_VOICE:
+			if ((frame->subclass & ast->nativeformats)) {
+				cw_mutex_lock(&sub->lock);
+				if ((sub->parent->sub == sub) || !sub->parent->singlepath) {
+					if (sub->rtp)
+						res =  cw_rtp_write(sub->rtp, frame);
+				}
+				cw_mutex_unlock(&sub->lock);
+			} else {
+				cw_log(CW_LOG_WARNING, "Asked to transmit frame type %d, while native formats is %d (read/write = %d/%d)\n",
+					frame->subclass, ast->nativeformats, ast->readformat, ast->writeformat);
+				res = -1;
 			}
-		}
-		cw_mutex_unlock(&sub->lock);
+			break;
+
+		default:
+			cw_log(CW_LOG_WARNING, "Can't send %d type frames with MGCP write\n", frame->frametype);
+			break;
 	}
+
 	return res;
 }
 

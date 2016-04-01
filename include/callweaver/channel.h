@@ -140,9 +140,6 @@ struct cw_channel_tech {
 	/*! Fix up a channel:  If a channel is consumed, this is called.  Basically update any ->owner links */
 	int (* const fixup)(struct cw_channel *oldchan, struct cw_channel *newchan);
 
-	/*! Set a given option */
-	int (* const setoption)(struct cw_channel *chan, int option, void *data, int datalen);
-
 	/*! Query a given option */
 	int (* const queryoption)(struct cw_channel *chan, int option, void *data, int *datalen);
 
@@ -882,16 +879,6 @@ extern CW_API_PUBLIC const char *cw_transfercapability2str(int transfercapabilit
    none or a subset of those features, and you should not count on this if you want your
    callweaver application to be portable.  They're mainly useful for tweaking performance */
 
-/*! Sets an option on a channel */
-/*! 
- * \param channel channel to set options on
- * \param option option to change
- * \param data data specific to option
- * \param datalen length of the data
- * Set an option on a channel (see frame.h)
- * Returns 0 on success and -1 on failure
- */
-extern CW_API_PUBLIC int cw_channel_setoption(struct cw_channel *channel, int option, void *data, int datalen);
 
 /*! Pick the best codec  */
 /* Choose the best codec...  Uhhh...   Yah. */
@@ -1026,6 +1013,24 @@ static inline int cw_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 #  define cw_channel_trylock(chan)	cw_mutex_trylock(&(chan)->lock)
 #  define cw_channel_unlock(chan)	cw_mutex_unlock(&(chan)->lock)
 #endif
+
+
+/*! Send an option frame to a channel */
+/*!
+ * \param chan  the channel
+ * \param option  the option to update
+ * \param value   the new value for the option
+ */
+static inline void cw_channel_setoption(struct cw_channel *chan, int option, int value)
+{
+    struct cw_frame *f = cw_fr_alloca(CW_FRAME_CONTROL, CW_CONTROL_OPTION, sizeof(int) * 2);
+    int *ctrl_opt_arg = f->data;
+
+    ctrl_opt_arg[0] = option;
+    ctrl_opt_arg[1] = value;
+    cw_write(chan, &f);
+    cw_fr_free(f);
+}
 
 
 /*! Waits for activity on a group of channels */

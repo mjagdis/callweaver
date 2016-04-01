@@ -2494,10 +2494,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
            we will always return with -1 so that it is hung up properly after the 
            conversation.  */
         qe->handled++;
+
         if (!strcmp(qe->chan->type, "DAHDI"))
-            cw_channel_setoption(qe->chan, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality));
+            cw_channel_setoption(qe->chan, CW_OPTION_TONE_VERIFY, nondataquality);
         if (!strcmp(peer->type, "DAHDI"))
-            cw_channel_setoption(peer, CW_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality));
+            cw_channel_setoption(peer, CW_OPTION_TONE_VERIFY, nondataquality);
+
         /* Update parameters for the queue */
         recalc_holdtime(qe);
         member = lpeer->member;

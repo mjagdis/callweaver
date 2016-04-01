@@ -161,9 +161,26 @@ static struct cw_frame  *skel_exception(struct cw_channel *chan)
 static int skel_write(struct cw_channel *chan, struct cw_frame *frame)
 {
 	CW_UNUSED(chan);
-	CW_UNUSED(frame);
+	int ret = 0;
 
-	return -1;
+	switch (frame->frametype) {
+		case CW_FRAME_CONTROL:
+			switch (frame->subclass) {
+				case CW_CONTROL_OPTION:
+					break;
+			}
+			break;
+
+		case CW_FRAME_HTML:
+		case CW_FRAME_IMAGE:
+		case CW_FRAME_TEXT:
+			break;
+
+		case CW_FRAME_VOICE:
+			break;
+	}
+
+	return ret;
 }
 
 
@@ -192,21 +209,6 @@ static int skel_digit(struct cw_channel *chan, char digit)
 	CW_UNUSED(digit);
 
 	return -1;
-}
-
-
-/*! Set an option.
- *
- * OPTIONAL - It is not necessary to implement this.
- */
-static int skel_setoption(struct cw_channel *chan, int option, void *data, int datalen)
-{
-	CW_UNUSED(chan);
-	CW_UNUSED(option);
-	CW_UNUSED(data);
-	CW_UNUSED(datalen);
-
-	return 0;
 }
 
 
@@ -291,7 +293,6 @@ static const struct cw_channel_tech skel_tech = {
 	.send_digit = skel_digit,
 
 	/* The following are optional and should be left NULL if not implemented. */
-	.setoption = skel_setoption,
 	.queryoption = skel_queryoption,
 	.transfer = skel_transfer,
 	.bridge = skel_bridge,

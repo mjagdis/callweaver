@@ -1903,6 +1903,8 @@ struct cw_frame *cw_read(struct cw_channel *chan)
 						cw_log(CW_LOG_WARNING, "Failed to write data to channel monitor read stream\n");
 				}
 			
+				/* FIXME: If we have an RX gain we should apply it now using cw_frame_adjust_volume(). */
+
 				if (chan->readtrans) {
 					if ((f = cw_translate(chan->readtrans, f, 1)) == NULL)
 						f = &cw_null_frame;
@@ -2193,11 +2195,10 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 	CHECK_BLOCKING(chan);
 #endif
 	switch (fr->frametype) {
-		case CW_FRAME_CONTROL:
-			/* XXX Interpret control frames XXX */
-			cw_log(CW_LOG_WARNING, "Don't know how to handle control frames yet\n");
-			res = 1;
-			break;
+		/* FIXME: for CW_FRAME_CONTROL, CW_CONTROL_OPTION, CW_OPTION_{TX,RX}GAIN we should
+		 * record the requested gain in the struct cw_channel, switch to slinear in the
+		 * appropriate direction updating any translators.
+		 */
 
 		case CW_FRAME_DTMF:
 			cw_clear_flag(chan, CW_FLAG_BLOCKING);
@@ -2214,6 +2215,11 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 
 			res = 0;
 			f = fr;
+
+			/* FIXME: If we have a TX gain we should apply it here using cw_frame_adjust_volume(). But that
+			 * requires slinear. We may or may not have that and the translation path we have may or may
+			 * not be usable given the rescaled slinear.
+			 */
 
 			if (chan->writetrans && fr->frametype == CW_FRAME_VOICE && !(f = cw_translate(chan->writetrans, fr, 0)))
 				break;
@@ -2255,11 +2261,10 @@ int cw_write(struct cw_channel *chan, struct cw_frame **fr_p)
 			}
 
 			res = chan->tech->write(chan, f);
+			if (f != fr)
+				cw_fr_free(f);
 			break;
 	}
-
-	if (f != fr)
-		cw_fr_free(f);
 
 	cw_clear_flag(chan, CW_FLAG_BLOCKING);
 
@@ -3526,25 +3531,6 @@ enum cw_bridge_result cw_channel_bridge(struct cw_channel *c0, struct cw_channel
 	cw_log(CW_LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
 
 	return res;
-}
-
-/*--- cw_channel_setoption: Sets an option on a channel */
-int cw_channel_setoption(struct cw_channel *chan, int option, void *data, int datalen)
-{
-	int res;
-
-	if (chan->tech->setoption)
-	{
-		res = chan->tech->setoption(chan, option, data, datalen);
-		if (res < 0)
-			return res;
-	}
-	else
-	{
-		errno = ENOSYS;
-		return -1;
-	}
-	return 0;
 }
 
 struct tonepair_def

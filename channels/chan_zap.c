@@ -673,7 +673,7 @@ static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame);
 struct cw_frame *dahdi_exception(struct cw_channel *cw);
 static int dahdi_indicate(struct cw_channel *chan, int condition);
 static int dahdi_fixup(struct cw_channel *oldchan, struct cw_channel *newchan);
-static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int datalen);
+static void dahdi_setoption(struct cw_channel *chan, struct dahdi_pvt *p, int option, int arg);
 
 
 static const struct cw_channel_tech dahdi_tech = {
@@ -691,7 +691,6 @@ static const struct cw_channel_tech dahdi_tech = {
 	.exception = dahdi_exception,
 	.indicate = dahdi_indicate,
 	.fixup = dahdi_fixup,
-	.setoption = dahdi_setoption,
 };
 
 #ifdef ZAPATA_PRI
@@ -2667,9 +2666,8 @@ static int dahdi_hangup(struct cw_channel *cw)
 		free(p->cidspill2);
 		if (p->sig)
 			dahdi_disable_ec(p);
-		x = 0;
-		cw_channel_setoption(cw, CW_OPTION_TONE_VERIFY, &x, sizeof(char));
-		cw_channel_setoption(cw, CW_OPTION_TDD, &x, sizeof(char));
+		dahdi_setoption(cw, p, CW_OPTION_TONE_VERIFY, 0);
+		dahdi_setoption(cw, p, CW_OPTION_TDD, 0);
 		p->didtdd = FALSE;
 		p->cidspill = p->cidspill2 = NULL;
 		p->callwaitcas = 0;
@@ -2811,152 +2809,127 @@ static int dahdi_answer(struct cw_channel *cw)
 	return res;
 }
 
-static int dahdi_setoption(struct cw_channel *chan, int option, void *data, int datalen)
+static void dahdi_setoption(struct cw_channel *chan, struct dahdi_pvt *p, int option, int arg)
 {
-	char *cp;
-	signed char *scp;
 	int curindex;
-	struct dahdi_pvt *p = chan->tech_pvt;
 
-	/* all supported options require data */
-	if (!data || (datalen < 1)) {
-		errno = EINVAL;
-		return -1;
-	}
+	switch (option) {
+		case CW_OPTION_TXGAIN:
+			if ((curindex = dahdi_get_index(chan, p, 0)) >= 0) {
+				cw_log(CW_LOG_DEBUG, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float)arg);
+				set_actual_txgain(p->subs[curindex].dfd, 0, p->txgain + (float)arg, p->law);
+			} else
+				cw_log(CW_LOG_WARNING, "No index in TXGAIN?\n");
+			break;
 
-	switch(option) {
-	case CW_OPTION_TXGAIN:
-		scp = (signed char *) data;
-		curindex = dahdi_get_index(chan, p, 0);
-		if (curindex < 0) {
-			cw_log(CW_LOG_WARNING, "No index in TXGAIN?\n");
-			return -1;
-		}
-		cw_log(CW_LOG_DEBUG, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
-		return set_actual_txgain(p->subs[curindex].dfd, 0, p->txgain + (float) *scp, p->law);
-	case CW_OPTION_RXGAIN:
-		scp = (signed char *) data;
-		curindex = dahdi_get_index(chan, p, 0);
-		if (curindex < 0) {
-			cw_log(CW_LOG_WARNING, "No index in RXGAIN?\n");
-			return -1;
-		}
-		cw_log(CW_LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
-		return set_actual_rxgain(p->subs[curindex].dfd, 0, p->rxgain + (float) *scp, p->law);
-	case CW_OPTION_ECHOCANCEL:
-		if (*(char *)data)
-			dahdi_enable_ec(p);
-		else
-			dahdi_disable_ec(p);
-		return 0;
-	case CW_OPTION_TONE_VERIFY:
-		if (!p->dsp)
+		case CW_OPTION_RXGAIN:
+			if ((curindex = dahdi_get_index(chan, p, 0)) >= 0) {
+				cw_log(CW_LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float)arg);
+				set_actual_rxgain(p->subs[curindex].dfd, 0, p->rxgain + (float)arg, p->law);
+			} else
+				cw_log(CW_LOG_WARNING, "No index in RXGAIN?\n");
 			break;
-		cp = (char *) data;
-		switch (*cp) {
-		case 1:
-			cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
-			cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
-			break;
-		case 2:
-			cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
-			cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
-			break;
-		default:
-			cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
-			cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
-			break;
-		}
-		break;
-	case CW_OPTION_MUTECONF:
-		dahdi_confmute(p, *(char *)data);
-		break;
-	case CW_OPTION_TDD:
-		/* turn on or off TDD */
-		cp = (char *) data;
-		p->mate = 0;
-		if (!*cp) { /* turn it off */
-			cw_log(CW_LOG_DEBUG, "Set option TDD MODE, value: OFF(0) on %s\n",chan->name);
-			if (p->tdd)
-				tdd_free(p->tdd);
-			p->tdd = FALSE;
-			break;
-		}
-		cw_log(CW_LOG_DEBUG, "Set option TDD MODE, value: %s(%d) on %s\n",
-			(*cp == 2) ? "MATE" : "ON", (int) *cp, chan->name);
-		dahdi_disable_ec(p);
-		/* otherwise, turn it on */
-		if (!p->didtdd) {
-			/* if haven't done it yet */
-			uint8_t mybuf[41000];
-			uint8_t *buf;
-			int size,res,fd,len;
-			struct pollfd fds[1];
 
-			buf = mybuf;
-			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
-			cw_gen_ecdisa(buf + 16000, 16000, CW_LAW(p));  /* put in tone */
-			len = 40000;
-			curindex = dahdi_get_index(chan, p, 0);
-			if (curindex < 0) {
-				cw_log(CW_LOG_WARNING, "No index in TDD?\n");
-				return -1;
+		case CW_OPTION_ECHOCANCEL:
+			if (arg)
+				dahdi_enable_ec(p);
+			else
+				dahdi_disable_ec(p);
+			break;
+
+		case CW_OPTION_TONE_VERIFY:
+			if (p->dsp) {
+				switch (arg) {
+					case 1:
+						cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
+						cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
+						break;
+					case 2:
+						cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
+						cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
+						break;
+					default:
+						cw_log(CW_LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
+						cw_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
+						break;
+				}
 			}
-			fd = p->subs[curindex].dfd;
-			while(len) {
-				if (cw_check_hangup(chan)) return -1;
-				size = len;
-				if (size > READ_SIZE)
-					size = READ_SIZE;
-				fds[0].fd = fd;
-				fds[0].events = POLLPRI | POLLOUT;
-				fds[0].revents = 0;
-				res = poll(fds, 1, -1);
-				if (!res) {
-					cw_log(CW_LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
-					continue;
+			break;
+
+		case CW_OPTION_MUTECONF:
+			dahdi_confmute(p, arg);
+			break;
+
+		case CW_OPTION_TDD:
+			/* turn on or off TDD */
+			p->mate = 0;
+			if (!arg) { /* turn it off */
+				cw_log(CW_LOG_DEBUG, "Set option TDD MODE, value: OFF(0) on %s\n",chan->name);
+				if (p->tdd)
+					tdd_free(p->tdd);
+				p->tdd = FALSE;
+				break;
+			}
+			cw_log(CW_LOG_DEBUG, "Set option TDD MODE, value: %s(%d) on %s\n",
+				(arg == 2) ? "MATE" : "ON", arg, chan->name);
+			dahdi_disable_ec(p);
+			/* otherwise, turn it on */
+			if (!p->didtdd && (curindex = dahdi_get_index(chan, p, 0)) >= 0) {
+				/* if haven't done it yet */
+				uint8_t mybuf[41000];
+				uint8_t *buf;
+				int size,res,fd,len;
+				struct pollfd fds[1];
+
+				buf = mybuf;
+				memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
+				cw_gen_ecdisa(buf + 16000, 16000, CW_LAW(p));  /* put in tone */
+				len = 40000;
+				fd = p->subs[curindex].dfd;
+				while (len && !cw_check_hangup(chan)) {
+					size = len;
+					if (size > READ_SIZE)
+						size = READ_SIZE;
+					fds[0].fd = fd;
+					fds[0].events = POLLPRI | POLLOUT;
+					fds[0].revents = 0;
+					res = poll(fds, 1, -1);
+					if (!res) {
+						cw_log(CW_LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
+						continue;
+					}
+					if (fds[0].revents & POLLPRI)
+						break;
+					if ((res = write(fd, buf, size)) != size) {
+						cw_log(CW_LOG_DEBUG, "Write returned %d on channel %d, errno = %d: %s\n", res, p->channel, errno, strerror(errno));
+						break;
+					}
+					len -= size;
+					buf += size;
 				}
-				/* if got exception */
-				if (fds[0].revents & POLLPRI) return -1;
-				if (!(fds[0].revents & POLLOUT)) {
-					cw_log(CW_LOG_DEBUG, "write fd not ready on channel %d\n", p->channel);
-					continue;
-				}
-				res = write(fd, buf, size);
-				if (res != size) {
-					if (res == -1) return -1;
-					cw_log(CW_LOG_DEBUG, "Write returned %d (%s) on channel %d\n", res, strerror(errno), p->channel);
+				p->didtdd = TRUE; /* set to have done it now */
+				if (arg == 2) { /* Mate mode */
+					if (p->tdd)
+						tdd_free(p->tdd);
+					p->tdd = FALSE;
+					p->mate = 1;
 					break;
 				}
-				len -= size;
-				buf += size;
+				if (!p->tdd) {
+					/* if we dont have one yet */
+					p->tdd = tdd_new(); /* allocate one */
+				}
 			}
-			p->didtdd = TRUE; /* set to have done it now */		
-		}
-		if (*cp == 2) { /* Mate mode */
-			if (p->tdd)
-				tdd_free(p->tdd);
-			p->tdd = FALSE;
-			p->mate = 1;
 			break;
-		}		
-		if (!p->tdd) {
-			/* if we dont have one yet */
-			p->tdd = tdd_new(); /* allocate one */
-		}		
-		break;
-	case CW_OPTION_RELAXDTMF:  /* Relax DTMF decoding (or not) */
-		if (!p->dsp)
-			break;
-		cp = (char *) data;
-		cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: %s(%d) on %s\n",
-			*cp ? "ON" : "OFF", (int) *cp, chan->name);
-		cw_dsp_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
-		break;
-	}
-	errno = 0;
 
-	return 0;
+		case CW_OPTION_RELAXDTMF:  /* Relax DTMF decoding (or not) */
+			if (p->dsp) {
+				cw_log(CW_LOG_DEBUG, "Set option RELAX DTMF, value: %s(%d) on %s\n",
+					arg ? "ON" : "OFF", arg, chan->name);
+				cw_dsp_digitmode(p->dsp, (arg ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
+			}
+			break;
+	}
 }
 
 static void dahdi_unlink(struct dahdi_pvt *slave, struct dahdi_pvt *master, int needlock)
@@ -4701,35 +4674,38 @@ struct cw_frame  *dahdi_read(struct cw_channel *cw)
 	return f;
 }
 
-static int my_dahdi_write(struct dahdi_pvt *p, unsigned char *buf, int len, int curindex, int linear)
+static int my_dahdi_write(struct dahdi_pvt *p, int curindex, struct cw_frame *frame)
 {
-	int sent=0;
+	int len = frame->datalen;
+	char *buf = (char *)frame->data;
+	int clip = (frame->subclass == CW_FORMAT_SLINEAR ? READ_SIZE * 2 : READ_SIZE);
+	int fd = p->subs[curindex].dfd;
 	int size;
-	int res;
-	int fd;
-	fd = p->subs[curindex].dfd;
-	while(len) {
+	int res = 0;
+
+	while (len) {
 		size = len;
-		if (size > (linear ? READ_SIZE * 2 : READ_SIZE))
-			size = (linear ? READ_SIZE * 2 : READ_SIZE);
+		if (size > clip)
+			size = clip;
 		res = write(fd, buf, size);
 		if (res != size) {
 			if (option_debug)
 				cw_log(CW_LOG_DEBUG, "Write returned %d (%s) on channel %d\n", res, strerror(errno), p->channel);
-			return sent;
+			break;
 		}
 		len -= size;
 		buf += size;
 	}
-	return sent;
+	return res;
 }
 
 static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame)
 {
-	struct dahdi_pvt *p = cw->tech_pvt;
-	int res;
 	unsigned char outbuf[4096];
+	struct dahdi_pvt *p = cw->tech_pvt;
 	int curindex;
+	int res = 0;
+
 	curindex = dahdi_get_index(cw, p, 0);
 	if (curindex < 0) {
 		cw_log(CW_LOG_WARNING, "%s doesn't really exist?\n", cw->name);
@@ -4757,62 +4733,72 @@ static int dahdi_write(struct cw_channel *cw, struct cw_frame *frame)
 			cw_log(CW_LOG_DEBUG, "Dropping frame since I'm still dialing on %s...\n",cw->name);
 		return 0;
 	}
-	if (!p->owner) {
-		if (option_debug)
-			cw_log(CW_LOG_DEBUG, "Dropping frame since there is no active owner on %s...\n",cw->name);
-		return 0;
-	}
+
 	if (p->cidspill) {
 		if (option_debug)
 			cw_log(CW_LOG_DEBUG, "Dropping frame since I've still got a callerid spill\n");
 		return 0;
 	}
-	if (frame->frametype == CW_FRAME_TEXT) {
-		dahdi_sendtext(cw, frame->data);
-		return 0;
-	}
-	/* Write a frame of (presumably voice) data */
-	if (frame->frametype != CW_FRAME_VOICE) {
-		if (frame->frametype != CW_FRAME_IMAGE)
+
+	switch (frame->frametype) {
+		case CW_FRAME_CONTROL:
+			switch (frame->subclass) {
+				case CW_CONTROL_OPTION: {
+					int *arg = (int *)frame->data;
+					dahdi_setoption(cw, p, arg[0], arg[1]);
+					break;
+				}
+			}
+		case CW_FRAME_TEXT:
+			dahdi_sendtext(cw, frame->data);
+			break;
+
+		case CW_FRAME_IMAGE:
+			break;
+
+		case CW_FRAME_VOICE:
+			switch (frame->subclass) {
+				case CW_FORMAT_SLINEAR:
+				case CW_FORMAT_ULAW:
+				case CW_FORMAT_ALAW:
+					/* Return if it's not valid data */
+					if (!frame->data || !frame->datalen)
+						break;
+					if (frame->datalen > sizeof(outbuf) * 2) {
+						cw_log(CW_LOG_WARNING, "Frame too large\n");
+						break;
+					}
+
+					if (frame->subclass == CW_FORMAT_SLINEAR) {
+						if (!p->subs[curindex].linear) {
+							p->subs[curindex].linear = 1;
+							res = dahdi_setlinear(p->subs[curindex].dfd, p->subs[curindex].linear);
+							if (res)
+								cw_log(CW_LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
+						}
+					} else {
+						/* x-law already */
+						if (p->subs[curindex].linear) {
+							p->subs[curindex].linear = 0;
+							res = dahdi_setlinear(p->subs[curindex].dfd, p->subs[curindex].linear);
+							if (res)
+								cw_log(CW_LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
+						}
+					}
+					res = my_dahdi_write(p, curindex, frame);
+					break;
+
+				default:
+					cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
+					res = -1;
+			}
+			break;
+
+		default:
 			cw_log(CW_LOG_WARNING, "Don't know what to do with frame type '%d'\n", frame->frametype);
-		return 0;
-	}
-	if ((frame->subclass != CW_FORMAT_SLINEAR) &&
-	    (frame->subclass != CW_FORMAT_ULAW) &&
-	    (frame->subclass != CW_FORMAT_ALAW)) {
-		cw_log(CW_LOG_WARNING, "Cannot handle frames in %d format\n", frame->subclass);
-		return -1;
-	}
-	/* Return if it's not valid data */
-	if (!frame->data || !frame->datalen)
-		return 0;
-	if (frame->datalen > sizeof(outbuf) * 2) {
-		cw_log(CW_LOG_WARNING, "Frame too large\n");
-		return 0;
+			break;
 	}
 
-	if (frame->subclass == CW_FORMAT_SLINEAR) {
-		if (!p->subs[curindex].linear) {
-			p->subs[curindex].linear = 1;
-			res = dahdi_setlinear(p->subs[curindex].dfd, p->subs[curindex].linear);
-			if (res)
-				cw_log(CW_LOG_WARNING, "Unable to set linear mode on channel %d\n", p->channel);
-		}
-		res = my_dahdi_write(p, (unsigned char *)frame->data, frame->datalen, curindex, 1);
-	} else {
-		/* x-law already */
-		if (p->subs[curindex].linear) {
-			p->subs[curindex].linear = 0;
-			res = dahdi_setlinear(p->subs[curindex].dfd, p->subs[curindex].linear);
-			if (res)
-				cw_log(CW_LOG_WARNING, "Unable to set companded mode on channel %d\n", p->channel);
-		}
-		res = my_dahdi_write(p, (unsigned char *)frame->data, frame->datalen, curindex, 0);
-	}
-	if (res < 0) {
-		cw_log(CW_LOG_WARNING, "write failed: %s\n", strerror(errno));
-		return -1;
-	} 
 	return 0;
 }
 
