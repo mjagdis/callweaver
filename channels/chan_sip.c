@@ -1531,6 +1531,7 @@ static int transaction_object_match(struct cw_object *obj, const void *pattern)
 	} else {
 		/* RFC 3261 17.2.3 Matching Requests to Server Transacions */
 		ret = (msg->branch_len == key->branch_len
+			&& msg->sentby_len == key->sentby_len
 			&& !memcmp(&msg->pkt.data[msg->branch], &key->pkt.data[key->branch], key->branch_len)
 			&& !memcmp(&msg->pkt.data[msg->sentby], &key->pkt.data[key->sentby], key->sentby_len)
 			&& msg->cseq_method == (key->method != SIP_ACK ? key->method : SIP_INVITE));
@@ -12041,354 +12042,295 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req)
 /*! \brief  handle_request_invite: Handle incoming INVITE request */
 static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 {
-    int res = 1;
-    struct cw_channel *c = NULL;
-    int gotdest;
-    char *supported;
-    char *required;
-    unsigned int required_profile = 0;
+	int res = 1;
+	struct cw_channel *c = NULL;
+	int gotdest;
+	char *supported;
+	char *required;
+	unsigned int required_profile = 0;
 
-    /* Note the current time so we can add delay info to the timestamp header
-     * in the response.
-     */
-    cw_clock_gettime(global_clock_monotonic, &req->txtime);
+	/* Note the current time so we can add delay info to the timestamp header in the response. */
+	cw_clock_gettime(global_clock_monotonic, &req->txtime);
 
-    /* Find out what they support */
-    if (!p->sipoptions)
-    {
-        if ((supported = get_header(req, SIP_HDR_NOSHORT("Supported"))) && supported[0])
-            parse_sip_options(p, supported);
-    }
-    if ((required = get_header(req, SIP_HDR_NOSHORT("Required"))) && required[0])
-    {
-        required_profile = parse_sip_options(NULL, required);
-        if (required_profile)
-        {
-            /* They require something */
-            /* At this point we support no extensions, so fail */
-            transmit_response_with_unsupported(p, "420 Bad extension", req, required);
-            if (!p->lastinvite)
-                sip_destroy(p);
-            return -1;
-        }
-    }
-    /* save the Request line */
-    cw_copy_string(p->ruri, req->pkt.data + req->uriresp, sizeof(p->ruri));
+	/* Find out what they support */
+	if (!p->sipoptions) {
+		if ((supported = get_header(req, SIP_HDR_NOSHORT("Supported"))) && supported[0])
+			parse_sip_options(p, supported);
+	}
 
-    /* Check if this is a loop */
-    /* This happens since we do not properly support SIP domain
-       handling yet... -oej */
-    if (cw_test_flag(p, SIP_OUTGOING) && p->owner && (p->owner->_state != CW_STATE_UP))
-    {
-        /* This is a call to ourself.  Send ourselves an error code and stop
-           processing immediately, as SIP really has no good mechanism for
-           being able to call yourself */
-        transmit_response(p, "482 Loop Detected", req, 0, 0);
-        /* We do NOT destroy p here, so that our response will be accepted */
-        return 0;
-    }
+	if ((required = get_header(req, SIP_HDR_NOSHORT("Required"))) && required[0]) {
+		required_profile = parse_sip_options(NULL, required);
+		if (required_profile) {
+			/* At this point we support no extensions, so fail */
+			transmit_response_with_unsupported(p, "420 Bad extension", req, required);
+			if (!p->lastinvite)
+				sip_destroy(p);
+			return -1;
+		}
+	}
 
-    /* Use this as the basis */
-    if (req->debug)
-        cw_verbose("Using INVITE request as basis request - %s\n", p->callid);
-    sip_cancel_destroy(p);
-    /* This call is no longer outgoing if it ever was */
-    cw_clear_flag(p, SIP_OUTGOING);
-    /* This also counts as a pending invite */
-    p->pendinginvite = cw_object_dup(req);
-    p->initreq = cw_object_dup(req);
-    if (p->owner)
-    {
-        /* Handle SDP here if we already have an owner */
-        if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
-        {
-            transmit_response(p, "488 Not acceptable here", req, 0, 0);
-            if (!p->lastinvite)
-                sip_destroy(p);
-            return -1;
-        }
-        else
-        {
-            p->jointcapability = p->capability;
-            cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
-        }
-    }
+	/* save the Request line */
+	cw_copy_string(p->ruri, req->pkt.data + req->uriresp, sizeof(p->ruri));
 
-    if (!p->lastinvite && !p->owner)
-    {
-        /* Handle authentication if this is our first invite */
-        res = check_user_full(p, req, SIP_INVITE, req->pkt.data + req->uriresp, 1, NULL, 0);
+	/* Check if this is a loop */
+	/* This happens since we do not properly support SIP domain handling yet... -oej */
+	if (cw_test_flag(p, SIP_OUTGOING) && p->owner && (p->owner->_state != CW_STATE_UP)) {
+		/* This is a call to ourself.  Send ourselves an error code and stop
+		   processing immediately, as SIP really has no good mechanism for
+		   being able to call yourself */
+		transmit_response(p, "482 Loop Detected", req, 0, 0);
+		/* We do NOT destroy p here, so that our response will be accepted */
+		return 0;
+	}
+
+	/* Use this as the basis */
+	if (req->debug)
+		cw_verbose("Using INVITE request as basis request - %s\n", p->callid);
+
+	sip_cancel_destroy(p);
+	/* This call is no longer outgoing if it ever was */
+	cw_clear_flag(p, SIP_OUTGOING);
+	/* This also counts as a pending invite */
+	p->pendinginvite = cw_object_dup(req);
+	p->initreq = cw_object_dup(req);
+
+	if (p->owner) {
+		/* Handle SDP here if we already have an owner */
+		if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0) {
+			transmit_response(p, "488 Not acceptable here", req, 0, 0);
+			if (!p->lastinvite)
+				sip_destroy(p);
+			return -1;
+		} else {
+			p->jointcapability = p->capability;
+			cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
+		}
+	}
+
+	if (!p->lastinvite && !p->owner) {
+		/* Handle authentication if this is our first invite */
+		res = check_user_full(p, req, SIP_INVITE, req->pkt.data + req->uriresp, 1, NULL, 0);
 	if (res > 0)
-	    return 0;
-        if (res < 0)
-        {
-	    if (res == -4) {
-		cw_log(CW_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, SIP_HDR_FROM));
-		transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
-	    } else {
-		cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, SIP_HDR_FROM));
-		transmit_response(p, "403 Forbidden", req, 1, 1);
-	    }
-	    sip_destroy(p);
-	    return 0;
-        }
-        /* Process the SDP portion */
-        if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
-        {
-            transmit_response(p, "488 Not acceptable here", req, 0, 0);
-            sip_destroy(p);
-            return -1;
-        }
-        else
-        {
-            p->jointcapability = p->capability;
-            cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
-        }
-        /* Queue NULL frame to prod cw_rtp_bridge if appropriate */
-        if (p->owner)
-            cw_queue_frame(p->owner, &cw_null_frame);
-        /* Initialize the context if it hasn't been already */
-        if (cw_strlen_zero(p->context))
-            strcpy(p->context, default_context);
-        /* Check number of concurrent calls -vs- incoming limit HERE */
-        cw_log(CW_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
-        res = update_call_counter(p, INC_CALL_LIMIT);
-        if (res)
-        {
-            if (res < 0)
-            {
-                cw_log(CW_LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
-                transmit_response(p, "480 Temporarily Unavailable (Call limit) ", req, 1, 1);
-                sip_destroy(p);
-            }
-            return 0;
-        }
-        /* Get destination right away */
-        gotdest = get_destination(p, NULL);
+		return 0;
+		if (res < 0) {
+			if (res == -4) {
+				cw_log(CW_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, SIP_HDR_FROM));
+				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata), 1);
+			} else {
+				cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, SIP_HDR_FROM));
+				transmit_response(p, "403 Forbidden", req, 1, 1);
+			}
+			sip_destroy(p);
+			return 0;
+		}
+		/* Process the SDP portion */
+		if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0) {
+			transmit_response(p, "488 Not acceptable here", req, 0, 0);
+			sip_destroy(p);
+			return -1;
+		} else {
+			p->jointcapability = p->capability;
+			cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
+		}
+		/* Queue NULL frame to prod cw_rtp_bridge if appropriate */
+		if (p->owner)
+			cw_queue_frame(p->owner, &cw_null_frame);
+		/* Initialize the context if it hasn't been already */
+		if (cw_strlen_zero(p->context))
+			strcpy(p->context, default_context);
+		/* Check number of concurrent calls -vs- incoming limit HERE */
+		cw_log(CW_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
+		res = update_call_counter(p, INC_CALL_LIMIT);
+		if (res) {
+			if (res < 0) {
+				cw_log(CW_LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
+				transmit_response(p, "480 Temporarily Unavailable (Call limit) ", req, 1, 1);
+				sip_destroy(p);
+			}
+			return 0;
+		}
+		/* Get destination right away */
+		gotdest = get_destination(p, NULL);
 
-        get_rdnis(p, NULL);
-        extract_uri(p, req);
-        build_contact(p);
+		get_rdnis(p, NULL);
+		extract_uri(p, req);
+		build_contact(p);
 
-        if (gotdest)
-        {
-            if (gotdest < 0)
-                transmit_response(p, "404 Not Found", req, 1, 1);
-            else
-                transmit_response(p, "484 Address Incomplete", req, 1, 1);
-            update_call_counter(p, DEC_CALL_LIMIT);
-	    sip_destroy(p);
-	    return 0;
-        }
+		if (gotdest) {
+			if (gotdest < 0)
+				transmit_response(p, "404 Not Found", req, 1, 1);
+			else
+				transmit_response(p, "484 Address Incomplete", req, 1, 1);
+			update_call_counter(p, DEC_CALL_LIMIT);
+			sip_destroy(p);
+			return 0;
+		}
 
-        /* If no extension was specified, use the s one */
-        if (cw_strlen_zero(p->exten))
-            cw_copy_string(p->exten, "s", sizeof(p->exten));
-        /* First invitation */
-        c = sip_new(p, CW_STATE_DOWN, cw_strlen_zero(p->username)  ?  NULL  :  p->username);
-        /* Save Record-Route for any later requests we make on this dialogue */
-	/* FIXME: is this right? Shouldn't we only save it from a response to the INVITE? */
-        build_route(p, req, 0);
-        set_destination(p, (p->route ? p->route->hop : p->okcontacturi));
-    }
-    else
-    {
-        if (option_debug > 1  &&  sipdebug)
-            cw_log(CW_LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
-        c = p->owner;
-    }
+		/* If no extension was specified, use the s one */
+		if (cw_strlen_zero(p->exten))
+			cw_copy_string(p->exten, "s", sizeof(p->exten));
+		/* First invitation */
+		c = sip_new(p, CW_STATE_DOWN, cw_strlen_zero(p->username)  ?  NULL  :  p->username);
+		/* Save Record-Route for any later requests we make on this dialogue */
+		build_route(p, req, 0);
+		set_destination(p, (p->route ? p->route->hop : p->okcontacturi));
+	} else {
+		if (option_debug > 1  &&  sipdebug)
+			cw_log(CW_LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
+		c = p->owner;
+	}
 
-    if (p)
-        p->lastinvite = req->seqno;
+	if (p)
+		p->lastinvite = req->seqno;
 
-    if (c)
-    {
+	if (c) {
 #ifdef OSP_SUPPORT
-        cw_channel_setwhentohangup(c, p->osptimelimit);
+		cw_channel_setwhentohangup(c, p->osptimelimit);
 #endif
-        switch (c->_state)
-        {
-        case CW_STATE_DOWN:
-            transmit_response(p, "100 Trying", req, 0, 0);
-            cw_setstate(c, CW_STATE_RING);
-            if (strcmp(p->exten, cw_pickup_ext()))
-            {
-                enum cw_pbx_result pbxres = cw_pbx_start(c);
+		switch (c->_state) {
+			case CW_STATE_DOWN:
+				transmit_response(p, "100 Trying", req, 0, 0);
+				cw_setstate(c, CW_STATE_RING);
+				if (strcmp(p->exten, cw_pickup_ext())) {
+					enum cw_pbx_result pbxres = cw_pbx_start(c);
 
-                if (pbxres != CW_PBX_SUCCESS)
-                {
-                    switch (pbxres)
-                    {
-                    case CW_PBX_FAILED:
-                        cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
-                        transmit_response(p, "503 Unavailable", req, 1, 1);
-                        break;
-                    case CW_PBX_CALL_LIMIT:
-                        cw_log(CW_LOG_WARNING, "Failed to start PBX (call limit reached) \n");
-                        transmit_response(p, "480 Temporarily Unavailable", req, 1, 1);
-                        break;
-                    case CW_PBX_SUCCESS:
-                        /* nothing to do */
-                        break;
-                    }
+					if (pbxres != CW_PBX_SUCCESS) {
+						switch (pbxres) {
+							case CW_PBX_FAILED:
+								cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
+								transmit_response(p, "503 Unavailable", req, 1, 1);
+								break;
+							case CW_PBX_CALL_LIMIT:
+								cw_log(CW_LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+								transmit_response(p, "480 Temporarily Unavailable", req, 1, 1);
+								break;
+							case CW_PBX_SUCCESS:
+								break;
+						}
 
-                    cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
-                    /* Unlock locks so cw_hangup can do its magic */
-                    cw_channel_unlock(c);
-                    cw_mutex_unlock(&p->lock);
-                    cw_hangup(c);
-                    cw_mutex_lock(&p->lock);
-                    c = NULL;
-                }
-            }
-            else
-            {
-                cw_channel_unlock(c);
-                if (cw_pickup_call(c))
-                {
-                    cw_log(CW_LOG_NOTICE, "Nothing to pick up\n");
-                    transmit_response(p, "503 Unavailable", req, 1, 1);
-                    cw_set_flag(p, SIP_ALREADYGONE);    
-                    /* Unlock locks so cw_hangup can do its magic */
-                    cw_mutex_unlock(&p->lock);
-                    cw_hangup(c);
-                    cw_mutex_lock(&p->lock);
-                    c = NULL;
-                }
-                else
-                {
-                    cw_mutex_unlock(&p->lock);
-                    cw_setstate(c, CW_STATE_DOWN);
-                    cw_hangup(c);
-                    cw_mutex_lock(&p->lock);
-                    c = NULL;
-                }
-            }
-            break;
-        case CW_STATE_RING:
-            transmit_response(p, "100 Trying", req, 0, 0);
-            break;
-        case CW_STATE_RINGING:
-            transmit_response(p, "180 Ringing", req, 0, 0);
-            break;
-        case CW_STATE_UP:
-            if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE)
-            {
-                struct cw_channel *bridgepeer = NULL;
-                struct sip_pvt *bridgepvt = NULL;
-                
-                if ((bridgepeer = cw_bridged_channel(p->owner)))
-                {
-                    /* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
-                    /*! XXX: we should also check here does the other side supports t38 at all !!! XXX */  
-                    if (!strcasecmp(bridgepeer->type,"SIP"))
-                    {
-                        /* If we are bridged to SIP channel */
-                        if ((bridgepvt = (struct sip_pvt *) bridgepeer->tech_pvt))
-                        {
-                            if (bridgepvt->t38state >= SIP_T38_STATUS_UNKNOWN)
-                            {
-                                if (bridgepvt->udptl)
-                                {
-                                    /* If everything is OK with other side's udptl struct */
-                                    /* Send re-invite to the bridged channel */ 
-                                    sip_handle_t38_reinvite(bridgepeer, p, 1);
-                                    cw_channel_set_t38_status(bridgepeer, T38_NEGOTIATING);
-                                }
-                                else
-                                {
-                                    /* Something is wrong with peers udptl struct */
-                                    cw_log(CW_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
-                                    cw_mutex_lock(&bridgepvt->lock);
-                                    bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
-                                    cw_mutex_unlock(&bridgepvt->lock);
-                                    cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
-                                    p->t38state = SIP_T38_STATUS_UNKNOWN;
-                                    cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                                    transmit_response(p, "415 Unsupported Media Type", req, 1, 1);
-                                    sip_destroy(p);
-                                } 
-                            }
-                        }
-                        else
-                        {
-                            cw_log(CW_LOG_WARNING, "Strange... The other side of the bridge don't seem to exist\n");
-                        }
-                    }
-                    else
-                    {
-                        /* Other side is not a SIP channel */
-                        transmit_response(p, "415 Unsupported Media Type", req, 1, 1);
-                        p->t38state = SIP_T38_STATUS_UNKNOWN;
-                        cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                        sip_destroy(p);
-                    }    
-                    cw_object_put(bridgepeer);
-                }
-                else
-                {
-                    /* we are not bridged in a call */ 
-                    transmit_response_with_t38_sdp(p, "200 OK", req, 1);
-                    p->t38state = SIP_T38_NEGOTIATED;
-                    cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
-                    if (p->owner)
-                    {
-                        cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
-                        cw_log(CW_LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
-                    }
-                }
-            }
-            else if (p->t38state == SIP_T38_STATUS_UNKNOWN)
-            {
-                /* Channel doesn't have T38 offered or enabled */
-                /* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
-                /* so handle it here (re-invite other party to RTP) */
-                struct cw_channel *bridgepeer = NULL;
-                struct sip_pvt *bridgepvt = NULL;
-    
-                if ( (bridgepeer = cw_bridged_channel(p->owner) ) && !strcasecmp(bridgepeer->type,"SIP") )
-		{
-                    {
-                        bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
-                        if (bridgepvt->t38state == SIP_T38_NEGOTIATED)
-                        {
-                            cw_log(CW_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
-                            /* Insted of this we should somehow re-invite the other side of the bridge to RTP */
-                            transmit_response(p, "488 Not Acceptable Here (unsupported)", req, 1, 1);
-                            sip_destroy(p);
-                        }
-                        else
-                        {
-                            /* No bridged peer with T38 enabled*/
-                            transmit_response_with_sdp(p, "200 OK", req, 1);
-                        }
-                    }
-                    cw_object_put(bridgepeer);
-                }
-        	else
-		    transmit_response_with_sdp(p, "200 OK", req, 1);
-            } 
-            break;
-        default:
-            cw_log(CW_LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
-            transmit_response(p, "100 Trying", req, 0, 0);
-        }
-    }
-    else
-    {
-        if (p)
-        {
-            if (!p->jointcapability)
-                transmit_response(p, "488 Not Acceptable Here (codec error)", req, 1, 1);
-            else
-            {
-                cw_log(CW_LOG_NOTICE, "Unable to create/find channel\n");
-                transmit_response(p, "503 Unavailable", req, 1, 1);
-            }
-            sip_destroy(p);
-        }
-    }
-    return res;
+						cw_log(CW_LOG_WARNING, "Failed to start PBX :(\n");
+						/* Unlock locks so cw_hangup can do its magic */
+						cw_channel_unlock(c);
+						cw_mutex_unlock(&p->lock);
+						cw_hangup(c);
+						cw_mutex_lock(&p->lock);
+						c = NULL;
+					}
+				} else {
+					cw_channel_unlock(c);
+					if (cw_pickup_call(c)) {
+						cw_log(CW_LOG_NOTICE, "Nothing to pick up\n");
+						transmit_response(p, "503 Unavailable", req, 1, 1);
+						cw_set_flag(p, SIP_ALREADYGONE);
+						/* Unlock locks so cw_hangup can do its magic */
+						cw_mutex_unlock(&p->lock);
+						cw_hangup(c);
+						cw_mutex_lock(&p->lock);
+						c = NULL;
+					} else {
+						cw_mutex_unlock(&p->lock);
+						cw_setstate(c, CW_STATE_DOWN);
+						cw_hangup(c);
+						cw_mutex_lock(&p->lock);
+						c = NULL;
+					}
+				}
+				break;
+			case CW_STATE_RING:
+				transmit_response(p, "100 Trying", req, 0, 0);
+				break;
+			case CW_STATE_RINGING:
+				transmit_response(p, "180 Ringing", req, 0, 0);
+				break;
+			case CW_STATE_UP:
+				if (p->t38state == SIP_T38_OFFER_RECEIVED_REINVITE) {
+					struct cw_channel *bridgepeer = NULL;
+					struct sip_pvt *bridgepvt = NULL;
+
+					if ((bridgepeer = cw_bridged_channel(p->owner))) {
+						/* We have a bridge, and this is re-invite to switchover to T38 so we send re-invite with T38 SDP, to other side of bridge*/
+						/*! XXX: we should also check here does the other side supports t38 at all !!! XXX */
+						if (!strcasecmp(bridgepeer->type,"SIP")) {
+							/* If we are bridged to SIP channel */
+							if ((bridgepvt = (struct sip_pvt *) bridgepeer->tech_pvt)) {
+								if (bridgepvt->t38state >= SIP_T38_STATUS_UNKNOWN) {
+									if (bridgepvt->udptl) {
+										/* If everything is OK with other side's udptl struct */
+										/* Send re-invite to the bridged channel */
+										sip_handle_t38_reinvite(bridgepeer, p, 1);
+										cw_channel_set_t38_status(bridgepeer, T38_NEGOTIATING);
+									} else {
+										/* Something is wrong with peers udptl struct */
+										cw_log(CW_LOG_WARNING, "Strange... The other side of the bridge don't have udptl struct\n");
+										cw_mutex_lock(&bridgepvt->lock);
+										bridgepvt->t38state = SIP_T38_STATUS_UNKNOWN;
+										cw_mutex_unlock(&bridgepvt->lock);
+										cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",bridgepvt->t38state, bridgepeer->name);
+										p->t38state = SIP_T38_STATUS_UNKNOWN;
+										cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+										transmit_response(p, "415 Unsupported Media Type", req, 1, 1);
+										sip_destroy(p);
+									}
+								}
+							} else
+								cw_log(CW_LOG_WARNING, "Strange... The other side of the bridge don't seem to exist\n");
+						} else {
+							/* Other side is not a SIP channel */
+							transmit_response(p, "415 Unsupported Media Type", req, 1, 1);
+							p->t38state = SIP_T38_STATUS_UNKNOWN;
+							cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+							sip_destroy(p);
+						}
+						cw_object_put(bridgepeer);
+					} else {
+						/* we are not bridged in a call */
+						transmit_response_with_t38_sdp(p, "200 OK", req, 1);
+						p->t38state = SIP_T38_NEGOTIATED;
+						cw_log(CW_LOG_DEBUG,"T38 state changed to %d on channel %s\n",p->t38state, p->owner ? p->owner->name : "<none>");
+						if (p->owner) {
+							cw_channel_set_t38_status(p->owner, T38_NEGOTIATED);
+							cw_log(CW_LOG_DEBUG,"T38mode enabled for channel %s\n", p->owner->name);
+						}
+					}
+				} else if (p->t38state == SIP_T38_STATUS_UNKNOWN) {
+					/* Channel doesn't have T38 offered or enabled */
+					/* If we are bridged to a channel that has T38 enabled than this is a case of RTP re-invite after T38 session */
+					/* so handle it here (re-invite other party to RTP) */
+					struct cw_channel *bridgepeer = NULL;
+					struct sip_pvt *bridgepvt = NULL;
+
+					if ((bridgepeer = cw_bridged_channel(p->owner)) && !strcasecmp(bridgepeer->type,"SIP")) {
+						bridgepvt = (struct sip_pvt*)bridgepeer->tech_pvt;
+						if (bridgepvt->t38state == SIP_T38_NEGOTIATED) {
+							cw_log(CW_LOG_WARNING, "RTP re-invite after T38 session not handled yet !\n");
+							/* Instead of this we should somehow re-invite the other side of the bridge to RTP */
+							transmit_response(p, "488 Not Acceptable Here (unsupported)", req, 1, 1);
+							sip_destroy(p);
+						} else {
+							/* No bridged peer with T38 enabled*/
+							transmit_response_with_sdp(p, "200 OK", req, 1);
+						}
+						cw_object_put(bridgepeer);
+					} else
+						transmit_response_with_sdp(p, "200 OK", req, 1);
+				}
+				break;
+			default:
+				cw_log(CW_LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
+				transmit_response(p, "100 Trying", req, 0, 0);
+		}
+	} else {
+		if (p) {
+			if (!p->jointcapability)
+				transmit_response(p, "488 Not Acceptable Here (codec error)", req, 1, 1);
+			else {
+				cw_log(CW_LOG_NOTICE, "Unable to create/find channel\n");
+				transmit_response(p, "503 Unavailable", req, 1, 1);
+			}
+			sip_destroy(p);
+		}
+	}
+	return res;
 }
 
 /*! \brief  handle_request_refer: Handle incoming REFER request */
