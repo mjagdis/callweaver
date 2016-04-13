@@ -288,34 +288,29 @@ static char *cli_prompt(void)
 
 static int read_message(int s, int nresp)
 {
-	static char buf_level[16];
-	static char buf_date[256];
-	static char buf_threadid[32];
-	static char buf_file[256];
-	static char buf_line[6];
-	static char buf_function[256];
 	enum { F_DATE = 0, F_LEVEL, F_THREADID, F_FILE, F_LINE, F_FUNCTION, F_MESSAGE };
 	static const struct {
 		const char *name;
-		const int name_len;
-		const int buf_len;
-		char *buf;
+		const int len;
 	} field[] = {
-		[F_DATE]     = { "Date",      sizeof("Date") - 1,      sizeof(buf_date),     buf_date     },
-		[F_LEVEL]    = { "Level",     sizeof("Level") - 1,     sizeof(buf_level),    buf_level    },
-		[F_THREADID] = { "Thread ID", sizeof("Thread ID") - 1, sizeof(buf_threadid), buf_threadid },
-		[F_FILE]     = { "File",      sizeof("File") - 1,      sizeof(buf_file),     buf_file     },
-		[F_LINE]     = { "Line",      sizeof("Line") - 1,      sizeof(buf_line),     buf_line     },
-		[F_FUNCTION] = { "Function",  sizeof("Function") - 1,  sizeof(buf_function), buf_function },
+		[F_DATE]     = { "Date",      sizeof("Date") - 1      },
+		[F_LEVEL]    = { "Level",     sizeof("Level") - 1     },
+		[F_THREADID] = { "Thread ID", sizeof("Thread ID") - 1 },
+		[F_FILE]     = { "File",      sizeof("File") - 1      },
+		[F_LINE]     = { "Line",      sizeof("Line") - 1      },
+		[F_FUNCTION] = { "Function",  sizeof("Function") - 1  },
 	};
-	static int field_len[arraysize(field)];
+	static struct {
+		int start, len;
+	} field_pos[arraysize(field)];
 	static char buf[32768];
 	static int pos = 0;
 	static int state = 0;
-	static char *key, *val;
+	static int key, val;
 	static int lkey, lval = -1;
 	static enum { MSG_UNKNOWN, MSG_EVENT, MSG_RESPONSE, MSG_FOLLOWS, MSG_VERSION, MSG_COMPLETION } msgtype;
 	struct cw_dynstr ds = CW_DYNSTR_INIT;
+	char *p;
 	int ds_lines = 0;
 	int level, res, i;
 
@@ -341,30 +336,30 @@ static int read_message(int s, int nresp)
 								nresp--;
 							if (msgtype == MSG_VERSION) {
 								lkey = sizeof(remoteversion) + sizeof(remotehostname) + sizeof(" running on  (pid 0000000000)") + 1;
-								key = alloca(lkey);
-								lkey = snprintf(key, lkey, "%s running on %s (pid %u)", remoteversion, remotehostname, remotepid);
+								p = alloca(lkey);
+								lkey = snprintf(p, lkey, "%s running on %s (pid %u)", remoteversion, remotehostname, remotepid);
 
-								set_title(key);
+								set_title(p);
 
 								if (!option_quiet) {
 									putc('\n', stdout);
-									fputs(key, stdout);
+									fputs(p, stdout);
 									putc('\n', stdout);
 
-									while (lkey > 0) key[--lkey] = '=';
-									fputs(key, stdout);
+									while (lkey > 0) p[--lkey] = '=';
+									fputs(p, stdout);
 									fputs("\n\n", stdout);
 								}
 							}
 						}
 						msgtype = MSG_UNKNOWN;
 						for (i = 0; i < arraysize(field); i++)
-							field[i].buf[0] = '\0';
+							field_pos[i].len = 0;
 						memmove(buf, &buf[pos + 1], res - 1);
 						lval = pos = -1;
 						break;
 					}
-					key = &buf[pos];
+					key = pos;
 					state = 1;
 					/* Fall through - the key could be null */
 				case 1: /* In header name, looking for ':' */
@@ -372,97 +367,96 @@ static int read_message(int s, int nresp)
 						break;
 					/* End of header name, skip spaces to value */
 					state = 2;
-					lkey = &buf[pos] - key;
+					lkey = pos - key;
 					if (buf[pos] == ':')
 						break;
 					/* Fall through all the way - no colon, no value - want end of line */
 				case 2: /* Skipping spaces before value */
 					if (buf[pos] == ' ' || buf[pos] == '\t')
 						break;
-					val = &buf[pos];
+					val = pos;
 					state = 3;
 					/* Fall through - we are on the start of the value and it may be blank */
 				case 3: /* In value, looking for end of line */
 					if ((buf[pos] == '\r' || buf[pos] == '\n') && lval < 0)
-						lval = &buf[pos] - val;
+						lval = pos - val;
 
 					if (buf[pos] == '\n') {
 						state = 0;
 
 						if (msgtype == MSG_EVENT) {
-							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
-								key = buf;
+							if (lkey == sizeof("Message")-1 && !memcmp(&buf[key], "Message", sizeof("Message") - 1)) {
+								key = pos + 1;
 								state = 4;
 							} else {
 								for (i = 0; i < arraysize(field); i++) {
-									if (lkey == field[i].name_len && !memcmp(key, field[i].name, field[i].name_len)) {
+									if (lkey == field[i].len && !memcmp(&buf[key], field[i].name, field[i].len)) {
 										if (i == F_LEVEL) {
-											level = atol(val);
-											while (*val != ' ')
+											level = atol(&buf[val]);
+											while (buf[val] != ' ')
 												val++, lval--;
 										}
-										field_len[i] = (lval > field[i].buf_len ? field[i].buf_len : lval);
-										memcpy(field[i].buf, val, field_len[i]);
+										field_pos[i].start = val;
+										field_pos[i].len = lval;
 										break;
 									}
 								}
 							}
 						} else if (msgtype == MSG_RESPONSE) {
-							if (lkey == sizeof("Message")-1 && !memcmp(key, "Message", sizeof("Message") - 1)) {
+							if (lkey == sizeof("Message")-1 && !memcmp(&buf[key], "Message", sizeof("Message") - 1)) {
 								exit_prompt();
-								fwrite(val, 1, lval, stdout);
+								fwrite(&buf[val], 1, lval, stdout);
 							}
 						} else if (msgtype == MSG_FOLLOWS || msgtype == MSG_COMPLETION) {
-							if (lkey != sizeof("Privilege")-1 || memcmp(key, "Privilege", sizeof("Privilege") - 1)) {
+							if (lkey != sizeof("Privilege")-1 || memcmp(&buf[key], "Privilege", sizeof("Privilege") - 1)) {
 								state = 4;
-								lval = &buf[pos] - key;
-								if (lval > 0 && key[lval - 1] == '\r')
+								lval = pos - key;
+								if (lval > 0 && buf[key + lval - 1] == '\r')
 									lval--;
 								goto is_data;
 							}
 						} else if (msgtype == MSG_VERSION) {
-							if (lkey == sizeof("Hostname")-1 && !memcmp(key, "Hostname", sizeof("Hostname") - 1)) {
+							if (lkey == sizeof("Hostname")-1 && !memcmp(&buf[key], "Hostname", sizeof("Hostname") - 1)) {
 								if (lval > sizeof(remotehostname) - 1)
 									lval = sizeof(remotehostname) - 1;
-								memcpy(remotehostname, val, lval);
-								val[lval] = '\0';
-							} else if (lkey == sizeof("Pid")-1 && !memcmp(key, "Pid", sizeof("Pid") - 1))
-								remotepid = strtoul(val, NULL, 10);
-							else if (lkey == sizeof("Version")-1 && !memcmp(key, "Version", sizeof("Version") - 1)) {
+								memcpy(remotehostname, &buf[val], lval);
+								remotehostname[lval] = '\0';
+							} else if (lkey == sizeof("Pid")-1 && !memcmp(&buf[key], "Pid", sizeof("Pid") - 1))
+								remotepid = strtoul(&buf[val], NULL, 10);
+							else if (lkey == sizeof("Version")-1 && !memcmp(&buf[key], "Version", sizeof("Version") - 1)) {
 								if (lval > sizeof(remoteversion) - 1)
 									lval = sizeof(remoteversion) - 1;
-								memcpy(remoteversion, val, lval);
-								val[lval] = '\0';
+								memcpy(remoteversion, &buf[val], lval);
+								remoteversion[lval] = '\0';
 							}
 						} else {
 							/* Event and Response headers are guaranteed to come
 							 * before any other header
 							 */
-							if (lkey == sizeof("Event") - 1 && !memcmp(key, "Event", sizeof("Event") - 1))
+							if (lkey == sizeof("Event") - 1 && !memcmp(&buf[key], "Event", sizeof("Event") - 1))
 								msgtype = MSG_EVENT;
-							else if (lkey == sizeof("Response") - 1 && !memcmp(key, "Response", sizeof("Response") - 1)) {
-								if (lval == sizeof("Completion") - 1 && !memcmp(val, "Completion", sizeof("Completion") - 1))
+							else if (lkey == sizeof("Response") - 1 && !memcmp(&buf[key], "Response", sizeof("Response") - 1)) {
+								if (lval == sizeof("Completion") - 1 && !memcmp(&buf[val], "Completion", sizeof("Completion") - 1))
 									msgtype = MSG_COMPLETION;
-								else if (lval == sizeof("Follows") - 1 && !memcmp(val, "Follows", sizeof("Follows") - 1))
+								else if (lval == sizeof("Follows") - 1 && !memcmp(&buf[val], "Follows", sizeof("Follows") - 1))
 									msgtype = MSG_FOLLOWS;
-								else if (lval == sizeof("Version") - 1 && !memcmp(val, "Version", sizeof("Version") - 1))
+								else if (lval == sizeof("Version") - 1 && !memcmp(&buf[val], "Version", sizeof("Version") - 1))
 									msgtype = MSG_VERSION;
 								else
 									msgtype = MSG_RESPONSE;
 							}
 						}
 
-						memmove(buf, &buf[pos + 1], res - 1);
-						lval = pos = -1;
+						lval = -1;
 					}
 					break;
 				case 4: /* Response data - want a line */
 					if ((buf[pos] == '\r' || buf[pos] == '\n') && lval < 0)
-						lval = &buf[pos] - key;
+						lval = pos - key;
 
 					if (buf[pos] == '\n') {
 						if (msgtype == MSG_EVENT) {
-							if (lval != sizeof("--END MESSAGE--") - 1 || memcmp(key, "--END MESSAGE--", sizeof("--END MESSAGE--") - 1)) {
+							if (lval != sizeof("--END MESSAGE--") - 1 || memcmp(&buf[key], "--END MESSAGE--", sizeof("--END MESSAGE--") - 1)) {
 								exit_prompt();
 
 								if (level == CW_LOG_PROGRESS) {
@@ -470,7 +464,7 @@ static int read_message(int s, int nresp)
 									 * we get a null progress message to signify the end
 									 */
 									if (lval) {
-										fwrite(key, 1, lval, stdout);
+										fwrite(&buf[key], 1, lval, stdout);
 										progress = 2;
 									} else {
 										putchar('\n');
@@ -482,41 +476,42 @@ static int read_message(int s, int nresp)
 										progress = 1;
 									}
 
-									key[lval++] = '\n';
+									buf[key + lval++] = '\n';
 									if (level != CW_LOG_VERBOSE) {
-										fwrite(field[F_DATE].buf, 1, field_len[F_DATE], stdout);
+										fwrite(&buf[field_pos[F_DATE].start], 1, field_pos[F_DATE].len, stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].on)
 											terminal_write_attr(level_attr[level].on, putchar);
-										fwrite(field[F_LEVEL].buf, 1, field_len[F_LEVEL], stdout);
+										fwrite(&buf[field_pos[F_LEVEL].start], 1, field_pos[F_LEVEL].len, stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].off)
 											terminal_write_attr(level_attr[level].off, putchar);
 										putchar('[');
-										fwrite(field[F_THREADID].buf, 1, field_len[F_THREADID], stdout);
+										fwrite(&buf[field_pos[F_THREADID].start], 1, field_pos[F_THREADID].len, stdout);
 										fwrite("]: ", 1, 3, stdout);
-										fwrite(field[F_FILE].buf, 1, field_len[F_FILE], stdout);
+										fwrite(&buf[field_pos[F_FILE].start], 1, field_pos[F_FILE].len, stdout);
 										putchar(':');
-										fwrite(field[F_LINE].buf, 1, field_len[F_LINE], stdout);
+										fwrite(&buf[field_pos[F_LINE].start], 1, field_pos[F_LINE].len, stdout);
 										putchar(' ');
 										if (bold_on)
 											terminal_write_attr(bold_on, putchar);
-										fwrite(field[F_FUNCTION].buf, 1, field_len[F_FUNCTION], stdout);
+										fwrite(&buf[field_pos[F_FUNCTION].start], 1, field_pos[F_FUNCTION].len, stdout);
 										if (bold_off)
 											terminal_write_attr(bold_off, putchar);
 										fwrite(": ", 1, 2, stdout);
 									}
-									fwrite(key, 1, lval, stdout);
+									fwrite(&buf[key], 1, lval, stdout);
 								}
+								key = pos + 1;
 							} else
 								state = 0;
 						} else
 is_data:
-						if (lval != sizeof("--END COMMAND--") - 1 || memcmp(key, "--END COMMAND--", sizeof("--END COMMAND--") - 1)) {
+						if (lval != sizeof("--END COMMAND--") - 1 || memcmp(&buf[key], "--END COMMAND--", sizeof("--END COMMAND--") - 1)) {
 							if (msgtype == MSG_FOLLOWS) {
-								key[lval++] = '\n';
-								cw_dynstr_printf(&ds, "%.*s", lval, key);
+								buf[key + lval++] = '\n';
+								cw_dynstr_printf(&ds, "%.*s", lval, &buf[key]);
 								ds_lines++;
 							} else if (msgtype == MSG_COMPLETION) {
-								key[lval] = '\0';
+								buf[key + lval] = '\0';
 								if (matches_count == matches_space) {
 									char **n = realloc(matches, (matches_space + 64) * sizeof(matches[0]));
 									if (n) {
@@ -524,9 +519,9 @@ is_data:
 										matches = n;
 									}
 								}
-								if (matches_count < matches_space && (matches[matches_count] = strdup(key))) {
+								if (matches_count < matches_space && (matches[matches_count] = strdup(&buf[key]))) {
 									if (!matches[0])
-										matches[0] = strdup(key);
+										matches[0] = strdup(&buf[key]);
 									if (matches[0]) {
 										for (lval = 0; matches[0][lval] && matches[0][lval] == matches[matches_count][lval]; lval++);
 										matches[0][lval] = '\0';
@@ -547,9 +542,8 @@ is_data:
 								nresp--;
 						}
 
-						memmove(buf, &buf[pos + 1], res - 1);
-						lval = pos = -1;
-						key = buf;
+						lval = -1;
+						key = pos + 1;
 					}
 					break;
 			}
