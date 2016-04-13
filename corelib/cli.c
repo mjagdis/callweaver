@@ -420,9 +420,8 @@ static const char debugchan_help[] =
 "       Enables debugging on a specific channel.\n";
 
 static const char debuglevel_help[] =
-"Usage: debug level <level> [filename]\n"
-"       Set debug to specified level (0 to disable).  If filename\n"
-"is specified, debugging will be limited to just that file.\n";
+"Usage: debug level <level>\n"
+"       Set debug to specified level (0 to disable).\n";
 
 static const char nodebugchan_help[] =
 "Usage: no debug channel <channel>\n"
@@ -449,22 +448,16 @@ static int handle_softhangup(struct cw_dynstr *ds_p, int argc, char *argv[])
 
 static int handle_debuglevel(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-    const char *filename = "<any>";
     int newlevel;
+    int res = RESULT_SHOWUSAGE;
 
-    if ((argc < 3) || (argc > 4))
-        return RESULT_SHOWUSAGE;
-    if (sscanf(argv[2], "%d", &newlevel) != 1)
-        return RESULT_SHOWUSAGE;
-    option_debug = newlevel;
-    if (argc == 4) {
-        filename = argv[3];
-        cw_copy_string(debug_filename, filename, sizeof(debug_filename));
-    } else {
-        debug_filename[0] = '\0';
+    if (argc == 3 && sscanf(argv[2], "%d", &newlevel) == 1) {
+        option_debug = newlevel;
+        cw_dynstr_printf(ds_p, "Debugging level set to %d\n", newlevel);
+        res =  RESULT_SUCCESS;
     }
-    cw_dynstr_printf(ds_p, "Debugging level set to %d, file '%s'\n", newlevel, filename);
-    return RESULT_SUCCESS;
+
+    return res;
 }
 
 static int debugchan_one(struct cw_object *obj, void *data)

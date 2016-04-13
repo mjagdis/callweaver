@@ -61,7 +61,6 @@ extern CW_API_PUBLIC struct timespec cw_startuptime;
 extern CW_API_PUBLIC struct timespec cw_lastreloadtime;
 extern CW_API_PUBLIC int cw_mainpid;
 extern CW_API_PUBLIC char record_cache_dir[CW_CACHE_DIR_LEN];
-extern CW_API_PUBLIC char debug_filename[CW_FILENAME_MAX];
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

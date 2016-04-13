@@ -191,7 +191,6 @@ int option_priority_jumping = 1;
 int option_enableunsafeunload = 0;
 int fully_booted = 0;
 char record_cache_dir[CW_CACHE_DIR_LEN] = cwtmpdir_default;
-char debug_filename[CW_FILENAME_MAX] = "";
 
 int cw_mainpid;
 

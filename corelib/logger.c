@@ -682,10 +682,6 @@ void cw_log_internal(const char *file, int line, const char *function, cw_log_le
 	if ((msg = strrchr(file, '/')))
 		file = msg + 1;
 
-	/* Ignore anything other than the currently debugged file if there is one */
-	if ((level == CW_LOG_DEBUG) && !cw_strlen_zero(debug_filename) && strcasecmp(debug_filename, file))
-		return;
-
 	cw_clock_gettime(CLOCK_REALTIME, &now);
 	localtime_r(&now.tv_sec, &tm);
 	if (!(msglen = cw_strftime(date, sizeof(date), dateformat, &tm, &now, 0)))
