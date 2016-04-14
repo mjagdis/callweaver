@@ -78,6 +78,8 @@ static const char *bold_on, *bold_off;
 static char *console_address;
 static int console_sock;
 
+static const char *dateformat = "%b %e %T %Z";
+
 static char remotehostname[MAXHOSTNAMELEN];
 static unsigned int remotepid;
 static char remoteversion[256];
@@ -304,6 +306,7 @@ static int read_message(int s, int nresp)
 		int start, len;
 	} field_pos[arraysize(field)];
 	static char buf[32768];
+	static char date[256];
 	static int pos = 0;
 	static int state = 0;
 	static int key, val;
@@ -353,6 +356,7 @@ static int read_message(int s, int nresp)
 							}
 						}
 						msgtype = MSG_UNKNOWN;
+						date[0] = '\0';
 						for (i = 0; i < arraysize(field); i++)
 							field_pos[i].len = 0;
 						memmove(buf, &buf[pos + 1], res - 1);
@@ -388,16 +392,24 @@ static int read_message(int s, int nresp)
 							if (lkey == sizeof("Message")-1 && !memcmp(&buf[key], "Message", sizeof("Message") - 1)) {
 								key = pos + 1;
 								state = 4;
+							} else if (lkey == sizeof("Timestamp")-1 && !memcmp(&buf[key], "Timestamp", sizeof("Timestamp") - 1)) {
+								struct timespec ts;
+								struct tm tm;
+								ts.tv_sec = atol(&buf[val]);
+								localtime_r(&ts.tv_sec, &tm);
+								cw_strftime(date, sizeof(date) - 1, dateformat, &tm, &ts, 0);
 							} else {
 								for (i = 0; i < arraysize(field); i++) {
 									if (lkey == field[i].len && !memcmp(&buf[key], field[i].name, field[i].len)) {
-										if (i == F_LEVEL) {
-											level = atol(&buf[val]);
-											while (buf[val] != ' ')
-												val++, lval--;
+										if (!field_pos[i].len) {
+											if (i == F_LEVEL) {
+												level = atol(&buf[val]);
+												while (buf[val] != ' ')
+													val++, lval--;
+											}
+											field_pos[i].start = val;
+											field_pos[i].len = lval;
 										}
-										field_pos[i].start = val;
-										field_pos[i].len = lval;
 										break;
 									}
 								}
@@ -478,7 +490,10 @@ static int read_message(int s, int nresp)
 
 									buf[key + lval++] = '\n';
 									if (level != CW_LOG_VERBOSE) {
-										fwrite(&buf[field_pos[F_DATE].start], 1, field_pos[F_DATE].len, stdout);
+										if (date[0])
+											fputs(date, stdout);
+										else
+											fwrite(&buf[field_pos[F_DATE].start], 1, field_pos[F_DATE].len, stdout);
 										if (level >= 0 && level < arraysize(level_attr) && level_attr[level].on)
 											terminal_write_attr(level_attr[level].on, putchar);
 										fwrite(&buf[field_pos[F_LEVEL].start], 1, field_pos[F_LEVEL].len, stdout);
@@ -1005,6 +1020,33 @@ static int setevents_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
 }
 
 
+static const char settz_help[] =
+"Usage: ?set TZ [<timezone>]\n"
+"       Sets the console timezone.\n"
+"       If no timezone is specified the console timezone is reset to the (local) system default.\n"
+"\n"
+"       IMPORTANT: if this is not a remote console changing its timezone changes the timezone for callweaver itself.\n";
+
+
+static int settz_handler(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	int ret = RESULT_SUCCESS;
+
+	CW_UNUSED(ds_p);
+
+	if (argc == 2)
+		unsetenv("TZ");
+	else if (argc == 3)
+		setenv("TZ", argv[2], 1);
+	else
+		ret = RESULT_SHOWUSAGE;
+
+	tzset();
+
+	return ret;
+}
+
+
 static struct cw_clicmd builtins[] = {
     {
         .cmda = { "?set", "prompt", NULL },
@@ -1017,6 +1059,12 @@ static struct cw_clicmd builtins[] = {
         .handler = setevents_handler,
         .summary = "Set the events to be logged to this console",
         .usage = setevents_help,
+    },
+    {
+        .cmda = { "?set", "TZ", NULL },
+        .handler = settz_handler,
+        .summary = "Set the local timezone",
+        .usage = settz_help,
     },
 };
 
