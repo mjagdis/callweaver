@@ -538,7 +538,7 @@ is_data:
 									if (!matches[0])
 										matches[0] = strdup(&buf[key]);
 									if (matches[0]) {
-										for (lval = 0; matches[0][lval] && matches[0][lval] == matches[matches_count][lval]; lval++);
+										for (lval = 0; matches[0][lval] && !strncasecmp(&matches[0][lval], &matches[matches_count][lval], 1); lval++);
 										matches[0][lval] = '\0';
 									}
 									matches[++matches_count] = NULL;
