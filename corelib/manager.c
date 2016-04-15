@@ -103,7 +103,6 @@ static struct {
 	[CW_LOG_WARNING]  = STR_LEN("warning"),
 	[CW_LOG_NOTICE]   = STR_LEN("notice"),
 	[CW_LOG_VERBOSE]  = STR_LEN("verbose"),
-	[CW_LOG_EVENT]    = STR_LEN("event"),
 	[CW_LOG_DTMF]     = STR_LEN("dtmf"),
 	[CW_LOG_DEBUG]    = STR_LEN("debug"),
 	[CW_LOG_PROGRESS] = STR_LEN("progress"),
@@ -708,7 +707,7 @@ static struct cw_manager_message *authenticate(struct mansession *sess, const st
 			sess->authenticated = 1;
 			if (option_verbose > 3 && displayconnects)
 				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged on from %l@\n", sess->username, &sess->addr);
-			cw_log(CW_LOG_EVENT, "Manager '%s' logged on from %l@\n", sess->username, &sess->addr);
+			cw_log(CW_LOG_NOTICE, "Manager '%s' logged on from %l@\n", sess->username, &sess->addr);
 			msg = cw_manager_response("Success", "Authentication accepted");
 		}
 
@@ -1636,7 +1635,7 @@ static void manager_session_cleanup(void *data)
 		if (sess->username[0]) {
 			if (option_verbose > 3 && displayconnects)
 				cw_verbose(VERBOSE_PREFIX_2 "Manager '%s' logged off from %l@\n", sess->username, &sess->addr);
-			cw_log(CW_LOG_EVENT, "Manager '%s' logged off from %l@\n", sess->username, &sess->addr);
+			cw_log(CW_LOG_NOTICE, "Manager '%s' logged off from %l@\n", sess->username, &sess->addr);
 		}
 	}
 

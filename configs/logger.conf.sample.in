@@ -25,10 +25,6 @@
 ; (defaults to yes).
 ;queue_log = no
 ;
-; This determines whether or not we log generic events to a file
-; (defaults to yes).
-;event_log = no
-;
 ;
 ; For each file, specify what to log.
 ;

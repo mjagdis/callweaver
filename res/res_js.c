@@ -1249,6 +1249,7 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 {
 	char *log;
 	char *msg;
+	JSBool ret = JS_TRUE;
 
 	CW_UNUSED(obj);
 	CW_UNUSED(rval);
@@ -1257,9 +1258,7 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 		if ((log = JS_GetStringBytes(JS_ValueToString(cx, argv[0]))) &&
 		   (msg = JS_GetStringBytes(JS_ValueToString(cx, argv[1])))) {
 
-			if (!strcasecmp(log, "LOG_EVENT"))
-				cw_log(CW_LOG_EVENT, msg);
-			else if (!strcasecmp(log, "LOG_NOTICE"))
+			if (!strcasecmp(log, "LOG_NOTICE"))
 				cw_log(CW_LOG_NOTICE, msg);
 			else if (!strcasecmp(log, "LOG_WARNING"))
 				cw_log(CW_LOG_WARNING, msg);
@@ -1267,13 +1266,13 @@ js_log(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
 				cw_log(CW_LOG_ERROR, msg);
 			else if (!strcasecmp(log, "LOG_VERBOSE"))
 				cw_log(CW_LOG_VERBOSE, msg);
-			else
-				cw_log(CW_LOG_EVENT, msg);
-			return JS_TRUE;
+			else {
+				cw_log(CW_LOG_ERROR, "Invalid Arguement \"%s\"\n", log);
+				ret = JS_FALSE;
+			}
 		} 
 	} 
-	cw_log(CW_LOG_ERROR, "Invalid Arguements\n");
-	return JS_FALSE;
+	return ret;
 
 }
 

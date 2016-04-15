@@ -57,8 +57,6 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 #include "callweaver/manager.h"
 
 
-#define EVENTLOG "event_log"
-
 #define MAX_MSG_QUEUE 200
 
 
@@ -73,8 +71,7 @@ CW_MUTEX_DEFINE_STATIC(loglock);
 
 static struct {
 	unsigned int queue_log:1;
-	unsigned int event_log:1;
-} logfiles = { 1, 1 };
+} logfiles = { 1 };
 
 
 struct logchannel {
@@ -86,15 +83,12 @@ struct logchannel {
 
 static struct logchannel *logchannels = NULL;
 
-static FILE *eventlog = NULL;
-
 
 static const char *levels[] = {
 	[CW_LOG_ERROR]    = "ERROR",
 	[CW_LOG_WARNING]  = "WARNING",
 	[CW_LOG_NOTICE]   = "NOTICE",
 	[CW_LOG_VERBOSE]  = "VERBOSE",
-	[CW_LOG_EVENT]    = "EVENT",
 	[CW_LOG_DTMF]     = "DTMF",
 	[CW_LOG_DEBUG]    = "DEBUG",
 	[CW_LOG_PROGRESS] = "PROGRESS",
@@ -108,7 +102,6 @@ static int logger_manager_session(struct mansession *sess, const struct cw_manag
 		[CW_LOG_WARNING] = LOG_WARNING,
 		[CW_LOG_NOTICE]  = LOG_NOTICE,
 		[CW_LOG_VERBOSE] = LOG_INFO,
-		[CW_LOG_EVENT]   = LOG_INFO,
 		[CW_LOG_DTMF]    = LOG_INFO,
 		[CW_LOG_DEBUG]   = LOG_DEBUG,
 	};
@@ -385,9 +378,6 @@ static void init_logger_chain(void)
 	if ((s = cw_variable_retrieve(cfg, "general", "queue_log"))) {
 		logfiles.queue_log = cw_true(s);
 	}
-	if ((s = cw_variable_retrieve(cfg, "general", "event_log"))) {
-		logfiles.event_log = cw_true(s);
-	}
 
 	var = cw_variable_browse(cfg, "logfiles");
 	while (var) {
@@ -449,96 +439,21 @@ static void queue_log_init(void)
 		cw_queue_log("NONE", "NONE", "NONE", "QUEUESTART", "%s", "");
 }
 
-int reload_logger(int rotate)
-{
-	int x;
 
-	cw_mutex_lock(&loglock);
-	if (eventlog) 
-		fclose(eventlog);
-	else 
-		rotate = 0;
-	eventlog = NULL;
+static int handle_logger_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(ds_p);
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
 
 	mkdir(cw_config[CW_LOG_DIR], 0755);
-
-	if (logfiles.event_log) {
-		struct cw_dynstr old = CW_DYNSTR_INIT;
-
-		cw_dynstr_printf(&old, "%s/" EVENTLOG, cw_config[CW_LOG_DIR]);
-
-		if (rotate) {
-			struct cw_dynstr new = CW_DYNSTR_INIT;
-			size_t mark;
-
-			cw_dynstr_printf(&new, "%s/." EVENTLOG, cw_config[CW_LOG_DIR]);
-			mark = new.used;
-
-			for (x = 0; ; x++) {
-				struct stat st;
-
-				cw_dynstr_printf(&new, "%d", x);
-
-				if (stat(new.data, &st))
-					break;
-
-				cw_dynstr_truncate(&new, mark);
-			}
-	
-			if (!old.error && !new.error) {
-				if (rename(old.data, new.data))
-					fprintf(stderr, "Unable to rename file '%s' to '%s'\n", old.data, new.data);
-			}
-
-			cw_dynstr_free(&new);
-		}
-
-		eventlog = fopen(old.data, "a");
-		cw_dynstr_free(&old);
-	}
-
-	cw_mutex_unlock(&loglock);
 
 	queue_log_init();
 	init_logger_chain();
 
-	if (logfiles.event_log) {
-		if (eventlog) {
-			cw_log(CW_LOG_EVENT, "Restarted CallWeaver Event Logger\n");
-			if (option_verbose)
-				cw_verbose("CallWeaver Event Logger restarted\n");
-			return 0;
-		} else 
-			cw_log(CW_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	} else 
-		return 0;
-	return -1;
+	return RESULT_SUCCESS;
 }
 
-static int handle_logger_reload(struct cw_dynstr *ds_p, int argc, char *argv[])
-{
-	CW_UNUSED(argc);
-	CW_UNUSED(argv);
-
-	if(reload_logger(0)) {
-		cw_dynstr_printf(ds_p, "Failed to reload the logger\n");
-		return RESULT_FAILURE;
-	} else
-		return RESULT_SUCCESS;
-}
-
-static int handle_logger_rotate(struct cw_dynstr *ds_p, int argc, char *argv[])
-{
-	CW_UNUSED(argc);
-	CW_UNUSED(argv);
-
-	cw_log(CW_LOG_WARNING, "built-in log rotation is deprecated. Please use the system log rotation and restart logger with 'logger reload'. See contrib in the source for sample logrotate files.\n");
-	if(reload_logger(1)) {
-		cw_dynstr_printf(ds_p, "Failed to reload the logger and rotate log files\n");
-		return RESULT_FAILURE;
-	} else
-		return RESULT_SUCCESS;
-}
 
 /*--- handle_logger_show_channels: CLI command to show logging system 
  	configuration */
@@ -570,8 +485,6 @@ static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *a
 			cw_dynstr_printf(ds_p, "Notice ");
 		if (chan->sess->send_events & CW_EVENT_FLAG_ERROR)
 			cw_dynstr_printf(ds_p, "Error ");
-		if (chan->sess->send_events & CW_EVENT_FLAG_EVENT)
-			cw_dynstr_printf(ds_p, "Event ");
 		cw_dynstr_printf(ds_p, "\n");
 	}
 
@@ -586,10 +499,6 @@ static int handle_logger_show_channels(struct cw_dynstr *ds_p, int argc, char *a
 static const char logger_reload_help[] =
 "Usage: logger reload\n"
 "       Reloads the logger subsystem state.  Use after restarting syslogd(8) if you are using syslog logging.\n";
-
-static const char logger_rotate_help[] =
-"Usage: logger rotate\n"
-"       Rotates and Reopens the log files.\n";
 
 static const char logger_show_channels_help[] =
 "Usage: logger show channels\n"
@@ -609,21 +518,11 @@ static struct cw_clicmd reload_logger_cli = {
 	.usage = logger_reload_help,
 };
 
-static struct cw_clicmd rotate_logger_cli = {
-	.cmda = { "logger", "rotate", NULL }, 
-	.handler = handle_logger_rotate,
-	.summary = "Rotates and reopens the log files",
-	.usage = logger_rotate_help,
-};
-
 
 int init_logger(void)
 {
-	int res = -1;
-
 	/* register the relaod logger cli command */
 	cw_cli_register(&reload_logger_cli);
-	cw_cli_register(&rotate_logger_cli);
 	cw_cli_register(&logger_show_channels_cli);
 
 	/* initialize queue logger */
@@ -632,27 +531,7 @@ int init_logger(void)
 	/* create log channels */
 	init_logger_chain();
 
-	/* create the eventlog */
-	if (logfiles.event_log) {
-		struct cw_dynstr fname = CW_DYNSTR_INIT;
-
-		mkdir(cw_config[CW_LOG_DIR], 0755);
-
-		cw_dynstr_printf(&fname, "%s/" EVENTLOG, cw_config[CW_LOG_DIR]);
-
-		if (!fname.error && (eventlog = fopen(fname.data, "a"))) {
-			cw_log(CW_LOG_EVENT, "Started CallWeaver Event Logger\n");
-			if (option_verbose)
-				cw_verbose("CallWeaver Event Logger Started %s\n", fname.data);
-			res = 0;
-		} else 
-			cw_log(CW_LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-
-		cw_dynstr_free(&fname);
-	} else
-		res = 0;
-
-	return res;
+	return 0;
 }
 
 
@@ -695,15 +574,6 @@ void cw_log_internal(const char *file, int line, const char *function, cw_log_le
 	/* FIXME: strip leading and trailing newlines. Really we need to audit all messages. */
 	for (msg = buf; *msg == '\n' || *msg == '\r'; msg++,msglen--);
 	while (msglen > 0 && (msg[msglen - 1] == '\n' || msg[msglen - 1] == '\r')) msg[--msglen] = '\0';
-
-	if (level == CW_LOG_EVENT) {
-		cw_mutex_lock(&loglock);
-		if (logfiles.event_log) {
-			fprintf(eventlog, "%s callweaver[%d]: %s\n", date, getpid(), msg);
-			fflush(eventlog);
-		}
-		cw_mutex_unlock(&loglock);
-	}
 
 	if (logchannels) {
 		cw_manager_event(1 << level, "Log",

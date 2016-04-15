@@ -64,7 +64,6 @@ static struct {
 	const char *on, *off;
 } level_attr[] = {
 	[CW_LOG_DEBUG]   = { NULL, NULL },
-	[CW_LOG_EVENT]   = { NULL, NULL },
 	[CW_LOG_NOTICE]  = { NULL, NULL },
 	[CW_LOG_WARNING] = { NULL, NULL },
 	[CW_LOG_ERROR]   = { NULL, NULL },
