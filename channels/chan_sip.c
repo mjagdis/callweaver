@@ -3248,7 +3248,6 @@ static int sip_hangup(struct cw_channel *ast)
         cw_osp_terminate(p->osphandle, CW_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
     }
 #endif    
-    cw_log(CW_LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter\n", p->username);
     update_call_counter(p, DEC_CALL_LIMIT);
     /* Determine how to disconnect */
     if (p->owner != ast)
@@ -12138,7 +12137,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 		if (cw_strlen_zero(p->context))
 			strcpy(p->context, default_context);
 		/* Check number of concurrent calls -vs- incoming limit HERE */
-		if (sipdebug) cw_log(CW_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
 		res = update_call_counter(p, INC_CALL_LIMIT);
 		if (res) {
 			if (res < 0) {
