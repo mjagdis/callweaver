@@ -1829,7 +1829,7 @@ static void sip_xmit(struct cw_connection *conn, struct cw_sockaddr_net *from, s
 			)
 		);
 		if (sipdebug && option_debug > 3)
-			cw_log(CW_LOG_DEBUG, "%s\n", msg->pkt.data);
+			cw_log(CW_LOG_DEBUG, "%s---\n", msg->pkt.data);
 	}
 
 	errno = ENOMEM;
