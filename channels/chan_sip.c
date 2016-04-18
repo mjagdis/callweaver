@@ -10408,17 +10408,16 @@ static void handle_request_publish(struct sip_pvt *dialogue, struct sip_request 
 }
 
 
-/*! \brief  sip_do_debug: Enable SIP Debugging in CLI */
-static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sip_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int i;
 
 	pthread_rwlock_wrlock(&debugacl.lock);
 
-	for (i = 3; i < argc; i++) {
+	for (i = 4; i < argc; i++) {
 		int err;
 
-		if ((err = cw_acl_add(&debugacl.acl, "p", argv[i])))
+		if ((err = cw_acl_add(&debugacl.acl, argv[2], argv[i])))
 			cw_dynstr_printf(ds_p, "%s: %s\n", argv[i], gai_strerror(err));
 	}
 
@@ -10427,20 +10426,19 @@ static int sip_do_debug_ip(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*! \brief  sip_do_debug_peer: Turn on SIP debugging with peer mask */
-static int sip_do_debug_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sip_debug_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int i;
 
 	pthread_rwlock_wrlock(&debugacl.lock);
 
-	for (i = 3; i < argc; i++) {
+	for (i = 4; i < argc; i++) {
 		struct sip_peer *peer;
 
 		if ((peer = find_peer(argv[i], NULL, 1))) {
 			int err;
 
-			if ((err = cw_acl_add_addr(&debugacl.acl, "p", &peer->addr.sa, sizeof(peer->addr), -1)))
+			if ((err = cw_acl_add_addr(&debugacl.acl, argv[2], &peer->addr.sa, sizeof(peer->addr), -1)))
 				cw_dynstr_printf(ds_p, "%s: %s\n", argv[i], gai_strerror(err));
 
 			cw_object_put(peer);
@@ -10453,8 +10451,7 @@ static int sip_do_debug_peer(struct cw_dynstr *ds_p, int argc, char *argv[])
 }
 
 
-/*! \brief  sip_do_debug_show: Show SIP debugging ACLs (CLI command) */
-static void sip_do_debug_show(struct cw_dynstr *ds_p)
+static void sip_debug_show(struct cw_dynstr *ds_p)
 {
 	cw_dynstr_printf(ds_p, "Global debug is %s\nMessage debug ACLs:\n", (sipdebug ? "ON" : "OFF"));
 
@@ -10466,23 +10463,27 @@ static void sip_do_debug_show(struct cw_dynstr *ds_p)
 	pthread_rwlock_unlock(&debugacl.lock);
 }
 
-/*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
-static int sip_do_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+static int sip_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
-	int res = RESULT_SHOWUSAGE;
+	int res = RESULT_SUCCESS;
 
-	if (argc == 2) {
-		sipdebug = 1;
-		cw_dynstr_printf(ds_p, "SIP Debugging enabled\n");
-		res = RESULT_SUCCESS;
-	} else if (argc == 3 && !strcmp(argv[2], "show")) {
-		sip_do_debug_show(ds_p);
-		res = RESULT_SUCCESS;
-	} else if (argc > 3) {
-		if (!strcmp(argv[2], "ip"))
-			res = sip_do_debug_ip(ds_p, argc, argv);
-		else if (!strcmp(argv[2], "peer"))
-			res = sip_do_debug_peer(ds_p, argc, argv);
+	if (argc == 3) {
+		if (!strcmp(argv[2], "show"))
+			sip_debug_show(ds_p);
+		else if ((sipdebug = cw_true(argv[2])))
+			cw_dynstr_printf(ds_p, "SIP Debugging enabled\n");
+		else if ((sipdebug = cw_false(argv[2]))) {
+			sipdebug = 0;
+			cw_dynstr_printf(ds_p, "SIP Debugging disabled\n");
+		} else
+			res = RESULT_SHOWUSAGE;
+	} else if (argc > 4) {
+		if (!strcmp(argv[3], "ip"))
+			res = sip_debug_ip(ds_p, argc, argv);
+		else if (!strcmp(argv[3], "peer"))
+			res = sip_debug_peer(ds_p, argc, argv);
+		else
+			res = RESULT_SHOWUSAGE;
 	}
 
 	return res;
@@ -10555,8 +10556,8 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
 }
 
 
-/*! \brief  sip_no_debug: Disable SIP Debugging in CLI */
-static int sip_no_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+/*! \brief  sip_debug_flush: Disable SIP Debugging in CLI */
+static int sip_debug_flush(struct cw_dynstr *ds_p, int argc, char *argv[])
 {
 	int res = RESULT_SHOWUSAGE;
 
@@ -10836,18 +10837,16 @@ static const char show_reg_usage[] =
 "       Lists all registration requests and status.\n";
 
 static const char debug_usage[] =
-"Usage: sip debug\n"
-"       sip debug show\n"
+"Usage: sip debug show\n"
 "       Shows the current SIP debugging state.\n\n"
-"       sip debug ip <host[:PORT]>\n"
-"       Enables dumping of SIP packets to and from host.\n\n"
-"       sip debug peer <peername>\n"
-"       Enables dumping of SIP packets to and from host.\n"
-"       Require peer to be registered.\n";
+"       sip debug [allow|deny] ip [<host>|<ip>/<n>][:<port>] ...\n"
+"       Enables or disables debug of SIP with the given end point.\n\n"
+"       sip debug [allow|deny] peer <peername> ...\n"
+"       Enables or disables debug of SIP with the given peer's registered addresses.\n";
 
-static const char no_debug_usage[] =
-"Usage: sip no debug\n"
-"       Disables dumping of SIP packets for debugging purposes\n";
+static const char debug_flush_usage[] =
+"Usage: sip debug flush\n"
+"       Disables SIP debugging and clears the debug list\n";
 
 static const char sip_reload_usage[] =
 "Usage: sip reload\n"
@@ -15813,9 +15812,10 @@ static int sip_reload_config(void)
         else if (!strcasecmp(v->name, "sipdebug"))
             sipdebug = cw_true(v->value);
         else if (!strcasecmp(v->name, "debugip")) {
-		char *argv[4];
-		argv[3] = v->value;
-		sip_do_debug_ip(&tmp_ds, 4, argv);
+		char *argv[5];
+		argv[3] = (char *)"allow";
+		argv[4] = v->value;
+		sip_debug_ip(&tmp_ds, 5, argv);
 		if (tmp_ds.used)
 			cw_log(CW_LOG_ERROR, "debugip %s\n", tmp_ds.data);
 		cw_dynstr_reset(&tmp_ds);
@@ -16202,29 +16202,54 @@ static struct cw_clicmd  my_clis[] = {
 	    .usage = show_settings_usage,
     },
     {
-	    .cmda = { "sip", "debug", NULL },
-	    .handler = sip_do_debug,
+	    .cmda = { "sip", "debug", "on", NULL },
+	    .handler = sip_debug,
 	    .summary = "Enable SIP debugging",
 	    .usage = debug_usage,
     },
     {
+	    .cmda = { "sip", "debug", "off", NULL },
+	    .handler = sip_debug,
+	    .summary = "Disable SIP debugging",
+	    .usage = debug_usage,
+    },
+    {
 	    .cmda = { "sip", "debug", "show", NULL },
-	    .handler = sip_do_debug,
+	    .handler = sip_debug,
 	    .summary = "Show SIP debugging state",
 	    .usage = debug_usage,
     },
     {
-	    .cmda = { "sip", "debug", "ip", NULL },
-	    .handler = sip_do_debug,
+	    .cmda = { "sip", "debug", "permit", "ip", NULL },
+	    .handler = sip_debug,
 	    .summary = "Enable SIP debugging on IP",
 	    .usage = debug_usage,
     },
     {
-	    .cmda = { "sip", "debug", "peer", NULL },
-	    .handler = sip_do_debug,
+	    .cmda = { "sip", "debug", "deny", "ip", NULL },
+	    .handler = sip_debug,
+	    .summary = "Enable SIP debugging on IP",
+	    .usage = debug_usage,
+    },
+    {
+	    .cmda = { "sip", "debug", "permit", "peer", NULL },
+	    .handler = sip_debug,
 	    .summary = "Enable SIP debugging on Peername",
 	    .usage = debug_usage,
 	    .generator = complete_sip_debug_peer,
+    },
+    {
+	    .cmda = { "sip", "debug", "deny", "peer", NULL },
+	    .handler = sip_debug,
+	    .summary = "Enable SIP debugging on Peername",
+	    .usage = debug_usage,
+	    .generator = complete_sip_debug_peer,
+    },
+    {
+	    .cmda = { "sip", "debug", "flush", NULL },
+	    .handler = sip_debug_flush,
+	    .summary = "Disable SIP debugging",
+	    .usage = debug_flush_usage,
     },
     {
 	    .cmda = { "sip", "show", "peer", NULL },
@@ -16270,12 +16295,6 @@ static struct cw_clicmd  my_clis[] = {
 	    .handler = sip_show_registry,
 	    .summary = "Show SIP registration status",
 	    .usage = show_reg_usage,
-    },
-    {
-	    .cmda = { "sip", "no", "debug", NULL },
-	    .handler = sip_no_debug,
-	    .summary = "Disable SIP debugging",
-	    .usage = no_debug_usage,
     },
     {
 	    .cmda = { "sip", "reload", NULL },
