@@ -2102,7 +2102,7 @@ static int __sip_autodestruct(void *data)
 		return 10000;    /* Reschedule this destruction so that we know that it's gone */
 	}
 
-	cw_log(CW_LOG_DEBUG, "Auto destroying call '%s'\n", dialogue->callid);
+	if (sipdebug) cw_log(CW_LOG_DEBUG, "Auto destroying call '%s'\n", dialogue->callid);
 
 	if (dialogue->owner) {
 		cw_log(CW_LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", dialogue->callid);
@@ -4546,7 +4546,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         }
         else
         {
-            cw_log(CW_LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
+            if (sipdebug) cw_log(CW_LOG_DEBUG, "Activating RTP on response %s (1)\n", p->callid);
             p->udptl_active = 0;
         }
         if (p->vrtp)
@@ -4860,7 +4860,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     else
     {
         p->t38state = SIP_T38_STATUS_UNKNOWN;
-        cw_log(CW_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
+        if (sipdebug) cw_log(CW_LOG_DEBUG, "T38 state changed to %d on channel %s\n",p->t38state,p->owner ? p->owner->name : "<none>");
     }
 
     /* Now gather all of the codecs that were asked for: */
@@ -7093,7 +7093,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
     {
         if (cw_sched_modify(sched, &r->timeout, global_reg_timeout * 1000, sip_reg_timeout, r))
             cw_object_dup(r);
-        cw_log(CW_LOG_DEBUG, "Scheduled a registration timeout for %s id %d \n", r->hostname, r->timeout);
+        if (sipdebug) cw_log(CW_LOG_DEBUG, "Scheduled a registration timeout for %s id %d \n", r->hostname, r->timeout);
     } else
         cw_object_put(r);
 
@@ -7680,7 +7680,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
         contact = get_header(req, SIP_HDR_CONTACT);
         if (!cw_strlen_zero(contact))
         {
-            cw_log(CW_LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
+            if (sipdebug) cw_log(CW_LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
             /* Look for <: delimited address */
             c = strchr(contact, '<');
             if (c)
@@ -11545,7 +11545,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
               cw_msg_tuple("Status",   "%s", regstate2str(r->regstate))
         );
         r->regattempts = 0;
-        cw_log(CW_LOG_DEBUG, "Registration successful\n");
+        if (sipdebug) cw_log(CW_LOG_DEBUG, "Registration successful\n");
 
         /* Let this one hang around until we have all the responses */
         sip_scheddestroy(p, -1);
@@ -12130,7 +12130,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 			return -1;
 		} else {
 			p->jointcapability = p->capability;
-			cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
+			if (sipdebug) cw_log(CW_LOG_DEBUG, "Hm....  No sdp for the moment\n");
 		}
 		/* Queue NULL frame to prod cw_rtp_bridge if appropriate */
 		if (p->owner)
@@ -12139,7 +12139,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 		if (cw_strlen_zero(p->context))
 			strcpy(p->context, default_context);
 		/* Check number of concurrent calls -vs- incoming limit HERE */
-		cw_log(CW_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
+		if (sipdebug) cw_log(CW_LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
 		res = update_call_counter(p, INC_CALL_LIMIT);
 		if (res) {
 			if (res < 0) {

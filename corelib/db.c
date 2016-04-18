@@ -277,7 +277,7 @@ int cw_db_get(const char *family, const char *keys, struct cw_dynstr *result)
 
 retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
-		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+		if (option_debug) cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 		res = sqlite3_exec(db,
 						   sql,
 						   get_callback,

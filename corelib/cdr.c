@@ -534,7 +534,7 @@ void cw_cdr_end(struct cw_cdr *cdr)
                 }
 		else {
 			cdr->billsec = 0;
-			cw_log(CW_LOG_DEBUG, "CDR on channel '%s' has not been answered [billsec => 0]\n", chan);
+			if (option_debug) cw_log(CW_LOG_DEBUG, "CDR on channel '%s' has not been answered [billsec => 0]\n", chan);
                 }
 		cdr = cdr->next;
 	}

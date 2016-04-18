@@ -604,7 +604,7 @@ static void cw_channel_release(struct cw_object *obj)
 	struct cw_channel *chan = container_of(obj, struct cw_channel, obj);
 	struct cw_frame *f;
 
-	cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
+	if (option_debug) cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
 
 	if (chan->tech_pvt) {
 		cw_log(CW_LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
@@ -711,7 +711,7 @@ struct cw_channel *cw_channel_alloc(int needqueue, const char *fmt, ...)
 				}
 			}
 
-			cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
+			if (option_debug) cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
 
 			/* N.B. cw_channel_alloc returns an uncounted reference. The reference
 			 * we have here is expected to be released by cw_channel_free(). The expectation
