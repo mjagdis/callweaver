@@ -67,6 +67,7 @@ static const char *create_odb_sql =
 "CREATE INDEX odb_index_2 ON odb(keys);\n"
 "CREATE INDEX odb_index_3 ON odb(value);\n";
 
+static int debug = 0;
 static int loaded = 0;
 
 static struct {
@@ -206,22 +207,16 @@ int cw_db_put(const char *family, const char *keys, const char *value)
 	cw_db_del(family, keys);
 
 	if ((sql = sqlite3_mprintf("insert into %q values('%q','%q','%q')", globals.tablename, family, keys, value))) {
-		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+		if (debug) cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
 
-		res = sqlite3_exec(db,
-						   sql,
-						   NULL,
-						   NULL,
-						   &zErr
-						   );
+		res = sqlite3_exec(db, sql, NULL, NULL, &zErr);
 
 		if (zErr) {
 			cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
 			res = -1;
 			sqlite3_free(zErr);
-		} else {
+		} else
 			res = 0;
-		}
 	} else {
 		cw_log(CW_LOG_ERROR, "Out of memory\n");
 		res = -1;	/* Return an error */
@@ -277,20 +272,17 @@ int cw_db_get(const char *family, const char *keys, struct cw_dynstr *result)
 
 retry_1:
 	if ((sql = sqlite3_mprintf("select value from %q where family='%q' and keys='%q'", globals.tablename, family, keys))) {
-		if (option_debug) cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		res = sqlite3_exec(db,
-						   sql,
-						   get_callback,
-						   &args,
-						   &zErr
-						   );
-		
+		if (debug) cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+
+		res = sqlite3_exec(db, sql, get_callback, &args, &zErr);
+
 		if (zErr) {
-			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
 				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				sqlite3_free(zErr);
 			} else {
 				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				sqlite3_free(zErr);
 				usleep(SQL_RETRY_USEC);
 				goto retry_1;
 			}
@@ -352,23 +344,22 @@ static int cw_db_del_main(const char *family, const char *keys, int like, const 
 
 	if (sql) {
 retry_2:
-		if (retry)
-			cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
-		else
-			cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		res = sqlite3_exec(db,
-						   sql,
-						   NULL,
-						   NULL,
-						   &zErr
-						   );
+		if (debug) {
+			if (retry)
+				cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			else
+				cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+		}
+
+		res = sqlite3_exec(db, sql, NULL, NULL, &zErr);
 
 		if (zErr) {
-			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
 				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				sqlite3_free(zErr);
 			} else {
 				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				sqlite3_free(zErr);
 				usleep(SQL_RETRY_USEC);
 				goto retry_2;
 			}
@@ -467,23 +458,22 @@ struct cw_db_entry *cw_db_gettree(const char *family, const char *keytree)
 
 	if (sql) {
 retry_3:
-		if (retry)
-			cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
-		else
-			cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		sqlite3_exec(db,
-						   sql,
-						   tree_callback,
-						   &tree,
-						   &zErr
-						   );
+		if (debug) {
+			if (retry)
+				cw_log(CW_LOG_DEBUG, "SQL [%s] (retry %d)\n", sql, retry);
+			else
+				cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+		}
+
+		sqlite3_exec(db, sql, tree_callback, &tree, &zErr);
 		
 		if (zErr) {
-			sqlite3_free(zErr);
 			if (retry >= SQL_MAX_RETRIES) {
 				cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
+				sqlite3_free(zErr);
 			} else {
 				cw_log(CW_LOG_WARNING, "SQL ERR [%s] (retry %d)\n", zErr, ++retry);
+				sqlite3_free(zErr);
 				usleep(SQL_RETRY_USEC);
 				goto retry_3;
 			}
@@ -562,13 +552,9 @@ static int database_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 	}
 
 	if (sql) {
-		cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
-		sqlite3_exec(db,
-						   sql,
-						   show_callback,
-						   ds_p,
-						   &zErr
-						   );
+		if (debug) cw_log(CW_LOG_DEBUG, "SQL [%s]\n", sql);
+
+		sqlite3_exec(db, sql, show_callback, ds_p, &zErr);
 		
 		if (zErr) {
 			cw_log(CW_LOG_ERROR, "SQL ERR [%s] [%s]\n", sql, zErr);
@@ -653,6 +639,25 @@ static int database_deltree(struct cw_dynstr *ds_p, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int database_debug(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	int res = RESULT_SUCCESS;
+
+	if (argc == 2) {
+		cw_dynstr_printf(ds_p, "Database debug is %s.\n", (debug ? "enabled" : "disabled"));
+	} else if (argc == 3) {
+		if (cw_true(argv[2]))
+			debug = 1;
+		else if (cw_false(argv[2]))
+			debug = 0;
+		else
+			res = RESULT_SHOWUSAGE;
+	} else
+		res = RESULT_SHOWUSAGE;
+
+	return res;
+}
+
 
 static const char database_show_usage[] =
 "Usage: database show [family [keytree]]\n"
@@ -679,51 +684,69 @@ static const char database_deltree_usage[] =
 "       Deletes a family or specific keytree within a family\n"
 "in the CallWeaver database.\n";
 
-struct cw_clicmd cli_database_show = {
-	.cmda = { "database", "show", NULL },
-	.handler = database_show,
-	.summary = "Shows database contents",
-	.usage = database_show_usage,
-};
+static const char database_debug_usage[] =
+"Usage: database debug [on|off]\n"
+"       Turns database debug messages on or off.\n";
 
-struct cw_clicmd cli_database_get = {
-	.cmda = { "database", "get", NULL },
-	.handler = database_get,
-	.summary = "Gets database value",
-	.usage = database_get_usage,
-};
 
-struct cw_clicmd cli_database_put = {
-	.cmda = { "database", "put", NULL },
-	.handler = database_put,
-	.summary = "Adds/updates database value",
-	.usage = database_put_usage,
-};
-
-struct cw_clicmd cli_database_del = {
-	.cmda = { "database", "del", NULL },
-	.handler = database_del,
-	.summary = "Removes database key/value",
-	.usage = database_del_usage,
-};
-
-struct cw_clicmd cli_database_deltree = {
-	.cmda = { "database", "deltree", NULL },
-	.handler = database_deltree,
-	.summary = "Removes database keytree/values",
-	.usage = database_deltree_usage,
+static struct cw_clicmd  my_clis[] = {
+	{
+		.cmda = { "database", "show", NULL },
+		.handler = database_show,
+		.summary = "Shows database contents",
+		.usage = database_show_usage,
+	},
+	{
+		.cmda = { "database", "get", NULL },
+		.handler = database_get,
+		.summary = "Gets database value",
+		.usage = database_get_usage,
+	},
+	{
+		.cmda = { "database", "put", NULL },
+		.handler = database_put,
+		.summary = "Adds/updates database value",
+		.usage = database_put_usage,
+	},
+	{
+		.cmda = { "database", "del", NULL },
+		.handler = database_del,
+		.summary = "Removes database key/value",
+		.usage = database_del_usage,
+	},
+	{
+		.cmda = { "database", "deltree", NULL },
+		.handler = database_deltree,
+		.summary = "Removes database keytree/values",
+		.usage = database_deltree_usage,
+	},
+	{
+		.cmda = { "database", "debug", NULL },
+		.handler = database_debug,
+		.summary = "Displays database debug message status",
+		.usage = database_debug_usage,
+	},
+	{
+		.cmda = { "database", "debug", "on", NULL },
+		.handler = database_debug,
+		.summary = "Enables database debug messages",
+		.usage = database_debug_usage,
+	},
+	{
+		.cmda = { "database", "debug", "off", NULL },
+		.handler = database_debug,
+		.summary = "Disables database debug messages",
+		.usage = database_debug_usage,
+	},
 };
 
 int cwdb_init(void)
 {
 	int res = dbinit();
-	if (res == 0) {
-		cw_cli_register(&cli_database_show);
-		cw_cli_register(&cli_database_get);
-		cw_cli_register(&cli_database_put);
-		cw_cli_register(&cli_database_del);
-		cw_cli_register(&cli_database_deltree);
-	}
+
+	if (res == 0)
+		cw_cli_register_multiple(my_clis, arraysize(my_clis));
+
 	return res;
 }
 
