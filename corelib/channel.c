@@ -1197,7 +1197,7 @@ int cw_softhangup_nolock(struct cw_channel *chan, int cause)
 	int res = 0;
 
 	if (option_debug)
-		cw_log(CW_LOG_DEBUG, "Soft-Hanging up channel '%s'\n", chan->name);
+		cw_log(CW_LOG_DEBUG, "Soft-Hanging up channel '%s', cause %d\n", chan->name, cause);
 	/* Inform channel driver that we need to be hung up, if it cares */
 	chan->_softhangup |= cause;
 	cw_queue_frame(chan, &cw_null_frame);
