@@ -2216,21 +2216,6 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 				msg->state = (msg->pkt.data[msg->uriresp] == '1' ? 1 : 2);
 
 				if (msg->cseq_method != SIP_INVITE || msg->pkt.data[msg->uriresp] != '2') {
-					if (msg->debug) {
-						cw_log(CW_LOG_DEBUG, "transaction %.*s: replaced with %.*s state %d\n",
-							msg->branch_len, &msg->pkt.data[msg->branch],
-							(msg->method == SIP_RESPONSE
-								? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
-								: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
-							),
-							(msg->method == SIP_RESPONSE
-								? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
-								: &msg->pkt.data[0]
-							),
-							msg->state
-						);
-					}
-
 					msg->reg_entry = cw_registry_add(&transaction_registry, hash, &msg->obj);
 
 					if (msg->pkt.data[msg->uriresp] == '1'
@@ -2248,8 +2233,26 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 						next_tick = (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1);
 					}
 				}
+
 				cw_registry_del(&transaction_registry, trans->reg_entry);
 				cw_object_put(trans);
+
+				if (msg->debug) {
+					cw_log(CW_LOG_DEBUG, "transaction %.*s: %s %.*s state %d\n",
+						msg->branch_len, &msg->pkt.data[msg->branch],
+						(msg->cseq_method != SIP_INVITE || msg->pkt.data[msg->uriresp] != '2'
+							? "replaced with" : "deleted:"),
+						(msg->method == SIP_RESPONSE
+							? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
+							: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
+						),
+						(msg->method == SIP_RESPONSE
+							? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
+							: &msg->pkt.data[0]
+						),
+						msg->state
+					);
+				}
 			}
 		} else if (reliable) {
 			if (msg->debug) {
@@ -4011,6 +4014,20 @@ static void make_our_tag(struct sip_pvt *p)
 static void sip_request_release(struct cw_object *obj)
 {
 	struct sip_request *msg = container_of(obj, struct sip_request, obj);
+
+        if (msg->debug) {
+		cw_log(CW_LOG_DEBUG, "transaction: %.*s: released: %.*s\n",
+			msg->branch_len, &msg->pkt.data[msg->branch],
+			(msg->method == SIP_RESPONSE
+				? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
+				: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
+			),
+			(msg->method == SIP_RESPONSE
+				? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
+				: &msg->pkt.data[0]
+			)
+		);
+	}
 
 	cw_object_put(msg->owner);
 	cw_object_put(msg->conn);
@@ -13108,10 +13125,24 @@ static void transaction_ack(struct sip_request *req, struct sip_request *resp)
 
 static int transaction_delete(void *data)
 {
-	struct sip_request *trans = data;
+	struct sip_request *msg = data;
 
-	cw_registry_del(&transaction_registry, trans->reg_entry);
-	cw_object_put(trans);
+        if (msg->debug) {
+		cw_log(CW_LOG_DEBUG, "transaction: %.*s: deleted: %.*s\n",
+			msg->branch_len, &msg->pkt.data[msg->branch],
+			(msg->method == SIP_RESPONSE
+				? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
+				: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
+			),
+			(msg->method == SIP_RESPONSE
+				? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
+				: &msg->pkt.data[0]
+			)
+		);
+	}
+
+	cw_registry_del(&transaction_registry, msg->reg_entry);
+	cw_object_put(msg);
 
 	return 0;
 }
