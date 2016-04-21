@@ -2017,9 +2017,7 @@ static int message_retransmit(void *data)
 
         sip_xmit(msg->conn, &msg->ouraddr, &msg->recvdaddr, msg);
 
-	cw_sched_add(sched, &msg->retransid, reschedule, message_retransmit, msg);
-
-        return 0;
+        return reschedule;
     }
 
     /* Whatever we thought we knew about this peer's RTT is clearly wrong.  */
@@ -2084,6 +2082,13 @@ static int message_retransmit(void *data)
     }
 
     return 0;
+}
+
+static void message_retransmit_reschedule_failed(void *data)
+{
+    struct sip_request *msg = data;
+
+    cw_object_put(msg);
 }
 
 
@@ -2283,7 +2288,7 @@ static int send_message(struct sip_pvt *p, struct cw_connection *conn, struct cw
 		/* Schedule retransmission. */
 		if (next_tick) {
 			msg->timer_a = 0;
-			cw_sched_add(sched, &msg->retransid, next_tick, message_retransmit, msg);
+			cw_sched_add_variable(sched, &msg->retransid, next_tick, message_retransmit, msg, message_retransmit_reschedule_failed);
 		} else
 			cw_object_put(msg);
 
@@ -6050,7 +6055,7 @@ static void transmit_response_with_sdp(struct sip_pvt *p, const char *status, st
 			cw_object_put(p->pendinginvite);
 			p->pendinginvite = cw_object_dup(msg);
 			msg->timer_a = 0;
-			cw_sched_add(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
+			cw_sched_add_variable(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg), message_retransmit_reschedule_failed);
 		}
 
 		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
@@ -6088,7 +6093,7 @@ static void transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status
 			cw_object_put(p->pendinginvite);
 			p->pendinginvite = cw_object_dup(msg);
 			msg->timer_a = 0;
-			cw_sched_add(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg));
+			cw_sched_add_variable(sched, &msg->retransid, (p->timer_t1 != DEFAULT_RFC_TIMER_T1 ? p->timer_t1 + (p->timer_t1 >> 4) + 1 : DEFAULT_RFC_TIMER_T1), message_retransmit, cw_object_dup(msg), message_retransmit_reschedule_failed);
 		}
 
 		send_message(p, req->conn, &req->ouraddr, &req->recvdaddr, msg, reliable);
@@ -13154,20 +13159,6 @@ static int transaction_recv(void *data)
 	struct sip_request *msg = data;
 	int ret = 0;
 
-	if (msg->debug) {
-		cw_log(CW_LOG_DEBUG, "transaction %.*s: %.*s\n",
-			msg->branch_len, &msg->pkt.data[msg->branch],
-			(msg->method == SIP_RESPONSE
-				? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
-				: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
-			),
-			(msg->method == SIP_RESPONSE
-				? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
-				: &msg->pkt.data[0]
-			)
-		);
-	}
-
 	if ((obj = cw_registry_find(&transaction_registry, 1, transaction_hash(msg), msg))) {
 		struct sip_request *trans = container_of(obj, struct sip_request, obj);
 
@@ -13194,33 +13185,38 @@ static int transaction_recv(void *data)
 				/* RFC 3261: 17.1.1 INVITE Client Transaction */
 				switch (trans->state) {
 					case 0: /* Trying */
-						if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 1, retrans = SLOW_INVITE_RETRANS\n", msg->branch_len, &msg->pkt.data[msg->branch]);
-						transaction_rtt_adjust(trans, msg);
-						trans->state = 1;
-						trans->timer_a = -1;
-						cw_sched_modify(sched, &trans->retransid, SLOW_INVITE_RETRANS, message_retransmit, trans);
+						if (msg->pkt.data[msg->uriresp] == '1') {
+							if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 1, retrans = SLOW_INVITE_RETRANS\n", msg->branch_len, &msg->pkt.data[msg->branch]);
+							if (cw_sched_modify_variable(sched, &trans->retransid, SLOW_INVITE_RETRANS, message_retransmit, trans, message_retransmit_reschedule_failed))
+								cw_object_dup(trans);
+							trans->state = 1;
+							trans->timer_a = -1;
+							transaction_rtt_adjust(trans, msg);
+						}
 						/* Fall through */
 
 					case 1: /* Proceeding */
-						if (msg->pkt.data[msg->uriresp] == '1')
-							break;
-
-						trans->state = 2;
-
-						if (msg->pkt.data[msg->uriresp] == '2') {
-							if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: terminated after 2xx response\n", msg->branch_len, &msg->pkt.data[msg->branch]);
-							if (!cw_sched_del(sched, &trans->retransid)) {
-								cw_object_put(trans);
-								cw_registry_del(&transaction_registry, trans->reg_entry);
+						if (msg->pkt.data[msg->uriresp] != '1') {
+							if (msg->pkt.data[msg->uriresp] != '2') {
+								trans->state = 2;
+								/* ACKs for 2xx responses are responsibility of the UAC */
+								transaction_ack(trans, msg);
 							}
-							/* Final responses to INVITEs are handled by the UAC */
-							ret = handle_message(msg);
-							break;
+							if (msg->pkt.data[msg->uriresp] == '2' || trans->conn->reliable) {
+								/* Both 2xx responses and responses via reliable connections
+								 * cause the immediate termination of the transaction.
+								 */
+								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, deleted after final response\n", msg->branch_len, &msg->pkt.data[msg->branch]);
+								if (!cw_sched_del(sched, &trans->retransid))
+									cw_object_put(trans);
+								cw_registry_del(&transaction_registry, trans->reg_entry);
+							} else {
+								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
+								if (cw_sched_modify_variable(sched, &trans->retransid, 32000, transaction_delete, trans, NULL))
+									cw_object_dup(trans);
+							}
 						}
-
-						if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after = 32s\n", msg->branch_len, &msg->pkt.data[msg->branch]);
-						cw_sched_modify(sched, &trans->retransid, 32000, transaction_delete, trans);
-						transaction_ack(trans, msg);
+						ret = handle_message(msg);
 						break;
 
 					case 2: /* Completed */
@@ -13234,28 +13230,35 @@ static int transaction_recv(void *data)
 						if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 1, retrans = %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], trans->owner->timer_t2);
 						trans->state = 1;
 						if (msg->pkt.data[msg->uriresp] == '1') {
+							if (cw_sched_modify_variable(sched, &trans->retransid, trans->owner->timer_t2, message_retransmit, trans, message_retransmit_reschedule_failed))
+								cw_object_dup(trans);
 							trans->timer_a = 0;
-							cw_sched_modify(sched, &trans->retransid, trans->owner->timer_t2, message_retransmit, trans);
 							break;
 						}
 						/* Fall through */
 
 					case 1: /* Proceeding */
 						if (msg->pkt.data[msg->uriresp] != '1') {
+							/* A non-provisional response ends the transaction */
 							trans->state = 2;
 							if (trans->conn->reliable) {
-								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after non-1xx response\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
-								cw_sched_del(sched, &trans->retransid);
-								transaction_delete(trans);
+								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, deleted after final response\n", msg->branch_len, &msg->pkt.data[msg->branch]);
+								if (!cw_sched_del(sched, &trans->retransid))
+									cw_object_put(trans);
+								cw_registry_del(&transaction_registry, trans->reg_entry);
 							} else {
 								if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 2, delete after %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
-								cw_sched_modify(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
+								if (cw_sched_modify_variable(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans, NULL))
+									cw_object_dup(trans);
 							}
-							ret = handle_message(msg);
 						}
+						/* All responses are passed to the TU */
+						ret = handle_message(msg);
 						break;
 
 					case 2: /* Completed */
+						/* If we see the request again we resend the final response we prepared earlier. */
+						sip_xmit(trans->conn, &trans->ouraddr, &trans->recvdaddr, trans);
 						break;
 				}
 			}
@@ -13294,7 +13297,8 @@ static int transaction_recv(void *data)
 							 */
 							if (msg->debug) cw_log(CW_LOG_DEBUG, "transaction %.*s: new state = 3, delete after %d ms\n", msg->branch_len, &msg->pkt.data[msg->branch], RFC_TIMER_T4);
 							trans->state = 3;
-							cw_sched_modify(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans);
+							if (cw_sched_modify_variable(sched, &trans->retransid, RFC_TIMER_T4, transaction_delete, trans, NULL))
+								cw_object_dup(trans);
 						} else
 							sip_xmit(trans->conn, &trans->ouraddr, &trans->recvdaddr, trans);
 						break;
@@ -13327,27 +13331,19 @@ static int transaction_recv(void *data)
 		 */
 		if (msg->pkt.data[msg->uriresp] == '2')
 			ret = handle_message(msg);
-		else
-			cw_log(CW_LOG_DEBUG, "received SIP response outside transaction?");
 	} else {
 		/* It must be a request we haven't seen before */
-		if (msg->debug) {
-			cw_log(CW_LOG_DEBUG, "transaction %.*s: new %.*s\n",
-				msg->branch_len, &msg->pkt.data[msg->branch],
-				(msg->method == SIP_RESPONSE
-					? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
-					: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
-				),
-				(msg->method == SIP_RESPONSE
-					? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
-					: &msg->pkt.data[0]
-				)
-			);
-		}
-
 		msg->state = 0;
-		if (msg->method != SIP_ACK)
+		if (msg->method != SIP_ACK) {
+			if (msg->debug) {
+				cw_log(CW_LOG_DEBUG, "transaction %.*s: new %.*s\n",
+					msg->branch_len, &msg->pkt.data[msg->branch],
+					(strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0]),
+					&msg->pkt.data[0]
+				);
+			}
 			msg->reg_entry = cw_registry_add(&transaction_registry, transaction_hash(msg), &msg->obj);
+		}
 		ret = handle_message(msg);
 	}
 
@@ -13360,9 +13356,9 @@ static int handle_message(struct sip_request *msg)
 	struct dialogue_key key;
 	struct cw_object *obj;
 	struct sip_pvt *dialogue;
-	unsigned int hash;
+	unsigned int hash = 0;
 	char *p;
-	int found, i;
+	int found = 1, i;
 	int nounlock = 0;
 
 	if (msg->owner) {
@@ -13378,6 +13374,15 @@ static int handle_message(struct sip_request *msg)
 		if ((obj = cw_registry_find(&dialogue_registry, 1, hash, &key))) {
 			found = 1;
 			dialogue = container_of(obj, struct sip_pvt, obj);
+
+			/* If the dialogue already knows their tag the tag in the
+			 * message must match. If we don't have their tag yet any
+			 * message from any potential fork is valid.
+			 */
+			if (dialogue->theirtag_len && (dialogue->theirtag_len != msg->taglen || memcmp(dialogue->theirtag, msg->pkt.data + msg->tag, dialogue->theirtag_len))) {
+				cw_object_put(dialogue);
+				dialogue = NULL;
+			}
 		}
 	}
 
@@ -13389,18 +13394,21 @@ static int handle_message(struct sip_request *msg)
 			cw_object_put(dialogue);
 			return 1;
 		}
+	}
 
-		/* If the dialogue already knows their tag the tag in the
-		 * message must match. If we don't have their tag yet any
-		 * message from any potential fork is valid.
-		 */
-		if (dialogue->theirtag_len && (dialogue->theirtag_len != msg->taglen || memcmp(dialogue->theirtag, msg->pkt.data + msg->tag, dialogue->theirtag_len))) {
-			cw_mutex_unlock(&dialogue->lock);
-			if (dialogue->owner)
-				cw_channel_unlock(dialogue->owner);
-			cw_object_put(dialogue);
-			dialogue = NULL;
-		}
+	if (msg->debug) {
+		cw_log(CW_LOG_DEBUG, "call %s, seqno %d: %.*s\n",
+			(dialogue ? dialogue->callid : "NEW"),
+			 msg->seqno,
+			(msg->method == SIP_RESPONSE
+				? (strchr(&msg->pkt.data[sizeof("SIP/2.0 ") - 1], '\r') - &msg->pkt.data[sizeof("SIP/2.0 ") - 1])
+				: (strchr(&msg->pkt.data[0], ' ') - &msg->pkt.data[0])
+			),
+			(msg->method == SIP_RESPONSE
+				? &msg->pkt.data[sizeof("SIP/2.0 ") - 1]
+				: &msg->pkt.data[0]
+			)
+		);
 	}
 
 	if (msg->method == SIP_RESPONSE) {
@@ -13531,7 +13539,8 @@ static int handle_message(struct sip_request *msg)
 					if (response)
 						transmit_error(msg, response);
 				}
-			}
+			} else if (msg->debug)
+				cw_log(CW_LOG_DEBUG, "request from blacklisted %#l@ ignored\n", &msg->recvdaddr.sa);
 		} else if (!dialogue && msg->method != SIP_ACK) {
 			/* We found the call ID but the tags didn't match. Maybe there's a
 			 * forking proxy in the way and the call has already been claimed

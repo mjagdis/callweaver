@@ -83,21 +83,33 @@ static void schedule(struct sched_context *con, struct sched_state *s)
 }
 
 
-static void cw_sched_add_variable_nolock(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
+static int cw_sched_add_variable_nolock(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
-	state->callback = callback;
-	state->data = data;
-	state->resched = when;
-	state->variable = variable;
-	state->when = cw_tvadd(cw_tvnow(), cw_samp2tv(when, 1000));
-	schedule(con, state);
+	int res = -1;
+
+	if (!state->callback) {
+		state->vers++;
+		state->callback = callback;
+		state->data = data;
+		state->failed = failed;
+		state->resched = when;
+		state->when = cw_tvadd(cw_tvnow(), cw_samp2tv(when, 1000));
+		schedule(con, state);
+		res = 0;
+	}
+
+	return res;
 }
 
-void cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
+int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
+	int res;
+
 	cw_mutex_lock(&con->lock);
-	cw_sched_add_variable_nolock(con, state, when, callback, data, variable);
+	res = cw_sched_add_variable_nolock(con, state, when, callback, data, failed);
 	cw_mutex_unlock(&con->lock);
+
+	return res;
 }
 
 
@@ -105,6 +117,8 @@ static int cw_sched_del_nolock(struct sched_context *con, struct sched_state *st
 {
 	struct sched_state **s_p, *s;
 	int res = -1;
+
+	state->vers++;
 
 	if (state->callback) {
 		for (s_p = &con->schedq; *s_p; s_p = &(*s_p)->next) {
@@ -133,13 +147,13 @@ int cw_sched_del(struct sched_context *con, struct sched_state *state)
 }
 
 
-int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable)
+int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
 	int res;
 
 	cw_mutex_lock(&con->lock);
 	res = cw_sched_del_nolock(con, state);
-	cw_sched_add_variable_nolock(con, state, when, callback, data, variable);
+	cw_sched_add_variable_nolock(con, state, when, callback, data, failed);
 	cw_mutex_unlock(&con->lock);
 
 	return res;
@@ -171,10 +185,6 @@ static void *service_thread(void *data)
 {
 	struct timeval now;
 	struct sched_context *con = data;
-	struct sched_state *current;
-	cw_sched_cb callback;
-	void *cdata;
-	int res;
 
 	cw_mutex_lock(&con->lock);
 	pthread_cleanup_push(sched_mutex_unlock, &con->lock);
@@ -188,26 +198,28 @@ static void *service_thread(void *data)
 	now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
 	for (;;) {
 		while (con->schedq && SOONER(con->schedq->when, now)) {
-			current = con->schedq;
+			struct sched_state *current = con->schedq;
+			struct sched_state copy = *current;
+			int res;
+
 			con->schedq = con->schedq->next;
 
-			callback = current->callback;
-			cdata = current->data;
 			current->callback = NULL;
 
 			cw_cond_signal(&con->untimed);
 			cw_mutex_unlock(&con->lock);
 
-			if ((res = callback(cdata))) {
-				/* If they return non-zero, we should schedule them to be run again. */
-				/* FIXME: remove this and make it the job owner's responsibilty to reschedule */
-				current->callback = callback;
-				current->data = cdata;
-				current->when = cw_tvadd(current->when, cw_samp2tv((current->variable ? res : current->resched), 1000));
-				schedule(con, current);
-			}
+			res = copy.callback(copy.data);
 
 			cw_mutex_lock(&con->lock);
+
+			/* If they return non-zero and nothing else has taken charge of the
+			 * schedule entry in the meantime we schedule them to be run again.
+			 */
+			if (copy.failed && res) {
+				if (copy.vers != current->vers || cw_sched_add_variable_nolock(con, current, res, copy.callback, copy.data, copy.failed))
+					copy.failed(copy.data);
+			}
 
 			now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
 		}

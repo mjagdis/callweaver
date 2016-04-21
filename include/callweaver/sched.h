@@ -64,6 +64,14 @@ extern CW_API_PUBLIC void sched_context_destroy(struct sched_context *c);
 typedef int (*cw_sched_cb)(void *data);
 #define CW_SCHED_CB(a) ((cw_sched_cb)(a))
 
+/*! Callback for a reschedule failure
+ *
+ * A reschdule failure callback takes a pointer to the same callback
+ * data as the scheduled callback and is called if the scheduled
+ * callback returns a reschedule interval but the reschedule fails.
+ */
+typedef void (*cw_schedfail_cb)(void *data);
+
 
 /*! State describing a scheduled job.
  *
@@ -77,11 +85,12 @@ struct sched_state {
 	struct sched_state *next;	/* Next event in the list */
 	cw_sched_cb callback;		/* Callback */
 	void *data; 			/* Data */
+	int vers;			/* Internal version counter */
+	cw_schedfail_cb failed;		/* Reschedule failure callback */
 
 	/* It is permitted to read the following directly */
 	struct timeval when;		/* Absolute time event should take place */
 	int resched;			/* When to reschedule */
-	int variable;			/* Use return value from callback to reschedule */
 };
 
 
@@ -92,19 +101,15 @@ static inline void cw_sched_state_init(struct sched_state *state)
 }
 
 
-/*! Test whether a sched_state is currently scheduled */
-static inline int cw_sched_state_scheduled(struct sched_state *state)
-{
-	return state->callback != NULL;
-}
-
-
-/*! Test if a sched_state is actually scheduled.
+/*! Test whether a sched_state is currently scheduled
  *
  * N.B. The return is not guaranteed - the job may fire and thus become
  * unscheduled between checking the state and acting on the return!
  */
-
+static inline int cw_sched_state_scheduled(struct sched_state *state)
+{
+	return state->callback != NULL;
+}
 
 
 /*! Adds a scheduled event
@@ -121,8 +126,8 @@ static inline int cw_sched_state_scheduled(struct sched_state *state)
  * future (approximately)
  * If callback returns 0, no further events will be re-scheduled
  */
-extern CW_API_PUBLIC void cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable);
-#define cw_sched_add(con, state, when, callback, data) cw_sched_add_variable(con, state, when, callback, data, 0)
+extern CW_API_PUBLIC int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
+#define cw_sched_add(con, state, when, callback, data) cw_sched_add_variable(con, state, when, callback, data, NULL)
 
 /*! Deletes a scheduled event
  *
@@ -147,8 +152,8 @@ extern CW_API_PUBLIC int cw_sched_del(struct sched_context *con, struct sched_st
  *
  * Returns 0 if the scheduled job was modified, -1 if it was added
  */
-extern CW_API_PUBLIC int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, int variable);
-#define cw_sched_modify(con, state, when, callback, data) cw_sched_modify_variable(con, state, when, callback, data, 0)
+extern CW_API_PUBLIC int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
+#define cw_sched_modify(con, state, when, callback, data) cw_sched_modify_variable(con, state, when, callback, data, NULL)
 
 /*! Returns the number of seconds before an event takes place
  *
