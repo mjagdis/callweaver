@@ -4877,9 +4877,10 @@ void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const 
     }
 
     if (value) {
-        if (!(var = cw_var_new(name, value, 1)))
+        if ((var = cw_var_new(name, value, 1)))
+            hash = var->hash;
+        else
             err = 1;
-        hash = var->hash;
     } else {
         hash = cw_hash_var_name(name);
 	var = NULL;
