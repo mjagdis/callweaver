@@ -4877,16 +4877,15 @@ void pbx_builtin_setvar_helper(struct cw_channel *chan, const char *name, const 
     }
 
     if (value) {
-        if ((var = cw_var_new(name, value, 1)))
-            hash = var->hash;
-	else
+        if (!(var = cw_var_new(name, value, 1)))
             err = 1;
+        hash = var->hash;
     } else {
         hash = cw_hash_var_name(name);
 	var = NULL;
     }
 
-    if ((err || !cw_registry_replace(reg, hash, name, (var ? &var->obj : NULL))) && chan)
+    if ((err || cw_registry_replace(reg, hash, name, (var ? &var->obj : NULL))) && chan)
         cw_softhangup_nolock(chan, CW_SOFTHANGUP_EXPLICIT);
 
     if (var)
