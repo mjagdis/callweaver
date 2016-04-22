@@ -3562,10 +3562,7 @@ static int sip_indicate(struct cw_channel *ast, int condition)
         break;
     case CW_CONTROL_PROCEEDING:
         if ((ast->_state != CW_STATE_UP) && !cw_test_flag(p, SIP_PROGRESS_SENT) && !cw_test_flag(p, SIP_OUTGOING))
-        {
-            transmit_response(p, "100 Trying", p->pendinginvite, 0, 0);
             break;
-        }
         res = -1;
         break;
     case CW_CONTROL_PROGRESS:
@@ -8019,7 +8016,6 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
         else
         {
             cw_copy_flags(p, peer, SIP_NAT);
-            transmit_response(p, "100 Trying", req, 0, 0);
             if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0)))
             {
                 sip_cancel_destroy(p);
@@ -12215,7 +12211,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 				}
 				break;
 			case CW_STATE_RING:
-				transmit_response(p, "100 Trying", req, 0, 0);
 				break;
 			case CW_STATE_RINGING:
 				transmit_response(p, "180 Ringing", req, 0, 0);
@@ -12295,7 +12290,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 				break;
 			default:
 				cw_log(CW_LOG_WARNING, "Don't know how to handle INVITE in state %d\n", c->_state);
-				transmit_response(p, "100 Trying", req, 0, 0);
+				transmit_response(p, "500 Server Internal Error", req, 1, 1);
 		}
 	} else {
 		if (p) {
