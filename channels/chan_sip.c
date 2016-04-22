@@ -942,8 +942,6 @@ struct sip_pvt {
 #endif
     struct sip_request *initreq;        /*!< Initial request */
     
-    int maxtime;                /*!< Max time for first response */
-    struct sched_state initid;                /*!< Auto-congest ID if appropriate */
     struct sched_state autokillid;                /*!< Auto-kill ID */
     time_t lastrtprx;            /*!< Last RTP received */
     time_t lastrtptx;            /*!< Last RTP sent */
@@ -2052,34 +2050,22 @@ static int message_retransmit(void *data)
 
     /* FIXME:
      * RFC 3261 8.1.3.1: Transaction Layer Errors
-     * When a timeout errors is received from the transaction layer it MUST be treated
+     * When a timeout error is received from the transaction layer it MUST be treated
      * as if a 408 (Request Timeout) status code has been received.
      *
-     * We should pass a "408 Timeout" up the stack and handle it there. That should result in
-     * a "Timeout", "Hangup" or "Congestion" frame being passed to the peer channel(s) so they can
-     * handle it too.
+     * FIXME: is it ever non-fatal to take a timeout on a reliable send? Is this the right place for the test?
      */
-    if (msg->fatal) {
-        cw_mutex_lock(&msg->owner->lock);
+    if (msg->fatal && msg->owner) {
+	cw_dynstr_reset(&msg->pkt);
+	cw_dynstr_printf(&msg->pkt, "SIP/2.0 408 Timeout\r\n");
+	msg->uriresp = sizeof("SIP/2.0 ") - 1;
+	msg->uriresp_len = sizeof("408 Timeout") - 1;
+        msg->method = SIP_RESPONSE;
 
-        while (msg->owner->owner  &&  cw_channel_trylock(msg->owner->owner)) {
-            cw_mutex_unlock(&msg->owner->lock);
-            usleep(1);
-            cw_mutex_lock(&msg->owner->lock);
-        }
-
-        if (msg->owner->owner) {
-            cw_set_flag(msg->owner, SIP_ALREADYGONE);
-            cw_log(CW_LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", msg->owner->callid);
-            cw_queue_hangup(msg->owner->owner);
-            cw_channel_unlock(msg->owner->owner);
-        } else {
-            /* If no channel owner, destroy now */
-            sip_destroy(msg->owner);
-        }
-
-        cw_mutex_unlock(&msg->owner->lock);
+	handle_message(msg);
     }
+
+    cw_object_put(msg);
 
     return 0;
 }
@@ -2709,7 +2695,6 @@ static int create_addr_from_peer(struct sip_pvt *dialogue, struct sip_peer *peer
 		cw_copy_string(dialogue->fromuser, peer->fromuser, sizeof(dialogue->fromuser));
 	if (!cw_strlen_zero(peer->language))
 		cw_copy_string(dialogue->language, peer->language, sizeof(dialogue->language));
-	dialogue->maxtime = peer->maxms;
 	dialogue->callgroup = peer->callgroup;
 	dialogue->pickupgroup = peer->pickupgroup;
 	if ((cw_test_flag(dialogue, SIP_DTMF) == SIP_DTMF_RFC2833) || (cw_test_flag(dialogue, SIP_DTMF) == SIP_DTMF_AUTO))
@@ -2819,29 +2804,6 @@ static int create_addr(struct sip_pvt *dialogue, char *opeername, struct sip_pee
 	return ret;
 }
 
-/*! \brief  auto_congest: Scheduled congestion on a call */
-static int auto_congest(void *data)
-{
-	struct sip_pvt *dialogue = data;
-
-	/* Since we are now running we can't be unscheduled therefore
-	 * the reference to the dialogue is our solely responsibility.
-	 */
-
-	cw_mutex_lock(&dialogue->lock);
-
-	if (dialogue->owner && !cw_channel_trylock(dialogue->owner)) {
-		cw_log(CW_LOG_NOTICE, "Auto-congesting %s\n", dialogue->owner->name);
-		cw_queue_control(dialogue->owner, CW_CONTROL_CONGESTION);
-		cw_channel_unlock(dialogue->owner);
-	}
-
-	cw_mutex_unlock(&dialogue->lock);
-
-	cw_object_put(dialogue);
-	return 0;
-}
-
 
 /*! \brief  sip_call: Initiate SIP call from PBX 
  *      used from the dial() application      */
@@ -2928,11 +2890,6 @@ static int sip_call(struct cw_channel *ast, const char *dest)
         p->t38jointcapability = p->t38capability;
         cw_log(CW_LOG_DEBUG,"Our T38 capability (%d), joint T38 capability (%d)\n", p->t38capability, p->t38jointcapability);
         res = transmit_invite(p, SIP_INVITE, 1, 2);
-        if (p->maxtime)
-        {
-            /* Initialize auto-congest time */
-            cw_sched_add(sched, &p->initid, p->maxtime * 4, auto_congest, cw_object_dup(p));
-        }
     }
     return res;
 }
@@ -2967,10 +2924,6 @@ static void sip_destroy(struct sip_pvt *dialogue)
 	 * release their dialogue reference when done. If we can delete the task
 	 * it's up to us to drop the reference that was given it.
 	 */
-
-	if (!cw_sched_del(sched, &dialogue->initid))
-		cw_object_put(dialogue);
-
 	if (!cw_sched_del(sched, &dialogue->autokillid))
 		cw_object_put(dialogue);
 
@@ -3315,12 +3268,6 @@ static int sip_hangup(struct cw_channel *ast)
 			/* Actually don't destroy us yet, wait for the 487 on our original 
 			   INVITE, but do set an autodestruct just in case we never get it. */
 		}
-                if (cw_sched_state_scheduled(&p->initid))
-                {
-                    /* channel still up - reverse dec of inUse counter
-                       only if the channel is not auto-congested */
-                    update_call_counter(p, INC_CALL_LIMIT);
-                }
             }
             else
             {
@@ -4063,7 +4010,6 @@ static struct sip_pvt *sip_alloc(void)
 
     cw_mutex_init(&p->lock);
 
-    cw_sched_state_init(&p->initid);
     cw_sched_state_init(&p->autokillid);
     p->subscribed = NONE;
     p->stateid = -1;
@@ -11664,8 +11610,25 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
     int resp;
 
     if (sscanf(req->pkt.data + req->uriresp, " %d", &resp) != 1) {
-        cw_log(CW_LOG_WARNING, "Invalid response: \"%s\"\n", req->pkt.data + req->uriresp);
+        cw_log(CW_LOG_WARNING, "Invalid response: \"%.*s\"\n", req->uriresp_len, &req->pkt.data[req->uriresp]);
         return;
+    }
+
+    /* Handling of responses common to all requests */
+    switch (resp) {
+        case 408: /* Timeout */
+            if (p->owner) {
+                cw_log(CW_LOG_WARNING, "call %s: SIP timeout\n", p->callid);
+                if (p->owner->_state != CW_STATE_UP)
+                    cw_queue_control(p->owner, CW_CONTROL_CONGESTION);
+                else {
+                    cw_set_flag(p, SIP_ALREADYGONE);
+                    cw_queue_hangup(p->owner);
+                }
+            } else
+                sip_destroy(p);
+
+	    return;
     }
 
     msg = get_header(req, SIP_HDR_NOSHORT("User-Agent"));
@@ -11682,10 +11645,6 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
     /* FIXME: why? Only when we hang up, surely? */
     if (p->owner) 
         p->owner->hangupcause = hangup_sip2cause(resp);
-
-    /* Cancel the auto-congest if possible since we've got something useful back */
-    if (!cw_sched_del(sched, &p->initid))
-        cw_object_put(p);
 
     if (p->peerpoke) {
         /* We don't really care what the response is, just that it replied back. 
