@@ -314,6 +314,8 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 
 extern CW_API_PUBLIC struct sched_param global_sched_param_default;
 extern CW_API_PUBLIC struct sched_param global_sched_param_rr;
+extern CW_API_PUBLIC clock_t global_cond_clock_monotonic;
+extern CW_API_PUBLIC pthread_condattr_t global_condattr_monotonic;
 extern CW_API_PUBLIC pthread_attr_t global_attr_default;
 extern CW_API_PUBLIC pthread_attr_t global_attr_detached;
 extern CW_API_PUBLIC pthread_attr_t global_attr_fifo_detached;

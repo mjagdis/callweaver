@@ -40,7 +40,7 @@ CALLWEAVER_FILE_VERSION("$HeadURL$", "$Revision$")
 
 /* Determine if a is sooner than b */
 #define SOONER(a,b) (((b).tv_sec > (a).tv_sec) || \
-					 (((b).tv_sec == (a).tv_sec) && ((b).tv_usec > (a).tv_usec)))
+					 (((b).tv_sec == (a).tv_sec) && ((b).tv_nsec > (a).tv_nsec)))
 
 struct sched_context {
 	cw_mutex_t lock;
@@ -83,7 +83,7 @@ static void schedule(struct sched_context *con, struct sched_state *s)
 }
 
 
-static int cw_sched_add_variable_nolock(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
+static int cw_sched_add_variable_nolock(struct sched_context *con, struct sched_state *state, int ms, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
 	int res = -1;
 
@@ -92,8 +92,14 @@ static int cw_sched_add_variable_nolock(struct sched_context *con, struct sched_
 		state->callback = callback;
 		state->data = data;
 		state->failed = failed;
-		state->resched = when;
-		state->when = cw_tvadd(cw_tvnow(), cw_samp2tv(when, 1000));
+		cw_clock_gettime(global_cond_clock_monotonic, &state->when);
+		if (ms) {
+			state->when.tv_sec += ms / 1000;
+			if ((state->when.tv_nsec += (ms % 1000) * 1000000) > 1000000000) {
+				state->when.tv_sec++;
+				state->when.tv_nsec -= 1000000000;
+			}
+		}
 		schedule(con, state);
 		res = 0;
 	}
@@ -101,12 +107,12 @@ static int cw_sched_add_variable_nolock(struct sched_context *con, struct sched_
 	return res;
 }
 
-int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
+int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int ms, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
 	int res;
 
 	cw_mutex_lock(&con->lock);
-	res = cw_sched_add_variable_nolock(con, state, when, callback, data, failed);
+	res = cw_sched_add_variable_nolock(con, state, ms, callback, data, failed);
 	cw_mutex_unlock(&con->lock);
 
 	return res;
@@ -147,13 +153,13 @@ int cw_sched_del(struct sched_context *con, struct sched_state *state)
 }
 
 
-int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
+int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int ms, cw_sched_cb callback, void *data, cw_schedfail_cb failed)
 {
 	int res;
 
 	cw_mutex_lock(&con->lock);
 	res = cw_sched_del_nolock(con, state);
-	cw_sched_add_variable_nolock(con, state, when, callback, data, failed);
+	cw_sched_add_variable_nolock(con, state, ms, callback, data, failed);
 	cw_mutex_unlock(&con->lock);
 
 	return res;
@@ -162,11 +168,12 @@ int cw_sched_modify_variable(struct sched_context *con, struct sched_state *stat
 
 long cw_sched_when(struct sched_context *con, struct sched_state *state)
 {
+	struct timespec now;
 	long secs;
 
 	cw_mutex_lock(&con->lock);
 
-	struct timeval now = cw_tvnow();
+	cw_clock_gettime(global_cond_clock_monotonic, &now);
 	secs = state->when.tv_sec - now.tv_sec;
 
 	cw_mutex_unlock(&con->lock);
@@ -183,61 +190,57 @@ static void sched_mutex_unlock(void *mutex)
 
 static void *service_thread(void *data)
 {
-	struct timeval now;
+	struct timespec now;
 	struct sched_context *con = data;
 
 	cw_mutex_lock(&con->lock);
 	pthread_cleanup_push(sched_mutex_unlock, &con->lock);
 
-	/* We schedule all events which are going to expire within 1ms.
-	 * We only care about millisecond accuracy anyway, so this will
-	 * help us service events in batches where possible. Doing so
-	 * may have cache advantages where the event handlers do similar
-	 * work and will certainly reduce the sleep/wakeup overhead.
-	 */
-	now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
 	for (;;) {
+		cw_clock_gettime(global_cond_clock_monotonic, &now);
+
 		while (con->schedq && SOONER(con->schedq->when, now)) {
-			struct sched_state *current = con->schedq;
-			struct sched_state copy = *current;
-			int res;
+			while (con->schedq && SOONER(con->schedq->when, now)) {
+				struct sched_state *current = con->schedq;
+				struct sched_state copy = *current;
+				int res;
 
-			con->schedq = con->schedq->next;
+				con->schedq = con->schedq->next;
 
-			current->callback = NULL;
+				current->callback = NULL;
 
-			cw_cond_signal(&con->untimed);
-			cw_mutex_unlock(&con->lock);
+				cw_cond_signal(&con->untimed);
+				cw_mutex_unlock(&con->lock);
 
-			res = copy.callback(copy.data);
+				res = copy.callback(copy.data);
 
-			cw_mutex_lock(&con->lock);
+				cw_mutex_lock(&con->lock);
 
-			/* If they return non-zero and nothing else has taken charge of the
-			 * schedule entry in the meantime we schedule them to be run again.
-			 */
-			if (copy.failed && res) {
-				if (copy.vers != current->vers || cw_sched_add_variable_nolock(con, current, res, copy.callback, copy.data, copy.failed))
-					copy.failed(copy.data);
+				/* If they return non-zero and nothing else has taken charge of the
+				 * schedule entry in the meantime we schedule them to be run again.
+				 */
+				if (copy.failed && res) {
+					if (copy.vers != current->vers || cw_sched_add_variable_nolock(con, current, res, copy.callback, copy.data, copy.failed))
+						copy.failed(copy.data);
+				}
 			}
 
-			now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
+			/* We've no idea how long that batch of jobs took so we recheck
+			 * the time to see if there is any more work to do before we
+			 * start waiting.
+			 */
+			cw_clock_gettime(global_cond_clock_monotonic, &now);
 		}
 
 		pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
 		if (!con->timed_present && con->schedq) {
-			struct timespec tick;
-			tick.tv_sec = con->schedq->when.tv_sec;
-			tick.tv_nsec = 1000 * con->schedq->when.tv_usec;
 			con->timed_present = 1;
-			while (cw_cond_timedwait(&con->timed, &con->lock, &tick) < 0 && errno == EINTR);
+			while (cw_cond_timedwait(&con->timed, &con->lock, &con->schedq->when) < 0 && errno == EINTR);
 			con->timed_present = 0;
 		} else {
 			while (cw_cond_wait(&con->untimed, &con->lock) < 0 && errno == EINTR);
 		}
-
-		now = cw_tvadd(cw_tvnow(), cw_tv(0, 1000));
 	}
 
 	pthread_cleanup_pop(1);
@@ -251,7 +254,7 @@ struct sched_context *sched_context_create(int nthreads)
 	int i, n;
 
 	if ((con = malloc(sizeof(*con) + nthreads * sizeof(con->tid[0])))) {
-		cw_cond_init(&con->timed, NULL);
+		cw_cond_init(&con->timed, &global_condattr_monotonic);
 		cw_cond_init(&con->untimed, NULL);
 		cw_mutex_init_attr(&con->lock, &global_mutexattr_errorcheck);
 		con->timed_present = 0;

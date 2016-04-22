@@ -140,7 +140,7 @@ static int blacklist_entry_remove(void *data)
 
 enum blacklist_mode { BLACKLIST_DYNAMIC, BLACKLIST_STATIC, BLACKLIST_DELETE };
 
-static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enum blacklist_mode mode, unsigned int duration, unsigned int remember)
+static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enum blacklist_mode mode, time_t start, unsigned int duration, unsigned int remember)
 {
 	static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 	struct sockaddr_in sinbuf;
@@ -172,7 +172,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 					entry->duration = blacklist_max_duration;
 			} else
 				entry->duration = duration;
-			entry->start = time(NULL);
+			entry->start = start;
 		} else {
 			cw_object_put(entry);
 			entry = NULL;
@@ -184,7 +184,7 @@ static void blacklist_modify(const struct sockaddr *addr, socklen_t addrlen, enu
 		entry->obj.release = blacklist_entry_release;
 
 		entry->duration = duration;
-		entry->start = time(NULL);
+		entry->start = start;
 		cw_sched_state_init(&entry->expire);
 		memcpy(&entry->addr, addr, addrlen);
 
@@ -245,8 +245,10 @@ int cw_blacklist_check(const struct sockaddr *addr)
 
         if ((obj = cw_registry_find(&blacklist_registry, 1, cw_sockaddr_hash(addr, 0), addr))) {
 		struct cw_blacklist_entry *entry = container_of(obj, struct cw_blacklist_entry, obj);
+		struct timespec now;
 
-		blocked = (!entry->duration || time(NULL) - entry->start < entry->duration);
+		cw_clock_gettime(global_cond_clock_monotonic, &now);
+		blocked = (!entry->duration || now.tv_sec - entry->start < entry->duration);
 		cw_object_put(entry);
 	}
 
@@ -256,7 +258,10 @@ int cw_blacklist_check(const struct sockaddr *addr)
 
 void cw_blacklist_add(const struct sockaddr *addr)
 {
-	blacklist_modify(addr, cw_sockaddr_len(addr), BLACKLIST_DYNAMIC, blacklist_min_duration, blacklist_remember);
+	struct timespec now;
+
+	cw_clock_gettime(global_cond_clock_monotonic, &now);
+	blacklist_modify(addr, cw_sockaddr_len(addr), BLACKLIST_DYNAMIC, now.tv_sec, blacklist_min_duration, blacklist_remember);
 }
 
 
@@ -406,10 +411,13 @@ static int blacklist_add(struct cw_dynstr *ds_p, int argc, char *argv[])
 			int err;
 
 			if (!(err = getaddrinfo(argv[2], NULL, &blacklist_addrinfo_hints, &addrs))) {
+				struct timespec now;
 				struct addrinfo *addr;
 
+				cw_clock_gettime(global_cond_clock_monotonic, &now);
+
 				for (addr = addrs; addr; addr = addr->ai_next)
-					blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_STATIC, duration, remember);
+					blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_STATIC, now.tv_sec, duration, remember);
 
 				freeaddrinfo(addrs);
 				res = RESULT_SUCCESS;
@@ -442,7 +450,7 @@ static int blacklist_remove(struct cw_dynstr *ds_p, int argc, char *argv[])
 			struct addrinfo *addr;
 
 			for (addr = addrs; addr; addr = addr->ai_next)
-				blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_DELETE, 0, 0);
+				blacklist_modify(addr->ai_addr, addr->ai_addrlen, BLACKLIST_DELETE, 0, 0, 0);
 
 			freeaddrinfo(addrs);
 			res = RESULT_SUCCESS;
@@ -462,7 +470,7 @@ static const char blacklist_show_usage[] =
 
 struct blacklist_show_args {
 	struct cw_dynstr *ds_p;
-	time_t now;
+	struct timespec now;
 	char *pattern;
 	int pattern_len;
 };
@@ -489,7 +497,7 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 				i = 0;
 			cw_dynstr_printf(args->ds_p, "%-*.*s ", i, i, "");
 
-			interval = args->now - entry->start;
+			interval = args->now.tv_sec - entry->start;
 			if (entry->duration <= interval)
 				cw_dynstr_printf(args->ds_p, "%-16s ", "expired");
 			else {
@@ -505,7 +513,7 @@ static int blacklist_show_one(struct cw_object *obj, void *data)
 		}
 
 		if (cw_sched_state_scheduled(&entry->expire)) {
-			cw_interval_print(args->ds_p, entry->expire.when.tv_sec - args->now);
+			cw_interval_print(args->ds_p, entry->expire.when.tv_sec - args->now.tv_sec);
 			cw_dynstr_printf(args->ds_p, "\n");
 		} else
 			cw_dynstr_printf(args->ds_p, "never\n");
@@ -525,7 +533,7 @@ static int blacklist_show(struct cw_dynstr *ds_p, int argc, char *argv[])
 	CW_UNUSED(argv);
 
 	if (argc >= 2 && argc <= 3) {
-		time(&args.now);
+		cw_clock_gettime(global_cond_clock_monotonic, &args.now);
 		if ((args.pattern = argv[2]))
 			args.pattern_len = strlen(args.pattern);
 

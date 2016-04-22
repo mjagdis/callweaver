@@ -507,6 +507,9 @@ pthread_mutexattr_t  global_mutexattr_errorcheck;
 pthread_mutexattr_t  global_mutexattr_recursive;
 pthread_mutexattr_t  global_mutexattr_simple;
 
+clock_t global_cond_clock_monotonic;
+pthread_condattr_t global_condattr_monotonic;
+
 pthread_attr_t global_attr_default;
 pthread_attr_t global_attr_detached;
 pthread_attr_t global_attr_fifo;
@@ -1300,6 +1303,12 @@ int cw_utils_init(void)
 	pthread_mutexattr_init(&global_mutexattr_recursive);
 	pthread_mutexattr_settype(&global_mutexattr_recursive, PTHREAD_MUTEX_RECURSIVE);
 	pthread_mutexattr_setprotocol(&global_mutexattr_recursive, PTHREAD_PRIO_INHERIT);
+
+	pthread_condattr_init(&global_condattr_monotonic);
+#if HAVE_PTHREAD_CONDATTR_SETCLOCK
+	global_cond_clock_monotonic = global_clock_monotonic;
+	pthread_condattr_setclock(&global_condattr_monotonic, global_cond_clock_monotonic);
+#endif
 
 	pthread_attr_init(&global_attr_default);
 	pthread_attr_setstacksize(&global_attr_default, CW_STACKSIZE);

@@ -87,10 +87,7 @@ struct sched_state {
 	void *data; 			/* Data */
 	int vers;			/* Internal version counter */
 	cw_schedfail_cb failed;		/* Reschedule failure callback */
-
-	/* It is permitted to read the following directly */
-	struct timeval when;		/* Absolute time event should take place */
-	int resched;			/* When to reschedule */
+	struct timespec when;		/* Absolute time event should take place */
 };
 
 
@@ -116,18 +113,18 @@ static inline int cw_sched_state_scheduled(struct sched_state *state)
  *
  * \param con      scheduler context
  * \param state    the state this scheduled job is to be associated with
- * \param when     how many milliseconds to wait for event to occur
+ * \param ms       how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data     data to pass to the callback
  * \param variable if true, the result value of callback function will be used for rescheduling
  *
- * Schedule an event to take place at some point in the future.  callback 
- * will be called with data as the argument, when milliseconds into the
+ * Schedule an event to take place at some point in the future. The callback
+ * will be called with data as the argument, ms milliseconds in the
  * future (approximately)
  * If callback returns 0, no further events will be re-scheduled
  */
-extern CW_API_PUBLIC int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
-#define cw_sched_add(con, state, when, callback, data) cw_sched_add_variable(con, state, when, callback, data, NULL)
+extern CW_API_PUBLIC int cw_sched_add_variable(struct sched_context *con, struct sched_state *state, int ms, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
+#define cw_sched_add(con, state, ms, callback, data) cw_sched_add_variable(con, state, ms, callback, data, NULL)
 
 /*! Deletes a scheduled event
  *
@@ -145,15 +142,15 @@ extern CW_API_PUBLIC int cw_sched_del(struct sched_context *con, struct sched_st
  *
  * \param con      scheduler context
  * \param state    where the state of this scheduled job is stored
- * \param when     how many milliseconds to wait for event to occur
+ * \param ms       how many milliseconds to wait for event to occur
  * \param callback function to call when the amount of time expires
  * \param data     data to pass to the callback
  * \param variable if true, the result value of callback function will be used for rescheduling
  *
  * Returns 0 if the scheduled job was modified, -1 if it was added
  */
-extern CW_API_PUBLIC int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int when, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
-#define cw_sched_modify(con, state, when, callback, data) cw_sched_modify_variable(con, state, when, callback, data, NULL)
+extern CW_API_PUBLIC int cw_sched_modify_variable(struct sched_context *con, struct sched_state *state, int ms, cw_sched_cb callback, void *data, cw_schedfail_cb failed);
+#define cw_sched_modify(con, state, ms, callback, data) cw_sched_modify_variable(con, state, ms, callback, data, NULL)
 
 /*! Returns the number of seconds before an event takes place
  *
