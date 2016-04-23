@@ -44,7 +44,6 @@ CORE_SRC = \
 	malloc.c \
     utils.c \
     devicestate.c \
-	netsock.c \
     slinfactory.c \
     callweaver_expr2.c \
 	callweaver_expr2w.c \

@@ -39,7 +39,6 @@ cwinclude_HEADERS = acl.h \
                       module.h \
                       monitor.h \
                       musiconhold.h \
-                      netsock.h \
                       options.h \
                       pbx.h \
                       phone_no_utils.h \
