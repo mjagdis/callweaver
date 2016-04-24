@@ -210,3 +210,64 @@ out_close:
 out:
 	return conn;
 }
+
+
+#define FORMAT_HEAD "%5.5s %5.5s %5.5s %-12.12s %s\n"
+#define FORMAT_BODY "%5d %5d %5d %-12.12s %#l@\n"
+
+static int show_connection_one(struct cw_object *obj, void *data)
+{
+	struct cw_connection *conn = container_of(obj, struct cw_connection, obj);
+	struct cw_dynstr *ds_p = data;
+
+	cw_dynstr_printf(ds_p, FORMAT_BODY,
+			conn->sock,
+			conn->state,
+			cw_object_refs(conn),
+			conn->tech->name,
+			&conn->addr
+	);
+
+	return 0;
+}
+
+
+static int show_connections(struct cw_dynstr *ds_p, int argc, char *argv[])
+{
+	CW_UNUSED(argc);
+	CW_UNUSED(argv);
+
+	cw_dynstr_tprintf(ds_p, 2,
+		cw_fmtval(FORMAT_HEAD, "File", "State", "Refs", "Tech", "Local addr"),
+		cw_fmtval(FORMAT_HEAD, "----", "-----", "----", "----", "----------")
+	);
+
+	cw_registry_iterate(&cw_connection_registry, show_connection_one, ds_p);
+
+	return RESULT_SUCCESS;
+}
+
+#undef FORMAT_HEAD
+#undef FORMAT_BODY
+
+
+static const char show_connections_usage[] =
+"Usage: show connections\n"
+"       Show current connections.\n";
+
+static struct cw_clicmd cli_connections[] = {
+	{
+		.cmda = { "show", "connections", NULL },
+		.handler = show_connections,
+		.summary = "Show current connections",
+		.usage = show_connections_usage,
+	},
+};
+
+
+int cw_connection_init(void)
+{
+	cw_cli_register_multiple(cli_connections, arraysize(cli_connections));
+
+	return 0;
+}

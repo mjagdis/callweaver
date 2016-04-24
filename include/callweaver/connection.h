@@ -25,6 +25,7 @@
 #include "callweaver/registry.h"
 #include "callweaver/dynstr.h"
 #include "callweaver/sockaddr.h"
+#include "callweaver/cli.h"
 #include "callweaver/utils.h"
 
 
@@ -89,5 +90,8 @@ static inline struct cw_connection *cw_connection_find(const struct cw_connectio
 extern CW_API_PUBLIC void cw_connection_close(struct cw_connection *conn);
 
 extern CW_API_PUBLIC struct cw_connection *cw_connection_listen(int type, struct sockaddr *addr, socklen_t addrlen, const struct cw_connection_tech *tech, struct cw_object *pvt_obj);
+
+
+extern CW_API_PUBLIC int cw_connection_init(void);
 
 #endif /* _CALLWEAVER_CONNECTION_H */
