@@ -103,7 +103,7 @@ int udp_socket_group_create_and_bind(udp_state_t *s, int nelem, int nochecksums,
 	for (;;) {
 		for (i = 0; i < nelem; i++) {
 			cw_sockaddr_set_port(addr, base + i);
-			if ((s[i].fd = socket(addr->sa_family, SOCK_DGRAM, 0)) < 0)
+			if ((s[i].fd = socket_cloexec(addr->sa_family, SOCK_DGRAM, 0)) < 0)
 				break;
 			fcntl(s[i].fd, F_SETFL, fcntl(s[i].fd, F_GETFL) | O_NONBLOCK);
 #ifdef SO_NO_CHECK
