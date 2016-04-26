@@ -15805,7 +15805,7 @@ static int sip_reload_config(void)
             sipdebug = cw_true(v->value);
         else if (!strcasecmp(v->name, "debugip")) {
 		char *argv[5];
-		argv[3] = (char *)"allow";
+		argv[2] = (char *)"permit";
 		argv[4] = v->value;
 		sip_debug_ip(&tmp_ds, 5, argv);
 		if (tmp_ds.used)
