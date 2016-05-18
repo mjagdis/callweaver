@@ -212,7 +212,13 @@ static void *service_thread(void *data)
 				cw_cond_signal(&con->untimed);
 				cw_mutex_unlock(&con->lock);
 
-				res = copy.callback(copy.data);
+				res = 0;
+				if (copy.callback)
+					res = copy.callback(copy.data);
+				else {
+					res = 0;
+					cw_log(CW_LOG_ERROR, "null callback in 0x%p\n", current);
+				}
 
 				cw_mutex_lock(&con->lock);
 

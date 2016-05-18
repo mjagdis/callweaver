@@ -606,10 +606,8 @@ static void cw_channel_release(struct cw_object *obj)
 
 	if (option_debug) cw_log(CW_LOG_DEBUG, "%p: %s", chan, chan->name);
 
-	if (chan->tech_pvt) {
+	if (chan->tech_pvt)
 		cw_log(CW_LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
-		free(chan->tech_pvt);
-	}
 
 	free_cid(&chan->cid);
 
