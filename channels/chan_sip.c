@@ -2020,13 +2020,13 @@ static int transaction_retransmit(void *data)
         msg->owner->timer_t1 = rfc_timer_t1;
         if (msg->owner->peerpoke) {
             msg->owner->peerpoke->timer_t1 = (msg->owner->peerpoke->maxms ? -1 : rfc_timer_t1);
-            cw_log(CW_LOG_NOTICE, "%s: RTT %d\n", msg->owner->peerpoke->name, rfc_timer_t1);
+            cw_log(CW_LOG_DEBUG, "%s: RTT %d\n", msg->owner->peerpoke->name, rfc_timer_t1);
         }
     }
 
 
     if (msg->method != SIP_OPTIONS || msg->debug) {
-        cw_log(CW_LOG_WARNING, "transaction %.*s: maximum retries exceeded, SIP Timer T1=%d %.*s\n",
+        cw_log(CW_LOG_DEBUG, "transaction %.*s: maximum retries exceeded, SIP Timer T1=%d %.*s\n",
             msg->branch_len, &msg->pkt.data[msg->branch],
             msg->owner->timer_t1,
             (msg->method == SIP_RESPONSE
@@ -2123,7 +2123,7 @@ static int sip_scheddestroy(struct sip_pvt *dialogue, int ms)
 	}
 
 	if (sip_debug_test_pvt(dialogue))
-		cw_verbose("Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
+		cw_log(CW_LOG_DEBUG, "Scheduling destruction of call '%s' in %dms (t1=%d)\n", dialogue->callid, ms, dialogue->timer_t1);
 
 	cw_sched_add(sched, &dialogue->autokillid, ms, __sip_autodestruct, cw_object_dup(dialogue));
 
@@ -4338,12 +4338,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
                 continue;
 #endif
             } else if (strcmp(protocol, "AVP")) {
-                cw_log(CW_LOG_WARNING, "Unknown SDP media protocol in offer: %s\n", protocol);
+                cw_log(CW_LOG_DEBUG, "Unknown SDP media protocol in offer: %s\n", protocol);
                 continue;
             }
 
             if (len < 0) {
-                cw_log(CW_LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
+                cw_log(CW_LOG_DEBUG, "Unknown SDP media type in offer: %s\n", m);
                 continue;
             }
 
@@ -4360,7 +4360,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
                     return -1;
                 }
                 if (debug)
-                    cw_verbose("Found RTP audio format %u\n", codec);
+                    cw_log(CW_LOG_DEBUG, "Found RTP audio format %u\n", codec);
                 cw_rtp_set_m_type(p->rtp, codec);
                 codecs = cw_skip_blanks(codecs + len);
             }
@@ -4379,7 +4379,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
                 (sscanf(m, "image %d UDPTL t38 %n", &x, &len) == 1)))
         {
             if (debug) {
-                cw_verbose("Got T.38 offer in SDP\n");
+                cw_log(CW_LOG_DEBUG, "Got T.38 offer in SDP\n");
                 sip_debug_ports(p);
             }
             found = 1;
@@ -4415,7 +4415,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         {
 #ifdef ENABLE_SRTP
             if (len < 0) {
-                cw_log(CW_LOG_WARNING, "Unknown SDP media type in offer: %s\n", m);
+                cw_log(CW_LOG_DEBUG, "Unknown SDP media type in offer: %s\n", m);
                 continue;
             }
 #endif
@@ -4428,17 +4428,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
             {
                 if (sscanf(codecs, "%u%n", &codec, &len) != 1)
                 {
-                    cw_log(CW_LOG_WARNING, "Error in codec string '%s'\n", codecs);
+                    cw_log(CW_LOG_DEBUG, "Error in codec string '%s'\n", codecs);
                     return -1;
                 }
                 if (debug)
-                    cw_verbose("Found RTP video format %u\n", codec);
+                    cw_log(CW_LOG_DEBUG, "Found RTP video format %u\n", codec);
                 cw_rtp_set_m_type(p->vrtp, codec);
                 codecs = cw_skip_blanks(codecs + len);
             }
         }
         if (!found )
-            cw_log(CW_LOG_WARNING, "Unknown or ignored SDP media type in offer: %s\n", m);
+            cw_log(CW_LOG_DEBUG, "Unknown or ignored SDP media type in offer: %s\n", m);
     }
     if (portno == -1  &&  vportno == -1  &&  udptlportno == -1)
     {
@@ -4454,7 +4454,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
 			int host2;
 
 			if (!sscanf(c, "IN IP%c %n", &chr, &host2) || (chr != '4' && chr != '6'))
-				cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+				cw_log(CW_LOG_DEBUG, "Invalid host in c= line, '%s'\n", c);
 
 			host = host2;
 		}
@@ -4474,7 +4474,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
 			cw_sockaddr_set_port(addrs->ai_addr, portno);
 			cw_rtp_set_peer(p->rtp, addrs->ai_addr);
 			if (debug)
-				cw_log(CW_LOG_DEBUG,"Peer audio RTP is at %#l@\n", cw_rtp_get_peer(p->rtp));
+				cw_log(CW_LOG_DEBUG, "Peer audio RTP is at %#l@\n", cw_rtp_get_peer(p->rtp));
 		}
 	}
 
@@ -4485,7 +4485,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
 	if (pedanticsipchecking) {
 		if ((c = get_sdp_iterate(&destiterator, req, "c", 1, sdp_end))) {
 			if (!sscanf(c, "IN IP%c %n", &chr, &host) || (chr != '4' && chr != '6'))
-				cw_log(CW_LOG_WARNING, "Invalid host in c= line, '%s'\n", c);
+				cw_log(CW_LOG_DEBUG, "Invalid host in c= line, '%s'\n", c);
 			else {
 				freeaddrinfo(addrs);
 
@@ -4548,7 +4548,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
             continue;
         if (debug)
-            cw_verbose("Found description format %s\n", mimeSubtype);
+            cw_log(CW_LOG_DEBUG, "Found description format %s\n", mimeSubtype);
         /* Note: should really look at the 'freq' and '#chans' params too */
         cw_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
         if (p->vrtp)
@@ -4728,7 +4728,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
     p->jointcapability = p->capability & (peercapability | vpeercapability);
     p->peercapability = (peercapability | vpeercapability);
     p->noncodeccapability = noncodeccapability & peernoncodeccapability;
-    
+
     if (cw_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO)
     {
         cw_clear_flag(p, SIP_DTMF);
@@ -4757,7 +4757,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         cw_getformatname_multiple(&ds, p->jointcapability);
         cw_dynstr_printf(&ds, "\n");
         if (!ds.error)
-            cw_verbose(ds.data);
+            cw_log(CW_LOG_DEBUG, "%s", ds.data);
 
         cw_dynstr_reset(&ds);
 
@@ -4769,7 +4769,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req, int sdp_start
         cw_rtp_lookup_mime_multiple(&ds, p->noncodeccapability, 0);
         cw_dynstr_printf(&ds, "\n");
         if (!ds.error)
-            cw_verbose(ds.data);
+            cw_log(CW_LOG_DEBUG, "%s", ds.data);
 
         cw_dynstr_free(&ds);
     }
@@ -5933,7 +5933,7 @@ static void add_codec_to_sdp(const struct sip_pvt *p, struct sip_request *resp, 
 	int rtp_code;
 
 	if (debug)
-		cw_verbose("Adding codec 0x%x (%s) to SDP\n", codec, cw_getformatname(codec));
+		cw_log(CW_LOG_DEBUG, "Adding codec 0x%x (%s) to SDP\n", codec, cw_getformatname(codec));
 
 	if ((rtp_code = cw_rtp_lookup_code(p->rtp, 1, codec)) != -1) {
 		cw_dynstr_printf(&resp->pkt, "a=rtpmap:%d %s/%d\r\n", rtp_code, cw_rtp_lookup_mime_subtype(1, codec), sample_rate);
@@ -5951,7 +5951,7 @@ static void add_noncodec_to_sdp(const struct sip_pvt *p, struct sip_request *res
 	int rtp_code;
 
 	if (debug)
-		cw_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, cw_rtp_lookup_mime_subtype(0, format));
+		cw_log(CW_LOG_DEBUG, "Adding non-codec 0x%x (%s) to SDP\n", format, cw_rtp_lookup_mime_subtype(0, format));
 
 	if ((rtp_code = cw_rtp_lookup_code(p->rtp, 0, format)) != -1) {
 		cw_dynstr_printf(&resp->pkt, "a=rtpmap:%d %s/%d", rtp_code, cw_rtp_lookup_mime_subtype(0, format), sample_rate);
@@ -6037,7 +6037,7 @@ static void add_t38_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	if (debug)
-		cw_verbose("T.38 UDPTL is at %#l@\n", &udptldest.sa);
+		cw_log(CW_LOG_DEBUG, "T.38 UDPTL is at %#l@\n", &udptldest.sa);
 
 	/* We break with the "recommendation" and send our IP, in order that our
 	   peer doesn't have to cw_gethostbyname() us */
@@ -6143,9 +6143,9 @@ static void add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	sip_debug_ports(p);
 
 	if (debug) {
-		cw_verbose("We're at %#l@\n", &dest.sa);
+		cw_log(CW_LOG_DEBUG, "We're at %#l@\n", &dest.sa);
 		if (p->vrtp)
-			cw_verbose("Video is at %#l@\n", &vdest.sa);
+			cw_log(CW_LOG_DEBUG, "Video is at %#l@\n", &vdest.sa);
 	}
 
 	protocol = "AVP";
@@ -7104,7 +7104,7 @@ static int sip_reregister(void *data)
     pthread_t tid;
 
     if (sipdebug)
-        cw_log(CW_LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
+        cw_log(CW_LOG_DEBUG, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
     cw_pthread_create(&tid, &global_attr_detached, __sip_do_register, r);
     return 0;
@@ -7122,7 +7122,7 @@ static int sip_reg_timeout(void *data)
      * nothing.
      */
 
-    cw_log(CW_LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
+    cw_log(CW_LOG_DEBUG, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts);
     if (r->dialogue)
     {
         /* Unlink us, destroy old dialogue. */
@@ -7367,7 +7367,7 @@ static int transmit_register(struct sip_registry *r, enum sipmethod sipmethod, c
         r->regattempts++;    /* Another attempt */
 
         if (option_debug > 3)
-            cw_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
+            cw_log(CW_LOG_DEBUG, "REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
 
         res = transaction_send(p, p->conn, &p->ouraddr, &p->peeraddr, msg);
     }
@@ -7637,8 +7637,8 @@ static void reg_source_db(struct sip_peer *peer, int sip_running)
 			if (contact)
 				cw_copy_string(peer->fullcontact, contact, sizeof(peer->fullcontact));
 
-			if (option_verbose > 3)
-				cw_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from cwdb: '%s' at %s@%s (%#l@) for %d\n",
+			if (option_debug > 3)
+				cw_log(CW_LOG_DEBUG, "SIP Seeding peer from cwdb: '%s' at %s@%s (%#l@) for %d\n",
 						peer->name, peer->username, addr, &peer->addr.sa, expiry);
 
 			if (sip_running) {
@@ -7815,8 +7815,8 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
     if (useragent && useragent[0] && strcasecmp(useragent, p->useragent))
     {
         cw_copy_string(p->useragent, useragent, sizeof(p->useragent));
-        if (option_verbose > 4)
-            cw_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);
+        if (option_debug > 4)
+            cw_log(CW_LOG_DEBUG, "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);
     }
 
     cw_snprintf(data, sizeof(data), "%#@:%#h@:%d:%s:%s", &p->addr.sa, &p->addr.sa, expiry, p->username, p->fullcontact);
@@ -7867,21 +7867,6 @@ static void free_old_route(struct sip_route *route)
         next = route->next;
         free(route);
         route = next;
-    }
-}
-
-/*! \brief  list_route: List all routes - mostly for debugging */
-static void list_route(struct sip_route *route)
-{
-    if (!route)
-    {
-        cw_verbose("list_route: no route\n");
-        return;
-    }
-    while (route)
-    {
-        cw_verbose("list_route: hop: <%s>\n", route->hop);
-        route = route->next;
     }
 }
 
@@ -7997,8 +7982,16 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
     p->route = head;
 
     /* For debugging dump what we ended up with */
-    if (sip_debug_test_pvt(p))
-        list_route(p->route);
+    if (sip_debug_test_pvt(p)) {
+        if (p->route) {
+            struct sip_route *route = p->route;
+            while (route) {
+                cw_log(CW_LOG_DEBUG, "hop: <%s>\n", route->hop);
+                route = route->next;
+            }
+        } else
+            cw_log(CW_LOG_DEBUG, "no route\n");
+    }
 }
 
 #ifdef OSP_SUPPORT
@@ -8454,7 +8447,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
     c = get_in_brackets(tmp);
     if (strncasecmp(c, "sip:", 4))
     {
-        cw_log(CW_LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
+        cw_log(CW_LOG_DEBUG, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
         return -1;
     }
     c += 4;
@@ -8463,7 +8456,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
         *a = '\0';
     }
     if (sip_debug_test_pvt(p))
-        cw_verbose("RDNIS is %s\n", c);
+        cw_log(CW_LOG_DEBUG, "RDNIS is %s\n", c);
     cw_copy_string(p->rdnis, c, sizeof(p->rdnis));
 
     return 0;
@@ -8566,7 +8559,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
             cw_copy_string(p->fromdomain, from, sizeof(p->fromdomain));
     }
     if (sip_debug_test_pvt(p))
-        cw_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
+        cw_log(CW_LOG_DEBUG, "Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
 
     /* Return 0 if we have a matching extension */
     if (cw_exists_extension(NULL, p->context, uri, 1, from)
@@ -8800,9 +8793,8 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *req)
         *a = '\0';
     
     if (sip_debug_test_pvt(p))
-    {
-        cw_verbose("Looking for %s in %s\n", c, p->context);
-    }
+        cw_log(CW_LOG_DEBUG, "Looking for %s in %s\n", c, p->context);
+
     if (cw_exists_extension(NULL, p->context, c, 1, NULL))
     {
         /* This is an unsupervised transfer */
@@ -9041,14 +9033,14 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
                 p->t38jointcapability &= p->t38peercapability;
         }
         if (user && debug)
-            cw_verbose("Found user '%s'\n", user->name);
+            cw_log(CW_LOG_DEBUG, "Found user '%s'\n", user->name);
     }
     else
     {
         if (user)
         {
             if (!mailbox && debug)
-                cw_verbose("Found user '%s', but fails host access\n", user->name);
+                cw_log(CW_LOG_DEBUG, "Found user '%s', but fails host access\n", user->name);
             cw_object_put(user);
         }
         user = NULL;
@@ -9071,7 +9063,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
         if (peer)
         {
             if (debug)
-                cw_verbose("Found peer '%s'\n", peer->name);
+                cw_log(CW_LOG_DEBUG, "Found peer '%s'\n", peer->name);
             /* Take the peer */
             cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 
@@ -9164,7 +9156,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
         else
         { 
             if (debug)
-                cw_verbose("Found no matching peer or user for %#l@\n", &req->recvdaddr.sa);
+                cw_log(CW_LOG_DEBUG, "Found no matching peer or user for %#l@\n", &req->recvdaddr.sa);
 
             /* do we allow guests? */
             if (!global_allowguest) {
@@ -10587,14 +10579,14 @@ static int info_dtmf(struct sip_pvt *dialogue, struct sip_request *req, int star
 				cw_queue_frame(dialogue->owner, &f);
 
 				if (sipdebug && option_verbose > 2)
-					cw_verbose("* DTMF-relay event received: %c%s duration %d\n",
+					cw_log(CW_LOG_DEBUG, "* DTMF-relay event received: %c%s duration %d\n",
 						(event == 16 ? 'F' : f.subclass),
 						(event == 16 ? "LASH" : ""),
 						f.duration
 					);
 			}
 		} else
-			cw_log(CW_LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", dialogue->callid);
+			cw_log(CW_LOG_DEBUG, "Unable to retrieve DTMF signal from INFO message from %s\n", dialogue->callid);
 	}
 
 	return 0;
@@ -10874,14 +10866,14 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, const ch
 	p->authtries++;
 	if (!reply_digest(p, req, header, SIP_REGISTER, &digest)) {
 		if (sip_debug_test_pvt(p) && p->registry)
-			cw_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
+			cw_log(CW_LOG_DEBUG, "Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
 		res = transmit_register(p->registry, SIP_REGISTER, &digest, respheader);
 		cw_dynstr_free(&digest);
 	} else {
 		/* There's nothing to use for authentication */
 		/* No digest challenge in request */
 		if (sip_debug_test_pvt(p) && p->registry)
-			cw_verbose("No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
+			cw_log(CW_LOG_DEBUG, "No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
 	}
 	return res;
 }
@@ -12022,8 +12014,8 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
             break;
         default:
             if ((resp >= 300) && (resp < 700)) {
-                if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr.sa);
+                if (req->debug && resp != 487)
+                    cw_log(CW_LOG_DEBUG, "Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr.sa);
                 if (p->rtp)
                     cw_rtp_stop(p->rtp);
                 if (p->vrtp)
@@ -12081,7 +12073,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
          * get handled here. As well as out-of-call message responses
 	 */
         if (req->debug)
-            cw_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
+            cw_log(CW_LOG_DEBUG, "SIP Response message for INCOMING dialog %s arrived\n", msg);
 
         switch(resp) {
         case 200:
@@ -12111,9 +12103,9 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
             }
             break;
         default:    /* Errors without handlers */
-            if ((resp >= 300) && (resp < 700)) {
-                if ((option_verbose > 2) && (resp != 487))
-                    cw_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr.sa);
+            if (resp >= 300 && resp < 700) {
+                if (req->debug && resp != 487)
+                    cw_log(CW_LOG_DEBUG, "Incoming call: Got SIP response \"%s\" back from %#l@ (received from %#l@)\n", req->pkt.data + req->uriresp, &p->peeraddr.sa, &req->recvdaddr.sa);
             }
             break;
         }
@@ -12379,7 +12371,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 
 	/* Use this as the basis */
 	if (req->debug)
-		cw_verbose("Using INVITE request as basis request - %s\n", p->callid);
+		cw_log(CW_LOG_DEBUG, "Using INVITE request as basis request - %s\n", p->callid);
 
 	sip_cancel_destroy(p);
 	/* This call is no longer outgoing if it ever was */
@@ -12914,7 +12906,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req)
     {
         /* Use this as the basis */
         if (req->debug)
-            cw_verbose("Using latest SUBSCRIBE request as basis request\n");
+            cw_log(CW_LOG_DEBUG, "Using latest SUBSCRIBE request as basis request\n");
         /* This call is no longer outgoing if it ever was */
         cw_clear_flag(p, SIP_OUTGOING);
         p->initreq = cw_object_dup(req);
@@ -13129,7 +13121,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req)
 
 	/* Use this as the basis */
 	if (req->debug)
-		cw_verbose("Using latest REGISTER request as basis request\n");
+		cw_log(CW_LOG_DEBUG, "Using latest REGISTER request as basis request\n");
 
 	p->initreq = cw_object_dup(req);
 
