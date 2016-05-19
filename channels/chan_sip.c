@@ -856,7 +856,6 @@ struct sip_pvt {
     struct cw_registry_entry *reg_entry;
     cw_mutex_t lock;            /*!< Channel private lock */
     char callid[80];            /*!< Global CallID */
-    char randdata[80];            /*!< Random data */
     struct cw_codec_pref prefs;        /*!< codec prefs */
     unsigned int ocseq;            /*!< Current outgoing seqno */
     unsigned int icseq;            /*!< Current incoming seqno */
@@ -996,6 +995,7 @@ struct sip_user {
     char name[80];        /*!< Name */
     char secret[80];        /*!< Password */
     char md5secret[80];        /*!< Password in md5 */
+    char randdata[8 + 1];            /*!< Random data */
     char context[CW_MAX_CONTEXT];    /*!< Default context for incoming calls */
     char subscribecontext[CW_MAX_CONTEXT];    /* Default context for subscriptions */
     char cid_num[80];        /*!< Caller ID num */
@@ -1026,6 +1026,7 @@ struct sip_peer {
     char name[80];        /*!< Name */
     char secret[80];        /*!< Password */
     char md5secret[80];        /*!< Password in MD5 */
+    char randdata[8 + 1];            /*!< Random data */
     struct sip_auth *auth;        /*!< Realm authentication list */
     char context[CW_MAX_CONTEXT];    /*!< Default context for incoming calls */
     char subscribecontext[CW_MAX_CONTEXT];    /*!< Default context for subscriptions */
@@ -1186,7 +1187,7 @@ static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, cha
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);    /* Append date to SIP packet */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
-static void transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout);
+static void transmit_state_notify(struct sip_pvt *p, int state, int full);
 
 static void transmit_response_with_t38_sdp(struct sip_pvt *p, const char *status, struct sip_request *req);
 static void transmit_reinvite_with_t38_sdp(struct sip_pvt *p);
@@ -1593,22 +1594,6 @@ struct cw_registry dialogue_registry = {
 static void dialogue_release(struct cw_object *obj)
 {
 	struct sip_pvt *dialogue = container_of(obj, struct sip_pvt, obj);
-
-	if (dialogue->rtp)
-		cw_rtp_destroy(dialogue->rtp);
-
-	if (dialogue->vrtp)
-		cw_rtp_destroy(dialogue->vrtp);
-
-	if (dialogue->udptl)
-		cw_udptl_destroy(dialogue->udptl);
-
-#if 0
-	if (dialogue->tpkt) {
-		cw_tpkt_destroy(dialogue->tpkt);
-		dialogue->tpkt = NULL;
-	}
-#endif
 
 	if (dialogue->route) {
 		free_old_route(dialogue->route);
@@ -2079,7 +2064,7 @@ static int __sip_autodestruct(void *data)
 
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (dialogue->subscribed) {
-		transmit_state_notify(dialogue, CW_EXTENSION_DEACTIVATED, 1, 1, 1);    /* Send first notification */
+		transmit_state_notify(dialogue, CW_EXTENSION_DEACTIVATED, 1);    /* Send first notification */
 		dialogue->subscribed = NONE;
 		cw_mutex_unlock(&dialogue->lock);
 		return 10000;    /* Reschedule this destruction so that we know that it's gone */
@@ -2805,6 +2790,7 @@ static void sip_destroy(struct sip_pvt *dialogue)
 			dialogue->registry->dialogue = NULL;
 		}
 		cw_object_put(dialogue->registry);
+		dialogue->registry = NULL;
 	}
 
 	/* Unlink us from the owner if we have one */
@@ -2821,8 +2807,32 @@ static void sip_destroy(struct sip_pvt *dialogue)
 		cw_object_put(dialogue);
 	}
 
-	if (dialogue->reg_entry)
+	if (dialogue->reg_entry) {
 		cw_registry_del(&dialogue_registry, dialogue->reg_entry);
+		dialogue->reg_entry = NULL;
+	}
+
+	if (dialogue->rtp) {
+		cw_rtp_destroy(dialogue->rtp);
+		dialogue->rtp = NULL;
+	}
+
+	if (dialogue->vrtp) {
+		cw_rtp_destroy(dialogue->vrtp);
+		dialogue->vrtp = NULL;
+	}
+
+	if (dialogue->udptl) {
+		cw_udptl_destroy(dialogue->udptl);
+		dialogue->udptl = NULL;
+	}
+
+#if 0
+	if (dialogue->tpkt) {
+		cw_tpkt_destroy(dialogue->tpkt);
+		dialogue->tpkt = NULL;
+	}
+#endif
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP users 
@@ -3066,9 +3076,6 @@ static const char *hangup_cause2sip(int cause)
 static int sip_hangup(struct cw_channel *ast)
 {
     struct sip_pvt *p = ast->tech_pvt;
-    int needcancel = 0;
-    int needdestroy = 0;
-    //struct cw_flags locflags = {0};
 
     if (!p)
     {
@@ -3094,9 +3101,6 @@ static int sip_hangup(struct cw_channel *ast)
         cw_mutex_unlock(&p->lock);
         return 0;
     }
-    /* If the call is not UP, we need to send CANCEL instead of BYE */
-    if (ast->_state != CW_STATE_UP)
-        needcancel = 1;
 
     /* Disconnect */
     if (p->vad)
@@ -3104,23 +3108,11 @@ static int sip_hangup(struct cw_channel *ast)
     if (p->vadtx)
         cw_dsp_free(p->vadtx);
 
-    /* Do not destroy this pvt until we have timeout or
-       get an answer to the BYE or INVITE/CANCEL 
-       If we get no answer during retransmit period, drop the call anyway.
-       (Sorry, mother-in-law, you can't deny a hangup by sending
-       603 declined to BYE...)
-    */
-
-    if (cw_test_flag(p, SIP_ALREADYGONE)) {
-        needdestroy = 1;	/* Set destroy flag at end of this function */
-    } else {
-        sip_scheddestroy(p, -1);
-    }
-
     /* Start the process if it's not already started */
     if (!cw_test_flag(p, SIP_ALREADYGONE) && p->initreq)
     {
-        if (needcancel)
+        /* If the call is not UP, we need to send CANCEL instead of BYE */
+        if (ast->_state != CW_STATE_UP)
         {
             /* Outgoing call, not up */
             if (cw_test_flag(p, SIP_OUTGOING))
@@ -3180,8 +3172,8 @@ static int sip_hangup(struct cw_channel *ast)
         cw_object_put(p);
     }
 
-    if (needdestroy)
-	sip_destroy(p);
+    if (!cw_test_flag(p, SIP_PENDINGBYE))
+        sip_destroy(p);
 
     cw_mutex_unlock(&p->lock);
     return 0;
@@ -6806,7 +6798,7 @@ out:
 }
 
 /*! \brief  transmit_state_notify: Used in the SUBSCRIBE notification subsystem -*/
-static void transmit_state_notify(struct sip_pvt *p, int state, int full, int substate, int timeout)
+static void transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
 	char from[256], to[256];
 	struct cw_dynstr hint = CW_DYNSTR_INIT;
@@ -6818,9 +6810,6 @@ static void transmit_state_notify(struct sip_pvt *p, int state, int full, int su
 	const char *pidfstate = "--";
 	const char *pidfnote= "Ready";
 	int cl_index, body_start;
-
-	CW_UNUSED(substate);
-	CW_UNUSED(timeout);
 
 	switch (state) {
 		case (CW_EXTENSION_RINGING | CW_EXTENSION_INUSE):
@@ -8090,8 +8079,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
     {
         snprintf(randdata, randlen, "%08lx", cw_random());
         transmit_response_with_auth(p, response, req, randdata, respheader, 0);
-        /* Schedule auto destroy in 15 seconds */
-        sip_scheddestroy(p, -1);
+        sip_destroy(p);
         res = 1;
     }
     else
@@ -8198,7 +8186,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
                 transmit_response_with_auth(p, response, req, randdata, respheader, 0);
             }
 
-            sip_scheddestroy(p, -1);
+            sip_destroy(p);
             return 1;
         } 
         /* a1_hash now has the expected response, compare the two */
@@ -8221,35 +8209,38 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 
     CW_UNUSED(context);
 
+    if (option_verbose > 1)
+        cw_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, cw_extension_state2str(state), p->username);
+
     switch (state)
     {
     case CW_EXTENSION_DEACTIVATED:    /* Retry after a while */
     case CW_EXTENSION_REMOVED:    /* Extension is gone */
         if (cw_sched_state_scheduled(&p->autokillid))
             sip_cancel_destroy(p);    /* Remove subscription expiry for renewals */
-        sip_scheddestroy(p, -1);
-        cw_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == CW_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
+        if (option_verbose > 2)
+            cw_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == CW_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
         p->stateid = -1;
         p->subscribed = NONE;
+        sip_destroy(p);
         break;
     default:    /* Tell user */
         p->laststate = state;
+        if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
+            transmit_state_notify(p, state, 1);
         break;
     }
-    if (p->subscribed != NONE)	/* Only send state NOTIFY if we know the format */
-    	transmit_state_notify(p, state, 1, 1, 0);
-
-    if (option_verbose > 1)
-        cw_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, cw_extension_state2str(state), p->username);
     return 0;
 }
 
 /*! \brief Send a fake 401 Unauthorized response when the administrator
   wants to hide the names of local users/peers from fishers
 */
-static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen)
+static void transmit_fake_auth_response(struct sip_pvt *p, struct sip_request *req)
 {
-	snprintf(randdata, randlen, "%08lx", cw_random());
+	char randdata[8 + 1];
+
+	printf(randdata, "%08lx", cw_random());
 	transmit_response_with_auth(p, "401 Unauthorized", req, randdata, "WWW-Authenticate", 0);
 }
 
@@ -8329,7 +8320,7 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
         else
         {
             cw_copy_flags(p, peer, SIP_NAT);
-            if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri)))
+            if (!(res = check_auth(p, req, peer->randdata, sizeof(peer->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri)))
             {
                 sip_cancel_destroy(p);
                 switch (parse_register_contact(p, peer, req))
@@ -8411,7 +8402,7 @@ static int register_verify(struct sip_pvt *p, struct sip_request *req, char *uri
             break;
         case -3:
 	    if (global_alwaysauthreject) {
-		transmit_fake_auth_response(p, p->initreq, p->randdata, sizeof(p->randdata));
+		transmit_fake_auth_response(p, p->initreq);
 	    } else {
 		/* URI not found */
 		transmit_response(p, "404 Not found", p->initreq);
@@ -8988,7 +8979,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
             cw_shrink_phone_number(p->cid_num);
         }
 
-        if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri2)))
+        if (!(res = check_auth(p, req, user->randdata, sizeof(user->randdata), user->name, user->secret, user->md5secret, sipmethod, uri2)))
         {
             sip_cancel_destroy(p);
             cw_copy_flags(p, user, SIP_FLAGS_TO_COPY);
@@ -9097,7 +9088,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
                 p->peersecret[0] = '\0';
                 p->peermd5secret[0] = '\0';
             }
-            if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri)))
+            if (!(res = check_auth(p, req, peer->randdata, sizeof(peer->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri)))
             {
                 cw_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
                 /* If we have a call limit, set flag */
@@ -9168,6 +9159,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, enum sipm
             } else if (global_allowguest == 2)
             {
                 cw_copy_flags(p, &global_flags, SIP_OSPAUTH);
+		/* FIXME: if we allow OSPAUTH'd guests we have to put randdata in
+		 * the dialogue (we have no peer or user). But that means we have
+		 * to have created an early dialogue and we have to keep it around
+		 * long enough to get the retransmit with auth. Which we don't.
+		 */
                 res = check_auth(p, req, p->randdata, sizeof(p->randdata), "", "", "", sipmethod, uri);
 #endif
             }
@@ -10823,7 +10819,7 @@ static int sip_notify(struct cw_dynstr *ds_p, int argc, char *argv[])
             transmit_sip_request(p, req);
         }
 
-        sip_scheddestroy(p, -1);
+        sip_destroy(p);
         cw_object_put(p);
     }
 
@@ -11504,12 +11500,11 @@ static void check_pendings(struct sip_pvt *p)
 	/* if we can't BYE, then this is really a pending CANCEL */
 	if (!cw_test_flag(p, SIP_CAN_BYE))
 	    transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 0);
-		/* Actually don't destroy us yet, wait for the 487 on our original 
-		   INVITE, but do set an autodestruct just in case we never get it. */
 	else 
 	    transmit_request_with_auth(p, SIP_BYE, 0, 1);
+
 	cw_clear_flag(p, SIP_PENDINGBYE);	
-	sip_scheddestroy(p, -1);
+	sip_destroy(p);
     }
     else if (cw_test_flag(p, SIP_NEEDREINVITE))
     {
@@ -11825,9 +11820,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         r->regattempts = 0;
         if (sipdebug) cw_log(CW_LOG_DEBUG, "Registration successful\n");
 
-        /* Let this one hang around until we have all the responses */
-        sip_scheddestroy(p, -1);
-
         /* set us up for re-registering */
         /* figure out how long we got registered for */
         /* according to section 6.13 of RFC, contact headers override
@@ -11889,6 +11881,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, struct sip_requ
         cw_object_put(r);
         p->registry = NULL;
 
+        sip_destroy(p);
         return 1;
     }
 
@@ -11963,13 +11956,7 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
                 if (p->owner) {
                     cw_log(CW_LOG_WARNING, "Notify answer on an owned channel?\n");
                     cw_queue_hangup(p->owner);
-                } else {
-                    if (p->subscribed == NONE)
-                        sip_destroy(p);
                 }
-	    } else if (req->cseq_method == SIP_BYE) {
-		/* Ok, we're ready to go */
-		sip_destroy(p);
 	    } 
             break;
         case 401: /* Not www-authorized on SIP method */
@@ -12006,8 +11993,13 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
                     cw_set_flag(p, SIP_ALREADYGONE);
                     cw_queue_hangup(p->owner);
                 }
-            } else
+            } else {
+	        if (p->subscribed) {
+		        transmit_state_notify(p, CW_EXTENSION_DEACTIVATED, 1);    /* Send first notification */
+		        p->subscribed = NONE;
+	        }
                 sip_destroy(p);
+            }
 	    break;
         case 501: /* Not Implemented */
             cw_log(CW_LOG_WARNING, "Host %#l@ (received from %#l@) does not implement %s\n", &p->peeraddr.sa, &req->recvdaddr.sa, msg);
@@ -12072,16 +12064,11 @@ static void handle_response(struct sip_pvt *p, struct sip_request *req)
         /* Responses to OUTGOING SIP requests on INCOMING calls 
          * get handled here. As well as out-of-call message responses
 	 */
-        if (req->debug)
-            cw_log(CW_LOG_DEBUG, "SIP Response message for INCOMING dialog %s arrived\n", msg);
-
         switch(resp) {
         case 200:
             if (req->cseq_method == SIP_CANCEL) {
                 cw_log(CW_LOG_DEBUG, "Got 200 OK on CANCEL\n");
             } else if (req->cseq_method == SIP_MESSAGE)
-                sip_destroy(p);
-            else if (req->cseq_method == SIP_BYE)
                 sip_destroy(p);
             break;
         case 401:    /* www-auth */
@@ -12394,12 +12381,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req)
 	if (!p->lastinvite && !p->owner) {
 		/* Handle authentication if this is our first invite */
 		res = check_user_full(p, req, SIP_INVITE, req->pkt.data + req->uriresp, NULL, 0);
-	if (res > 0)
-		return 0;
+		if (res > 0)
+			return 0;
 		if (res < 0) {
 			if (res == -4) {
 				cw_log(CW_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, SIP_HDR_FROM));
-				transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata));
+				transmit_fake_auth_response(p, req);
 			} else {
 				cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, SIP_HDR_FROM));
 				transmit_response(p, "403 Forbidden", req);
@@ -12944,7 +12931,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req)
         {
 		if (res == -4) {
 			cw_log(CW_LOG_NOTICE, "Sending fake auth rejection for user %s\n", get_header(req, SIP_HDR_FROM));
-			transmit_fake_auth_response(p, req, p->randdata, sizeof(p->randdata));
+			transmit_fake_auth_response(p, req);
 		} else {
 			cw_log(CW_LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, SIP_HDR_FROM));
 			transmit_response(p, "403 Forbidden", req);
@@ -13098,7 +13085,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req)
         else
         {
             transmit_response(p, "200 OK", req);
-            transmit_state_notify(p, firststate, 1, 1, 0);    /* Send first notification */
+            transmit_state_notify(p, firststate, 1);    /* Send first notification */
 
 	    /* remove any old subscription from this peer for the same exten/context,
 	       as the peer has obviously forgotten about it and it's wasteful to wait
@@ -13125,14 +13112,12 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req)
 
 	p->initreq = cw_object_dup(req);
 
-	if ((res = register_verify(p, req, req->pkt.data + req->uriresp)) < 0) {
+	if ((res = register_verify(p, req, &req->pkt.data[req->uriresp])) < 0) {
 		cw_log(CW_LOG_NOTICE, "Registration of '%s' from %#l@ failed: %s\n", get_header(req, SIP_HDR_TO), &req->recvdaddr.sa, (res == -1 ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain")));
 	}
 
-	if (res < 1) {
-		/* Destroy the session, but keep us around for just a bit in case they don't get our 200 OK */
-		sip_scheddestroy(p, -1);
-	}
+	if (res < 1)
+		sip_destroy(p);
 
 	return res;
 }
@@ -13281,11 +13266,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, int *nounl
 		    cw_object_put(p->pendinginvite);
             cw_object_put(p->pendinginvite);
             p->pendinginvite = NULL;
+	    /* FIXME: ACKs don't have SDP, do they? Can they? */
             if (mime_process(p, req, mime_sdp_actions, arraysize(mime_sdp_actions)) < 0)
                 return -1;
             check_pendings(p);
         }
-        if (!p->lastinvite && cw_strlen_zero(p->randdata))
+        if (!p->lastinvite)
             sip_destroy(p);
         break;
     default:
@@ -13386,7 +13372,7 @@ static int handle_message(struct sip_request *msg)
 						cw_log(CW_LOG_ERROR, "%#l@ sent a tag longer than we can handle (%d > %lu, tag = \"%.*s\"\n", &msg->recvdaddr.sa, msg->taglen, (unsigned long)sizeof(dialogue->theirtag), msg->taglen, msg->pkt.data + msg->tag);
 
 						transmit_error(msg, "500 Server internal error");
-						sip_scheddestroy(dialogue, -1);
+						sip_destroy(dialogue);
 						cw_mutex_unlock(&dialogue->lock);
 						if (dialogue->owner)
 							cw_channel_unlock(dialogue->owner);
@@ -13633,7 +13619,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
     /* Send MWI */
     cw_set_flag(p, SIP_OUTGOING);
     transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
-    sip_scheddestroy(p, -1);
+    sip_destroy(p);
     cw_object_put(p);
     return 0;
 }
