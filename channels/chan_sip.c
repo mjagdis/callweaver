@@ -5816,7 +5816,12 @@ static void transmit_response(struct sip_pvt *p, const char *status, struct sip_
 					struct timespec ts;
 
 					cw_clock_gettime(global_clock_monotonic, &ts);
-					/* FIXME: don't we want the time delta here?!? */
+
+					ts.tv_sec -= msg->txtime.tv_sec;
+					if ((ts.tv_nsec -= msg->txtime.tv_nsec) < 0) {
+						ts.tv_sec--;
+						ts.tv_nsec += 1000000000L;
+					}
 					cw_dynstr_printf(&msg->pkt, "Timestamp: %s %lu.%09lu\r\n", s, ts.tv_sec, ts.tv_nsec);
 				} else {
 					cw_dynstr_printf(&msg->pkt, "Timestamp: %s\r\n", s);
