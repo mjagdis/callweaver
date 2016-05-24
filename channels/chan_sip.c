@@ -13118,7 +13118,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req)
 	p->initreq = cw_object_dup(req);
 
 	if ((res = register_verify(p, req, &req->pkt.data[req->uriresp])) < 0) {
-		cw_log(CW_LOG_NOTICE, "Registration of '%s' from %#l@ failed: %s\n", get_header(req, SIP_HDR_TO), &req->recvdaddr.sa, (res == -1 ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain")));
+		cw_log(CW_LOG_DEBUG, "Registration of '%s' from %#l@ failed: %s\n", get_header(req, SIP_HDR_TO), &req->recvdaddr.sa, (res == -1 ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain")));
 	}
 
 	if (res < 1)
