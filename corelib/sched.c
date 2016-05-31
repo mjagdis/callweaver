@@ -215,20 +215,19 @@ static void *service_thread(void *data)
 				res = 0;
 				if (copy.callback)
 					res = copy.callback(copy.data);
-				else {
-					res = 0;
+				else
 					cw_log(CW_LOG_ERROR, "null callback in 0x%p\n", current);
-				}
 
 				cw_mutex_lock(&con->lock);
 
 				/* If they return non-zero and nothing else has taken charge of the
-				 * schedule entry in the meantime we schedule them to be run again.
+				 * schedule entry in the meantime we schedule them to be run again,
+				 * otherwise we do the clean up.
 				 */
-				if (copy.failed && res) {
-					if (copy.vers != current->vers || cw_sched_add_variable_nolock(con, current, res, copy.callback, copy.data, copy.failed))
-						copy.failed(copy.data);
-				}
+				if (res
+				&& (copy.vers != current->vers || cw_sched_add_variable_nolock(con, current, res, copy.callback, copy.data, copy.failed))
+				&& copy.failed)
+					copy.failed(copy.data);
 			}
 
 			/* We've no idea how long that batch of jobs took so we recheck
