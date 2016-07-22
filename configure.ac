@@ -920,6 +920,30 @@ AC_CHECK_HEADERS([spandsp/version.h],[HAVE_SPANDSP_VERSION_H=1],[AC_MSG_ERROR(Sp
 ])
 
 dnl ###########################################################################
+
+AC_ARG_WITH([vale-includes],
+	[AC_HELP_STRING([--with-vale-includes],[Location of Vale include files.])],
+	[CFLAGS="$CFLAGS -I${withval}"])
+
+AC_ARG_WITH([vale-libs],
+	[AC_HELP_STRING([--with-vale-libs],[Location of Vale library files.])],
+	[LDFLAGS="$LDFLAGS -L${withval}"])
+
+AC_CHECK_HEADERS([vale.h],[HAVE_VALE_H=1],[AC_MSG_ERROR(Vale version 0.0.1 or newer is required to compile Callweaver.)])
+
+AC_CHECK_HEADERS([vale/version.h],[HAVE_VALE_VERSION_H=1],[AC_MSG_ERROR(Vale does not appear to be new enough. You must have version 0.0.1 or newer to compile Callweaver.)],
+[#include <arpa/inet.h>
+#ifdef HAVE_VALE_H
+#include <vale.h>
+#endif
+#include <vale/version.h>
+
+#if VALE_RELEASE_DATE < 20070922
+#error
+#endif
+])
+
+dnl ###########################################################################
 dnl ###########################################################################
 dnl ###
 dnl ### Optional stuff
