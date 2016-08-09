@@ -14577,8 +14577,10 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
             struct addrinfo *addrs;
 	    int err;
 
+ipaddr:
             if (!(err = cw_getaddrinfo(v->value, DEFAULT_SIP_PORT_STR, &hints, &addrs, NULL))) {
                 memcpy(&peer->addr, addrs->ai_addr, addrs->ai_addrlen);
+		freeaddrinfo(addrs);
                 addr_defined = 1;
             } else
                 cw_log(CW_LOG_ERROR, "%s: %s\n", v->value, gai_strerror(err));
@@ -14652,6 +14654,8 @@ static struct sip_peer *build_peer(const char *name, struct cw_variable *v, int 
                     obproxyfound=1;
 		} else
                     cw_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
+
+		goto ipaddr;
             }
         }
         else if (!strcasecmp(v->name, "defaultip"))
