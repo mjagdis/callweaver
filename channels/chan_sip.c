@@ -5193,8 +5193,12 @@ static struct sip_request *respprep(struct sip_pvt *p, const char *msg, const st
 	if (!strcasestr(ot, ";tag=") && strncmp(msg, "100 ", 4)) {
 		/* Add the proper tag if we don't have it already.  If they have specified
 		   their tag, use it.  Otherwise, use our own tag */
-		cw_dynstr_printf(&resp->pkt, "%s: %s;tag=%s\r\n", sip_hdr_name[SIP_NHDR_TO], ot,
-			(!cw_strlen_zero(p->theirtag) && cw_test_flag(p, SIP_OUTGOING) ? p->theirtag : p->tag));
+		if (!cw_strlen_zero(p->theirtag) && cw_test_flag(p, SIP_OUTGOING))
+			cw_dynstr_printf(&resp->pkt, "%s: %s;tag=%s\r\n", sip_hdr_name[SIP_NHDR_TO], ot, p->theirtag);
+		else if (!cw_strlen_zero(p->tag))
+			cw_dynstr_printf(&resp->pkt, "%s: %s;tag=%s\r\n", sip_hdr_name[SIP_NHDR_TO], ot, p->tag);
+		else
+			cw_dynstr_printf(&resp->pkt, "%s: %s\r\n", sip_hdr_name[SIP_NHDR_TO], ot);
 	} else
 		cw_dynstr_printf(&resp->pkt, "%s: %s\r\n", sip_hdr_name[SIP_NHDR_TO], ot);
 
